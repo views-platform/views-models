@@ -12,15 +12,15 @@ def generate():
     
     # VIEWSER 6, Example configuration. Modify as needed.
 
-    queryset_base = (Queryset('fatalities003_all_features','country_month')
-                     
-    .with_column(Column('gleditsch_ward', from_loa='country', from_column='gwcode')
-                 )
-
+    qs_1 = (Queryset('fatalities003_all_features_1','country_month')
+            
     .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
         .transform.ops.ln()
         .transform.missing.fill()
         )
+                     
+    .with_column(Column('gleditsch_ward', from_loa='country', from_column='gwcode')
+                 )
 
     .with_column(Column('ln_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
         .transform.ops.ln()
@@ -586,6 +586,21 @@ def generate():
         .transform.missing.fill()
         )
 
+    .with_theme('fatalities002')
+    .describe("""Predicting ln(fatalities), cm level
+    
+                             Queryset with the first part of all features
+    
+                             """)
+    )
+
+    qs_2 = (Queryset('fatalities003_all_features_2','country_month')
+            
+    .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .transform.ops.ln()
+        .transform.missing.fill()
+        )
+            
     .with_column(Column('topic_ste_theta0_stock_t1', from_loa='country_month', from_column='topic_ste_theta0_stock')
         .transform.missing.fill()
         .transform.missing.replace_na()
@@ -817,6 +832,7 @@ def generate():
         .transform.missing.fill()
         )
 
+    
     .with_column(Column('topic_ste_theta11_stock_t1', from_loa='country_month', from_column='topic_ste_theta11_stock')
         .transform.missing.fill()
         .transform.missing.replace_na()
@@ -1295,9 +1311,15 @@ def generate():
     .with_theme('fatalities002')
     .describe("""Predicting ln(fatalities), cm level
     
-                             Queryset with all features
+                             Queryset with the second part of all features
     
                              """)
     )
+    
+
+    queryset_base = Queryset.from_merger([qs_1, qs_2], 
+                                         name='fatalities003_all_features',
+                                         theme='fatalities002',
+                                         description='Predicting ln(fatalities), cm level, queryset with all features')
 
     return queryset_base
