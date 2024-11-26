@@ -1,14 +1,22 @@
+#!/bin/zsh
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  chsh -s /bin/zsh
-  echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc                           
-  echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
-  echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+  if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
+    echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
+  fi
+  if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
+    echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
+  fi
+  if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
+    echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+  fi
   source ~/.zshrc
 fi
 
-path="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../" >/dev/null 2>&1 && pwd )"
-echo $path
-env_path="$path/envs/views_stepshifter"
+script_path=$(dirname "$(realpath $0)")
+project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
+env_path="$project_path/envs/views_stepshifter"
+
 eval "$(conda shell.bash hook)"
 
 if [ -d "$env_path" ]; then
@@ -17,6 +25,7 @@ if [ -d "$env_path" ]; then
   echo "$env_path is activated"
 
   missing_packages=$(pip install --dry-run -r requirements.txt 2>&1 | grep "Requirement already satisfied" | wc -l)
+  echo "these are MIIsSING $missing_packages "
   if [ "$missing_packages" -gt 0 ]; then
     echo "Installing missing or outdated packages..."
     pip install -r requirements.txt
@@ -30,4 +39,5 @@ else
   pip install -r requirements.txt
 fi
 
-python main.py "$@"
+echo "Running $script_path/main.py "
+python $script_path/main.py "$@"
