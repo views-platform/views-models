@@ -24,11 +24,10 @@ if [ -d "$env_path" ]; then
   conda activate $env_path
   echo "$env_path is activated"
 
-  missing_packages=$(pip install --dry-run -r requirements.txt 2>&1 | grep "Requirement already satisfied" | wc -l)
-  echo "these are MIIsSING $missing_packages "
+  missing_packages=$(pip install --dry-run -r $script_path/requirements.txt 2>&1 | grep "Requirement already satisfied" | wc -l)
   if [ "$missing_packages" -gt 0 ]; then
     echo "Installing missing or outdated packages..."
-    pip install -r requirements.txt
+    pip install -r $script_path/requirements.txt
   else
     echo "All packages are up-to-date."
   fi
@@ -36,7 +35,7 @@ else
   echo "Creating new Conda environment at $env_path..."
   conda create --prefix "$env_path" python=3.11 -y
   source activate $env_path
-  pip install -r requirements.txt
+  pip install -r $script_path/requirements.txt
 fi
 
 echo "Running $script_path/main.py "
