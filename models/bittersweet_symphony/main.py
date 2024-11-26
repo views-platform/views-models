@@ -22,6 +22,5 @@ if __name__ == "__main__":
     validate_arguments(args)
     if args.sweep:
         StepshifterManager(model_path=model_path).execute_sweep_run(args)
-        # execute_sweep_run(args)
     else:
         StepshifterManager(model_path=model_path).execute_single_run(args)
