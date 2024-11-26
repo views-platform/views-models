@@ -1,6 +1,14 @@
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  chsh -s /bin/zsh
+  echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc                           
+  echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
+  echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+  source ~/.zshrc
+fi
+
 path="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../" >/dev/null 2>&1 && pwd )"
 echo $path
-env_path="$path/venv"
+env_path="$path/envs/views_stepshifter"
 eval "$(conda shell.bash hook)"
 
 if [ -d "$env_path" ]; then
