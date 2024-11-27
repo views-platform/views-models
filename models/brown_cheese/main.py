@@ -20,6 +20,7 @@ if __name__ == "__main__":
     wandb.login()
     args = parse_args()
     validate_arguments(args)
+    
     if args.sweep:
         StepshifterManager(model_path=model_path).execute_sweep_run(args)
     else:
