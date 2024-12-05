@@ -1,35 +1,24 @@
 import wandb
-import sys
 import warnings
-
 from pathlib import Path
-PATH = Path(__file__)
-sys.path.insert(0, str(Path(
-    *[i for i in PATH.parts[:PATH.parts.index("views_pipeline") + 1]]) / "common_utils"))  # PATH_COMMON_UTILS
-from set_path import setup_project_paths
-setup_project_paths(PATH)
-
-from utils_cli_parser import parse_args, validate_arguments
-from utils_logger import setup_logging
-from execute_model_runs import execute_single_run
+from views_pipeline_core.cli.utils import parse_args, validate_arguments
+from views_pipeline_core.logging.utils import setup_logging
+from views_pipeline_core.managers.path_manager import EnsemblePath
+from views_pipeline_core.managers.ensemble_manager import EnsembleManager
 
 warnings.filterwarnings("ignore")
+
 try:
-    from common_utils.ensemble_path import EnsemblePath
-    from views_pipeline.views_pipeline.cache.global_cache import GlobalCache
-    model_name = EnsemblePath.get_model_name_from_path(PATH)
-    GlobalCache["current_model"] = model_name
-except ImportError as e:
-    warnings.warn(f"ImportError: {e}. Some functionalities (model seperated log files) may not work properly.", ImportWarning)
+    ensemble_path = EnsemblePath(Path(__file__))
 except Exception as e:
-    warnings.warn(f"An unexpected error occurred: {e}.", RuntimeWarning)
-logger = setup_logging("run.log")
+    raise RuntimeError(f"An unexpected error occurred: {e}.")
+
+logger = setup_logging(logging_path=ensemble_path.logging)
 
 
 if __name__ == "__main__":
     wandb.login()
-
     args = parse_args()
     validate_arguments(args)
-
-    execute_single_run(args)
+    
+    EnsembleManager(ensemble_path=ensemble_path).execute_single_run(args)

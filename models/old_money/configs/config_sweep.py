@@ -13,7 +13,7 @@ def get_sweep_config():
 
     parameters_dict = {
         "steps": {"values": [[*range(1, 36 + 1, 1)]]},
-        "cls_n_estimators": {"values": [100, 200]},
+        "clf_n_estimators": {"values": [100, 200]},
         "reg_n_estimators": {"values": [100, 200]},
     }
 
