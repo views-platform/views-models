@@ -12,7 +12,8 @@ from views_pipeline_core.templates.model import (
     template_config_sweep,
     template_main,
 )
-from views_pipeline_core.managers.path_manager import ModelPath, EnsemblePath
+from views_pipeline_core.managers.model import ModelPathManager
+from views_pipeline_core.managers.ensemble import EnsemblePathManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class ModelScaffoldBuilder:
 
     Attributes:
         model_name (str): The name of the model for which the directory structure is to be created.
-        _model (ModelPath): An instance of the ModelPath class to manage model paths.
+        _model (ModelPathManager): An instance of the ModelPathManager class to manage model paths.
         _subdirs (list of str): A list of subdirectories to be created within the model directory.
         _scripts (list of str): A list of script paths to be created within the model directory.
         _model_algorithm (str): The algorithm used by the model.
@@ -76,7 +77,7 @@ class ModelScaffoldBuilder:
         Returns:
             None
         """
-        self._model = ModelPath(model_name, validate=False)
+        self._model = ModelPathManager(model_name, validate=False)
         self._subdirs = self._model.get_directories().values()
         self._scripts = self._model.get_scripts().values()
         self._model_algorithm = None
@@ -189,7 +190,7 @@ class ModelScaffoldBuilder:
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first."
             )
-        updated_model_path = ModelPath(self._model.model_name, validate=True)
+        updated_model_path = ModelPathManager(self._model.model_name, validate=True)
         assessment["structure_errors"] = set(
             updated_model_path.get_directories().values()
         ) - set(self._subdirs)
@@ -235,9 +236,9 @@ class ModelScaffoldBuilder:
 if __name__ == "__main__":
     model_name = str(input("Enter the name of the model: "))
     while (
-        not ModelPath.validate_model_name(model_name)
-        or ModelPath.check_if_model_dir_exists(model_name)
-        or EnsemblePath.check_if_model_dir_exists(model_name)
+        not ModelPathManager.validate_model_name(model_name)
+        or ModelPathManager.check_if_model_dir_exists(model_name)
+        or EnsemblePathManager.check_if_model_dir_exists(model_name)
     ):
         error = "Invalid input. Please use the format 'adjective_noun' in lowercase, e.g., 'happy_kitten' that does not already exist as a model or ensemble."
         logging.error(error)
