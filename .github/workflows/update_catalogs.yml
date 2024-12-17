@@ -2,7 +2,7 @@ name: Update Model Catalogs
 on:
   push:
     branches:
-      - create_pgm_catalog_01 # for testing on this branch
+      - create_catalogs_01 # for testing on this branch
       - main
       - development
     paths:
