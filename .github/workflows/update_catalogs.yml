@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - create_pgm_catalog_01 # for testing on this branch
-      - production
+      - main
       - development
     paths:
       - models/*/configs/config_*.py
