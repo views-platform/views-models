@@ -11,13 +11,15 @@ on:
   workflow_dispatch: # for triggering manually
 
 jobs:
-  check-new-folder:
+  check-new-model:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          repository: views-platform/views-models
+          token: ${{ secrets.GITHUB_TOKEN }}
+          #fetch-depth: 0
       
       - name: Generate catalog if models directory has changed
         run: |
