@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: views-platform/views-models
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.VIEWS_MODELS_ACCESS_TOKEN }}
           #fetch-depth: 0
 
       - name: Set up Python
@@ -50,5 +50,5 @@ jobs:
         run: |
           git add README.md
           git commit -m "Automated changes by GitHub Actions" || echo "Nothing to commit"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/views-platform/views-models.git
+          git push https://${{ secrets.VIEWS_MODELS_ACCESS_TOKEN }}@github.com/views-platform/views-models.git
       
