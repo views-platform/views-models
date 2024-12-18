@@ -12,7 +12,7 @@ from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
 
 
-GITHUB_URL = 'https://github.com/prio-data/views_pipeline/blob/main/' 
+GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
 
 
 
@@ -201,25 +201,21 @@ if __name__ == "__main__":
     for model_type in base_dirs:
         if os.path.isdir(model_type):
             for model_name in sorted(os.listdir(model_type)):
-                model_path = os.path.join(model_type, model_name)
-                if os.path.isdir(model_path):  
-                    if model_type=='models':
-                        model_class = ModelPathManager(model_name, validate=True)
-                        model = extract_models(model_class)
-            
-                        if 'level' in model and model['level'] == 'pgm':
-                            models_list_pgm.append(model)
-                        elif 'level' in model and model['level'] == 'cm':
-                            models_list_cm.append(model)
-
-
-
-
-
-                    elif model_type=='ensembles':
-                        ensemble_class = EnsemblePathManager(model_name, validate=True)
-                        model = extract_models(ensemble_class)
-                        ensemble_list.append(model)
+                if  ModelPathManager.validate_model_name(model_name):
+                    model_path = os.path.join(model_type, model_name)
+                    print(model_path)
+                    if os.path.isdir(model_path):  
+                        if model_type=='models':
+                            model_class = ModelPathManager(model_name, validate=True)
+                            model = extract_models(model_class)
+                            if 'level' in model and model['level'] == 'pgm':
+                                models_list_pgm.append(model)
+                            elif 'level' in model and model['level'] == 'cm':
+                                models_list_cm.append(model)
+                        elif model_type=='ensembles':
+                            ensemble_class = EnsemblePathManager(model_name, validate=True)
+                            model = extract_models(ensemble_class)
+                            ensemble_list.append(model)
                         
 
 
