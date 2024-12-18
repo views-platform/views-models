@@ -6,7 +6,6 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
     meta_config = {
         "name": "white_mustang",
         "models": ["lavender_haze", "blank_space"],

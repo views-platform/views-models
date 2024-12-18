@@ -21,6 +21,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           #fetch-depth: 0
       
+      - name: Install dependencies
+        run: |
+          pip install views_pipeline_core
+
+
       - name: Generate catalog if models directory has changed
         run: |
           python create_catalogs.py  
