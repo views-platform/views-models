@@ -193,7 +193,7 @@ class ModelScaffoldBuilder:
             model_algorithm=self._model_algorithm,
         )
         template_main.generate(script_path=self._model.model_dir / "main.py")
-        print(f"Remember to update the queryset file at {self._model.queryset_path}!")
+        print(f"\033[91m\033[1mRemember to update the queryset file at {self._model.queryset_path}!\033[0m")
 
     def assess_model_directory(self) -> dict:
         """
@@ -235,12 +235,20 @@ class ModelScaffoldBuilder:
 
     def assess_model_scripts(self) -> dict:
         """
-        Assess the model directory by checking for the presence of expected directories.
+        Assess the presence of model scripts in the model directory.
+
+        This method checks if the model directory exists and verifies the presence
+        of each script specified in the `_scripts` attribute. If the model directory
+        does not exist, a `FileNotFoundError` is raised. The method returns a 
+        dictionary containing the model directory path and a set of missing scripts.
 
         Returns:
-            dict: A dictionary containing assessment results with two keys:
-                - 'model_dir': The path to the model directory.
-                - 'structure_errors': A list of errors related to missing directories or files.
+            dict: A dictionary with the following keys:
+                - "model_dir" (Path): The path to the model directory.
+                - "missing_scripts" (set): A set of script paths that are missing.
+
+        Raises:
+            FileNotFoundError: If the model directory does not exist.
         """
         assessment = {"model_dir": self._model.model_dir, "missing_scripts": set()}
         if not self._model.model_dir.exists():
