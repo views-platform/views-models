@@ -1,4 +1,5 @@
 from pathlib import Path
+
 # from utils.utils_model_naming import validate_model_name
 import datetime
 import logging
@@ -67,15 +68,18 @@ class ModelScaffoldBuilder:
                     - 'missing_scripts': A set of missing script paths.
     """
 
-    def __init__(self, model_name) -> None:
+    def __init__(self, model_name: str) -> None:
         """
         Initialize a ModelDirectory object with the given model name and set up paths.
 
         Args:
             model_name (str): The name of the model for which directories and files are to be created.
 
-        Returns:
-            None
+        Attributes:
+            _model (ModelPathManager): An instance of ModelPathManager initialized with the given model name.
+            _subdirs (dict_values): The subdirectories associated with the model.
+            _scripts (dict_values): The scripts associated with the model.
+            _model_algorithm (None): Placeholder for the model algorithm, initially set to None.
         """
         self._model = ModelPathManager(model_name, validate=False)
         self._subdirs = self._model.get_directories().values()
@@ -135,12 +139,29 @@ class ModelScaffoldBuilder:
         return self._model.model_dir
 
     def build_model_scripts(self):
+        """
+        Generates various model configuration and script files required for the model.
+
+        This method performs the following steps:
+        1. Checks if the model directory exists. If not, raises a FileNotFoundError.
+        2. Prompts the user to input the algorithm of the model.
+        3. Generates the `config_deployment.py` script.
+        4. Generates the `config_hyperparameters.py` script.
+        5. Generates the queryset configuration script.
+        6. Generates the `config_meta.py` script with model name and algorithm.
+        7. Generates the `config_sweep.py` script with model name and algorithm.
+        8. Generates the main script for the model.
+        9. Reminds the user to update the queryset file.
+
+        Raises:
+            FileNotFoundError: If the model directory does not exist.
+        """
         if not self._model.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first. Aborting script generation."
             )
         template_config_deployment.generate(
-            script_dir=self._model.configs / "config_deployment.py"
+            script_path=self._model.configs / "config_deployment.py"
         )
         self._model_algorithm = str(
             input(
@@ -155,42 +176,57 @@ class ModelScaffoldBuilder:
         # if not self._model_manager_name:
         #     self._model_manager_name = "StepshifterManager"
         template_config_hyperparameters.generate(
-            script_dir=self._model.configs / "config_hyperparameters.py",
+            script_path=self._model.configs / "config_hyperparameters.py",
         )
         template_config_queryset.generate(
-            script_dir=self._model.queryset_path,
+            script_path=self._model.queryset_path,
             model_name=self._model.model_name,
         )
         template_config_meta.generate(
-            script_dir=self._model.configs / "config_meta.py",
+            script_path=self._model.configs / "config_meta.py",
             model_name=self._model.model_name,
             model_algorithm=self._model_algorithm,
         )
         template_config_sweep.generate(
-            script_dir=self._model.configs / "config_sweep.py",
+            script_path=self._model.configs / "config_sweep.py",
             model_name=self._model.model_name,
             model_algorithm=self._model_algorithm,
         )
-        template_main.generate(script_dir=self._model.model_dir / "main.py")
-        # INFO: utils_outputs.py was not templated because it will probably be moved to common_utils in the future.
+        template_main.generate(script_path=self._model.model_dir / "main.py")
         print(f"Remember to update the queryset file at {self._model.queryset_path}!")
-
 
     def assess_model_directory(self) -> dict:
         """
-        Assess the model directory by checking for the presence of expected directories.
+        Assess the structure of the model directory and return any discrepancies.
+
+        This method checks if the model directory exists and validates its structure
+        based on the target type ('model' or 'ensemble'). It returns a dictionary
+        containing the model directory path and any structural errors found.
 
         Returns:
-            dict: A dictionary containing assessment results with two keys:
-                - 'model_dir': The path to the model directory.
-                - 'structure_errors': A list of errors related to missing directories or files.
+            dict: A dictionary with the following keys:
+                - "model_dir" (Path): The path to the model directory.
+                - "structure_errors" (list): A list of structural errors found in the model directory.
+
+        Raises:
+            FileNotFoundError: If the model directory does not exist.
+            ValueError: If the target type is invalid.
         """
         assessment = {"model_dir": self._model.model_dir, "structure_errors": []}
         if not self._model.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first."
             )
-        updated_model_path = ModelPathManager(self._model.model_name, validate=True)
+        if self._model.target == "model":
+            updated_model_path = ModelPathManager(self._model.model_name, validate=True)
+        elif self._model.target == "ensemble":
+            updated_model_path = EnsemblePathManager(
+                self._model.model_name, validate=True
+            )
+        else:
+            raise ValueError(
+                "Invalid target set in ModelPathManager: {self._model.target}."
+            )
         assessment["structure_errors"] = set(
             updated_model_path.get_directories().values()
         ) - set(self._subdirs)
@@ -216,9 +252,23 @@ class ModelScaffoldBuilder:
             if not script_path.exists():
                 assessment["missing_scripts"].add(script_path)
         return assessment
-    
+
     # Add a .gitkeep file to empty directories and remove it from non-empty directories
     def update_gitkeep_empty_directories(self, delete_gitkeep=True):
+        """
+        Updates the .gitkeep files in empty directories within the specified subdirectories.
+
+        This method iterates over the subdirectories specified in self._subdirs. For each subdirectory:
+        - If the subdirectory is empty, it creates a .gitkeep file if it does not already exist.
+        - If the subdirectory is not empty and delete_gitkeep is True, it removes the .gitkeep file if it exists.
+
+        Args:
+            delete_gitkeep (bool): If True, removes .gitkeep files from non-empty directories. Default is True.
+
+        Logs:
+            - Creation of .gitkeep files in empty directories.
+            - Removal of .gitkeep files from non-empty directories.
+        """
         for subdir in self._subdirs:
             subdir = Path(subdir)
             if not list(subdir.glob("*")):
@@ -231,7 +281,10 @@ class ModelScaffoldBuilder:
                     gitkeep_path = subdir / ".gitkeep"
                     if gitkeep_path.exists():
                         gitkeep_path.unlink()
-                        logging.info(f"Removed .gitkeep file from non-empty directory: {subdir}")
+                        logging.info(
+                            f"Removed .gitkeep file from non-empty directory: {subdir}"
+                        )
+
 
 if __name__ == "__main__":
     model_name = str(input("Enter the name of the model: "))
@@ -243,17 +296,17 @@ if __name__ == "__main__":
         error = "Invalid input. Please use the format 'adjective_noun' in lowercase, e.g., 'happy_kitten' that does not already exist as a model or ensemble."
         logging.error(error)
         model_name = str(input("Enter the name of the model: "))
-    model_directory_builder = ModelScaffoldBuilder(model_name)
-    model_directory_builder.build_model_directory()
-    assessment = model_directory_builder.assess_model_directory()
+    model_scaffold_builder = ModelScaffoldBuilder(model_name)
+    model_scaffold_builder.build_model_directory()
+    assessment = model_scaffold_builder.assess_model_directory()
     if not assessment["structure_errors"]:
         logging.info("Model directory structure is complete.")
     else:
         logging.warning(f"Structure errors: {assessment['structure_errors']}")
-    model_directory_builder.build_model_scripts()
-    assessment = model_directory_builder.assess_model_scripts()
+    model_scaffold_builder.build_model_scripts()
+    assessment = model_scaffold_builder.assess_model_scripts()
     if not assessment["missing_scripts"]:
         logging.info("All scripts have been successfully generated.")
     else:
         logging.warning(f"Missing scripts: {assessment['missing_scripts']}")
-    model_directory_builder.update_gitkeep_empty_directories()
+    model_scaffold_builder.update_gitkeep_empty_directories()
