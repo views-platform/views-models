@@ -1,10 +1,7 @@
 from pathlib import Path
-
-# from utils.utils_model_naming import validate_model_name
 import datetime
 import logging
-import sys
-
+from views_pipeline_core.configs.pipeline import PipelineConfig
 from views_pipeline_core.templates.model import (
     template_config_deployment,
     template_config_hyperparameters,
@@ -12,10 +9,12 @@ from views_pipeline_core.templates.model import (
     template_config_meta,
     template_config_sweep,
     template_main,
+    template_run_sh,
+    template_requirement_txt
 )
 from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
-
+from views_pipeline_core.managers.package import PackageManager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -85,6 +84,7 @@ class ModelScaffoldBuilder:
         self._subdirs = self._model.get_directories().values()
         self._scripts = self._model.get_scripts().values()
         self._model_algorithm = None
+        self.package_name = None
 
     def build_model_directory(self) -> Path:
         """
@@ -129,13 +129,13 @@ class ModelScaffoldBuilder:
         else:
             logging.error(f"Did not create README.md: {readme_path}")
 
-        requirements_path = self._model.model_dir / "requirements.txt"
-        with open(requirements_path, "w") as requirements_file:
-            requirements_file.write("# Requirements\n")
-        if requirements_path.exists():
-            logging.info(f"Created requirements.txt: {requirements_path}")
-        else:
-            logging.error(f"Did not create requirements.txt: {requirements_path}")
+        self.requirements_path = self._model.model_dir / "requirements.txt"
+        # with open(requirements_path, "w") as requirements_file:
+        #     requirements_file.write("# Requirements\n")
+        # if requirements_path.exists():
+        #     logging.info(f"Created requirements.txt: {requirements_path}")
+        # else:
+        #     logging.error(f"Did not create requirements.txt: {requirements_path}")
         return self._model.model_dir
 
     def build_model_scripts(self):
@@ -193,6 +193,16 @@ class ModelScaffoldBuilder:
             model_algorithm=self._model_algorithm,
         )
         template_main.generate(script_path=self._model.model_dir / "main.py")
+
+        self.package_name = str(input("Enter the name of the architecture package: "))
+        while (PackageManager.validate_package_name(self.package_name) == False):
+            error = "Invalid input. Please use the format 'views-packagename' in lowercase, e.g., 'views-stepshifter'."
+            logging.error(error)
+            self.package_name = str(input("Enter the name of the architecture package: "))
+        template_run_sh.generate(script_path=self._model.model_dir / "run.sh", package_name=self.package_name)
+        template_requirement_txt.generate(script_path=self.requirements_path, package_name=self.package_name, package_version_range=PackageManager.get_latest_release_version_from_github(self.package_name))
+
+
         print(f"\033[91m\033[1mRemember to update the queryset file at {self._model.queryset_path}!\033[0m")
 
     def assess_model_directory(self) -> dict:

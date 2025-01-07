@@ -1,12 +1,14 @@
 from build_model_scaffold import ModelScaffoldBuilder
 from pathlib import Path
 import logging
-
+from views_pipeline_core.configs.pipeline import PipelineConfig
 from views_pipeline_core.templates.ensemble import (
     template_config_deployment,
     template_config_hyperparameters,
     template_config_meta,
     template_main,
+    template_run_sh,
+    template_requirement_txt
 )
 from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
@@ -77,6 +79,8 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
             model_name=self._model.model_name,
         )
         template_main.generate(script_path=self._model.model_dir / "main.py")
+        template_run_sh.generate(script_path=self._model.model_dir / "run.sh")
+        template_requirement_txt.generate(script_path=self.requirements_path, pipeline_core_version_range=PipelineConfig().views_pipeline_core_version_range)
 
 
 if __name__ == "__main__":
