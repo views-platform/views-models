@@ -37,7 +37,7 @@ if __name__ == "__main__":
     if package_path == "":
         package_path = Path(os.getcwd()) / package_name
     else:
-        while not Path(package_path).exists():
+        while not Path(package_path).parent.exists():
             error = "Invalid input. Please enter a valid directory path."
             logging.error(error)
             package_path = str(input("Enter the base directory for the package: "))

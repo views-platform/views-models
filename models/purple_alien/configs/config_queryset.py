@@ -22,6 +22,5 @@ def generate():
         .with_column(Column("col", from_loa = "priogrid", from_column = "col"))
         .with_column(Column("row", from_loa = "priogrid", from_column = "row")))
 
-    return queryset_base
 
     return queryset_base
