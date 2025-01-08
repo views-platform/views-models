@@ -16,8 +16,13 @@ class PackageScaffoldBuilder:
         self._package_manager = package_manager
 
     def build_package_scaffold(self):
-        self._package_manager.create_views_package()
-        self._package_manager.validate_views_package()
+        try:
+            self._package_manager.create_views_package()
+            self._package_manager.validate_views_package()
+        except Exception as e:
+            logger.error(f"Error creating package scaffold: {e}")
+            raise e
+        
 
     def add_gitignore(self):
         template_gitignore.generate(self._package_manager.package_path / ".gitignore")
@@ -55,12 +60,7 @@ if __name__ == "__main__":
     package_scaffold_builder = PackageScaffoldBuilder(
         PackageManager(package_path, validate=False)
     )
-    try:
-        package_scaffold_builder.build_package_scaffold()
-    except Exception as e:
-        logging.error(f"Failed to create package scaffold: {e}")
-        exit(1)
-
+    package_scaffold_builder.build_package_scaffold()
     package_scaffold_builder.build_package_directories()
     package_scaffold_builder.build_package_scripts()
     package_scaffold_builder.add_gitignore()
