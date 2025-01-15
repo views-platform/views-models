@@ -61,7 +61,6 @@ def generate():
                     .transform.spatial.lag(1,1,0,0)
                     .transform.missing.replace_na()
                     )
-
                 .with_theme('fatalities')
                 .describe("""Fatalities conflict history, cm level
 
