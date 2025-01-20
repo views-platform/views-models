@@ -12,6 +12,7 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "XGBModel", 
         "model_reg": "XGBModel",
+        "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_joint_narrow",
         "level": "cm",

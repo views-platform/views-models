@@ -8,9 +8,10 @@ def get_meta_config():
     model_config = {
         "name": "electric_relaxation",
         "algorithm": "RandomForestModel", 
-        "depvar": "ged_sb_dep", #or target? 
+        "metrics": ["RMSLE", "CRPS"],
+        "depvar": "ged_sb_dep", 
         "queryset": "escwa001_cflong",
         "level": "cm",
-        "creator": "Sara" #new addition, could be useful for managing maintenance & transfer of ownership
+        "creator": "Sara" 
     }
-    return model_config #formerly common_config
+    return model_config 
