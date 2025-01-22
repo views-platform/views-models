@@ -31,4 +31,4 @@ if __name__ == "__main__":
     if args.sweep:
         StepshifterManager(model_path=model_path).execute_sweep_run(args)
     else:
-        StepshifterManager(model_path=model_path, wandb_notification=True).execute_single_run(args)
+        StepshifterManager(model_path=model_path).execute_single_run(args)
