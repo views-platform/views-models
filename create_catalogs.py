@@ -104,11 +104,14 @@ def generate_markdown_table(models_list):
     
     for model in models_list:
         
+        depvar = model.get('depvar', '')
+        if isinstance(depvar, list):
+            depvar = ', '.join(depvar)
 
         row = [
             model.get('name', ''),
             str(model.get('algorithm', '')).split('(')[0],
-            model.get('depvar', '') if model.get('depvar', '') else ", ".join(model.get('target(S)', '')),
+            depvar,
             model.get('queryset', ''),
             model.get('hyperparameters',''),
             'None',#Direct multi-step',
@@ -123,7 +126,7 @@ def generate_markdown_table(models_list):
 
 
 def update_readme_with_tables(
-    readme_path, pgm_table, cm_table, ensemble_table
+    readme_path, cm_table, pgm_table, ensemble_table
 ):
     """
     Updates the tables in README.md between defined placeholders.
