@@ -21,9 +21,6 @@ This repository contains all of the necesary components for creating new models 
     - [Country-Month Models](#country-month-model-catalog)
     - [PRIO-GRID-Month Model](#prio-grid-month-model-catalog)
     - [Ensambles](#ensemble-catalog)
-- [Platform Structure and Contents](#views-platform-organization-structure-and-contents)
-- [Further Resources and Documentation](#further-resources-and-documentation)
-- [About the VIEWS Project](#about-the-views-project)
 
 <!-- tocstop -->
 
