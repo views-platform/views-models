@@ -1,6 +1,67 @@
-# VIEWS Models
 
-## CM Model Catalog
+<div style="width: 100%; max-width: 1500px; height: 400px; overflow: hidden; position: relative;">
+  <img src="https://pbs.twimg.com/profile_banners/1237000633896652800/1717069203/1500x500" alt="VIEWS Twitter Header" style="position: absolute; top: -50px; width: 100%; height: auto;">
+</div>
+
+# Welcome to view-models repository! 
+
+This repository contains all of the necesary components for creating new models which are compatible with the VIEWS pipeline. The views-models repository also contains all of the already implemented VIEWS models (with the exception of [HydraNet](https://github.com/views-platform/views-hydranet)), at both PRIO-GRID-month and country-month levels of analysis, along with information about prediction targets, input data and model algorithms. 
+
+---
+
+## Table of contents
+
+<!-- toc -->
+
+- [Key Terms and Definitions](#key-terms-and-definitions)
+- [Model Naming Conventions](#model-naming-conventions) 
+- [Creating New Models](#creating-new-models)
+    - [Create a Model](#create-a-model)
+    - [Create an Ensamble](#create-an-ensamble)
+- [Implemented Models](#implemented-models)
+- [Model Catalogs](#catalogs)
+    - [Country-Month Models](#country-month-model-catalog)
+    - [PRIO-GRID-Month Model](#prio-grid-month-model-catalog)
+    - [Ensambles](#ensemble-catalog)
+- [Platform Structure and Contents](#views-platform-organization-structure-and-contents)
+- [Further Resources and Documentation](#further-resources-and-documentation)
+- [About the VIEWS Project](#about-the-views-project)
+
+<!-- tocstop -->
+
+---
+
+## Key Terms and Definitions 
+
+In VIEWS terminology a **model** is defined as: 
+1. A specific instantiation of a machine learning algorithm,
+2. Trained using a predetermined and unique set of hyperparameters,
+3. On a well-defined set of input features,
+4. And targeting a specific outcome target.
+5. In the case of stepshift models, a model is understood as all code and all artifacts necessary to generate a comprehensive 36 month forecast for the specified target.
+6. Note that, two models, identical in all other aspects, will be deemed distinct if varying post-processing techniques are applied to their generated predictions. For instance, if one model's predictions undergo calibration or normalization while the other's do not. Similarly, two models identical in all aspects are considered distinct if they utilize different input features (querysets).
+
+
+## Model Naming Conventions
+
+The models belonging to the VIEWS pipeline follow a predetermined naming standard. Models no longer carry descriptive titles (e.g., transform_log_clf_name_LGBMClassifier_reg_name_LGBMRegressor). Although such titles provided some information about the models, as  models are developed over time, such naming could cause confusion and ultimately small differences could not be communicated properly through the title. Instead, we rely on the metadata of the model for model specifications and being able to substantively differentiate them between each other.
+
+The new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
+
+## Creating New Models 
+
+### Create a Model
+
+### Create an Ensamble
+
+## Implemented Models
+
+## Catalogs
+
+2 levels of analysis + ensambles
+
+### Country-Month Model Catalog
+
 <!-- CM_TABLE_START -->
 | Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
@@ -27,7 +88,8 @@
 
 <!-- CM_TABLE_END -->
 
-## PGM Model Catalog
+### PRIO-GRID-Month Model Catalog
+
 <!-- PGM_TABLE_START -->
 | Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
@@ -47,7 +109,8 @@
 
 <!-- PGM_TABLE_END -->
 
-## Ensemble Catalog
+### Ensemble Catalog
+
 <!-- ENSEMBLE_TABLE_START -->
 | Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
