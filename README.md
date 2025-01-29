@@ -146,6 +146,6 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 ## Funding and Partners 
 
 <div style="width: 100%; max-width: 1500px; height: 400px; overflow: hidden; position: relative; margin-top: 50px;">
-  <img src="image.png" alt="Funder logos" style="position: absolute; top: -50px; width: 100%; height: auto;">
+  <img src="image-1.png" alt="Funder logos" style="position: absolute; top: -50px; width: 100%; height: auto;">
 </div>
 
