@@ -29,6 +29,6 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
     if args.sweep:
-        HydranetManager(model_path=model_path, wandb_notification=True).execute_sweep_run(args)
+        HydranetManager(model_path=model_path).execute_sweep_run(args)
     else:
-        HydranetManager(model_path=model_path, wandb_notification=True).execute_single_run(args)
+        HydranetManager(model_path=model_path).execute_single_run(args)
