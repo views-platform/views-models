@@ -16,8 +16,6 @@ This repository contains all of the necesary components for creating new models 
 - [Key Terms and Definitions](#key-terms-and-definitions)
 - [Model Naming Conventions](#model-naming-conventions) 
 - [Creating New Models](#creating-new-models)
-    - [Create a Model](#create-a-model)
-    - [Create an Ensamble](#create-an-ensamble)
 - [Implemented Models](#implemented-models)
 - [Model Catalogs](#catalogs)
     - [Country-Month Models](#country-month-model-catalog)
@@ -37,28 +35,43 @@ In VIEWS terminology a **model** is defined as:
 1. A specific instantiation of a machine learning algorithm,
 2. Trained using a predetermined and unique set of hyperparameters,
 3. On a well-defined set of input features,
+    - The specific input features for every model are reffered to as [querysets](https://github.com/prio-data/viewser?tab=readme-ov-file#via-api). 
 4. And targeting a specific outcome target.
-5. In the case of stepshift models, a model is understood as all code and all artifacts necessary to generate a comprehensive 36 month forecast for the specified target.
+5. In the case of [stepshift models](https://github.com/views-platform/views-stepshifter/blob/main/README.md), a model is understood as all code and all artifacts necessary to generate a comprehensive 36 month forecast for the specified target.
 6. Note that, two models, identical in all other aspects, will be deemed distinct if varying post-processing techniques are applied to their generated predictions. For instance, if one model's predictions undergo calibration or normalization while the other's do not. Similarly, two models identical in all aspects are considered distinct if they utilize different input features (querysets).
 
 
 ## Model Naming Conventions
 
-The models belonging to the VIEWS pipeline follow a predetermined naming standard. Models no longer carry descriptive titles (e.g., transform_log_clf_name_LGBMClassifier_reg_name_LGBMRegressor). Although such titles provided some information about the models, as  models are developed over time, such naming could cause confusion and ultimately small differences could not be communicated properly through the title. Instead, we rely on the metadata of the model for model specifications and being able to substantively differentiate them between each other.
+The models belonging to the VIEWS pipeline follow a predetermined naming standard. Models no longer carry descriptive titles (e.g., transform_log_clf_name_LGBMClassifier_reg_name_LGBMRegressor). Although such titles provided some information about the models, as  models are developed over time, this type of naming could cause confusion and ultimately small differences could not be communicated properly through the model titles. Instead, we rely on the metadata of the model for model specifications and being able to substantively differentiate them between each other.
 
-The new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
+Additionaly, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
 
 ## Creating New Models 
 
-### Create a Model
+The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
-### Create an Ensamble
+As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightfoward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
+
 
 ## Implemented Models
 
+In addition to the possibility of easily creating new models and ensembles, in order to maintain an organized and structured overview over all of th eimplemented models, the views-models repository also contains model catalogs containing all of the information about individual models. This information is collected from the metadata of each model and entails:
+1. Model name 
+2. Model algorithm
+3. The prediction target
+4. Input features/Queryset
+5. The non-default hyperparameters
+6. Forecasting type
+7. Implementation status
+8. Implementation date 
+9. The creator of the model
+
+The catalogs are automatically filled out and updated, through a GitHub action, with every new model or ensemble which is created.  
+
 ## Catalogs
 
-2 levels of analysis + ensambles
+The catalogs for all of the existing VIEWS models can be found below. The models catalogs are separated based on the models' level of analysis - country-month models and PRIO-GRID-month models, with the ensamble catalog all the way at the bottom. All of the information about algorithms, input features, hyperparameters and other model specification are included.
 
 ### Country-Month Model Catalog
 
