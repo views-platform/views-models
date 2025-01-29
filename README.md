@@ -40,6 +40,7 @@ In VIEWS terminology a **model** is defined as:
 5. In the case of [stepshift models](https://github.com/views-platform/views-stepshifter/blob/main/README.md), a model is understood as all code and all artifacts necessary to generate a comprehensive 36 month forecast for the specified target.
 6. Note that, two models, identical in all other aspects, will be deemed distinct if varying post-processing techniques are applied to their generated predictions. For instance, if one model's predictions undergo calibration or normalization while the other's do not. Similarly, two models identical in all aspects are considered distinct if they utilize different input features (querysets).
 
+---
 
 ## Model Naming Conventions
 
@@ -47,12 +48,15 @@ The models belonging to the VIEWS pipeline follow a predetermined naming standar
 
 Additionaly, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
 
+---
+
 ## Creating New Models 
 
 The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
 As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightfoward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
 
+---
 
 ## Implemented Models
 
@@ -69,6 +73,7 @@ In addition to the possibility of easily creating new models and ensembles, in o
 
 The catalogs are automatically filled out and updated, through a GitHub action, with every new model or ensemble which is created.  
 
+---
 ## Catalogs
 
 The catalogs for all of the existing VIEWS models can be found below. The models catalogs are separated based on the models' level of analysis - country-month models and PRIO-GRID-month models, with the ensamble catalog all the way at the bottom. All of the information about algorithms, input features, hyperparameters and other model specification are included.
@@ -101,6 +106,8 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 
 <!-- CM_TABLE_END -->
 
+---
+
 ### PRIO-GRID-Month Model Catalog
 
 <!-- PGM_TABLE_START -->
@@ -122,6 +129,8 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 
 <!-- PGM_TABLE_END -->
 
+---
+
 ### Ensemble Catalog
 
 <!-- ENSEMBLE_TABLE_START -->
@@ -132,6 +141,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 
 <!-- ENSEMBLE_TABLE_END -->
 
+---
 
 ## Funding and Partners 
 
