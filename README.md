@@ -118,3 +118,10 @@ The new naming convention for models in the pipeline takes the form of adjective
 | white_mustang |  | ln_ged_sb_dep | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | None | deployed | NA | Xiaolong |
 
 <!-- ENSEMBLE_TABLE_END -->
+
+
+## Funding and Partners 
+
+<div style="width: 100%; max-width: 1500px; height: 400px; overflow: hidden; position: relative; margin-top: 50px;">
+  <img src="image.png" alt="Funder logos" style="position: absolute; top: -50px; width: 100%; height: auto;">
+</div>
