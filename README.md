@@ -3,7 +3,7 @@
   <img src="https://pbs.twimg.com/profile_banners/1237000633896652800/1717069203/1500x500" alt="VIEWS Twitter Header" style="position: absolute; top: -50px; width: 100%; height: auto;">
 </div>
 
-# Welcome to view-models repository! 
+# Welcome to views-models repository! 
 
 This repository contains all of the necesary components for creating new models which are compatible with the VIEWS pipeline. The views-models repository also contains all of the already implemented VIEWS models (with the exception of [HydraNet](https://github.com/views-platform/views-hydranet)), at both PRIO-GRID-month and country-month levels of analysis, along with information about prediction targets, input data and model algorithms. 
 
@@ -32,8 +32,8 @@ In VIEWS terminology a **model** is defined as:
 1. A specific instantiation of a machine learning algorithm,
 2. Trained using a predetermined and unique set of hyperparameters,
 3. On a well-defined set of input features,
-    - The specific input features for every model are reffered to as [querysets](https://github.com/prio-data/viewser?tab=readme-ov-file#via-api). 
-4. And targeting a specific outcome target.
+    - The specific input features for every model are referred to as [querysets](https://github.com/prio-data/viewser?tab=readme-ov-file#via-api). 
+4. A model predicts specific outcome target or targets.
 5. In the case of [stepshift models](https://github.com/views-platform/views-stepshifter/blob/main/README.md), a model is understood as all code and all artifacts necessary to generate a comprehensive 36 month forecast for the specified target.
 6. Note that, two models, identical in all other aspects, will be deemed distinct if varying post-processing techniques are applied to their generated predictions. For instance, if one model's predictions undergo calibration or normalization while the other's do not. Similarly, two models identical in all aspects are considered distinct if they utilize different input features (querysets).
 
@@ -57,7 +57,7 @@ As with other parts of the VIEWS pipeline, we aim to make interactions with our 
 
 ## Implemented Models
 
-In addition to the possibility of easily creating new models and ensembles, in order to maintain an organized and structured overview over all of th eimplemented models, the views-models repository also contains model catalogs containing all of the information about individual models. This information is collected from the metadata of each model and entails:
+In addition to the possibility of easily creating new models and ensembles, in order to maintain an organized and structured overview over all of the implemented models, the views-models repository also contains model catalogs containing all of the information about individual models. This information is collected from the metadata of each model and entails:
 1. Model name 
 2. Model algorithm
 3. The prediction target
