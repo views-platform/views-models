@@ -15,7 +15,7 @@ def get_sweep_config():
 
     # Example metric setup:
     metric = {
-        'name': 'MSE',
+        'name': 'month_wise_rmsle',
         'goal': 'minimize'
     }
     sweep_config['metric'] = metric
@@ -23,6 +23,8 @@ def get_sweep_config():
     # Example parameters setup:
     parameters_dict = {
         'steps': {'values': [[*range(1, 36 + 1, 1)]]},
+        'clf_n_estimators': {'values': [100, 200]},
+        'reg_n_estimators': {'values': [100, 200]},
     }
     sweep_config['parameters'] = parameters_dict
 

@@ -15,7 +15,7 @@ fi
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
-env_path="$project_path/envs/views_stepshifter"
+env_path="$project_path/envs/views-hydranet"
 
 eval "$(conda shell.bash hook)"
 

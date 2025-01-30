@@ -23,6 +23,7 @@ def get_sweep_config():
     # Example parameters setup:
     parameters_dict = {
         'steps': {'values': [[*range(1, 36 + 1, 1)]]},
+        'n_estimators': {'values': [100, 200]},
     }
     sweep_config['parameters'] = parameters_dict
 

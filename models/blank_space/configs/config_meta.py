@@ -11,7 +11,8 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "LightGBMModel",
         "model_reg": "LightGBMModel",
-        "depvar": "ln_ged_sb_dep",  # IMPORTANT! The current stepshift only takes one target variable! Not compatiable with Simon's code!
+        "metrics": ["RMSLE", "CRPS"],
+        "depvar": "ln_ged_sb_dep",  
         "queryset": "fatalities003_pgm_natsoc",
         "level": "pgm",
         "creator": "Xiaolong"

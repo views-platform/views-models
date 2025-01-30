@@ -10,6 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "brown_cheese", 
         "algorithm": "RandomForestModel",
+        "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_baseline",
         "level": "cm",

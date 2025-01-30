@@ -12,6 +12,7 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "LightGBMModel",
         "model_reg": "LightGBMModel",
+        "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_conflictlong",
         "level": "pgm",

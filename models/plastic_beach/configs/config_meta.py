@@ -10,6 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "plastic_beach", 
         "algorithm": "RandomForestModel",
+        "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_aquastat",
         "level": "cm",

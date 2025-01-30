@@ -9,7 +9,8 @@ def get_meta_config():
     meta_config = {
         "name": "orange_pasta",
         "algorithm": "LightGBMModel",
-        "depvar": "ln_ged_sb_dep",  # IMPORTANT! The current stepshift only takes one target variable! Not compatiable with Simon's code!
+        "metrics": ["RMSLE", "CRPS"],
+        "depvar": "ln_ged_sb_dep",  
         "queryset": "fatalities003_pgm_baseline",
         "level": "pgm",
         "creator": "Xiaolong"

@@ -10,6 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "bad_blood", 
         "algorithm": "LightGBMModel", 
+        "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_natsoc",
         "level": "pgm",
