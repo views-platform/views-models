@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "counting_stars", 
-        "algorithm": "XGBModel",
+        "algorithm": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_conflict_history_long",

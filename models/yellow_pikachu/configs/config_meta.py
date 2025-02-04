@@ -9,8 +9,8 @@ def get_meta_config():
     meta_config = {
         "name": "yellow_pikachu",
         "algorithm": "HurdleModel",
-        "model_clf": "XGBModel",
-        "model_reg": "XGBModel",
+        "model_clf": "XGBClassifier",
+        "model_reg": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",  
         "queryset": "fatalities003_pgm_conflict_treelag",

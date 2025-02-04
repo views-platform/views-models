@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "ominous_ox", 
-        "algorithm": "RandomForestModel",
+        "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_conflict_history",

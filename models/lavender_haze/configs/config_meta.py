@@ -9,8 +9,8 @@ def get_meta_config():
     meta_config = {
         "name": "lavender_haze",
         "algorithm": "HurdleModel",
-        "model_clf": "XGBModel",
-        "model_reg": "XGBModel",
+        "model_clf": "XGBClassifier",
+        "model_reg": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",  
         "queryset": "fatalities003_pgm_broad",

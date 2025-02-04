@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "chunky_cat", 
-        "algorithm": "LightGBMModel",
+        "algorithm": "LGBMRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_conflictlong",
