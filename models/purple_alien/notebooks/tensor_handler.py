@@ -162,19 +162,19 @@ class TensorHandler:
         if self.zstack is not None:
               self.df_long = self.zstack_to_df_long(self.zstack)
 
-              if asses:
-                    # Check if the reconstructed long-format DataFrame matches the original
-                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
-        
-        elif self.df_wide is not None:
-                self.df_long = self.df_wide_to_df_long(self.df_wide)
-
-                if asses:
-                    # Check if the reconstructed long-format DataFrame matches the original
-                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
-        
-        else:
-            raise ValueError("No zstack or wide DataFrame available for conversion. Generate or load data first.")
+#              if asses:
+#                    # Check if the reconstructed long-format DataFrame matches the original
+#                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
+#        
+#        elif self.df_wide is not None:
+#                self.df_long = self.df_wide_to_df_long(self.df_wide)
+#
+#                if asses:
+#                    # Check if the reconstructed long-format DataFrame matches the original
+#                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
+#        
+#        else:
+#            raise ValueError("No zstack or wide DataFrame available for conversion. Generate or load data first.")
         
         self.source_format = "df_long"
 
@@ -188,63 +188,90 @@ class TensorHandler:
     def zstack_to_df_long(self, zstack):
         """
         Converts a 5D NumPy array [z, row, col, feature, sample] into a long-format DataFrame
-        where each row represents a single sample draw.
+        where:
+          - Deterministic features are stored once per (z, row, col).
+          - Stochastic features are expanded per sample_id.
+
+        Args:
+            zstack (np.ndarray): 5D tensor [z, row, col, feature, sample]
+            metadata (dict): Metadata containing feature names.
 
         Returns:
-            df_long (pd.DataFrame): DataFrame with columns ['z', 'row', 'col', 'sample_id', 'feature01', 'feature02', ...]
+            pd.DataFrame: Long-format DataFrame with structure:
+                          ['month_id', 'row', 'col', 'pg_id', 'c_id', 'sample_id', <features>]
         """
+
+        # Extract feature names from metadata
+        feature_metadata = self.metadata['zstack_features']
+        deterministic_features = feature_metadata['deterministic_features']
+        stochastic_features = feature_metadata['stochastic_features']
+
         z_dim, row_dim, col_dim, num_features, num_samples = zstack.shape
 
-        z, row, col, sample = np.meshgrid(
+        # Create (z, row, col) base meshgrid
+        z, row, col = np.meshgrid(
             np.arange(z_dim), 
             np.arange(row_dim), 
             np.arange(col_dim), 
-            np.arange(num_samples),
-            indexing='ij'
+            indexing="ij"
         )
 
-        data = {
-            'z': z.flatten(),
-            'row': row.flatten(),
-            'col': col.flatten(),
-            'sample_id': sample.flatten()
+        base_data = {
+            "month_id": (z + 1).flatten(),  # Ensure first month is 1, not 0
+            "row": row.flatten(),
+            "col": col.flatten(),
         }
 
-        for f in range(num_features):
-            feature_name = f'feature{f+1:02d}'
-            data[feature_name] = zstack[:, :, :, f, :].reshape(-1)
+        # Extract deterministic features (stored once per (z, row, col))
+        for f_idx, feature in enumerate(deterministic_features):
+            base_data[feature] = zstack[:, :, :, f_idx, 0].flatten()  # Only take 1 sample
 
-        return pd.DataFrame(data)
+        df_deterministic = pd.DataFrame(base_data)
+
+        # Expand for stochastic features (adds sample_id)
+        z_expanded, row_expanded, col_expanded, sample_expanded = np.meshgrid(
+            np.arange(z_dim),
+            np.arange(row_dim),
+            np.arange(col_dim),
+            np.arange(num_samples),
+            indexing="ij"
+        )
+
+        stochastic_data = {
+            "month_id": (z_expanded + 1).flatten(),
+            "row": row_expanded.flatten(),
+            "col": col_expanded.flatten(),
+            "sample_id": sample_expanded.flatten(),
+        }
+
+        for f_idx, feature in enumerate(stochastic_features):
+            feature_idx = len(deterministic_features) + f_idx  # Get correct feature index
+            stochastic_data[feature] = zstack[:, :, :, feature_idx, :].flatten()
+
+        df_stochastic = pd.DataFrame(stochastic_data)
+
+        # Merge deterministic & stochastic into final `df_long`
+        df_long = df_stochastic.merge(df_deterministic, on=["month_id", "row", "col"], how="left")
+
+        return df_long
 
 
-    def to_zstack(self, drop = False, assess = True):
-        """ Converts a stored wide-format or long-format DataFrame back into a 5D NumPy zstack."""
 
-        if self.df_wide is not None:
-            self.zstack = self.df_wide_to_zstack(self.df_wide)
 
-            #if assess:
-            #    # Check if the reconstructed zstack matches the original
-            #    np.testing.assert_allclose(self.df_wide, self.df_wide_to_zstack(self.df_wide), rtol=1e-5)
 
-        elif self.df_long is not None:
-            self.zstack = self.df_long_to_zstack(self.df_long)
 
-            if assess:
-                # Check if the reconstructed zstack matches the original
-                np.testing.assert_allclose(self.df_wide, self.df_long_to_zstack(self.df_long), rtol=1e-5)
 
-        else:
-            raise ValueError("No wide or long DataFrame available for conversion. Generate or load data first.")
-        
-        self.source_format = "zstack"
 
-        if drop: # we delete other data formats
-            self.df_wide = None
-            self.df_long = None
 
-        
-        return self.zstack
+
+
+
+
+
+
+
+
+
 
 
     def df_wide_to_zstack(self, df):
@@ -310,6 +337,16 @@ class TensorHandler:
                 zstack[int(row.z), int(row.row), int(row.col), i, int(row.sample_id)] = getattr(row, feature)
 
         return zstack
+
+
+
+
+
+
+
+
+
+
 
 
 class DataGenerator:
@@ -422,65 +459,6 @@ class TensorPlotter:
         plot_df_long(num_z_slices=5, num_samples=5, features=None): """
     
 
-#    @staticmethod
-#    def plot_zstack(zstack, num_z_slices=None, features=None, samples=None):
-#        """
-#        Plots the stored zstack showing different features, time steps, and sample draws.
-#    
-#        Args:
-#            num_z_slices (int, optional): Number of time steps to visualize. Default is 5.
-#            features (list, optional): List of feature indices to plot. Defaults to all features.
-#            samples (list, optional): List of sample indices to plot. Defaults to all samples.
-#        """
-#        if zstack is None:
-#            raise ValueError("No zstack available for plotting. Generate or load a zstack first.")
-#    
-#        num_z_slices = zstack.shape[0] if num_z_slices is None else num_z_slices
-#        features = np.arange(0, zstack.shape[3], 1) if features is None else features
-#        samples = np.arange(0, zstack.shape[4], 1) if samples is None else samples
-#    
-#        num_rows = len(features) * len(samples)
-#        
-#        # Ensure at least a 2D array to avoid indexing issues
-#        fig, axes = plt.subplots(num_rows, num_z_slices, figsize=(15, 3 * num_rows))
-#        if num_rows == 1:
-#            axes = np.expand_dims(axes, axis=0)  # Convert 1D array to 2D
-#    
-#        row_idx = 0  # Track row index in subplot
-#        for z in range(num_z_slices):  
-#            row_idx = 0  # Reset row index for each z iteration
-#            for f in features:  
-#                for s in samples:  
-#                    ax = axes[row_idx, z]  
-#
-#                    # or should we have something more general here?
-#                    vmin = np.min(zstack[:, :, :, f, :])
-#                    vmax = np.max(zstack[:, :, :, f, :])
-#
-#                    ax.imshow(zstack[z, :, :, f, s], vmin=vmin, vmax=vmax, cmap='viridis')
-#    
-#                    if row_idx == 0:
-#                        ax.set_title(f"z = {z}")
-#    
-#                    if z == 0:
-#                        ax.set_ylabel(f"Feature {f+1}, Sample {s+1}")
-#    
-#                    ax.set_xticks([])
-#                    ax.set_yticks([])
-#    
-#                    row_idx += 1  # Move to next subplot row
-#    
-#        plt.tight_layout()
-
-
-
-
-
-
-
-
-
-
 
     @staticmethod
     def plot_zstack(zstack, metadata, num_z_slices=None, features=None, samples=None):
@@ -555,18 +533,6 @@ class TensorPlotter:
 
         plt.tight_layout()
         plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     @staticmethod
@@ -697,73 +663,142 @@ class TensorPlotter:
 
 
 
-#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #
 #    @staticmethod
-#    def plot_df_wide(df_wide, num_z_slices=5, feature_columns=None, num_samples=5):
+#    def plot_df_long(df_long, num_z_slices=5, num_samples=5, features=None): # the feature argument does not work yet
 #        """
-#        Plots a sanity check for the wide-format DataFrame (zstack_to_df output).
-#        Each feature column contains a list of samples, so we plot individual samples.
+#        Plots a sanity check for the long-format DataFrame (`df_long`).
+#        - Deterministic features are plotted as single values.
+#        - Stochastic features are plotted per `(sample_id)`.
 #
 #        Args:
-#            df (pd.DataFrame): Wide-format DataFrame where feature columns contain lists of sample values.
-#            num_z_slices (int, optional): Number of z slices to visualize. Default is 5.
-#            feature_columns (list, optional): List of feature columns to plot. Defaults to all available features.
-#            num_samples (int, optional): Number of samples per feature to plot. Default is 5.
+#            df_long (pd.DataFrame): Long-format DataFrame where each row represents a single sample.
+#            num_z_slices (int, optional): Number of `month_id` slices to visualize. Default is 5.
+#            num_samples (int, optional): Number of unique `sample_id`s to randomly select. If None, all samples are used.
+#            features (list, optional): List of feature column names to plot. If None, all available features are used.
 #        """
 #
-#        if df_wide is None:
-#            raise ValueError("No wide-format DataFrame available for plotting. Convert a zstack to wide format first.")
+#        if df_long is None:
+#            raise ValueError("No long-format DataFrame available for plotting. Convert a zstack to long format first.")
 #
-#        if feature_columns is None:
-#            non_feature_columns = ['row', 'col', 'z']
-#            feature_columns = [col for col in df_wide.columns if col not in non_feature_columns]
+#        if "month_id" not in df_long.columns:
+#            raise KeyError("Missing 'month_id' column in df_long.")
 #
-#        num_features = len(feature_columns)
-#        num_rows = num_features * num_samples  # Each feature-sample pair gets a row
+#        # 🚀 **Identify Deterministic vs Stochastic Features**
+#        basis_feature_columns = ["month_id", "row", "col", "pg_id", "c_id"]
+#        all_features = [col for col in df_long.columns if col not in basis_feature_columns + ["sample_id"]]
 #
-#        # Get the width and height of the plot
-#        width = df_wide['col'].max() + 1
-#        height = df_wide['row'].max() + 1
+#        deterministic_features = [col for col in all_features if not isinstance(df_long[col].iloc[0], (list, np.ndarray))]
+#        stochastic_features = [col for col in all_features if isinstance(df_long[col].iloc[0], (list, np.ndarray))]
 #
-#        # Create figure with a grid layout: (features * samples) x (z slices)
-#        fig, axes = plt.subplots(num_rows, num_z_slices, figsize=(15, 3 * num_rows))
+#        # 🚀 **Ensure num_z_slices doesn’t exceed available months**
+#        unique_months = sorted(df_long["month_id"].unique())  # Ensure sorted order
+#        num_z_slices = min(num_z_slices, len(unique_months))
 #
-#        # Ensure axes is always 2D
-#        if num_rows == 1:
-#            axes = np.expand_dims(axes, axis=0)
+#        # 🚀 **Determine Grid Size**
+#        width = df_long["col"].max() + 1
+#        height = df_long["row"].max() + 1
+#        num_rows = len(basis_feature_columns) + len(deterministic_features) + len(stochastic_features) * num_samples  # ✅ Ensure correct allocation
 #
-#        for z in range(num_z_slices):
-#            df_slice = df_wide[df_wide['z'] == z]
+#        # 🚀 **Create Figure & Subplots**
+#        fig, axes = plt.subplots(max(1, num_rows), max(1, num_z_slices), figsize=(15, 3 * max(1, num_rows)))
+#        axes = np.atleast_2d(axes)  # Ensure 2D array indexing works
 #
-#            row_idx = 0  # Reset row index for each z slice
+#        for z_idx, month in enumerate(unique_months[:num_z_slices]):  
+#            row_idx = 0  # ✅ Reset row index for each z_slice
+#            df_slice = df_long[df_long["month_id"] == month]  # ✅ Filtering correctly
 #
-#            for f, feature in enumerate(feature_columns):
-#                feature_matrix = np.stack(df_slice[feature].values)  # Convert lists to array
+#            # Plot basis features
+#            for feature in basis_feature_columns:
+#                if row_idx >= num_rows:
+#                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
+#                
+#                ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
+#                feature_values = df_slice[feature].values
 #
-#                for s in range(num_samples):
-#                    if num_z_slices == 1:
-#                        ax = axes[row_idx]  # Select subplot row for single z slice
-#                    else:
-#                        ax = axes[row_idx, z]  # Select subplot row for multiple z slices
-#                    feature_sample = feature_matrix[:, s]  # Extract s-th sample
+#                vmin = df_long[feature].min()
+#                vmax = df_long[feature].max()
 #
-#                    ax.scatter(df_slice['col'], height - df_slice['row'], s=5, c=feature_sample, cmap='viridis', vmin=0, vmax=1)
+#                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
 #
-#                    # Titles for first row only
+#                ax.set_ylabel(feature)
+#                if row_idx == 0:
+#                    ax.set_title(f"Month {month}")
+#
+#                ax.set_xlim(0, width)
+#                ax.set_ylim(0, height)
+#                ax.set_xticks([])
+#                ax.set_yticks([])
+#
+#                row_idx += 1  # ✅ Move to next subplot row
+#
+#
+#            # 🚀 **Plot Deterministic Features**
+#            for feature in deterministic_features:
+#                if row_idx >= num_rows:
+#                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")  
+#
+#                ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
+#                feature_values = df_slice[feature].values  
+#
+#                vmin = df_long[feature].min()
+#                vmax = df_long[feature].max()
+#                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
+#
+#                ax.set_ylabel(f"{feature} (Det)")
+#                if row_idx == 0:
+#                    ax.set_title(f"Month {month}")
+#
+#                ax.set_xlim(0, width)
+#                ax.set_ylim(0, height)
+#                ax.set_xticks([])
+#                ax.set_yticks([])
+#
+#                row_idx += 1
+#
+#            # 🚀 **Plot Stochastic Features**
+#            unique_samples = df_long["sample_id"].unique()
+#            selected_samples = np.random.choice(unique_samples, min(num_samples, len(unique_samples)), replace=False)
+#
+#            for feature in stochastic_features:
+#                for s in selected_samples:
+#                    if row_idx >= num_rows:
+#                        raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
+#
+#                    ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
+#                    df_sample = df_slice[df_slice["sample_id"] == s]
+#
+#                    feature_values = df_sample[feature].values  
+#
+#                    vmin = df_long[feature].explode().min()
+#                    vmax = df_long[feature].explode().max()
+#                    ax.scatter(df_sample["col"], height - df_sample["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
+#
+#                    ax.set_ylabel(f"{feature} (S={s})")
 #                    if row_idx == 0:
-#                        ax.set_title(f"z = {z}")
-#
-#                    # Row labels for first column only
-#                    if z == 0:
-#                        ax.set_ylabel(f"Feature {f+1}, Sample {s+1}")
+#                        ax.set_title(f"Month {month}")
 #
 #                    ax.set_xlim(0, width)
 #                    ax.set_ylim(0, height)
 #                    ax.set_xticks([])
 #                    ax.set_yticks([])
 #
-#                    row_idx += 1  # Move to next subplot row
+#                    row_idx += 1  # ✅ Corrected Increment
 #
 #        plt.tight_layout()
 #        plt.show()
@@ -771,82 +806,159 @@ class TensorPlotter:
 
     @staticmethod
     def plot_df_long(df_long, num_z_slices=5, num_samples=5, features=None):
-
         """
-        Plots a sanity check for the long-format DataFrame (zstack_to_df_long output).
-        Each row corresponds to a (feature, sample) pair, and each column corresponds to a z-slice.
+        Plots a sanity check for the long-format DataFrame (`df_long`).
+        - Deterministic features are plotted as single values per `(month_id, row, col)`.
+        - Stochastic features are plotted per `(month_id, row, col, sample_id)`.
 
         Args:
-            df_long (pd.DataFrame): Long-format DataFrame where each row represents a single sample.
-            num_z_slices (int, optional): Number of z slices to visualize. Default is 5.
-            num_samples (int, optional): Number of unique sample_ids to randomly select. If None, all samples are used.
-            features (list, optional): List of feature column names to plot. If None, all feature columns are used.
+            df_long (pd.DataFrame): Long-format DataFrame.
+            num_z_slices (int, optional): Number of `month_id` slices to visualize. Default is 5.
+            num_samples (int, optional): Number of unique `sample_id`s to randomly select.
+            features (list, optional): List of feature column names to plot.
         """
 
         if df_long is None:
-            raise ValueError("No long-format DataFrame available for plotting. Convert a zstack to long format first.")
+            raise ValueError("No long-format DataFrame available for plotting.")
 
-        # Select a random subset of samples if num_samples is provided
-        unique_samples = df_long['sample_id'].unique()
+        if "month_id" not in df_long.columns:
+            raise KeyError("Missing 'month_id' column in df_long.")
+
+        # 🚀 **Identify Deterministic vs Stochastic Features**
+        feature_classification = TensorPlotter.classify_features(df_long)
+
+        basis_feature_columns = feature_classification['basis']
+        deterministic_features = feature_classification['deterministic']
+        stochastic_features = feature_classification['stochastic']
         
-        if num_samples is None:
-            selected_samples = unique_samples  # Use all available samples
-        
-        else:
-            num_samples = min(num_samples, len(unique_samples))  # Ensure it doesn't exceed available samples
-            selected_samples = np.random.choice(unique_samples, num_samples, replace=False)
 
-        # Extract available feature columns dynamically
-        available_features = [col for col in df_long.columns if col.startswith("feature")]
+        # **Feature Selection Handling**
+        if features is not None:
+            basis_feature_columns = [f for f in basis_feature_columns if f in features]
+            deterministic_features = [f for f in deterministic_features if f in features]
+            stochastic_features = [f for f in stochastic_features if f in features]
 
-        # Use only specified features, or default to all available ones
-        if features is None:
-            features = available_features
-        else:
-            # Ensure selected features exist in the DataFrame
-            features = [f for f in features if f in available_features]
+        # 🚀 **Ensure num_z_slices doesn’t exceed available months**
+        unique_months = sorted(df_long["month_id"].unique())  
+        num_z_slices = min(num_z_slices, len(unique_months))
 
-        num_features = len(features)
-        num_rows = num_features * num_samples  # Each row is a (feature, sample) pair
-        num_cols = num_z_slices  # Each column is a z-slice
+        # 🚀 **Determine Grid Size**
+        width, height = df_long["col"].max() + 1, df_long["row"].max() + 1
+        num_rows = len(basis_feature_columns) + len(deterministic_features) + len(stochastic_features) * num_samples
 
-        # Create figure with a grid layout: (num_features * num_samples) rows, num_z_slices columns
-        fig, axes = plt.subplots(num_rows, num_cols, figsize=(3 * num_cols, 3 * num_rows))
+        # 🚀 **Create Figure & Subplots**
+        fig, axes = plt.subplots(max(1, num_rows), max(1, num_z_slices), figsize=(15, 3 * max(1, num_rows)))
+        axes = np.atleast_2d(axes)  # Ensure always 2D
 
-        # Ensure axes is always a 2D array, even if num_rows or num_cols is 1
-        if num_rows == 1:
-            axes = np.expand_dims(axes, axis=0)
-        if num_cols == 1:
-            axes = np.expand_dims(axes, axis=1)
+    
+        for z_idx, month in enumerate(unique_months[:num_z_slices]):  
+            df_slice = df_long[df_long["month_id"] == month]
 
-        # FEATURE → SAMPLE → Z loop order
-        for f_idx, feature in enumerate(features):  
-            for sample_idx, sample in enumerate(selected_samples):  
-                row_idx = f_idx * num_samples + sample_idx  # Compute row index for (feature, sample) pair
+            row_idx = 0  # ✅ Reset row index once before looping
 
-                df_sample = df_long[df_long['sample_id'] == sample]  # Filter for the current sample
 
-                for z in range(num_z_slices):  
-                    ax = axes[row_idx, z]  # Select subplot
+            # 🚀 **Plot Basis Features First**
+            for feature in basis_feature_columns:
+                if row_idx >= num_rows:
+                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")  # ✅ Safety check
+                
+                vmin = df_long[feature].min()
+                vmax = df_long[feature].max()
 
-                    df_slice = df_sample[df_sample['z'] == z]
+                ax = axes[row_idx, z_idx] if axes.ndim == 2 else axes[row_idx]
+                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=df_slice[feature], cmap="viridis", vmin = vmin, vmax = vmax)
+                ax.set_ylabel(feature)
 
-                    # Scatter plot for visualization
-                    scatter = ax.scatter(df_slice['col'], 50 - df_slice['row'], s=5, c=df_slice[feature], cmap='viridis', vmin=0, vmax=1)
+                if row_idx == 0:
+                    ax.set_title(f"Month {month}")
 
-                    # Titles for first row only
-                    if row_idx == 0:
-                        ax.set_title(f"z = {z}")
+                row_idx += 1  # ✅ Increment correctly
 
-                    # Row labels for first column only
-                    if z == 0:
-                        ax.set_ylabel(f"{feature}, Sample {sample}")
+            # 🚀 **Plot Deterministic Features**
+            for feature in deterministic_features:
+                if row_idx >= num_rows:
+                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
+                
+                vmin = df_long[feature].min()
+                vmax = df_long[feature].max()
 
-                    # Formatting
-                    ax.set_xlim(0, 50)
-                    ax.set_ylim(0, 50)
-                    ax.set_xticks([])
-                    ax.set_yticks([])
+                ax = axes[row_idx, z_idx] if axes.ndim == 2 else axes[row_idx]
+                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=df_slice[feature], cmap="viridis",
+                           vmin=vmin, vmax=vmax)
+
+                ax.set_ylabel(f"{feature} (Det)")
+                if row_idx == 0:
+                    ax.set_title(f"Month {month}")
+
+                row_idx += 1  # ✅ Correct Increment
+
+            # 🚀 **Plot Stochastic Features Next (Per Sample)**
+            if "sample_id" in df_long.columns:
+                unique_samples = df_long["sample_id"].unique()
+                selected_samples = np.random.choice(unique_samples, min(num_samples, len(unique_samples)), replace=False)
+
+                for feature in stochastic_features:
+                    for s in selected_samples:
+                        df_sample = df_slice[df_slice["sample_id"] == s]
+
+                        if row_idx >= num_rows:
+                            raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
+                        
+                        vmin = df_long[feature].min()
+                        vmax = df_long[feature].max()
+
+                        ax = axes[row_idx, z_idx] if axes.ndim == 2 else axes[row_idx]
+                        ax.scatter(df_sample["col"], height - df_sample["row"], s=5, c=df_sample[feature], cmap="viridis",
+                                   vmin=vmin, vmax=vmax)
+
+                        ax.set_ylabel(f"{feature} (S={s})")
+                        if row_idx == 0:
+                            ax.set_title(f"Month {month}")
+
+                        row_idx += 1  # ✅ Corrected Increment
 
         plt.tight_layout()
         plt.show()
+
+
+    @staticmethod
+    def classify_features(df_long):
+        """
+        Identifies stochastic and deterministic features in a long-format DataFrame.
+
+        A feature is:
+        - Deterministic if its variance across 'sample_id' is 0 for all (z, row, col).
+        - Stochastic if its variance across 'sample_id' is non-zero for any (z, row, col).
+
+        Args:
+            df_long (pd.DataFrame): A long-format DataFrame with columns ['z', 'row', 'col', 'sample_id', feature1, feature2, ...]
+
+        Returns:
+            dict: {'stochastic': [list of stochastic features], 'deterministic': [list of deterministic features]}
+        """
+
+        # Exclude non-feature columns
+        basis_feature_columns = ['month_id', 'row', 'col', 'pg_id', 'c_id', 'sample_id']
+        feature_columns = [col for col in df_long.columns if col not in basis_feature_columns]
+
+        # Initialize lists for classification
+        stochastic_features = []
+        deterministic_features = []
+
+        # Compute variance across samples for each feature
+        for feature in feature_columns:
+            variance = df_long.groupby(['month_id', 'row', 'col'])[feature].var().fillna(0)
+
+            if (variance == 0).all():
+                deterministic_features.append(feature)
+            else:
+                stochastic_features.append(feature)
+
+        return {
+            'basis': basis_feature_columns,
+            'stochastic': stochastic_features,
+            'deterministic': deterministic_features
+        }
+
+
+
