@@ -340,15 +340,6 @@ class TensorHandler:
 
 
 
-
-
-
-
-
-
-
-
-
 class DataGenerator:
     def __init__(self):
         pass  # No need for internal state
@@ -359,7 +350,7 @@ class DataGenerator:
         row_dim=50,
         col_dim=50,
         num_samples=5,
-        noise_level=0.05
+        noise_level=0.5
     ):
         """
         Generates a synthetic 5D NumPy zstack with structured patterns and random noise,
@@ -384,15 +375,15 @@ class DataGenerator:
 
         num_deterministic_features=3 # no need to have this as an argument
         num_stochastic_features=3 # no need to have this as an argument
-        base_features = 5  # month_id, row, col, pg_id, c_id
-        total_features = base_features + num_deterministic_features + num_stochastic_features
+        num_base_features = 5  # month_id, row, col, pg_id, c_id
+        num_total_features = num_base_features + num_deterministic_features + num_stochastic_features
 
         # Ensure valid feature allocation
-        assert total_features <= base_features + num_deterministic_features + num_stochastic_features, \
-            f"Total features ({total_features}) exceed allocated space ({num_deterministic_features + num_stochastic_features + base_features})"
+        assert num_total_features <= num_base_features + num_deterministic_features + num_stochastic_features, \
+            f"Total features ({num_total_features}) exceed allocated space ({num_deterministic_features + num_stochastic_features + num_base_features})"
 
         # Initialize zstack
-        zstack = np.zeros((z_dim, row_dim, col_dim, total_features, num_samples))
+        zstack = np.zeros((z_dim, row_dim, col_dim, num_total_features, num_samples))
 
         # Feature order: month_id, row, col, pg_id, c_id, then deterministic and stochastic features
         feature_metadata = {
@@ -405,7 +396,6 @@ class DataGenerator:
         zstack[:, :, :, 1, :] = np.tile(np.arange(row_dim)[None, :, None], (z_dim, 1, col_dim))[:, :, :, None]  # row
         zstack[:, :, :, 2, :] = np.tile(np.arange(col_dim)[None, None, :], (z_dim, row_dim, 1))[:, :, :, None]  # col
         zstack[:, :, :, 3, :] = np.tile(np.arange(row_dim * col_dim).reshape(1, row_dim, col_dim), (z_dim, 1, 1))[:, :, :, None]  # pg_id
-        #zstack[:, :, :, 4, :] = np.random.randint(1, 10, (1, row_dim, col_dim))[:, :, :, None]  # c_id
         zstack[:, :, :, 4, :] = np.tile(((np.arange(row_dim)[:, None] // 10) % 2 + (np.arange(col_dim)[None, :] // 10) % 2) % 2 + 1, (z_dim, 1, 1))[:, :, :, None]  # c_id
 
 
@@ -418,8 +408,9 @@ class DataGenerator:
             (slice(row_dim-15, row_dim-5), slice(col_dim-15, col_dim-5)),  # Bottom-right square
         ]
 
-        for f, (row_slice, col_slice) in zip(range(base_features, base_features + num_deterministic_features), deterministic_patterns):
+        for f, (row_slice, col_slice) in zip(range(num_base_features, num_base_features + num_deterministic_features), deterministic_patterns):
             zstack[:, row_slice, col_slice, f, :] = 1.0  # Assign structured deterministic pattern
+
 
         # Structured stochastic feature patterns
         stochastic_patterns = [
@@ -430,8 +421,13 @@ class DataGenerator:
             (slice(5, 15), slice(10, 40)),  # Top horizontal rectangle
         ]
 
-        for f, (row_slice, col_slice) in zip(range(base_features + num_deterministic_features, total_features), stochastic_patterns):
+        for f, (row_slice, col_slice) in zip(range(num_base_features + num_deterministic_features, num_total_features), stochastic_patterns):
             zstack[:, row_slice, col_slice, f, :] = np.random.normal(0.5, noise_level, (z_dim, 1, 1, num_samples))
+
+       # add the month_id values to all deterministic and stochastic features (but not base) to give them different values for each month
+        for f in range(num_base_features, num_total_features):
+            zstack[:, :, :, f, :] += zstack[:, :, :, 0, :] * 0.1 
+
 
         print(f"✅ Synthetic zstack created with shape: {zstack.shape}")
         return zstack, feature_metadata
@@ -458,7 +454,6 @@ class TensorPlotter:
             
         plot_df_long(num_z_slices=5, num_samples=5, features=None): """
     
-
 
     @staticmethod
     def plot_zstack(zstack, metadata, num_z_slices=None, features=None, samples=None):
@@ -660,149 +655,6 @@ class TensorPlotter:
         plt.tight_layout()
         plt.show()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-#    @staticmethod
-#    def plot_df_long(df_long, num_z_slices=5, num_samples=5, features=None): # the feature argument does not work yet
-#        """
-#        Plots a sanity check for the long-format DataFrame (`df_long`).
-#        - Deterministic features are plotted as single values.
-#        - Stochastic features are plotted per `(sample_id)`.
-#
-#        Args:
-#            df_long (pd.DataFrame): Long-format DataFrame where each row represents a single sample.
-#            num_z_slices (int, optional): Number of `month_id` slices to visualize. Default is 5.
-#            num_samples (int, optional): Number of unique `sample_id`s to randomly select. If None, all samples are used.
-#            features (list, optional): List of feature column names to plot. If None, all available features are used.
-#        """
-#
-#        if df_long is None:
-#            raise ValueError("No long-format DataFrame available for plotting. Convert a zstack to long format first.")
-#
-#        if "month_id" not in df_long.columns:
-#            raise KeyError("Missing 'month_id' column in df_long.")
-#
-#        # 🚀 **Identify Deterministic vs Stochastic Features**
-#        basis_feature_columns = ["month_id", "row", "col", "pg_id", "c_id"]
-#        all_features = [col for col in df_long.columns if col not in basis_feature_columns + ["sample_id"]]
-#
-#        deterministic_features = [col for col in all_features if not isinstance(df_long[col].iloc[0], (list, np.ndarray))]
-#        stochastic_features = [col for col in all_features if isinstance(df_long[col].iloc[0], (list, np.ndarray))]
-#
-#        # 🚀 **Ensure num_z_slices doesn’t exceed available months**
-#        unique_months = sorted(df_long["month_id"].unique())  # Ensure sorted order
-#        num_z_slices = min(num_z_slices, len(unique_months))
-#
-#        # 🚀 **Determine Grid Size**
-#        width = df_long["col"].max() + 1
-#        height = df_long["row"].max() + 1
-#        num_rows = len(basis_feature_columns) + len(deterministic_features) + len(stochastic_features) * num_samples  # ✅ Ensure correct allocation
-#
-#        # 🚀 **Create Figure & Subplots**
-#        fig, axes = plt.subplots(max(1, num_rows), max(1, num_z_slices), figsize=(15, 3 * max(1, num_rows)))
-#        axes = np.atleast_2d(axes)  # Ensure 2D array indexing works
-#
-#        for z_idx, month in enumerate(unique_months[:num_z_slices]):  
-#            row_idx = 0  # ✅ Reset row index for each z_slice
-#            df_slice = df_long[df_long["month_id"] == month]  # ✅ Filtering correctly
-#
-#            # Plot basis features
-#            for feature in basis_feature_columns:
-#                if row_idx >= num_rows:
-#                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
-#                
-#                ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
-#                feature_values = df_slice[feature].values
-#
-#                vmin = df_long[feature].min()
-#                vmax = df_long[feature].max()
-#
-#                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
-#
-#                ax.set_ylabel(feature)
-#                if row_idx == 0:
-#                    ax.set_title(f"Month {month}")
-#
-#                ax.set_xlim(0, width)
-#                ax.set_ylim(0, height)
-#                ax.set_xticks([])
-#                ax.set_yticks([])
-#
-#                row_idx += 1  # ✅ Move to next subplot row
-#
-#
-#            # 🚀 **Plot Deterministic Features**
-#            for feature in deterministic_features:
-#                if row_idx >= num_rows:
-#                    raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")  
-#
-#                ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
-#                feature_values = df_slice[feature].values  
-#
-#                vmin = df_long[feature].min()
-#                vmax = df_long[feature].max()
-#                ax.scatter(df_slice["col"], height - df_slice["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
-#
-#                ax.set_ylabel(f"{feature} (Det)")
-#                if row_idx == 0:
-#                    ax.set_title(f"Month {month}")
-#
-#                ax.set_xlim(0, width)
-#                ax.set_ylim(0, height)
-#                ax.set_xticks([])
-#                ax.set_yticks([])
-#
-#                row_idx += 1
-#
-#            # 🚀 **Plot Stochastic Features**
-#            unique_samples = df_long["sample_id"].unique()
-#            selected_samples = np.random.choice(unique_samples, min(num_samples, len(unique_samples)), replace=False)
-#
-#            for feature in stochastic_features:
-#                for s in selected_samples:
-#                    if row_idx >= num_rows:
-#                        raise IndexError(f"row_idx {row_idx} exceeds allocated subplots ({num_rows})")
-#
-#                    ax = axes[row_idx, z_idx] if num_z_slices > 1 else axes[row_idx]
-#                    df_sample = df_slice[df_slice["sample_id"] == s]
-#
-#                    feature_values = df_sample[feature].values  
-#
-#                    vmin = df_long[feature].explode().min()
-#                    vmax = df_long[feature].explode().max()
-#                    ax.scatter(df_sample["col"], height - df_sample["row"], s=5, c=feature_values, cmap="viridis", vmin=vmin, vmax=vmax)
-#
-#                    ax.set_ylabel(f"{feature} (S={s})")
-#                    if row_idx == 0:
-#                        ax.set_title(f"Month {month}")
-#
-#                    ax.set_xlim(0, width)
-#                    ax.set_ylim(0, height)
-#                    ax.set_xticks([])
-#                    ax.set_yticks([])
-#
-#                    row_idx += 1  # ✅ Corrected Increment
-#
-#        plt.tight_layout()
-#        plt.show()
-#
 
     @staticmethod
     def plot_df_long(df_long, num_z_slices=5, num_samples=5, features=None):
