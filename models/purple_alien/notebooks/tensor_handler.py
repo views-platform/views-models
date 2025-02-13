@@ -25,6 +25,7 @@ class TensorHandler:
             self.zstack = data
             self.df_wide = None
             self.df_long = None
+            self.metadata["zstack_features"] = None # we can add more metadata here
 
         elif source_format == "df_wide" and data is not None:
             self.df_wide = data
@@ -66,23 +67,24 @@ class TensorHandler:
         Generates a synthetic 5D NumPy zstack and stores it internally.
         Delegates to DataGenerator.
         """
-        self.zstack = self.generator.generate_synthetic_zstack(*args, **kwargs)
-        self.df_wide = None  # Reset other formats
-        self.df_long = None
+
+        self.zstack, self.metadata['zstack_features'] = self.generator.generate_synthetic_zstack(*args, **kwargs)
         self.source_format = "zstack"
-        return self.zstack
+
+        # Reset other representations to avoid inconsistencies
+        self.df_wide = None
+        self.df_long = None
+
+        return self.zstack, self.metadata
+
+
 
     def generate_synthetic_df_wide(self, *args, **kwargs):
         """
-        Generates a synthetic df_wide DataFrame and stores it internally.
-        Delegates to DataGenerator.
+        ....
         """
-        self.df_wide = self.generator.generate_synthetic_df_wide(*args, **kwargs)
-        self.zstack = None  # Reset other formats
-        self.df_long = None
-        self.source_format = "df_wide"
-        return self.df_wide
 
+        return None
 
     def to_wide_df(self, drop = False, asses = True):
         """Converts a stored zstack into a wide-format DataFrame."""
@@ -299,99 +301,92 @@ class TensorHandler:
         return zstack
 
 
-import numpy as np
-import pandas as pd
-
-
 class DataGenerator:
     def __init__(self):
-        self.zstack = None
-        self.df_wide = None
-        self.df_long = None
-        self.source_format = None
+        pass  # No need for internal state
 
-
-    def generate_synthetic_zstack(self, z_dim=10, row_dim=50, col_dim=50, num_features=3, num_samples=5, noise_level=0.05):
+    def generate_synthetic_zstack(
+        self,
+        z_dim=10,
+        row_dim=50,
+        col_dim=50,
+        num_samples=5,
+        noise_level=0.05
+    ):
         """
-        Generates a synthetic 5D NumPy zstack with structured patterns and random noise.
+        Generates a synthetic 5D NumPy zstack with structured patterns and random noise,
+        ensuring proper separation of deterministic and stochastic features.
+
+        Dimensions:
+        - (z_dim, row_dim, col_dim, num_features, num_samples)
 
         Args:
             z_dim (int): Number of time steps.
             row_dim (int): Number of rows (spatial resolution).
             col_dim (int): Number of columns (spatial resolution).
-            num_features (int): Number of feature channels.
-            num_samples (int): Number of Monte Carlo samples per feature.
-            noise_level (float): Standard deviation of Gaussian noise.
+            num_deterministic_features (int): Number of deterministic features.
+            num_stochastic_features (int): Number of stochastic features.
+            num_samples (int): Number of Monte Carlo samples for stochastic features.
+            noise_level (float): Standard deviation for stochastic feature noise.
 
         Returns:
-            np.ndarray: The generated synthetic zstack.
+            np.ndarray: Synthetic zstack with shape (z_dim, row_dim, col_dim, num_features, num_samples)
+            dict: Feature metadata, specifying which features are deterministic vs. stochastic.
         """
-        
-        self.zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples))
 
-        for i in range(z_dim):
-            intensity = (10 - i) / 10  # Base intensity pattern
-            for s in range(num_samples):  # Iterate over samples
-                self.zstack[i, 12:37, 12:37, 0, s] = intensity  # Square in Feature 1
-                self.zstack[i, :, 20:30, 1, s] = intensity  # Vertical bar in Feature 2
-                self.zstack[i, 20:30, :, 2, s] = intensity  # Horizontal bar in Feature 3
+        num_deterministic_features=3 # no need to have this as an argument
+        num_stochastic_features=3 # no need to have this as an argument
+        base_features = 5  # month_id, row, col, pg_id, c_id
+        total_features = base_features + num_deterministic_features + num_stochastic_features
 
-        self.zstack += np.random.normal(0, noise_level, self.zstack.shape)
-        self.zstack = np.clip(self.zstack, 0, 1)
+        # Ensure valid feature allocation
+        assert total_features <= base_features + num_deterministic_features + num_stochastic_features, \
+            f"Total features ({total_features}) exceed allocated space ({num_deterministic_features + num_stochastic_features + base_features})"
 
-        # Reset DataFrame formats since new data was generated
-        self.df_wide = None
-        self.df_long = None
-        self.source_format = "zstack"
+        # Initialize zstack
+        zstack = np.zeros((z_dim, row_dim, col_dim, total_features, num_samples))
 
-        print(f"✅ Synthetic 5D zstack created with shape: {self.zstack.shape}")
-        return self.zstack
+        # Feature order: month_id, row, col, pg_id, c_id, then deterministic and stochastic features
+        feature_metadata = {
+            "deterministic_features": ["month_id", "row", "col", "pg_id", "c_id"] + [f"det_feature_{i+1}" for i in range(num_deterministic_features)],
+            "stochastic_features": [f"stoch_feature_{i+1}" for i in range(num_stochastic_features)]
+        }
 
-
-    def generate_synthetic_df_wide(self, num_months=12, num_rows=10, num_cols=10, num_countries=5, n_deterministic_features=3, m_stochastic_features=4, num_samples=5, stochastic_noise=0.1):
-        """
-        Generates a synthetic wide-format DataFrame (`df_wide`) and stores it in the instance.
-        """
-        
-        total_cells = num_rows * num_cols
-        pg_ids = np.arange(total_cells)  # Unique PRIO grid IDs
-        country_ids = np.random.choice(np.arange(1, num_countries + 1), size=total_cells)  # Assign country IDs
-        
-        rows, cols = np.meshgrid(np.arange(num_rows), np.arange(num_cols), indexing='ij')
-        base_df = pd.DataFrame({
-            "pg_id": pg_ids,
-            "c_id": country_ids,
-            "row": rows.flatten(),
-            "col": cols.flatten(),
-        })
-
-        for i in range(n_deterministic_features):
-            base_df[f"deterministic_feature{i+1:02d}"] = np.random.uniform(0, 1, total_cells)
-
-        self.df_wide = pd.concat([base_df.assign(month_id=m) for m in range(num_months)], ignore_index=True)
-
-        for i in range(m_stochastic_features):
-            self.df_wide[f"stochastic_feature{i+1:02d}"] = [
-                list(np.random.normal(loc=0.5, scale=stochastic_noise, size=num_samples)) for _ in range(len(self.df_wide))
-            ]
-
-        self.zstack = None  # Reset other formats
-        self.df_long = None
-        self.source_format = "df_wide"
-
-        print(f"✅ Synthetic df_wide created with shape: {self.df_wide.shape}")
-        return self.df_wide
+        # Assign deterministic features
+        zstack[:, :, :, 0, :] = np.tile(np.arange(1, z_dim + 1)[:, None, None], (1, row_dim, col_dim))[:, :, :, None]  # month_id
+        zstack[:, :, :, 1, :] = np.tile(np.arange(row_dim)[None, :, None], (z_dim, 1, col_dim))[:, :, :, None]  # row
+        zstack[:, :, :, 2, :] = np.tile(np.arange(col_dim)[None, None, :], (z_dim, row_dim, 1))[:, :, :, None]  # col
+        zstack[:, :, :, 3, :] = np.tile(np.arange(row_dim * col_dim).reshape(1, row_dim, col_dim), (z_dim, 1, 1))[:, :, :, None]  # pg_id
+        #zstack[:, :, :, 4, :] = np.random.randint(1, 10, (1, row_dim, col_dim))[:, :, :, None]  # c_id
+        zstack[:, :, :, 4, :] = np.tile(((np.arange(row_dim)[:, None] // 10) % 2 + (np.arange(col_dim)[None, :] // 10) % 2) % 2 + 1, (z_dim, 1, 1))[:, :, :, None]  # c_id
 
 
-    def get_number_of_samples(self, feature_name):
-        """
-        Retrieves the number of samples stored in a stochastic feature column in df_wide.
-        """
-        if self.df_wide is None:
-            raise ValueError("No `df_wide` available. Generate or load it first.")
-        return len(self.df_wide[feature_name].iloc[0])
+        # Structured deterministic feature patterns
+        deterministic_patterns = [
+            (slice(15, 35), slice(15, 35)),  # Middle square
+            (slice(5, 15), slice(5, 15)),  # Top-left square
+            (slice(5, 15), slice(col_dim-15, col_dim-5)),  # Top-right square
+            (slice(row_dim-15, row_dim-5), slice(5, 15)),  # Bottom-left square
+            (slice(row_dim-15, row_dim-5), slice(col_dim-15, col_dim-5)),  # Bottom-right square
+        ]
 
+        for f, (row_slice, col_slice) in zip(range(base_features, base_features + num_deterministic_features), deterministic_patterns):
+            zstack[:, row_slice, col_slice, f, :] = 1.0  # Assign structured deterministic pattern
 
+        # Structured stochastic feature patterns
+        stochastic_patterns = [
+            (slice(10, 40), slice(22, 28)),  # Middle vertical rectangle
+            (slice(10, 40), slice(5, 15)),  # Left vertical rectangle
+            (slice(10, 40), slice(col_dim-15, col_dim-5)),  # Right vertical rectangle
+            (slice(22, 28), slice(10, 40)),  # Middle horizontal rectangle
+            (slice(5, 15), slice(10, 40)),  # Top horizontal rectangle
+        ]
+
+        for f, (row_slice, col_slice) in zip(range(base_features + num_deterministic_features, total_features), stochastic_patterns):
+            zstack[:, row_slice, col_slice, f, :] = np.random.normal(0.5, noise_level, (z_dim, 1, 1, num_samples))
+
+        print(f"✅ Synthetic zstack created with shape: {zstack.shape}")
+        return zstack, feature_metadata
 
 
 class TensorPlotter:
@@ -446,7 +441,12 @@ class TensorPlotter:
             for f in features:  
                 for s in samples:  
                     ax = axes[row_idx, z]  
-                    ax.imshow(zstack[z, :, :, f, s], vmin=0, vmax=1, cmap='viridis')
+
+                    # or should we have something more general here?
+                    vmin = np.min(zstack[:, :, :, f, :])
+                    vmax = np.max(zstack[:, :, :, f, :])
+
+                    ax.imshow(zstack[z, :, :, f, s], vmin=vmin, vmax=vmax, cmap='viridis')
     
                     if row_idx == 0:
                         ax.set_title(f"z = {z}")
