@@ -25,24 +25,35 @@ class TensorHandler:
             self.zstack = data
             self.df_wide = None
             self.df_long = None
+            self.tensor_canonical = None
             self.metadata["zstack_features"] = None # we can add more metadata here
 
         elif source_format == "df_wide" and data is not None:
             self.df_wide = data
             self.zstack = None
             self.df_long = None
+            self.tensor_canonical = None
             self.metadata["df_columns"] = list(data.columns)
 
         elif source_format == "df_long" and data is not None:
             self.df_long = data
             self.zstack = None
             self.df_wide = None
+            self.tensor_canonical = None
             self.metadata["df_long_columns"] = list(data.columns)
+
+        elif source_format == "tensor_canonical" and data is not None:
+            self.tensor_canonical = data
+            self.zstack = None
+            self.df_wide = None
+            self.df_long = None
+            self.metadata["tensor_canonical_features"] = None # we can add more metadata here
 
         else:
             self.zstack = None
             self.df_wide = None
             self.df_long = None
+            self.tensor_canonical = None
 
         # composition
         self.plotter = TensorPlotter()  # Composition: Delegate plotting
@@ -111,6 +122,7 @@ class TensorHandler:
         if drop: # we delete other data formats
             self.zstack = None
             self.df_long = None
+            self.tensor_canonical = None
 
         return self.df_wide
 
@@ -181,6 +193,7 @@ class TensorHandler:
         if drop: # we delete other data formats
             self.zstack = None
             self.df_wide = None
+            self.tensor_canonical = None
         
         return self.df_long
 
@@ -255,6 +268,99 @@ class TensorHandler:
 
         return df_long
 
+
+
+    def to_tensor_canonical(self, drop = False, assess = True):
+        """Converts a stored zstack into a canonical tensor format."""
+
+        if self.zstack is not None:
+            self.tensor_canonical = self.zstack_to_tensor_canonical(self.zstack)
+
+#            if assess:
+#                # Check if the reconstructed canonical tensor matches the original
+#                np.testing.assert_allclose(self.zstack, self.tensor_canonical_to_zstack(self.tensor_canonical), rtol=1e-5)
+#
+#        elif self.df_wide is not None:
+#            self.tensor_canonical = self.df_wide_to_tensor_canonical(self.df_wide)
+#
+#            if assess:             
+#                # Check if the reconstructed canonical tensor matches the original
+#                np.testing.assert_allclose(self.df_wide, self.tensor_canonical_to_df_wide(self.tensor_canonical), rtol=1e-5)
+
+#        elif self.df_long is not None:
+#            self.tensor_canonical = self.df_long_to_tensor_canonical(self.df_long)
+
+#            if assess:
+#                # Check if the reconstructed canonical tensor matches the original
+#                np.testing.assert_allclose(self.df_long, self.tensor_canonical_to_df_long(self.tensor_canonical), rtol=1e-5)
+
+#        else:
+#            raise ValueError("No zstack, wide DataFrame, or long DataFrame available for conversion. Generate or load data first.")
+
+        self.source_format = "tensor_canonical"
+
+        if drop: # we delete other data formats
+            self.zstack = None
+            self.df_wide = None
+            self.df_long = None
+
+        return self.tensor_canonical
+
+
+    def zstack_to_tensor_canonical(self, zstack):
+        """
+        Converts a 5D NumPy `zstack` array into `tensor_canonical` format with shape:
+        `(month_id, pg_id, num_samples, num_features)`
+    
+        Args:
+            zstack (np.ndarray): 5D tensor [z, row, col, feature, sample]
+    
+        Returns:
+            np.ndarray: Canonical tensor with shape `(month_id, pg_id, num_samples, num_features)`
+        """
+    
+        # 🚀 **Extract Feature Metadata**
+        feature_metadata = self.metadata['zstack_features']
+        deterministic_features = feature_metadata['deterministic_features']
+        stochastic_features = feature_metadata['stochastic_features']
+    
+        z_dim, row_dim, col_dim, num_features, num_samples = zstack.shape
+    
+        # 🚀 **Get PRIO Grid ID from `zstack` (pg_id)**
+        pg_id_index = deterministic_features.index("pg_id")  # Ensure "pg_id" is correctly indexed
+        pg_id = zstack[:, :, :, pg_id_index, 0]  # (z, row, col)
+    
+        # 🚀 **Flatten Spatial Information**
+        z_expanded, row_expanded, col_expanded = np.meshgrid(
+            np.arange(z_dim), 
+            np.arange(row_dim), 
+            np.arange(col_dim),
+            indexing="ij"
+        )
+    
+        # 🚀 **Map `(row, col)` to `pg_id`**
+        pg_id_flat = pg_id.reshape(z_dim, -1)  # (z, row*col)
+    
+        # 🚀 **Flatten Deterministic Features**
+        deterministic_tensors = []
+        for feature in deterministic_features:
+            idx = deterministic_features.index(feature)
+            deterministic_tensors.append(zstack[:, :, :, idx, 0].reshape(z_dim, -1, 1))  # Reshape to (z, pg_id, 1)
+    
+        # 🚀 **Flatten Stochastic Features**
+        stochastic_tensors = []
+        for feature in stochastic_features:
+            idx = len(deterministic_features) + stochastic_features.index(feature)  # Get feature index
+            stochastic_tensors.append(zstack[:, :, :, idx, :].reshape(z_dim, -1, num_samples, 1))  # Reshape to (z, pg_id, num_samples, 1)
+    
+        # 🚀 **Stack Features Correctly**
+        deterministic_stack = np.concatenate(deterministic_tensors, axis=-1)  # (z, pg_id, 1, num_deterministic_features)
+        stochastic_stack = np.concatenate(stochastic_tensors, axis=-1)  # (z, pg_id, num_samples, num_stochastic_features)
+    
+        # 🚀 **Concatenate Along Feature Axis**
+        tensor_canonical = np.concatenate([deterministic_stack, stochastic_stack], axis=-1)  # (z, pg_id, num_samples, num_features)
+    
+        return tensor_canonical
 
 
 
@@ -337,6 +443,9 @@ class TensorHandler:
                 zstack[int(row.z), int(row.row), int(row.col), i, int(row.sample_id)] = getattr(row, feature)
 
         return zstack
+
+
+ 
 
 
 
