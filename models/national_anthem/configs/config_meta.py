@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "national_anthem", 
-        "algorithm": "RandomForestModel",
+        "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep",
         "queryset": "fatalities003_wdi_short",
