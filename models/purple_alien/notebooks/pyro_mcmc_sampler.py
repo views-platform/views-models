@@ -131,15 +131,3 @@ class PyroMCMCSampler:
             self.logger.info(f"   🔍 HDI 99%: [{summary['hdi99lb']:.6f}, {summary['hdi99ub']:.6f}]")
 
         self.logger.info("\n✅ All MCMC Sampler Tests Passed Successfully!\n")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    logger = logging.getLogger(__name__)
-
-    # ✅ Instantiate Pyro MCMC Sampler
-    sampler = PyroMCMCSampler(num_samples=2000, warmup_steps=500, force_non_negative=True)
-    sampler.logger = logger
-
-    # ✅ Run Tests
-    sampler.run_tests()
