@@ -211,6 +211,8 @@ class ForecastReconciler:
         self.logger.info("\n✅ All Point Forecast Tests Passed Successfully!")
 
 
-# Usage Example
-reconciler = ForecastReconciler()
-reconciler.run_tests()  # Run full test suite  
+if __name__ == "__main__":
+
+    # Usage Example
+    reconciler = ForecastReconciler()
+    reconciler.run_tests()  # Run full test suite  
