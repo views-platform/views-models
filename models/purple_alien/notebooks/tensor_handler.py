@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import logging
 
 class TensorHandler:
     """
@@ -17,9 +18,11 @@ class TensorHandler:
             source_format (str | None): Either 'zstack', 'df_wide', or 'df_long'. If None, the object remains uninitialized.
         """
 
+        self.logger = logging.getLogger(__name__)
 
         self.source_format = source_format
         self.metadata = {}  # To store column names for reconstruction
+        self.grid_shape = None # To store grid dimensions for reconstruction
 
         if source_format == "zstack":
             self.zstack = data
@@ -27,6 +30,7 @@ class TensorHandler:
             self.df_long = None
             self.tensor_canonical = None
             self.metadata["zstack_features"] = None # we can add more metadata here
+            self.grid_shape = (data.shape[1], data.shape[2]) if data is not None else None
 
         elif source_format == "df_wide" and data is not None:
             self.df_wide = data
@@ -34,20 +38,49 @@ class TensorHandler:
             self.df_long = None
             self.tensor_canonical = None
             self.metadata["df_columns"] = list(data.columns)
+            self.metadata["zstack_features"] = self.infer_metadata_from_wide_df()
+
+            if "row" in data.columns and "col" in data.columns:
+                row_dim = data["row"].max() + 1
+                col_dim = data["col"].max() + 1
+                self.grid_shape = (row_dim, col_dim)
 
         elif source_format == "df_long" and data is not None:
+
+            # not implemented yet - log and raise an error
+
+            self.logger.error("❌ initialization from long format is not implemented yet.")
+            raise NotImplementedError("initialization from long format is not implemented yet.")
+        
+            # what is lagging here is just making sure that we get the zstack_features in the metadata infered from somewhere
+
             self.df_long = data
             self.zstack = None
             self.df_wide = None
             self.tensor_canonical = None
             self.metadata["df_long_columns"] = list(data.columns)
 
+            if "row" in data.columns and "col" in data.columns:
+                row_dim = data["row"].max() + 1
+                col_dim = data["col"].max() + 1
+                self.grid_shape = (row_dim, col_dim)
+
         elif source_format == "tensor_canonical" and data is not None:
+
+            # not implemented yet - log and raise an error
+            self.logger.error("❌ initialization from canonical tensor is not implemented yet.")
+            raise NotImplementedError("initialization from canonical tensor is not implemented yet.")
+        
+            # what is lagging here is just making sure that we get the zstack_features in the metadata infered from somewhere
+
             self.tensor_canonical = data
             self.zstack = None
             self.df_wide = None
             self.df_long = None
             self.metadata["tensor_canonical_features"] = None # we can add more metadata here
+
+            # 🚨 **Cannot Infer `grid_shape` Directly From `tensor_canonical`!**
+            self.grid_shape = None  # Requires mapping pg_id → (row, col) externally
 
         else:
             self.zstack = None
@@ -58,6 +91,21 @@ class TensorHandler:
         # composition
         self.plotter = TensorPlotter()  # Composition: Delegate plotting
         self.generator = DataGenerator()  # Composition: Delegate data generation
+
+    def set_grid_shape(self):
+        """
+        Sets the grid shape `(row_dim, col_dim)` based on the stored `zstack`.
+        """
+
+        if self.zstack is None:
+            self.logger.error("❌ Cannot determine grid shape: `zstack` is not loaded.")
+            raise ValueError("Cannot determine grid shape: `zstack` is not loaded.")
+
+        _, row_dim, col_dim, _, _ = self.zstack.shape
+        self.grid_shape = (row_dim, col_dim)  # ✅ Store it as an attribute
+
+        self.logger.info(f"✅ Grid shape set to {self.grid_shape}.")
+        return self.grid_shape
 
 
     def plot_zstack(self, *args, **kwargs):
@@ -86,41 +134,103 @@ class TensorHandler:
         self.zstack, self.metadata['zstack_features'] = self.generator.generate_synthetic_zstack(*args, **kwargs)
         self.source_format = "zstack"
 
+        # set the grid shape
+        self.set_grid_shape()
+
         # Reset other representations to avoid inconsistencies
         self.df_wide = None
         self.df_long = None
 
         return self.zstack, self.metadata
+    
 
-
-
-    def generate_synthetic_df_wide(self, *args, **kwargs):
+    def infer_metadata_from_wide_df(self):
         """
-        ....
+        Infers metadata from a wide-format DataFrame.
+        - Deterministic features: Known identifiers (e.g., 'month_id', 'row', etc.).
+        - Stochastic features: Columns where entries are lists.
         """
+        if not hasattr(self, "df_wide") or self.df_wide is None:
+            self.logger.error("❌ Cannot infer metadata: `df_wide` is not initialized.")
+            raise ValueError("Cannot infer metadata: `df_wide` is not available.")
 
-        return None
+        self.logger.info("ℹ️ Inferring metadata from wide-format DataFrame...")
+
+        # Define known deterministic feature columns
+        known_deterministic_features = {"month_id", "row", "col", "pg_id", "c_id"}
+
+        # Identify deterministic features that exist in df_wide
+        deterministic_features = [col for col in self.df_wide.columns if col in known_deterministic_features]
+
+        # add all the features that do not have lists as entries
+        for col in self.df_wide.columns:
+            if col not in known_deterministic_features:
+                if not self.df_wide[col].apply(lambda x: isinstance(x, list)).any():
+                    deterministic_features.append(col)
+
+        # Identify stochastic features:
+        stochastic_features = []
+        for col in self.df_wide.columns:
+            if col not in deterministic_features:
+                # Check if most (or all) values in the column are lists
+                if self.df_wide[col].apply(lambda x: isinstance(x, list)).any():
+                    stochastic_features.append(col)
+
+        # Store metadata
+        metadata = {
+            "zstack_features": {
+                "deterministic_features": deterministic_features,
+                "stochastic_features": stochastic_features
+            }
+        }
+
+        self.logger.info(f"✅ Metadata inferred: {self.metadata}")
+
+        return metadata["zstack_features"]
+
+
 
     def to_wide_df(self, drop = False, assess = True):
-        """Converts a stored zstack into a wide-format DataFrame."""
+        """
+        Converts a stored zstack, long-format DataFrame, or canonical tensor into a wide-format DataFrame.
+        """
 
         if self.zstack is not None:
             self.df_wide = self.zstack_to_df_wide(self.zstack)
 
-#            if assess:
-#                # Check if the reconstructed wide-format DataFrame matches the original
-#                np.testing.assert_allclose(self.zstack, self.df_wide_to_zstack(self.df_wide), rtol=1e-5)
-#
-#        elif self.df_long is not None:
-#            self.df_wide = self.df_long_to_df_wide(self.df_long)
-#
-#            if assess:
-#                # Check if the reconstructed wide-format DataFrame matches the original
-#                np.testing.assert_allclose(self.df_long, self.df_wide_to_df_long(self.df_long), rtol=1e-5)
-#
-#        else:
-#            raise ValueError("No zstack or long DataFrame available for conversion. Generate or load data first.")
-#
+        elif self.df_long is not None:
+
+            # we create the zstack from the long format
+            self.zstack = self.df_long_to_zstack(self.df_long)
+
+            # then the wide format from the zstack
+            self.df_wide = self.zstack_to_df_wide(self.zstack)
+
+        elif self.tensor_canonical is not None:
+
+            # we create the zstack from the canonical tensor
+            self.zstack = self.tensor_canonical_to_zstack(self.tensor_canonical)
+
+            # then the wide format from the zstack
+            self.df_wide = self.zstack_to_df_wide(self.zstack)
+
+        else:
+            self.logger.error("❌ No zstack, long DataFrame, or canonical tensor available for conversion. Generate or load data first.")
+            raise ValueError("No zstack, long DataFrame, or canonical tensor available for conversion. Generate or load data first.")        
+
+
+        if assess:
+            self.logger.info("Assessing reconstruction of wide-format DataFrame...")
+
+            try:
+                np.testing.assert_allclose(self.zstack, self.df_wide_to_zstack(self.df_wide), rtol=1e-5)
+                self.logger.info("✅ Assessment passed - zstack reconstructed from wide-format DataFrame matches the original.")
+
+            except AssertionError as e:
+                self.logger.exception(f"❌ Assessment failed - reconstructed zstack does not match the original! {e}")
+                raise  # Re-raise to enforce fail-fast
+
+
         self.source_format = "df_wide"
 
         if drop: # we delete other data formats
@@ -129,6 +239,159 @@ class TensorHandler:
             self.tensor_canonical = None
 
         return self.df_wide
+
+
+    def to_long_df(self, drop = False, assess = True):
+        """
+        Converts a stored zstack, wide-format DataFrame, or canonical tensor into a long-format DataFrame. 
+        """
+
+        if self.zstack is not None:
+              self.df_long = self.zstack_to_df_long(self.zstack)
+
+
+        elif self.df_wide is not None:
+            
+            # we create the zstack from the wide format
+            self.zstack = self.df_wide_to_zstack(self.df_wide)
+
+            # then the long format from the zstack
+            self.df_long = self.zstack_to_df_long(self.zstack)
+
+
+        elif self.tensor_canonical is not None:
+
+            # we create the zstack from the canonical tensor
+            self.zstack = self.tensor_canonical_to_zstack(self.tensor_canonical)
+
+            # then the long format from the zstack
+            self.df_long = self.zstack_to_df_long(self.zstack)
+
+        else:
+            self.logger.error("❌ No zstack, wide DataFrame, or canonical tensor available for conversion. Generate or load data first.")
+            raise ValueError("No zstack, wide DataFrame, or canonical tensor available for conversion. Generate or load data first.")
+
+
+        if assess:
+            self.logger.info("Assessing reconstruction of long-format DataFrame...")
+
+            try:
+                np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
+                self.logger.info("✅ Assessment passed - zstack reconstructed from long-format DataFrame matches the original.")
+
+            except AssertionError as e:
+                self.logger.exception(f"❌ Assessment failed - reconstructed zstack does not match the original!. {e}")
+                raise  # Re-raise to enforce fail-fast
+
+
+        
+        self.source_format = "df_long"
+
+        if drop: # we delete other data formats
+            self.zstack = None
+            self.df_wide = None
+            self.tensor_canonical = None
+        
+        return self.df_long
+
+
+
+    def to_tensor_canonical(self, drop = False, assess = True):
+        """
+        Converts a stored zstack, wide-format DataFrame, or long-format DataFrame into a canonical tensor.
+        """
+
+        if self.zstack is not None:
+            self.tensor_canonical = self.zstack_to_tensor_canonical(self.zstack)
+
+        elif self.df_wide is not None:
+            
+            # we create the zstack from the wide format
+            self.zstack = self.df_wide_to_zstack(self.df_wide)
+
+            # then the canonical tensor from the zstack
+            self.tensor_canonical = self.zstack_to_tensor_canonical(self.zstack)
+
+        elif self.df_long is not None:
+
+            # we create the zstack from the long format
+            self.zstack = self.df_long_to_zstack(self.df_long)
+
+            # then the canonical tensor from the zstack
+            self.tensor_canonical = self.zstack_to_tensor_canonical(self.zstack)
+
+        else:
+            self.logger.error("❌ No zstack, wide DataFrame, or long DataFrame available for conversion. Generate or load data first.")
+            raise ValueError("No zstack, wide DataFrame, or long DataFrame available for conversion. Generate or load data first.")
+
+
+        if assess:
+            self.logger.info("Assessing reconstruction of canonical tensor...")
+
+            try:
+                np.testing.assert_allclose(self.zstack, self.tensor_canonical_to_zstack(self.tensor_canonical), rtol=1e-5)
+                self.logger.info("✅ Assessment passed - zstack reconstructed from canonical tensor matches the original.")
+
+            except AssertionError as e:
+                self.logger.exception(f"❌ Assessment failed - reconstructed zstack does not match the original! {e}")
+                raise
+
+
+        self.source_format = "tensor_canonical"
+
+        if drop: # we delete other data formats
+            self.zstack = None
+            self.df_wide = None
+            self.df_long = None
+
+        return self.tensor_canonical
+
+
+    def to_zstack(self, drop = False, assess = True):
+        """
+        Converts a stored wide-format DataFrame or long-format DataFrame or canonical tensor into a zstack.
+        """
+
+        if self.df_wide is not None:
+            self.zstack = self.df_wide_to_zstack(self.df_wide)
+
+        elif self.df_long is not None:
+            self.zstack = self.df_long_to_zstack(self.df_long)
+
+        elif self.tensor_canonical is not None:
+            self.zstack = self.tensor_canonical_to_zstack(self.tensor_canonical)
+
+        else:
+            self.logger.error("❌ No wide-format DataFrame, long-format DataFrame, or canonical tensor available for conversion. Generate or load data first.")
+            raise ValueError("No wide-format DataFrame, long-format DataFrame, or canonical tensor available for conversion. Generate or load data first.")
+
+
+        if assess:
+            self.logger.info("Assessing reconstruction of zstack...")
+            try:
+                if self.df_wide is not None:
+                    np.testing.assert_allclose(self.zstack, self.df_wide_to_zstack(self.df_wide), rtol=1e-5)
+
+                elif self.df_long is not None:
+                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
+
+                elif self.tensor_canonical is not None:
+                    np.testing.assert_allclose(self.zstack, self.tensor_canonical_to_zstack(self.tensor_canonical), rtol=1e-5)
+
+                self.logger.info("✅ Assessment passed - zstack reconstructed from DataFrame matches the original.")
+
+            except AssertionError as e:
+                self.logger.exception(f"❌ Assessment failed - reconstructed zstack does not match the original! {e}")
+                raise  # Re-raise to enforce fail-fast
+
+        self.source_format = "zstack"
+
+        if drop:
+            self.df_wide = None
+            self.df_long = None
+            self.tensor_canonical = None
+
+        return self.zstack
 
 
     def zstack_to_df_wide(self, zstack):
@@ -171,36 +434,6 @@ class TensorHandler:
         return pd.DataFrame(data)
 
 #
-
-    def to_long_df(self, drop = False, asses = True):
-        """Converts a stored zstack into a long-format DataFrame."""
-
-        if self.zstack is not None:
-              self.df_long = self.zstack_to_df_long(self.zstack)
-
-#              if asses:
-#                    # Check if the reconstructed long-format DataFrame matches the original
-#                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
-#        
-#        elif self.df_wide is not None:
-#                self.df_long = self.df_wide_to_df_long(self.df_wide)
-#
-#                if asses:
-#                    # Check if the reconstructed long-format DataFrame matches the original
-#                    np.testing.assert_allclose(self.zstack, self.df_long_to_zstack(self.df_long), rtol=1e-5)
-#        
-#        else:
-#            raise ValueError("No zstack or wide DataFrame available for conversion. Generate or load data first.")
-        
-        self.source_format = "df_long"
-
-        if drop: # we delete other data formats
-            self.zstack = None
-            self.df_wide = None
-            self.tensor_canonical = None
-        
-        return self.df_long
-
 
     def zstack_to_df_long(self, zstack):
         """
@@ -273,44 +506,6 @@ class TensorHandler:
         return df_long
 
 
-
-    def to_tensor_canonical(self, drop = False, assess = True):
-        """Converts a stored zstack into a canonical tensor format."""
-
-        if self.zstack is not None:
-            self.tensor_canonical = self.zstack_to_tensor_canonical(self.zstack)
-
-#            if assess:
-#                # Check if the reconstructed canonical tensor matches the original
-#                np.testing.assert_allclose(self.zstack, self.tensor_canonical_to_zstack(self.tensor_canonical), rtol=1e-5)
-#
-#        elif self.df_wide is not None:
-#            self.tensor_canonical = self.df_wide_to_tensor_canonical(self.df_wide)
-#
-#            if assess:             
-#                # Check if the reconstructed canonical tensor matches the original
-#                np.testing.assert_allclose(self.df_wide, self.tensor_canonical_to_df_wide(self.tensor_canonical), rtol=1e-5)
-
-#        elif self.df_long is not None:
-#            self.tensor_canonical = self.df_long_to_tensor_canonical(self.df_long)
-
-#            if assess:
-#                # Check if the reconstructed canonical tensor matches the original
-#                np.testing.assert_allclose(self.df_long, self.tensor_canonical_to_df_long(self.tensor_canonical), rtol=1e-5)
-
-#        else:
-#            raise ValueError("No zstack, wide DataFrame, or long DataFrame available for conversion. Generate or load data first.")
-
-        self.source_format = "tensor_canonical"
-
-        if drop: # we delete other data formats
-            self.zstack = None
-            self.df_wide = None
-            self.df_long = None
-
-        return self.tensor_canonical
-
-
     def zstack_to_tensor_canonical(self, zstack):
         """
         Converts a 5D NumPy `zstack` array into `tensor_canonical` format with shape:
@@ -357,96 +552,235 @@ class TensorHandler:
 
         return tensor_canonical
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def df_wide_to_zstack(self, df):
+  
+    def df_wide_to_zstack(self, df_wide):
         """
-        Converts a wide-format DataFrame back into a 5D NumPy array [z, row, col, feature, sample].
+        Converts a wide-format DataFrame (`df_wide`) back into a 5D NumPy `zstack` array.
 
         Args:
-            df (pd.DataFrame): Wide-format DataFrame where feature columns contain lists of sample values.
+            df_wide (pd.DataFrame): Wide-format DataFrame where each feature column contains lists of sample values.
 
         Returns:
-            np.ndarray: Reconstructed zstack with shape [z, row, col, feature, sample].
+            np.ndarray: 5D zstack with shape `(month_id, row, col, num_features, num_samples)`.
         """
 
-        z_dim = df['month_id'].max() + 1
-        row_dim = df['row'].max() + 1
-        col_dim = df['col'].max() + 1
-        feature_columns = [col for col in df.columns if col.startswith("feature")]
-        num_features = len(feature_columns)
+        if df_wide is None:
+            raise ValueError("No wide-format DataFrame available for conversion.")
 
-        sample_length_check = df[feature_columns[0]].values[0]
-        num_samples = len(sample_length_check) if isinstance(sample_length_check, list) else 1
+        # **🚀 Extract Grid Dimensions**
+        unique_months = sorted(df_wide["month_id"].unique())  
+        unique_rows = sorted(df_wide["row"].unique())
+        unique_cols = sorted(df_wide["col"].unique())
 
-        zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples))
+        z_dim = len(unique_months)
+        row_dim = len(unique_rows)
+        col_dim = len(unique_cols)
 
-        z_indices = df['month_id'].values
-        row_indices = df['row'].values
-        col_indices = df['col'].values
+        # **🚀 Extract Metadata for Feature Handling**
+        feature_metadata = self.metadata["zstack_features"]
+        deterministic_features = feature_metadata["deterministic_features"]
+        stochastic_features = feature_metadata["stochastic_features"]
 
-        for i, feature in enumerate(feature_columns):
-            feature_data = df[feature].apply(lambda x: x if isinstance(x, list) else [x])  # Ensure lists
-            sample_values = np.stack(feature_data.values)  # Convert to 2D array
-            zstack[z_indices, row_indices, col_indices, i, :] = sample_values
+        num_deterministic = len(deterministic_features)
+        num_stochastic = len(stochastic_features)
+        num_features = num_deterministic + num_stochastic
+
+        # **🚀 Determine Number of Samples from Any Stochastic Feature**
+        sample_col = stochastic_features[0] if num_stochastic > 0 else deterministic_features[0]
+        num_samples = len(df_wide[sample_col].iloc[0]) if isinstance(df_wide[sample_col].iloc[0], list) else 1
+
+        # **🚀 Initialize an Empty 5D `zstack`**
+        zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples), dtype=np.float32)
+
+        # **🚀 Populate `zstack`**
+        for z_idx, month in enumerate(unique_months):
+            df_slice = df_wide[df_wide["month_id"] == month]
+
+            for row_idx, row in enumerate(unique_rows):
+                for col_idx, col in enumerate(unique_cols):
+                    df_cell = df_slice[(df_slice["row"] == row) & (df_slice["col"] == col)]
+
+                    if df_cell.empty:
+                        continue  # Skip empty cells
+                    
+                    # **🚀 Populate Deterministic Features (Broadcast Across Samples)**
+                    for f_idx, feature in enumerate(deterministic_features):
+                        value = df_cell[feature].values[0]  # Extract single value
+                        zstack[z_idx, row_idx, col_idx, f_idx, :] = value  # Copy across all samples
+
+                    # **🚀 Populate Stochastic Features (Per Sample)**
+                    for f_idx, feature in enumerate(stochastic_features):
+                        feature_values = df_cell[feature].values[0]  # Extract list of samples
+                        zstack[z_idx, row_idx, col_idx, num_deterministic + f_idx, :] = feature_values
 
         return zstack
 
 
     def df_long_to_zstack(self, df_long):
-
         """
-        Converts a long-format DataFrame (from zstack_to_df_long) back into a 5D NumPy array [z, row, col, feature, sample].
+        Converts a long-format DataFrame (`df_long`) back into a 5D NumPy `zstack` array.
 
         Args:
-            df_long (pd.DataFrame): Long-format DataFrame where each row represents a single sample.
+            df_long (pd.DataFrame): Long-format DataFrame where each row represents a single `(month_id, row, col, sample_id)`.
 
         Returns:
-            np.ndarray: Reconstructed zstack with shape [z, row, col, feature, sample].
+            np.ndarray: 5D `zstack` array with shape `(month_id, row, col, num_features, num_samples)`.
         """
-        
-        # Extract shape details dynamically
-        z_dim = df_long['z'].max() + 1
-        row_dim = df_long['row'].max() + 1
-        col_dim = df_long['col'].max() + 1
-        num_samples = df_long['sample_id'].max() + 1
-        feature_columns = [col for col in df_long.columns if col.startswith("feature")]
-        num_features = len(feature_columns)
 
-        # Initialize empty zstack
-        zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples))
+        if df_long is None:
+            raise ValueError("No long-format DataFrame available for conversion.")
 
-        # Assign values dynamically for each feature
-        for i, feature in enumerate(feature_columns):
-            for row in df_long.itertuples(index=False):
-                zstack[int(row.z), int(row.row), int(row.col), i, int(row.sample_id)] = getattr(row, feature)
+        # 🚀 **Extract Grid Dimensions**
+        unique_months = sorted(df_long["month_id"].unique())
+        unique_rows = sorted(df_long["row"].unique())
+        unique_cols = sorted(df_long["col"].unique())
+
+        z_dim = len(unique_months)
+        row_dim = len(unique_rows)
+        col_dim = len(unique_cols)
+
+        # 🚀 **Extract Metadata for Feature Handling**
+        feature_metadata = self.metadata["zstack_features"]
+        deterministic_features = feature_metadata["deterministic_features"]
+        stochastic_features = feature_metadata["stochastic_features"]
+
+        num_deterministic = len(deterministic_features)
+        num_stochastic = len(stochastic_features)
+        num_features = num_deterministic + num_stochastic
+
+        # **🚀 Determine Number of Samples from Stochastic Data**
+        unique_samples = sorted(df_long["sample_id"].unique())
+        num_samples = len(unique_samples)
+
+        # **🚀 Initialize an Empty 5D `zstack`**
+        zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples), dtype=np.float32)
+
+        # **🚀 Populate `zstack`**
+        for z_idx, month in enumerate(unique_months):
+            df_slice = df_long[df_long["month_id"] == month]
+
+            for row_idx, row in enumerate(unique_rows):
+                for col_idx, col in enumerate(unique_cols):
+                    df_cell = df_slice[(df_slice["row"] == row) & (df_slice["col"] == col)]
+
+                    if df_cell.empty:
+                        continue  # Skip empty cells
+
+                    # **🚀 Populate Deterministic Features (Broadcast Across Samples)**
+                    for f_idx, feature in enumerate(deterministic_features):
+                        value = df_cell[feature].values[0]  # Deterministic = 1 value per (month_id, row, col)
+                        zstack[z_idx, row_idx, col_idx, f_idx, :] = value  # Copy across all samples
+
+                    # **🚀 Populate Stochastic Features (Per Sample)**
+                    for f_idx, feature in enumerate(stochastic_features):
+                        for s_idx, sample in enumerate(unique_samples):
+                            df_sample = df_cell[df_cell["sample_id"] == sample]
+                            if not df_sample.empty:
+                                zstack[z_idx, row_idx, col_idx, num_deterministic + f_idx, s_idx] = df_sample[feature].values[0]
 
         return zstack
 
 
- 
+    def tensor_canonical_to_zstack(self, tensor_canonical):
+        """
+        Converts a canonical tensor `(month_id, pg_id, num_samples, num_features)`
+        back into a `zstack` with shape `(month_id, row, col, num_features, num_samples)`.
+
+        Args:
+            tensor_canonical (np.ndarray): Canonical tensor `(z, pg_id, num_samples, num_features)`.
+
+        Returns:
+            np.ndarray: Reconstructed 5D `zstack` `(month_id, row, col, num_features, num_samples)`.
+        """
+
+        # **🚀 Extract Metadata**
+        feature_metadata = self.metadata["zstack_features"]
+        deterministic_features = feature_metadata["deterministic_features"]
+        stochastic_features = feature_metadata["stochastic_features"]
+
+        num_deterministic = len(deterministic_features)
+        num_stochastic = len(stochastic_features)
+        num_features = num_deterministic + num_stochastic
+
+        # **🚀 Extract Tensor Shapes**
+        z_dim, pg_dim, num_samples, _ = tensor_canonical.shape
+
+        # **🚀 Ensure `grid_shape` is available**
+        if self.grid_shape is None:
+            raise ValueError("`grid_shape` is not set. Run `set_grid_shape()` first.")
+
+        row_dim, col_dim = self.grid_shape  # Extract row and column dimensions
+
+        # **🚀 Retrieve PRIO Grid Mapping (pg_id → row, col)**
+        pg_id_map = self.pg_id_to_row_col()  # Dictionary {pg_id: (row, col)}
+
+        # **🚀 Initialize Empty `zstack`**
+        zstack = np.zeros((z_dim, row_dim, col_dim, num_features, num_samples), dtype=np.float32)
+
+        # 🚀 **Iterate Over pg_ids to Place Values Correctly**
+        for pg_idx in range(pg_dim):
+            if pg_idx not in pg_id_map:
+                continue  # Skip missing pg_id mappings
+
+            row, col = pg_id_map[pg_idx]
+
+            # 🚀 **Extract Deterministic Features (Same Across Samples)**
+            deterministic_values = tensor_canonical[:, pg_idx, 0, :num_deterministic]  # (z, num_deterministic)
+
+            # 🚀 **Expand Deterministic Features Across Samples**
+            deterministic_values = np.repeat(deterministic_values[:, np.newaxis, :], num_samples, axis=1)  # (z, num_samples, num_deterministic)
+
+            # 🚀 **Insert Deterministic Features Into `zstack`**
+            zstack[:, row, col, :num_deterministic, :] = np.transpose(deterministic_values, (0, 2, 1))  # (z, row, col, num_deterministic, num_samples)
+
+            # 🚀 **Extract Stochastic Features (Per Sample)**
+            stochastic_values = tensor_canonical[:, pg_idx, :, num_deterministic:]  # (z, num_samples, num_stochastic)
+
+            # 🚀 **Insert Stochastic Features Into `zstack`**
+            zstack[:, row, col, num_deterministic:, :] = np.transpose(stochastic_values, (0, 2, 1))  # (z, row, col, num_stochastic, num_samples)
+
+        return zstack
+
+
+    def pg_id_to_row_col(self):
+        """
+        Constructs a mapping from `pg_id` to `(row, col)` coordinates.
+
+        Returns:
+            dict: A dictionary mapping `pg_id` -> (row, col)
+        """
+
+        # 🚀 **Extract `pg_id` From `zstack`**
+        pg_id_feature = "pg_id"
+        feature_metadata = self.metadata["zstack_features"]
+
+        if pg_id_feature not in feature_metadata["deterministic_features"]:
+            raise ValueError(f"Expected `{pg_id_feature}` in deterministic features, but it is missing!")
+
+        pg_id_index = feature_metadata["deterministic_features"].index(pg_id_feature)
+
+        # 🚀 **Get Grid Dimensions**
+        z_dim, row_dim, col_dim, _, _ = self.zstack.shape
+
+        # 🚀 **Extract `pg_id` from zstack**
+        pg_id_array = self.zstack[0, :, :, pg_id_index, 0]  # Extract from first timestep
+
+        # 🚀 **Build Mapping**
+        pg_id_map = {}
+        for row in range(row_dim):
+            for col in range(col_dim):
+                pg_id = pg_id_array[row, col]
+                if pg_id not in pg_id_map:
+                    pg_id_map[pg_id] = (row, col)  # Store the first occurrence
+
+        return pg_id_map
+
 
 
 
 class DataGenerator:
     def __init__(self):
-        pass  # No need for internal state
+        self.logger = logging.getLogger(__name__)
 
     def generate_synthetic_zstack(
         self,
@@ -532,8 +866,7 @@ class DataGenerator:
         for f in range(num_base_features, num_total_features):
             zstack[:, :, :, f, :] += zstack[:, :, :, 0, :] * 0.1 
 
-
-        print(f"✅ Synthetic zstack created with shape: {zstack.shape}")
+        self.logger.info(f"✅ Synthetic zstack created with shape: {zstack.shape}")
         return zstack, feature_metadata
 
 
@@ -876,6 +1209,7 @@ class TensorPlotter:
         plt.tight_layout()
         plt.show()
 
+
     @staticmethod
     def plot_tensor_canonical(tensor_canonical, metadata, num_z_slices=5, num_samples=5, features=None):
         """
@@ -1012,6 +1346,4 @@ class TensorPlotter:
             'stochastic': stochastic_features,
             'deterministic': deterministic_features
         }
-
-
 
