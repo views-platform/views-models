@@ -33,6 +33,13 @@ class TensorHandler:
             self.grid_shape = (data.shape[1], data.shape[2]) if data is not None else None
 
         elif source_format == "df_wide" and data is not None:
+
+            if type(data.index) == pd.MultiIndex:
+                data = data.reset_index(drop=False)
+
+            # remane to column priogrid_gid to pg_id
+            data.rename(columns={"priogrid_gid": "pg_id"}, inplace=True)
+
             self.df_wide = data
             self.zstack = None
             self.df_long = None
