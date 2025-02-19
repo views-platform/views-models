@@ -72,6 +72,10 @@ class TensorHandler:
         """Delegates to TensorPlotter"""
         TensorPlotter.plot_df_long(self.df_long, *args, **kwargs)
 
+    def plot_tensor_canonical(self, *args, **kwargs):
+        """Delegates to TensorPlotter"""
+        TensorPlotter.plot_tensor_canonical(self.tensor_canonical, self.metadata['zstack_features'], *args, **kwargs)
+
 
     def generate_synthetic_zstack(self, *args, **kwargs):
         """
@@ -311,55 +315,46 @@ class TensorHandler:
         """
         Converts a 5D NumPy `zstack` array into `tensor_canonical` format with shape:
         `(month_id, pg_id, num_samples, num_features)`
-    
-        Args:
-            zstack (np.ndarray): 5D tensor [z, row, col, feature, sample]
-    
-        Returns:
-            np.ndarray: Canonical tensor with shape `(month_id, pg_id, num_samples, num_features)`
         """
-    
         # 🚀 **Extract Feature Metadata**
         feature_metadata = self.metadata['zstack_features']
         deterministic_features = feature_metadata['deterministic_features']
         stochastic_features = feature_metadata['stochastic_features']
-    
+
         z_dim, row_dim, col_dim, num_features, num_samples = zstack.shape
-    
+
         # 🚀 **Get PRIO Grid ID from `zstack` (pg_id)**
-        pg_id_index = deterministic_features.index("pg_id")  # Ensure "pg_id" is correctly indexed
+        if "pg_id" not in deterministic_features:
+            raise ValueError("pg_id is missing from deterministic features")
+
+        pg_id_index = deterministic_features.index("pg_id")
         pg_id = zstack[:, :, :, pg_id_index, 0]  # (z, row, col)
-    
+
         # 🚀 **Flatten Spatial Information**
-        z_expanded, row_expanded, col_expanded = np.meshgrid(
-            np.arange(z_dim), 
-            np.arange(row_dim), 
-            np.arange(col_dim),
-            indexing="ij"
-        )
-    
-        # 🚀 **Map `(row, col)` to `pg_id`**
         pg_id_flat = pg_id.reshape(z_dim, -1)  # (z, row*col)
-    
+
         # 🚀 **Flatten Deterministic Features**
-        deterministic_tensors = []
-        for feature in deterministic_features:
-            idx = deterministic_features.index(feature)
-            deterministic_tensors.append(zstack[:, :, :, idx, 0].reshape(z_dim, -1, 1))  # Reshape to (z, pg_id, 1)
-    
+        deterministic_tensors = [
+            zstack[:, :, :, idx, 0].reshape(z_dim, -1, 1) for idx, feature in enumerate(deterministic_features)
+        ]
+
         # 🚀 **Flatten Stochastic Features**
-        stochastic_tensors = []
-        for feature in stochastic_features:
-            idx = len(deterministic_features) + stochastic_features.index(feature)  # Get feature index
-            stochastic_tensors.append(zstack[:, :, :, idx, :].reshape(z_dim, -1, num_samples, 1))  # Reshape to (z, pg_id, num_samples, 1)
-    
+        stochastic_tensors = [
+            zstack[:, :, :, len(deterministic_features) + idx, :].reshape(z_dim, -1, num_samples, 1)
+            for idx, feature in enumerate(stochastic_features)
+        ]
+
         # 🚀 **Stack Features Correctly**
-        deterministic_stack = np.concatenate(deterministic_tensors, axis=-1)  # (z, pg_id, 1, num_deterministic_features)
+        deterministic_stack = np.concatenate(deterministic_tensors, axis=-1)  # (z, pg_id, num_deterministic_features)
         stochastic_stack = np.concatenate(stochastic_tensors, axis=-1)  # (z, pg_id, num_samples, num_stochastic_features)
-    
+
+        # 🚀 **Fix Dimensionality Mismatch**
+        deterministic_stack = np.expand_dims(deterministic_stack, axis=2)  # (z, pg_id, 1, num_deterministic_features)
+        deterministic_stack = np.tile(deterministic_stack, (1, 1, num_samples, 1))  # (z, pg_id, num_samples, num_deterministic_features)
+
         # 🚀 **Concatenate Along Feature Axis**
         tensor_canonical = np.concatenate([deterministic_stack, stochastic_stack], axis=-1)  # (z, pg_id, num_samples, num_features)
-    
+
         return tensor_canonical
 
 
@@ -880,6 +875,103 @@ class TensorPlotter:
 
         plt.tight_layout()
         plt.show()
+
+    @staticmethod
+    def plot_tensor_canonical(tensor_canonical, metadata, num_z_slices=5, num_samples=5, features=None):
+        """
+        Plots a sanity check for the canonical tensor representation (`tensor_canonical`).
+        - Deterministic features are plotted as single values (repeated across all samples).
+        - Stochastic features are plotted per `(sample_id)`, properly mapped to `pg_id`.
+
+        Args:
+            tensor_canonical (np.ndarray): Canonical tensor with shape `(month_id, pg_id, num_samples, num_features)`.
+            metadata (dict): Metadata containing feature names and classifications.
+            num_z_slices (int, optional): Number of `month_id` slices to visualize. Default is 5.
+            num_samples (int, optional): Number of samples per stochastic feature to plot. Default is 5.
+            features (list, optional): List of feature column names to plot. If None, all features are used.
+        """
+
+        if tensor_canonical is None:
+            raise ValueError("No canonical tensor available for plotting.")
+
+        # Extract metadata
+        deterministic_features = metadata["deterministic_features"]
+        stochastic_features = metadata["stochastic_features"]
+
+        # **Feature Selection Handling**
+        if features is not None:
+            deterministic_features = [f for f in deterministic_features if f in features]
+            stochastic_features = [f for f in stochastic_features if f in features]
+
+        num_z_slices = min(num_z_slices, tensor_canonical.shape[0])  # Ensure we don't exceed available time steps
+        num_samples = min(num_samples, tensor_canonical.shape[2])  # Ensure we don't exceed available samples
+
+        num_deterministic = len(deterministic_features)
+        num_stochastic = len(stochastic_features) * num_samples
+        num_rows = num_deterministic + num_stochastic  # ✅ Avoids `IndexError`
+
+        # **Create a fake spatial grid for visualization** 
+        pg_id_positions = np.arange(tensor_canonical.shape[1])  # Create fake spatial positions for `pg_id`
+        width = int(np.sqrt(len(pg_id_positions)))  # Approximate a square layout
+        height = width  # Keep a square shape
+
+        # 🚀 **Create Figure & Subplots**
+        fig, axes = plt.subplots(max(1, num_rows), max(1, num_z_slices), figsize=(15, 3 * max(1, num_rows)))
+        axes = np.atleast_2d(axes)  # ✅ Ensures 2D structure
+
+        row_idx = 0  # ✅ Tracks subplot row
+
+        for z in range(num_z_slices):  
+            row_idx = 0  # ✅ Reset row index for each `z` iteration
+
+            # 🚀 **Plot Deterministic Features**
+            for f_idx, feature_name in enumerate(deterministic_features):
+                ax = axes[row_idx, z] if num_z_slices > 1 else axes[row_idx]
+
+                feature_values = tensor_canonical[z, :, 0, f_idx]  # Only first sample since deterministic
+                
+                # should be across all samples and all time steps - sample doesn't matter so 0 is fine
+                vmin, vmax = np.min(tensor_canonical[:, :, 0, f_idx]), np.max(tensor_canonical[:, :, 0, f_idx])
+
+                scatter = ax.scatter(pg_id_positions % width, height - (pg_id_positions // width), 
+                                     s=50, c=feature_values, cmap='viridis', vmin=vmin, vmax=vmax)
+
+                if row_idx == 0:
+                    ax.set_title(f"Month {z+1}")
+
+                if z == 0:
+                    ax.set_ylabel(f"{feature_name} (Det)")
+
+                ax.set_xticks([])
+                ax.set_yticks([])
+                row_idx += 1  # ✅ Move to next subplot row
+
+            # 🚀 **Plot Stochastic Features**
+            for f_idx, feature_name in enumerate(stochastic_features):
+                for s_idx in range(num_samples):
+                    ax = axes[row_idx, z] if num_z_slices > 1 else axes[row_idx]
+
+                    feature_values = tensor_canonical[z, :, s_idx, num_deterministic + f_idx]
+
+                    # should be across all samples and all time steps
+                    vmin, vmax = np.min(tensor_canonical[:, :, s_idx, num_deterministic + f_idx]), np.max(tensor_canonical[:, :, s_idx, num_deterministic + f_idx])
+
+                    scatter = ax.scatter(pg_id_positions % width, height - (pg_id_positions // width), 
+                                         s=50, c=feature_values, cmap='viridis', vmin=vmin, vmax=vmax)
+
+                    if row_idx == 0:
+                        ax.set_title(f"Month {z+1}")
+
+                    if z == 0:
+                        ax.set_ylabel(f"{feature_name} (S={s_idx})")
+
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    row_idx += 1  # ✅ Move to next subplot row
+
+        plt.tight_layout()
+        plt.show()
+
 
 
     @staticmethod
