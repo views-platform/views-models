@@ -119,35 +119,52 @@ class PosteriorAnalyzer:
         if len(samples) == 0:
             logger.error("❌ No valid samples. Returning MAP = 0.0")
             return 0.0
-
+        
         # **Compute HDI**
-        credible_mass = 0.05 if stats.skew(samples) > 5 else (0.10 if len(samples) > 5000 else 0.25)
+        credible_mass = 0.10 if len(samples) > 5000 else 0.25
         hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass=credible_mass, enforce_non_negative=False)
 
-        # **If HDI Contains Only One Value, Return That as MAP**
+        # **Debugging: Ensure HDI bounds are reasonable**
+        logger.debug(f"📢 HDI Computed: [{hdi_min:.5f}, {hdi_max:.5f}]")
+
+        # **Ensure HDI is valid**
         if hdi_min == hdi_max:
             logger.info(f"✅ HDI contains only one value ({hdi_min}). Setting MAP = {hdi_min}")
             return float(hdi_min)
 
         # **Select Only the HDI Region**
         subset = samples[(samples >= hdi_min) & (samples <= hdi_max)]
+        logger.debug(f"📢 Subset selected for MAP: min={np.min(subset):.5f}, max={np.max(subset):.5f}")
 
-        # **Adaptive Histogram Binning (Freedman–Diaconis rule)**
+        if len(subset) == 0:
+            logger.error(f"❌ No valid samples inside HDI range! Returning hdi_min = {hdi_min:.5f}")
+            return float(hdi_min)
+        
+
+        # **Adaptive Histogram Binning**
         iqr_value = stats.iqr(subset)
         bin_width = 2 * iqr_value / (len(subset) ** (1/3))
-        num_bins = max(20 if stats.skew(samples) > 5 else 10, int((subset.max() - subset.min()) / bin_width))
+        num_bins = max(20 if stats.skew(subset) > 5 else 10, int((subset.max() - subset.min()) / bin_width))
         hist, bin_edges = np.histogram(subset, bins=num_bins, density=True)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
         # **Find Histogram Mode**
-        mode_estimate = bin_centers[np.argmax(hist)]
+        hist_mode = bin_centers[np.argmax(hist)]
+        logger.debug(f"📢 Histogram Mode Estimate: {hist_mode:.5f}")
+
+        # **Ensure MAP is inside HDI**
+        if not (hdi_min <= hist_mode <= hdi_max):
+            logger.error(f"❌ MAP estimate {hist_mode:.5f} is OUTSIDE HDI range [{hdi_min:.5f}, {hdi_max:.5f}]! Clamping.")
+            hist_mode = np.clip(hist_mode, hdi_min, hdi_max)
+            logger.info(f"📢 MAP estimate clamped to {hist_mode:.5f}")
 
         # **Enforce Non-Negativity if Requested**
-        if enforce_non_negative and mode_estimate < 0:
-            logger.warning(f"📢  Negative MAP estimate detected ({mode_estimate:.5f}). Setting to 0.")
-            mode_estimate = max(0, mode_estimate)
+        if enforce_non_negative and hist_mode < 0:
+            logger.warning(f"📢 Negative MAP estimate detected ({hist_mode:.5f}). Setting to 0.")
+            hist_mode = max(0, hist_mode)
 
-        return float(mode_estimate)
+        return float(hist_mode)
+
 
 
     @staticmethod
