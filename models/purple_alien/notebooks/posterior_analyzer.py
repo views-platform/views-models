@@ -16,7 +16,7 @@ class PosteriorAnalyzer:
         pass
 
     @staticmethod
-    def compute_hdi(samples, credible_mass=0.95, enforce_non_negative=False):
+    def compute_hdi(samples, credible_mass=0.95, enforce_non_negative=True):
         """
         Compute the Highest Density Interval (HDI) for a given set of samples 
         (1D). This returns the single contiguous interval of minimal width 
@@ -378,7 +378,7 @@ def test_hdi_function():
     failed_tests = []  # Track failed cases
 
     for name, samples in test_cases.items():
-        hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass)
+        hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass, enforce_non_negative=False)
         in_hdi = (samples >= hdi_min) & (samples <= hdi_max)
         coverage = np.mean(in_hdi)
 
@@ -426,7 +426,7 @@ def test_map_function():
     failed_tests = []  # Track failures
 
     for name, (samples, true_mode) in test_cases.items():
-        map_estimate = PosteriorAnalyzer.compute_map(samples)
+        map_estimate = PosteriorAnalyzer.compute_map(samples, enforce_non_negative=False, enforce_correction=False)
 
         if true_mode is not None:
             if np.isclose(map_estimate, true_mode, atol=0.5):
