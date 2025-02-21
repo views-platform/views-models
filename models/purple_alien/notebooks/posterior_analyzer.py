@@ -84,15 +84,15 @@ class PosteriorAnalyzer:
 
         # Pick the narrowest
         hdi_min, hdi_max = min(intervals, key=lambda x: x[1] - x[0])
-        logger.info(f"✅ Computed HDI: [{hdi_min:.3f}, {hdi_max:.3f}]")
+        logger.info(f"✅ Computed HDI ({credible_mass*100}%): [{hdi_min:.3f}, {hdi_max:.3f}]")
 
         # Enforce non-negativity if requested
-        if enforce_non_negative:
-            logger.debug("📢 Applying non-negativity constraint to HDI values.")
+        if enforce_non_negative == True:
+            logger.info("📢 Applying non-negativity constraint to HDI values.")
             hdi_min = max(0.0, hdi_min)
             hdi_max = max(0.0, hdi_max)
 
-        logger.debug(f"📝 Final HDI values: [{hdi_min:.3f}, {hdi_max:.3f}]")
+            logger.info(f"📝 Final HDI ({credible_mass*100}%) values: [{hdi_min:.3f}, {hdi_max:.3f}]")
 
         return (hdi_min, hdi_max)
 
@@ -103,7 +103,8 @@ class PosteriorAnalyzer:
         fallback_bins=100,
         bw_method='silverman',
         enforce_non_negative = True,
-        enforce_correction = True
+        enforce_correction = True,
+        enforce_correction_credible_mass = 0.95,
     ):
         """
         Estimate the MAP (mode) from samples in [0, ∞), possibly with a small mass at/near zero.
@@ -189,17 +190,24 @@ class PosteriorAnalyzer:
             logger.info("✅ Fallback histogram mode estimate: %.5f", mode_est)
 
         # 6) Enforce non-negativity
-        if enforce_non_negative:
+        if enforce_non_negative == True:
             mode_est = max(0.0, mode_est)
             logger.info("🍩 Applied non-negativity constraint. Final mode: %.5f", mode_est)
 
         # 7) Correction: Ensure MAP is within HDI if requested
-        if enforce_correction:
-                
-            hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass=0.95)
-            logger.info(f"🧠 HDI computed: min={hdi_min:.5f}, max={hdi_max:.5f}")
-            logger.info(f"🍔 Enforcing correction: Clamping MAP inside HDI.")
-            mode_est = np.clip(mode_est, hdi_min, hdi_max)
+        if enforce_correction == True:
+
+            logger.info("📢 enforce_correction=True: Clamping MAP inside HDI.")    
+            hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass=enforce_correction_credible_mass)
+            logger.info(f"🧠 HDI computed {enforce_correction_credible_mass}: min={hdi_min:.5f}, max={hdi_max:.5f}")
+            
+            # check if MAP is already within HDI
+            if mode_est >= hdi_min and mode_est <= hdi_max:
+                logger.info(f"✅ MAP {mode_est:.5f} is already inside HDI [{hdi_min:.5f}:{hdi_max:.5f}]. No correction needed.")
+            
+            else:
+                mode_est = np.clip(mode_est, hdi_min, hdi_max)
+                logger.info(f"🍔 Enforcing correction: Clamping MAP inside HDI. corrected map: {mode_est:.5f}")
 
         return float(mode_est)
 
@@ -279,7 +287,7 @@ class PosteriorAnalyzer:
         ax.annotate(
             rf"Max Observed: {max_estimate:.2f}",
             xy=(max_estimate, y_max * 0.60),
-            xytext=(max_estimate - 3, y_max * 0.70),
+            xytext=(max_estimate - 0.3, y_max * 0.3),
             arrowprops=dict(arrowstyle="->", color=max_color),
             fontsize=14, weight="bold", color=max_color
         )
@@ -301,48 +309,6 @@ class PosteriorAnalyzer:
         plt.title("Posterior Distribution: Most Likely & Uncertainty Ranges", fontsize=16, weight="bold")
         plt.tight_layout()
         plt.show()
-
-
-
-    @staticmethod
-    def validate_hdi_map_consistency(samples, credible_mass=0.95, enforce_correction=False):
-        """
-        Validate if MAP falls within HDI, and optionally correct HDI or MAP if necessary.
-
-        Parameters
-        ----------
-        samples : array-like
-            Posterior samples.
-        credible_mass : float
-            The credible mass for the HDI (e.g., 0.95).
-        enforce_correction : bool
-            If True, correct MAP or HDI if needed.
-
-        Returns
-        -------
-        (float, float, float)
-            The HDI bounds and possibly corrected MAP.
-        """
-        hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass)
-        map_estimate = PosteriorAnalyzer.compute_map(samples)
-
-        # **Case: MAP is 0 but HDI starts slightly above it**
-        if np.isclose(map_estimate, 0.0, atol=1e-3) and hdi_min > 1e-3:
-            logger.warning(f"🚨 MAP ({map_estimate:.5f}) falls OUTSIDE the HDI [{hdi_min:.5f}, {hdi_max:.5f}]. Likely due to precision issues.")
-
-            if enforce_correction:
-                logger.info(f"🚨 Expanding HDI downward to include MAP at zero.")
-                hdi_min = 0.0  # Adjust HDI to include zero
-
-        # **General Case: MAP is outside HDI**
-        elif not (hdi_min <= map_estimate <= hdi_max):
-            logger.warning(f"🚨 MAP ({map_estimate:.5f}) falls OUTSIDE the HDI [{hdi_min:.5f}, {hdi_max:.5f}].")
-
-            if enforce_correction:
-                logger.info(f"🚨 Enforcing correction: Clamping MAP inside HDI.")
-                map_estimate = np.clip(map_estimate, hdi_min, hdi_max)
-
-        return hdi_min, hdi_max, map_estimate
 
 
 
