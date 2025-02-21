@@ -84,7 +84,7 @@ class PosteriorAnalyzer:
 
         # Pick the narrowest
         hdi_min, hdi_max = min(intervals, key=lambda x: x[1] - x[0])
-        logger.info(f"✅ Computed HDI ({credible_mass*100}%): [{hdi_min:.3f}, {hdi_max:.3f}]")
+        logger.debug(f"✅ Computed HDI ({credible_mass*100}%): [{hdi_min:.3f}, {hdi_max:.3f}]")
 
         # Enforce non-negativity if requested
         if enforce_non_negative == True:
@@ -92,124 +92,63 @@ class PosteriorAnalyzer:
             hdi_min = max(0.0, hdi_min)
             hdi_max = max(0.0, hdi_max)
 
-            logger.info(f"📝 Final HDI ({credible_mass*100}%) values: [{hdi_min:.3f}, {hdi_max:.3f}]")
+            logger.debug(f"📝 Final HDI ({credible_mass*100}%) values: [{hdi_min:.3f}, {hdi_max:.3f}]")
 
         return (hdi_min, hdi_max)
 
-    @staticmethod
-    def compute_map(
-        samples,
-        eps_for_zero=np.exp(-100),
-        fallback_bins=100,
-        bw_method='silverman',
-        enforce_non_negative = True,
-        enforce_correction = True,
-        enforce_correction_credible_mass = 0.95,
-    ):
-        """
-        Estimate the MAP (mode) from samples in [0, ∞), possibly with a small mass at/near zero.
-        Uses boundary-corrected KDE via reflection around zero, with a simple fallback histogram.
 
-        Parameters
+    @staticmethod
+    def compute_map(samples, enforce_non_negative=False):
+        """
+        Compute the Maximum A Posteriori (MAP) estimate using an HDI-based histogram and KDE refinement.
+
+        Parameters:
         ----------
         samples : array-like
             Posterior samples.
-        eps_for_zero : float
-            Any sample <= this threshold is treated as 0. Default = exp(-10) ~ 4.54e-5.
-        fallback_bins : int
-            Number of bins in the fallback histogram if KDE fails.
-        bw_method : str or float
-            Bandwidth method passed to gaussian_kde ('silverman', 'scott', or numeric).
         enforce_non_negative : bool
-            If True, clamp final result to be >= 0.
+            If True, forces MAP estimate to be non-negative.
 
-        Returns
+        Returns:
         -------
         float
-            The estimated mode.
-            - If any sample is <= eps_for_zero, returns 0 (assuming a point mass at 0).
-            - Otherwise, computes a boundary-corrected KDE by reflecting data at 0
-              and returns the mode on [0, max(samples)].
+            The estimated MAP.
         """
+        samples = np.asarray(samples)
 
-        logger.debug("📢 Starting MAP estimation with eps_for_zero=%.5f, fallback_bins=%d, bw_method=%s, enforce_non_negative=%s",
-                     eps_for_zero, fallback_bins, bw_method, enforce_non_negative)
-
-        samples = np.asarray(samples, dtype=float)
-        logger.debug("📢 Converted samples to NumPy array.")
-
-        # 1) Filter out any NaNs or negatives (if they exist, we treat them as invalid)
-        valid_mask = np.isfinite(samples) & (samples >= 0)
-        data = samples[valid_mask]
-
-        if len(data) == 0:
-            logger.error("❌ No valid samples provided. Returning mode = 0.0")
+        if len(samples) == 0:
+            logger.error("❌ No valid samples. Returning MAP = 0.0")
             return 0.0
 
-        logger.debug("📢 Valid samples count: %d", len(data))
+        # **Compute HDI**
+        credible_mass = 0.05 if stats.skew(samples) > 5 else (0.10 if len(samples) > 5000 else 0.25)
+        hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass=credible_mass, enforce_non_negative=False)
 
-        # 2) Check for zero or near-zero values
-        near_zero_mask = (data <= eps_for_zero)
-        if np.any(near_zero_mask):
-            logger.info("📢 Mass detected at or below eps_for_zero (%.5f). Setting mode = 0.", eps_for_zero)
-            return 0.0
+        # **If HDI Contains Only One Value, Return That as MAP**
+        if hdi_min == hdi_max:
+            logger.info(f"✅ HDI contains only one value ({hdi_min}). Setting MAP = {hdi_min}")
+            return float(hdi_min)
 
-        # 3) Reflection: mirror the strictly positive data around zero
-        reflected = np.concatenate([-data, data])
-        logger.debug("🪞 Applied reflection technique to enforce boundary correction.")
+        # **Select Only the HDI Region**
+        subset = samples[(samples >= hdi_min) & (samples <= hdi_max)]
 
-        # 4) Attempt KDE on the reflected data
-        try:
-            kde = stats.gaussian_kde(reflected, bw_method=bw_method)
-            logger.debug("✅ KDE successfully computed using bw_method=%s", bw_method)
+        # **Adaptive Histogram Binning (Freedman–Diaconis rule)**
+        iqr_value = stats.iqr(subset)
+        bin_width = 2 * iqr_value / (len(subset) ** (1/3))
+        num_bins = max(20 if stats.skew(samples) > 5 else 10, int((subset.max() - subset.min()) / bin_width))
+        hist, bin_edges = np.histogram(subset, bins=num_bins, density=True)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
-            # We'll evaluate the KDE only on [0, max(data)] since the true domain is >= 0
-            x_min = 0.0
-            x_max = np.max(data)
-            if x_max == 0:
-                logger.warning("🚨  Degenerate case detected: all data points are zero. Returning mode = 0.")
-                return 0.0
+        # **Find Histogram Mode**
+        mode_estimate = bin_centers[np.argmax(hist)]
 
-            x_grid = np.linspace(x_min, x_max, 300)
-            kde_vals = kde(x_grid)
-            mode_est = x_grid[np.argmax(kde_vals)]
-            logger.info("✅ KDE mode estimate: %.5f", mode_est)
+        # **Enforce Non-Negativity if Requested**
+        if enforce_non_negative and mode_estimate < 0:
+            logger.warning(f"📢  Negative MAP estimate detected ({mode_estimate:.5f}). Setting to 0.")
+            mode_estimate = max(0, mode_estimate)
 
-        except Exception as e:
-            logger.exception("❌ KDE estimation failed, falling back to histogram method. Error: %s", e)
+        return float(mode_estimate)
 
-            # 5) Fallback: histogram on the unreflected data
-            hist, bin_edges = np.histogram(data, bins=fallback_bins, density=True)
-            peak_idx = np.argmax(hist)
-
-            if peak_idx < len(bin_edges) - 1:
-                mode_est = 0.5 * (bin_edges[peak_idx] + bin_edges[peak_idx + 1])
-            else:
-                mode_est = bin_edges[peak_idx]
-
-            logger.info("✅ Fallback histogram mode estimate: %.5f", mode_est)
-
-        # 6) Enforce non-negativity
-        if enforce_non_negative == True:
-            mode_est = max(0.0, mode_est)
-            logger.info("🍩 Applied non-negativity constraint. Final mode: %.5f", mode_est)
-
-        # 7) Correction: Ensure MAP is within HDI if requested
-        if enforce_correction == True:
-
-            logger.info("📢 enforce_correction=True: Clamping MAP inside HDI.")    
-            hdi_min, hdi_max = PosteriorAnalyzer.compute_hdi(samples, credible_mass=enforce_correction_credible_mass)
-            logger.info(f"🧠 HDI computed {enforce_correction_credible_mass}: min={hdi_min:.5f}, max={hdi_max:.5f}")
-            
-            # check if MAP is already within HDI
-            if mode_est >= hdi_min and mode_est <= hdi_max:
-                logger.info(f"✅ MAP {mode_est:.5f} is already inside HDI [{hdi_min:.5f}:{hdi_max:.5f}]. No correction needed.")
-            
-            else:
-                mode_est = np.clip(mode_est, hdi_min, hdi_max)
-                logger.info(f"🍔 Enforcing correction: Clamping MAP inside HDI. corrected map: {mode_est:.5f}")
-
-        return float(mode_est)
 
     @staticmethod
     def plot_posterior_distribution(samples, hdi_levels=[50, 95, 99], grid=True):
@@ -254,7 +193,9 @@ class PosteriorAnalyzer:
         fig, ax = plt.subplots(figsize=(10, 5))
 
         # **Density Plot (KDE)**
-        kde = sns.kdeplot(samples, color="black", linewidth=2, fill=True, alpha=0.20, clip=(x_min, x_max))
+
+        # hitogram
+        sns.histplot(samples, bins=50, color="black", kde=True, ax=ax)
 
         # Get the Y-limit after plotting KDE to ensure HDI shading fills correctly
         y_max = ax.get_ylim()[1]
@@ -274,23 +215,6 @@ class PosteriorAnalyzer:
             )
             ax.axvline(low, color=color, linestyle=":", linewidth=1.5, alpha=0.9)
             ax.axvline(high, color=color, linestyle=":", linewidth=1.5, alpha=0.9)
-
-        # **Annotations: Where should we expect values?**
-        ax.annotate(
-            rf"Most Likely: {map_estimate:.2f}",
-            xy=(map_estimate, y_max * 0.85),
-            xytext=(map_estimate + 0.1, y_max * 0.9),
-            arrowprops=dict(arrowstyle="->", color=map_color),
-            fontsize=14, weight="bold", color=map_color
-        )
-
-        ax.annotate(
-            rf"Max Observed: {max_estimate:.2f}",
-            xy=(max_estimate, y_max * 0.60),
-            xytext=(max_estimate - 0.3, y_max * 0.3),
-            arrowprops=dict(arrowstyle="->", color=max_color),
-            fontsize=14, weight="bold", color=max_color
-        )
 
         # **Set X-axis to meaningful range only**
         ax.set_xlim(x_min, x_max)
@@ -392,7 +316,7 @@ def test_map_function():
     failed_tests = []  # Track failures
 
     for name, (samples, true_mode) in test_cases.items():
-        map_estimate = PosteriorAnalyzer.compute_map(samples, enforce_non_negative=False, enforce_correction=False)
+        map_estimate = PosteriorAnalyzer.compute_map(samples, enforce_non_negative=False)
 
         if true_mode is not None:
             if np.isclose(map_estimate, true_mode, atol=0.5):
