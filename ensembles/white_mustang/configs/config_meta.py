@@ -13,6 +13,8 @@ def get_meta_config():
         "depvar": "ln_ged_sb_dep",  # Double-check the target variables of each model
         "level": "pgm",
         "aggregation": "mean",
+        "reconciliation": "pgm_cm_point",
+        "reconcile_with": "cruel_summer",
         "creator": "Xiaolong"
     }
     return meta_config

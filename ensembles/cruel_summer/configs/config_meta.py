@@ -12,7 +12,8 @@ def get_meta_config():
         "metrics": ["RMSLE", "CRPS"],
         "depvar": "ln_ged_sb_dep", 
         "level": "cm", 
-        "aggregation": "median", 
+        "aggregation": "median",
+        "reconciliation": None,
         "creator": "Xiaolong" 
     }
     return meta_config

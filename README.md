@@ -49,9 +49,9 @@
 
 ## Ensemble Catalog
 <!-- ENSEMBLE_TABLE_START -->
-| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
-| ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
-| cruel_summer |  | ln_ged_sb_dep | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| white_mustang |  | ln_ged_sb_dep | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | None | deployed | NA | Xiaolong |
+| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Reconciliation              | Forecasting Type | Implementation Status | Implementation Date | Author |
+| ---------- | --------- | ------ | -------------- | --------------------------- |-----------------------------|------------------| --------------------- | ------------------- | ------ |
+| cruel_summer |  | ln_ged_sb_dep | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None                        | None             | shadow                           | NA | Xiaolong |
+| white_mustang |  | ln_ged_sb_dep | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | pgm_cm_point (cruel summer) | None             | None               | deployed         | NA | Xiaolong |
 
 <!-- ENSEMBLE_TABLE_END -->
