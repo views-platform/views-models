@@ -134,6 +134,8 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 | Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
 | cruel_summer |  | ln_ged_sb_dep | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| pink_ponyclub |  | ln_ged_sb_dep | None | - [hyperparameters pink_ponyclub](https://github.com/views-platform/views-models/blob/main/ensembles/pink_ponyclub/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| skinny_love |  | ln_ged_sb_dep | None | - [hyperparameters skinny_love](https://github.com/views-platform/views-models/blob/main/ensembles/skinny_love/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
 | white_mustang |  | ln_ged_sb_dep | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | None | deployed | NA | Xiaolong |
 
 <!-- ENSEMBLE_TABLE_END -->
