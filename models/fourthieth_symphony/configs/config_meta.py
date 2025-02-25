@@ -8,15 +8,15 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "fourthieth_symphony", 
+        "name": "fourtieth_symphony", 
         "algorithm": "SHURF",
         # Uncomment and modify the following lines as needed for additional metadata:
-         "depvar": "ln_ged_sb_dep",
+         "depvar": "ged_sb_dep",
         # "queryset": "escwa001_cflong",
          "level": "cm",
-         "creator": "Håvard"
-        "model_reg": "RandomForestModel",
-        "model_clf": "RandomForestModel",
+         "creator": "Håvard",
+        "model_reg": "XGBModel",
+        "model_clf": "XGBModel",
         "metrics": ["RMSLE", "CRPS", "MSE"],
     }
     return meta_config
