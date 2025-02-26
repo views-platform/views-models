@@ -15,7 +15,7 @@ This repository contains all of the necesary components for creating new models 
 
 - [Key Terms and Definitions](#key-terms-and-definitions)
 - [Model Naming Conventions](#model-naming-conventions) 
-- [Creating New Models](#creatingnewmodels)
+- [Creating New Models](#creating-new-models)
 - [Model scripts](#modelscripts)
 - [Model filesystems](#model_filesystems)
 - [Running a single model](#running_a_single_model)
@@ -66,7 +66,7 @@ Additionally, the new naming convention for models in the pipeline takes the for
 ---
 
 ## Creating New Models 
-<a name="creatingnewmodels"></a>
+<a name="creating-new-models"></a>
 
 The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
