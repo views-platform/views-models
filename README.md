@@ -43,7 +43,7 @@ In VIEWS terminology a **model** is defined as:
 
 The models belonging to the VIEWS pipeline follow a predetermined naming standard. Models no longer carry descriptive titles (e.g., transform_log_clf_name_LGBMClassifier_reg_name_LGBMRegressor). Although such titles provided some information about the models, as  models are developed over time, this type of naming could cause confusion and ultimately small differences could not be communicated properly through the model titles. Instead, we rely on the metadata of the model for model specifications and being able to substantively differentiate them between each other.
 
-Additionaly, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
+Additionally, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
 
 ---
 
@@ -51,13 +51,13 @@ Additionaly, the new naming convention for models in the pipeline takes the form
 
 The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
-As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightfoward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
+As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightforward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the user can specify the desired model algorithm and the model architecture package. Currently, only [stepshift models](https://github.com/views-platform/views-stepshifter/blob/main/README.md) are supported, however, we work on expanding the list of supported algorithms and model architectures. Then, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
 
 To run the model scaffold builder, execute
 
 `python build_model_scaffold.py`
 
-You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. The scripts created are as follows (see further down for a description of the filesystem):
+You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. It is the responsibility of the model creator to make changes to the newly created scripts where appropriate - see below for further information on which scripts need to be updated. The scripts created are as follows (see further down for a description of the filesystem):
 
 # MODEL SCRIPTS
 
@@ -75,12 +75,12 @@ This shell script is the principal means by which a model should be run (e.g. by
 
 The VIEWS platform is designed to support models of arbitrary form. A model may need to import many external libraries or modules and the set of modules required by one model are quite likely to be incompatible with those of another (a 'dependency conflict').
 
-The VIEWS platform solves this problem by building a custom Python **enviroment** for every model. A Python environment is an isolated sandbox into which a particular set of modules can be installed, and it does not matter if the modules installed on one environment are incompatible with those installed in another. Code execution can be quickly switched between environments, so that models with dependency conflicts can be easily executed in series.
+The VIEWS platform solves this problem by building a custom Python **environment** for every model. A Python environment is an isolated sandbox into which a particular set of modules can be installed, and it does not matter if the modules installed on one environment are incompatible with those installed in another. Code execution can be quickly switched between environments, so that models with dependency conflicts can be easily executed in series.
 
 The `run.sh` script first builds the environment required to run a model, specified in the `requirements.txt` file - see below), and then executes the model inside that environment by passing its `main.py` file (see below) to the Python interpreter.
 
 ## `requirements.txt`
-The purpose of this file is to specify which modules (probably including their versions or an acceptable range thereof) need to be installed in the model-specific environment built by `run.sh`.
+The purpose of this file is to specify which modules (probably including their versions or an acceptable range thereof) need to be installed in the model-specific environment built by `run.sh`. 
 
 **It is the model creator's responsibility to ensure that this file is correctly populated.** Only modules named in this file (and their dependencies) will be installed in the model env. If your model needs `numpy` and it is not installed by any other dependencies, it needs to be specified here.
 
@@ -93,6 +93,8 @@ Once the `run.sh` script has created the model's environment, it activates the e
 - it logs into `weights-and-biases` - all runs executed in the VIEWS platform are automatically externally logged to the weights-and-biases web platform - URLs are printed to the terminal during model/ensemble execution, which will take users to webpages showing live logging and analytics
 - it parses command line arguments (forwarded by `run.sh`) which specify whether the model is to be trained, whether a sweep over hyperparameters should be performed, etc.
 - it then calls the relevant `Manager` from `views-pipeline-core` which superintends the execution of the model. Every class of models has its own custom manager (e.g. `StepShifterManager` looks after stepshifted regression models). **If you are introducing a new class of model to VIEWS, you will need to create a new Manager class for it.**
+
+**Make sure to import your model manager class and include it in the appropriate sections in the `main.py` script!**   
 
 # MODEL FILESYSTEM
 As well as understanding the function of the model scripts, users and developers need to have a grasp of the structure of the model filesystem. A description of each of the directories follows below:
@@ -117,7 +119,7 @@ This directory contains Python scripts used to control model configuration. **Mo
 - `config_queryset.py`: Most VIEWS models are anticipated to need to fetch data from the central VIEWS database via the `viewser` client. This is done by specifying a `queryset`. A queryset is a representation of a data table. It consists of a name, a target level-of-analysis (into which all data is automatically transformed) and one or more Columns. A Column, in turn, has a name, a source level-of-analysis, the name of a raw feature from the VIEWS database and zero or more transforms from the `views-transformation-library`. The queryset is passed via the viewser client to a server which executes the required database fetches and transformations and returns the dataset as a single dataframe (or, in the future, a tensor). The `config_queryset.py` specifies the queryset, and **it is the model creator's responsibility to ensure that the specification is correct**.
 
 
-- `config_sweep.py`: During model development, developers will often wish to perform sweeps over ranges of model hyperparameters for optimisation purposes. This script allows such sweeps to be configured, specifying which parameters ranges are to explored and what is to be optimised.
+- `config_sweep.py`: During model development, developers will often wish to perform sweeps over ranges of model hyperparameters for optimisation purposes (hyperparameter tuning). This script allows such sweeps to be configured, specifying which parameters ranges are to explored and what is to be optimised.
 
 
 ## `data`
@@ -140,7 +142,7 @@ Logs shipped to weights-and-biases are also stored locally here for convenience
 ---
 
 ## Running a single model
-A model is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the model exists, creates one if not, activates the environment, and executes the model's `main.py` inside it. The model can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated.
+A model is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the model exists, creates one if not, activates the environment, and executes the model's `main.py` inside it. The model can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated. However, if the environment is setup once e.g. by executing the `run.sh` script, it can be activated at a later point in time and the model can be run by by executing the `main.py` directly.
 
 The `run.sh` and `main.py` both require command line arguments to control their behaviour (command line arguments submitted to `run.sh` are simply passed on to `main.py`). A description of these arguments follows:
 
@@ -173,13 +175,15 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 - `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
 
+Consequently, in order to train and evaluate a model it is either possible to execute `python main.py -run_type calibration -t -e` or `run.sh -run_type calibration -t -e`. Of course, these commands can be used to run already existing models (see the [Catalogs](#Catalogs) for a list of already existing models). Consult the [Glossary](../FAQ%20&%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
+
 # Ensembles
 
 An ensemble is a combination of models which has greater predictive power than any of the models does singly.
 
 ## Creating New Ensembles 
 
-The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built.
+The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built. As in the case of creating new models, make sure to update the appropriate model scripts (indicated below).
 
 # MODEL SCRIPTS
 
@@ -268,6 +272,13 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 
 - `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
+
+Consequently, in order to train a model and generate predictions, execute either `python main.py -t --run_type forecasting -f` or `run.sh -t --run_type forecasting -f`. Of course, these commands can be used to run already existing ensembles (see the [Catalogs](#Catalogs) for a list of already existing ensembles). Consult the [Glossary](../FAQ%20&%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
+
+
+## Implementing Model Architectures
+
+As of now, the only implemented model architecture is the [stepshifter model](https://github.com/views-platform/views-stepshifter/blob/main/README.md). Experienced users have the possibility to develop their own model architecture including their own model class manager. Head over to [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) for further information on the model class manager and on how to develop new model architectures. 
 
 
 ## Implemented Models
