@@ -16,7 +16,7 @@ This repository contains all of the necesary components for creating new models 
 - [Key Terms and Definitions](#key-terms-and-definitions)
 - [Model Naming Conventions](#model-naming-conventions) 
 - [Creating New Models](#creating-new-models)
-- [Model scripts](#modelscripts)
+- [Model scripts](#model-scripts)
 - [Model filesystems](#model_filesystems)
 - [Running a single model](#running_a_single_model)
 - [Ensembles](#ensembles)
@@ -79,7 +79,7 @@ To run the model scaffold builder, execute
 You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. It is the responsibility of the model creator to make changes to the newly created scripts where appropriate - see below for further information on which scripts need to be updated. The scripts created are as follows (see further down for a description of the filesystem):
 
 ---
-
+<a name="model-scripts"></a>
 # MODEL SCRIPTS
 
 ## `README.md`
