@@ -53,7 +53,222 @@ The views-models repository contains the tools for creating new models, as well 
 
 As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightfoward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
 
+To run the model scaffold builder, execute
+
+`python build_model_scaffold.py`
+
+You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. The scripts created are as follows (see further down for a description of the filesystem):
+
+# MODEL SCRIPTS
+
+## `README.md`
+It is the responsibility of the model creator to write a README file for their model. This should give a concise, human-readable description of the model:
+- what it forecasts
+- what algorithm(s) it uses
+- what hyperparameters it relies on and whether these have been or can be optimised (e.g. in a sweep)
+- a brief description of what input data it requires
+- how it is or should be evaluated 
+- (preferably) some notes on performance.
+
+## `run.sh`
+This shell script is the principal means by which a model should be run (e.g. by executing `source run.sh arg1 arg2...` at a terminal prompt - see 'Running a single model' below). You probably will not need to modify it, but it is important to understand what it is for.
+
+The VIEWS platform is designed to support models of arbitrary form. A model may need to import many external libraries or modules and the set of modules required by one model are quite likely to be incompatible with those of another (a 'dependency conflict').
+
+The VIEWS platform solves this problem by building a custom Python **enviroment** for every model. A Python environment is an isolated sandbox into which a particular set of modules can be installed, and it does not matter if the modules installed on one environment are incompatible with those installed in another. Code execution can be quickly switched between environments, so that models with dependency conflicts can be easily executed in series.
+
+The `run.sh` script first builds the environment required to run a model, specified in the `requirements.txt` file - see below), and then executes the model inside that environment by passing its `main.py` file (see below) to the Python interpreter.
+
+## `requirements.txt`
+The purpose of this file is to specify which modules (probably including their versions or an acceptable range thereof) need to be installed in the model-specific environment built by `run.sh`.
+
+**It is the model creator's responsibility to ensure that this file is correctly populated.** Only modules named in this file (and their dependencies) will be installed in the model env. If your model needs `numpy` and it is not installed by any other dependencies, it needs to be specified here.
+
+It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=0.1.2,<1.0.0`.
+
+## `main.py`
+Once the `run.sh` script has created the model's environment, it activates the environment and executes the `main.py` file inside it. The `main.py` has several tasks:
+
+- it uses the `ModelPathManager` from `views-pipeline-core` to establish where it is on the host machine's filesystem so that other scripts and modules can be found by the Python interpreter at runtime
+- it logs into `weights-and-biases` - all runs executed in the VIEWS platform are automatically externally logged to the weights-and-biases web platform - URLs are printed to the terminal during model/ensemble execution, which will take users to webpages showing live logging and analytics
+- it parses command line arguments (forwarded by `run.sh`) which specify whether the model is to be trained, whether a sweep over hyperparameters should be performed, etc.
+- it then calls the relevant `Manager` from `views-pipeline-core` which superintends the execution of the model. Every class of models has its own custom manager (e.g. `StepShifterManager` looks after stepshifted regression models). **If you are introducing a new class of model to VIEWS, you will need to create a new Manager class for it.**
+
+# MODEL FILESYSTEM
+As well as understanding the function of the model scripts, users and developers need to have a grasp of the structure of the model filesystem. A description of each of the directories follows below:
+
+## `artifacts`
+An artifact is the result of training a model on a particular set of input data. For example, if a regression model is trained on a particular input, the set of regression coefficients calculated by the model constitute an artifact. The artifact can be stored and later used to make predictions from new data without needing to train the model again. 
+
+The VIEWS platform allows users to store model-specific artifacts locally. If you have never trained a particular model, this directory will be empty.
+
+## `configs`
+This directory contains Python scripts used to control model configuration. **Model creators need to ensure that all settings needed to configure a model or a model sweep are contained in these scripts and correctly defined.**
+
+- `config_deployment.py`: The VIEWS platform is designed to permit new models to be tested and developed in parallel with established (i.e. 'production') models which are used to generate our publicly-disseminated forecasts. A model's `deployment_status` must be specified in this script and must be one of `shadow`, `deployed`, `baseline`, or `deprecated` to indicate its stage of development. An under-development model which should not be used in production should have status `shadow`. Fully developed production models have status `deployed`. Simple models used as references or yardsticks are `baseline`. If a production model is superseded, it can be retired from the production system by setting its status to `deprecated`. **A model MUST NOT be given `deployed` status without discussion with the modelling team**.
+
+
+- `config_hyperparameters.py`: Most models will rely on algorithms for which hyperparameters need to be specified (even if invisibly by default). This script contains dictionary specifying any required model-specific hyperparameters to be read at runtime.
+
+
+- `config_meta.py`: This script specifies the most basic model parameters, e.g. the model's name, the name of its forecasting algorithm, the dependent variable it forecasts, the name of its input data queryset (see below), its creator. **This dictionary must be populated correctly**, since it controls important aspects of model execution further down the pipeline. 
+
+
+- `config_queryset.py`: Most VIEWS models are anticipated to need to fetch data from the central VIEWS database via the `viewser` client. This is done by specifying a `queryset`. A queryset is a representation of a data table. It consists of a name, a target level-of-analysis (into which all data is automatically transformed) and one or more Columns. A Column, in turn, has a name, a source level-of-analysis, the name of a raw feature from the VIEWS database and zero or more transforms from the `views-transformation-library`. The queryset is passed via the viewser client to a server which executes the required database fetches and transformations and returns the dataset as a single dataframe (or, in the future, a tensor). The `config_queryset.py` specifies the queryset, and **it is the model creator's responsibility to ensure that the specification is correct**.
+
+
+- `config_sweep.py`: During model development, developers will often wish to perform sweeps over ranges of model hyperparameters for optimisation purposes. This script allows such sweeps to be configured, specifying which parameters ranges are to explored and what is to be optimised.
+
+
+## `data`
+The VIEWS platform allows local storage of data for convenience, both raw data (i.e. input data from a queryset fetch) and generated data (e.g. forecasts), all of which is stored in this directory.
+
+## `logs`
+The platform produces detailed logs during execution which are printed to the terminal, exported to weights-and-biases and also saved locally in this directory.
+
+## `notebooks`
+While the use of Jupyter notebooks is generally discouraged on the grounds of stability and git interoperability, this directory is provided for those who wish to use them during model development. 
+
+Users should note, however, that **Jupyter notebooks MUST NOT be used to run production models**.
+
+## `reports`
+Convenience directory where figures, papers or slides relating to particular models can be stored.
+
+## `wandb`
+Logs shipped to weights-and-biases are also stored locally here for convenience
+
 ---
+
+## Running a single model
+A model is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the model exists, creates one if not, activates the environment, and executes the model's `main.py` inside it. The model can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated.
+
+The `run.sh` and `main.py` both require command line arguments to control their behaviour (command line arguments submitted to `run.sh` are simply passed on to `main.py`). A description of these arguments follows:
+
+- `-r` or `--run_type` followed by one of [`calibration`, `validation`, `forecasting`]:  choose the run type
+
+
+- `-s` or `--sweep`: perform a sweep run (run type must be `calibration`)
+
+
+- `-t` or `--train`: flag indicating whether a new model artifact should be trained
+
+
+- `-e` or `--evaluate`: flag indicating if model should be evaluated
+
+
+- `-f` or `--forecast`: flag indicating if forecasts are to be generated
+
+
+- `-a` or `--artifact_name`: flag allowing the name of the artifact to be evaluated to be supplied
+
+
+- `-en` or `--ensemble`: flag to indicate that a model is en ensemble
+
+
+- `-sa` or `--saved`: flag to indicate that saved data/artifacts should be used
+
+
+- `-o` or `--override_month`: flag allowing one to specify a month other than the most recent month with data from which to forecast
+
+
+- `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
+
+# Ensembles
+
+An ensemble is a combination of models which has greater predictive power than any of the models does singly.
+
+## Creating New Ensembles 
+
+The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built.
+
+# MODEL SCRIPTS
+
+## `README.md`
+It is the responsibility of the ensemble creator to write a README file for their ensemble. This should give a concise, human-readable description of the ensemble:
+- what it forecasts
+- which constituent models it ensembles over
+- how the ensembling is done
+- how it is or should be evaluated 
+- (preferably) some notes on performance.
+
+## `run.sh`
+This shell script is the principal means by which an ensemble should be run (e.g. by executing `source run.sh arg1 arg2...` at a terminal prompt - see 'Running an ensemble' below). You probably will not need to modify it, but it is important to understand what it is for.
+
+The `run.sh` script first builds the environment required to run the ensemble, specified in the `requirements.txt` file - see below), and then executes the ensemble inside that environment by passing its `main.py` file (see below) to the Python interpreter.
+
+## `requirements.txt`
+The purpose of this file is to specify which modules (probably including their versions or an acceptable range thereof) need to be installed in the ensemble-specific environment built by `run.sh`.
+
+**It is the ensemble creator's responsibility to ensure that this file is correctly populated.** Only modules named in this file (and their dependencies) will be installed in the ensemble env. If your ensemble needs `numpy` and it is not installed by any other dependencies, it needs to be specified here.
+
+It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=0.1.2,<1.0.0`.
+
+## `main.py`
+Once the `run.sh` script has created the ensemble's environment, it activates the environment and executes the `main.py` file inside it. The `main.py` has several tasks:
+
+- it uses the `EnsemblePathManager` from `views-pipeline-core` to establish where it is on the host machine's filesystem so that other scripts and modules can be found by the Python interpreter at runtime
+- it logs into `weights-and-biases` - all runs executed in the VIEWS platform are automatically externally logged to the weights-and-biases web platform - URLs are printed to the terminal during model/ensemble execution, which will take users to webpages showing live logging and analytics
+- it parses command line arguments (forwarded by `run.sh`) which specify whether the ensemble is to be trained, whether forecasts are to be generated, etc.
+- it then calls the `EnsembleManager` from `views-pipeline-core` which superintends the execution of the ensemble.
+
+# ENSEMBLE FILESYSTEM
+As well as understanding the function of the ensemble scripts, users and developers need to have a grasp of the structure of the ensemble filesystem. A description of each of the directories follows below:
+
+## `artifacts`
+
+
+## `configs`
+This directory contains Python scripts used to control model configuration. **Model creators need to ensure that all settings needed to configure a model or a model sweep are contained in these scripts and correctly defined.**
+
+- `config_deployment.py`: An ensemble's `deployment_status` must be specified in this script and must be one of `shadow`, `deployed`, `baseline`, or `deprecated` to indicate its stage of development. An under-development ensemble which should not be used in production should have status `shadow`. Fully developed production ensembles have status `deployed`. Ensembles used as references or yardsticks are `baseline`. If a production ensemble is superseded, it can be retired from the production system by setting its status to `deprecated`. **An ensemble MUST NOT be given `deployed` status without discussion with the modelling team**.
+
+
+- `config_hyperparameters.py`: 
+
+
+- `config_meta.py`: This script specifies the most basic ensemble parameters, e.g. the ensemble's name, the models it ensembles over, the dependent variable it forecasts, the aggregation scheme used to perform the ensembling, which reconciliation algorithm it to be applied, which other ensemble it should be reconciled with, and its creator. **This dictionary must be populated correctly**, since it controls important aspects of ensemble execution further down the pipeline.
+
+
+## `data`
+The VIEWS platform allows local storage of data for convenience, in this directory.
+
+## `logs`
+The platform produces detailed logs during execution which are printed to the terminal, exported to weights-and-biases and also saved locally in this directory.
+
+## `reports`
+Convenience directory where figures, papers or slides relating to particular models can be stored.
+
+## `wandb`
+Logs shipped to weights-and-biases are also stored locally here for convenience
+
+## Running an ensemble
+An ensemble is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the ensemble exists, creates one if not, activates the environment, and executes the ensemble's `main.py` inside it. The ensemble can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated.
+
+The `run.sh` and `main.py` both require command line arguments to control their behaviour (command line arguments submitted to `run.sh` are simply passed on to `main.py`). A description of these arguments follows:
+
+- `-r` or `--run_type` followed by one of [`calibration`, `validation`, `forecasting`]:  choose the run type
+
+
+- `-t` or `--train`: flag indicating whether new model artifacts should be trained
+
+
+- `-e` or `--evaluate`: flag indicating if the ensemble should be evaluated
+
+
+- `-f` or `--forecast`: flag indicating if forecasts are to be generated
+
+
+- `-en` or `--ensemble`: flag to indicate that a model is en ensemble
+
+
+- `-sa` or `--saved`: flag to indicate that saved data/artifacts should be used
+
+
+- `-o` or `--override_month`: flag allowing one to specify a month other than the most recent month with data from which to forecast
+
+
+- `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
+
 
 ## Implemented Models
 
