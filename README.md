@@ -15,18 +15,27 @@ This repository contains all of the necesary components for creating new models 
 
 - [Key Terms and Definitions](#key-terms-and-definitions)
 - [Model Naming Conventions](#model-naming-conventions) 
-- [Creating New Models](#creating-new-models)
+- [Creating New Models](#creatingnewmodels)
+- [Model scripts](#modelscripts)
+- [Model filesystems](#model_filesystems)
+- [Running a single model](#running_a_single_model)
+- [Ensembles](#ensembles)
+- [Creating a new ensemble](#Creating-a-new-ensemble)
+- [Ensemble scripts](#ensemble_scripts)
+- [Ensemble filesystem](#ensemble_filesystem)
+- [Running an ensemble](#running_an_ensemble)
 - [Implemented Models](#implemented-models)
 - [Model Catalogs](#catalogs)
     - [Country-Month Models](#country-month-model-catalog)
     - [PRIO-GRID-Month Model](#prio-grid-month-model-catalog)
-    - [Ensambles](#ensemble-catalog)
+    - [Ensembles](#ensemble-catalog)
 
 <!-- tocstop -->
 
 ---
 
 ## Key Terms and Definitions 
+<a name="key-terms-and-definitions"></a>
 
 In VIEWS terminology a **model** is defined as: 
 1. A specific instantiation of a machine learning algorithm,
@@ -39,15 +48,25 @@ In VIEWS terminology a **model** is defined as:
 
 ---
 
+## Time partitioning
+
+VIEWS models all currently use the same time partitioning model to divide the time-axis of the input dataset up into three segments. The boundaries of these partitions are currently fixed in the `views-pipeline-core` package, but they will be made user-configurable in the future. Partitions are labelled by their VIEWS `month_id`, where month 001 is January 1980, month 121 is January 1990, and so on. The partitions are as follows:
+- **calibration**: training interval: 121 - 396, test interval: 397 - 444
+- **validation**: training interval: 121 - 444, test interval: 445 - 456
+- **forecasting**: training interval: 121 - (current VIEWS month -2)
+
+---
+
 ## Model Naming Conventions
 
 The models belonging to the VIEWS pipeline follow a predetermined naming standard. Models no longer carry descriptive titles (e.g., transform_log_clf_name_LGBMClassifier_reg_name_LGBMRegressor). Although such titles provided some information about the models, as  models are developed over time, this type of naming could cause confusion and ultimately small differences could not be communicated properly through the model titles. Instead, we rely on the metadata of the model for model specifications and being able to substantively differentiate them between each other.
 
-Additionaly, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
+Additionally, the new naming convention for models in the pipeline takes the form of adjective_noun, adding more models alphabetically. For example, the first model to be added can be named amazing_apple, the second model bad_bunny, etc. This is a popular practice, and Weights & Biases implements this naming convention automatically.
 
 ---
 
 ## Creating New Models 
+<a name="creatingnewmodels"></a>
 
 The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
@@ -58,6 +77,8 @@ To run the model scaffold builder, execute
 `python build_model_scaffold.py`
 
 You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. The scripts created are as follows (see further down for a description of the filesystem):
+
+---
 
 # MODEL SCRIPTS
 
@@ -175,13 +196,15 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 # Ensembles
 
-An ensemble is a combination of models which has greater predictive power than any of the models does singly.
+An ensemble is a combination of models which has greater predictive power than any of the models does singly. Ensemble forecasts can be simple averages over the forecasts of their constituent models, or a more sophisticated weighted average, where the weights are computed by optimising the ensemble's predictive performance over a specially reserved data partition, using, for example, an evolutionary algorithm. (The latter is not yet implemented in the VIEWS pipeline).
+
+It is also possible to reconcile one ensemble with another (usually at a different spatial resolution) to, for example, force the forecasts to agree over well-defined spatial areas such as countries. The VIEWS pipeline allows point priogrid-level forecasts to be reconciled with country-level forecasts on a month-by-month basis (accounting for the fact that countries change size or appear/disappear altogether).
 
 ## Creating New Ensembles 
 
 The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built.
 
-# MODEL SCRIPTS
+# ENSEMBLE SCRIPTS
 
 ## `README.md`
 It is the responsibility of the ensemble creator to write a README file for their ensemble. This should give a concise, human-readable description of the ensemble:
@@ -215,7 +238,7 @@ Once the `run.sh` script has created the ensemble's environment, it activates th
 As well as understanding the function of the ensemble scripts, users and developers need to have a grasp of the structure of the ensemble filesystem. A description of each of the directories follows below:
 
 ## `artifacts`
-
+Currently not used by ensembles.
 
 ## `configs`
 This directory contains Python scripts used to control model configuration. **Model creators need to ensure that all settings needed to configure a model or a model sweep are contained in these scripts and correctly defined.**
@@ -223,7 +246,7 @@ This directory contains Python scripts used to control model configuration. **Mo
 - `config_deployment.py`: An ensemble's `deployment_status` must be specified in this script and must be one of `shadow`, `deployed`, `baseline`, or `deprecated` to indicate its stage of development. An under-development ensemble which should not be used in production should have status `shadow`. Fully developed production ensembles have status `deployed`. Ensembles used as references or yardsticks are `baseline`. If a production ensemble is superseded, it can be retired from the production system by setting its status to `deprecated`. **An ensemble MUST NOT be given `deployed` status without discussion with the modelling team**.
 
 
-- `config_hyperparameters.py`: 
+- `config_hyperparameters.py`: This is currently only used to configure the number of timesteps forward the ensemble forecasts
 
 
 - `config_meta.py`: This script specifies the most basic ensemble parameters, e.g. the ensemble's name, the models it ensembles over, the dependent variable it forecasts, the aggregation scheme used to perform the ensembling, which reconciliation algorithm it to be applied, which other ensemble it should be reconciled with, and its creator. **This dictionary must be populated correctly**, since it controls important aspects of ensemble execution further down the pipeline.
