@@ -14,16 +14,17 @@ This repository contains all of the necesary components for creating new models 
 <!-- toc -->
 
 - [Key Terms and Definitions](#key-terms-and-definitions)
+- [Time Partitioning](#time-partitioning)
 - [Model Naming Conventions](#model-naming-conventions) 
 - [Creating New Models](#creating-new-models)
 - [Model scripts](#model-scripts)
-- [Model filesystems](#model_filesystems)
-- [Running a single model](#running_a_single_model)
+- [Model filesystems](#model-filesystems)
+- [Running a single model](#running-a-single-model)
 - [Ensembles](#ensembles)
 - [Creating a new ensemble](#Creating-a-new-ensemble)
-- [Ensemble scripts](#ensemble_scripts)
-- [Ensemble filesystem](#ensemble_filesystem)
-- [Running an ensemble](#running_an_ensemble)
+- [Ensemble scripts](#ensemble-scripts)
+- [Ensemble filesystem](#ensemble-filesystem)
+- [Running an ensemble](#running-an-ensemble)
 - [Implemented Models](#implemented-models)
 - [Model Catalogs](#catalogs)
     - [Country-Month Models](#country-month-model-catalog)
@@ -47,6 +48,7 @@ In VIEWS terminology a **model** is defined as:
 6. Note that, two models, identical in all other aspects, will be deemed distinct if varying post-processing techniques are applied to their generated predictions. For instance, if one model's predictions undergo calibration or normalization while the other's do not. Similarly, two models identical in all aspects are considered distinct if they utilize different input features (querysets).
 
 ---
+<a name="time-partitioning"></a>
 
 ## Time partitioning
 
@@ -117,6 +119,8 @@ Once the `run.sh` script has created the model's environment, it activates the e
 
 **Make sure to import your model manager class and include it in the appropriate sections in the `main.py` script!**   
 
+<a name="model-filesystems"></a>
+
 # MODEL FILESYSTEM
 As well as understanding the function of the model scripts, users and developers need to have a grasp of the structure of the model filesystem. A description of each of the directories follows below:
 
@@ -162,6 +166,8 @@ Logs shipped to weights-and-biases are also stored locally here for convenience
 
 ---
 
+<a name="running-a-single-model"></a>
+
 ## Running a single model
 A model is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the model exists, creates one if not, activates the environment, and executes the model's `main.py` inside it. The model can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated. However, if the environment is setup once e.g. by executing the `run.sh` script, it can be activated at a later point in time and the model can be run by by executing the `main.py` directly.
 
@@ -204,9 +210,13 @@ An ensemble is a combination of models which has greater predictive power than a
 
 It is also possible to reconcile one ensemble with another (usually at a different spatial resolution) to, for example, force the forecasts to agree over well-defined spatial areas such as countries. The VIEWS pipeline allows point priogrid-level forecasts to be reconciled with country-level forecasts on a month-by-month basis (accounting for the fact that countries change size or appear/disappear altogether).
 
+<a name="creating-new-ensembles"></a>
+
 ## Creating New Ensembles 
 
 The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built. As in the case of creating new models, make sure to update the appropriate model scripts (indicated below).
+
+<a name="ensemble-scripts"></a>
 
 # ENSEMBLE SCRIPTS
 
@@ -238,6 +248,8 @@ Once the `run.sh` script has created the ensemble's environment, it activates th
 - it parses command line arguments (forwarded by `run.sh`) which specify whether the ensemble is to be trained, whether forecasts are to be generated, etc.
 - it then calls the `EnsembleManager` from `views-pipeline-core` which superintends the execution of the ensemble.
 
+<a name="ensemble-filesystem"></a>
+
 # ENSEMBLE FILESYSTEM
 As well as understanding the function of the ensemble scripts, users and developers need to have a grasp of the structure of the ensemble filesystem. A description of each of the directories follows below:
 
@@ -267,6 +279,8 @@ Convenience directory where figures, papers or slides relating to particular mod
 
 ## `wandb`
 Logs shipped to weights-and-biases are also stored locally here for convenience
+
+<a name="running-an-ensemble"></a>
 
 ## Running an ensemble
 An ensemble is run by executing the `run.sh` script in its root directory, which checks to see if an appropriate environment for the ensemble exists, creates one if not, activates the environment, and executes the ensemble's `main.py` inside it. The ensemble can be run by executing the `main.py` directly, but it is then up to the user to ensure that the model's environment is correctly built and activated.
