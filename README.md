@@ -21,7 +21,7 @@ This repository contains all of the necesary components for creating new models 
 - [Model filesystems](#model-filesystems)
 - [Running a single model](#running-a-single-model)
 - [Ensembles](#ensembles)
-- [Creating a new ensemble](#Creating-a-new-ensemble)
+- [Creating a new ensemble](#creating-a-new-ensemble)
 - [Ensemble scripts](#ensemble-scripts)
 - [Ensemble filesystem](#ensemble-filesystem)
 - [Running an ensemble](#running-an-ensemble)
@@ -210,7 +210,7 @@ An ensemble is a combination of models which has greater predictive power than a
 
 It is also possible to reconcile one ensemble with another (usually at a different spatial resolution) to, for example, force the forecasts to agree over well-defined spatial areas such as countries. The VIEWS pipeline allows point priogrid-level forecasts to be reconciled with country-level forecasts on a month-by-month basis (accounting for the fact that countries change size or appear/disappear altogether).
 
-<a name="creating-new-ensembles"></a>
+<a name="creating-a-new-ensemble"></a>
 
 ## Creating New Ensembles 
 
