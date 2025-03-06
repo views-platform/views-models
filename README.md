@@ -205,7 +205,7 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 - `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
 
-Consequently, in order to train and evaluate a model it is either possible to execute `python main.py -run_type calibration -t -e` or `run.sh -run_type calibration -t -e`. Of course, these commands can be used to run already existing models (see the [Catalogs](#Catalogs) for a list of already existing models). Consult the [Glossary](../FAQ%20&%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
+Consequently, in order to train and evaluate a model it is either possible to execute `python main.py -run_type calibration -t -e` or `run.sh -run_type calibration -t -e`. The first command runs the script directly, while the second one also handles environment setup before execution. Of course, these commands can be used to run already existing models (see the [Catalogs](#Catalogs) for a list of already existing models). Consult the [Glossary](../FAQ%20&%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
 
 # Ensembles
 
