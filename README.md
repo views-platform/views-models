@@ -198,6 +198,9 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 
 - `-o` or `--override_month`: flag allowing one to specify a month other than the most recent month with data from which to forecast
+  
+
+- `-dd` or `--drift_self_test`: flag enabling drift-detection self_test at data-fetch
 
 
 - `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
