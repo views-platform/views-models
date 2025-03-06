@@ -313,7 +313,7 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 - `-et` or `--eval_type`: flag allowing type of evaluation to be performed to be specified
 
-Consequently, in order to train a model and generate predictions, execute either `python main.py -t --run_type forecasting -f` or `run.sh -t --run_type forecasting -f`. Of course, these commands can be used to run already existing ensembles (see the [Catalogs](#Catalogs) for a list of already existing ensembles). Consult the [Glossary](../FAQ%20&%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
+Consequently, in order to train a model and generate predictions, execute either `python main.py -t --run_type forecasting -f` or `run.sh -t --run_type forecasting -f`. Of course, these commands can be used to run already existing ensembles (see the [Catalogs](#Catalogs) for a list of already existing ensembles). Consult the [Glossary](https://github.com/views-platform/docs/blob/main/FAQ%20%26%20Glossary/glossary.md) and the Model Documentation Series to learn more about different run types.
 
 
 ## Implementing Model Architectures
