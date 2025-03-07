@@ -1,15 +1,23 @@
 # Model Name
 ## Overview
-This folder contains code for adjective noun model, a machine learning model designed for predicting fatalities. 
+This folder contains code for adjective_noun model, a machine learning model designed for predicting fatalities. 
 
-The model utilizes model algorithm for its predictions and is on aggregation_level of analysis.
+The model utilizes model_algorithm for its predictions and is on aggregation_level of analysis.
 
-The target variable is target_variable.
+The target variable is target_variable and the model was trained on the input_features queryset. 
+
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | Random Forest                 |
+| **Level of Analysis** | CM            |
+| **Target**         | Log Fatalities |
+| **Features**       |  fatalities003_pgm_natsoc    |
+| **Feature Description**       |  Predicting ln(fatalities) using natural and social geography features    |
 
 ## Repository Structure
 ```
 
-blank_space/ # should follow the naming convention adjective_noun
+adjective_noun/ # should follow the naming convention adjective_noun
 |
 |-- artifacts/ #   
 |   |-- run_type_model_date.pkl # model/ensemble artifacts
@@ -44,7 +52,7 @@ blank_space/ # should follow the naming convention adjective_noun
 |
 |-- requirements.txt
 |
-|-- run.sh
+|-- run.sh # sets up the environment and executes the main.py file inside the environment
 
 
 ```
