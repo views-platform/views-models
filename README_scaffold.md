@@ -1,18 +1,16 @@
-# Model Name
+# {{MODEL_NAME}} 
 ## Overview
-This folder contains code for adjective_noun model, a machine learning model designed for predicting fatalities. 
 
-The model utilizes model_algorithm for its predictions and is on aggregation_level of analysis.
-
-The target variable is target_variable and the model was trained on the input_features queryset. 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | Random Forest                 |
-| **Level of Analysis** | CM            |
-| **Target**         | Log Fatalities |
-| **Features**       |  fatalities003_pgm_natsoc    |
-| **Feature Description**       |  Predicting ln(fatalities) using natural and social geography features    |
+| **Model Algorithm** | {{MODEL_ALGORITHM}}                  |
+| **Level of Analysis** | {{LEVEL_OF_ANALYSIS}}            |
+| **Target**         | {{TARGET}} |
+| **Features**       |  {{FEATURES}}   |
+| **Feature Description**       |  {{DESCRIPTION}}    |
+| **Metrics**       |  {{METRICS}}    |
+| **Deployment Status**       |  {{DEPLOYMENT}}    |
 
 ## Repository Structure
 ```
@@ -74,3 +72,5 @@ or
 
 ./run.sh r calibration -t -e
 ```
+
+{{CREATED_SECTION}}
