@@ -1,18 +1,14 @@
-# Blank Space 
+# Bittersweet Symphony 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | HurdleModel                  |
-| **Level of Analysis** | pgm            |
+| **Model Algorithm** | XGBRegressor                  |
+| **Level of Analysis** | cm            |
 | **Target**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_natsoc   |
-| **Feature Description**       |  Fatalities natural and social geography, pgm level
-
-                                    Predicting ln(fatalities) using natural and social geography features
-
-                                        |
+| **Features**       |  fatalities003_all_features   |
+| **Feature Description**       |  Predicting ln(fatalities), cm level, queryset with all features    |
 | **Metrics**       |  RMSLE, CRPS    |
 | **Deployment Status**       |  shadow    |
 

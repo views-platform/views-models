@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 os.getcwd()
-configs_dir = Path("views-models/models/blank_space/configs")
+configs_dir = Path("views-models/models/bittersweet_symphony/configs")
 config_modules = {}
 
 # Iterate through all .py files in the configs folder
@@ -48,6 +48,7 @@ queryset_info = config_modules["config_queryset"].generate()
 queryset_info
 description = queryset_info.description
 print(description)
+description = " ".join(description.split())
 name = queryset_info.name
 
 
@@ -103,9 +104,6 @@ content
 
 
 # Write the updated content to README.md
-#with open(readme_path, "w") as file:
-#    file.write(content)
+with open(readme_path, "w") as file:
+    file.write(content)
 
-
-
-print("README.md successfully generated!")
