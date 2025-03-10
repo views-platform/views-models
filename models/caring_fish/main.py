@@ -5,7 +5,7 @@ from views_pipeline_core.cli.utils import parse_args, validate_arguments
 from views_pipeline_core.managers.log import LoggingManager
 from views_pipeline_core.managers.model import ModelPathManager
 from views_stepshifter.manager.stepshifter_manager import StepshifterManager
-from multiprocessing import set_start_method
+from multiprocessing import set_start_method, get_start_method
 
 warnings.filterwarnings("ignore")
 
@@ -25,7 +25,11 @@ except Exception as e:
 
 
 if __name__ == "__main__":
-    set_start_method('spawn')
+    try:
+        set_start_method('spawn')
+    except RuntimeError:
+        # This block will catch the error if the context is already set
+        print(f"Multiprocessing start method is already set to: {get_start_method()}")
     wandb.login()
     args = parse_args()
     validate_arguments(args)
