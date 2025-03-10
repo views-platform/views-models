@@ -25,9 +25,13 @@ meta_info = config_modules["config_meta"].get_meta_config()
 
 algorithm = meta_info['algorithm']
 if algorithm=='HurdleModel':
-    clf = meta_info['model_clf']
-    reg = meta_info['model_reg']
+    classifier = meta_info['model_clf']
+    regressor = meta_info['model_reg']
+    algorithm_all = f"{algorithm} (Classifier: {classifier}, Regressor: {regressor})"
+else:
+    algorithm_all = algorithm
 
+algorithm_all
 target = meta_info['depvar']
 queryset = meta_info['queryset']
 level = meta_info['level']
@@ -81,7 +85,7 @@ with open(scaffold_path, "r") as file:
 # Dictionary of placeholders and their replacements
 replacements = {
     "{{MODEL_NAME}}": model_name,
-    "{{MODEL_ALGORITHM}}": algorithm,
+    "{{MODEL_ALGORITHM}}": algorithm_all,
     "{{LEVEL_OF_ANALYSIS}}": level,
     "{{TARGET}}": target,
     "{{FEATURES}}": name, 
@@ -99,11 +103,41 @@ for placeholder, value in replacements.items():
 
 content
 
-# Add created section
+# Update repository structure:
+def generate_tree(directory, prefix=""):
+    """Recursively generate a text-based tree structure for a directory."""
+    tree = []
+    entries = sorted(os.listdir(directory))  # Sort to maintain consistent order
+    entries = [e for e in entries if not e.startswith(".")]  # Ignore hidden files
+    
+    for index, entry in enumerate(entries):
+        path = os.path.join(directory, entry)
+        is_last = (index == len(entries) - 1)  # Check if it's the last item
+        
+        # Tree structure formatting
+        connector = "└── " if is_last else "├── "
+        tree.append(f"{prefix}{connector}{entry}")
+        
+        if os.path.isdir(path):  # Recursively add subdirectories
+            extension = "    " if is_last else "│   "
+            tree.extend(generate_tree(path, prefix + extension))
+    
+    return tree
+
+repo_root = "/home/sonja/Desktop/views-platform/views-models/models/bittersweet_symphony"
+repo_structure = "\n".join(generate_tree(repo_root))
+repo_structure
+formatted_structure = f"```\n{repo_structure}\n```"
+formatted_structure
+
+
+updated_readme = content.replace("## Repository Structure",
+        f"## Repository Structure\n\n{formatted_structure}",
+    )
+updated_readme
 
 
 
 # Write the updated content to README.md
 with open(readme_path, "w") as file:
-    file.write(content)
-
+    file.write(updated_readme)
