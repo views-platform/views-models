@@ -5,6 +5,8 @@ from views_pipeline_core.cli.utils import parse_args, validate_arguments
 from views_pipeline_core.managers.log import LoggingManager
 from views_pipeline_core.managers.model import ModelPathManager
 from views_stepshifter.manager.stepshifter_manager import StepshifterManager
+from multiprocessing import set_start_method
+
 
 warnings.filterwarnings("ignore")
 
@@ -24,6 +26,7 @@ except Exception as e:
 
 
 if __name__ == "__main__":
+    set_start_method('spawn')
     wandb.login()
     args = parse_args()
     validate_arguments(args)
