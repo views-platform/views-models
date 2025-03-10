@@ -15,23 +15,26 @@
 ## Repository Structure
 
 ```
-├── README.md
-├── artifacts
-├── configs
-│   ├── config_deployment.py
-│   ├── config_hyperparameters.py
-│   ├── config_meta.py
-│   ├── config_queryset.py
-│   └── config_sweep.py
-├── data
-│   ├── generated
-│   ├── processed
-│   └── raw
-├── main.py
-├── notebooks
-├── reports
+Car Radio
+├── 
+│   ├── README.md
+│   ├── main.py
+│   ├── artifacts
+│   ├── configs
+│   │   ├── config_deployment.py
+│   │   ├── config_hyperparameters.py
+│   │   ├── config_meta.py
+│   │   ├── config_queryset.py
+│   │   ├── config_sweep.py
+│   ├── data
+│   │   ├── generated
+│   │   ├── processed
+│   │   ├── raw
+│   ├── logs
+│   ├── notebooks
+│   ├── reports
 ├── requirements.txt
-└── run.sh
+├── run.sh
 ```
 
 ## Setup Instructions

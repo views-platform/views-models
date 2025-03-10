@@ -15,30 +15,26 @@
 ## Repository Structure
 
 ```
-├── README.md
-├── artifacts
-│   └── model_metadata_dict.py
-├── configs
-│   ├── config_deployment.py
-│   ├── config_hyperparameters.py
-│   ├── config_meta.py
-│   ├── config_queryset.py
-│   └── config_sweep.py
-├── data
-│   ├── generated
-│   ├── processed
-│   └── raw
-├── main.py
-├── notebooks
-│   └── notebook001.ipynb
-├── reports
-│   ├── figures
-│   ├── papers
-│   ├── plots
-│   ├── slides
-│   └── timelapse
+Lavender Haze
+├── 
+│   ├── README.md
+│   ├── main.py
+│   ├── artifacts
+│   ├── configs
+│   │   ├── config_deployment.py
+│   │   ├── config_hyperparameters.py
+│   │   ├── config_meta.py
+│   │   ├── config_queryset.py
+│   │   ├── config_sweep.py
+│   ├── data
+│   │   ├── generated
+│   │   ├── processed
+│   │   ├── raw
+│   ├── logs
+│   ├── notebooks
+│   ├── reports
 ├── requirements.txt
-└── run.sh
+├── run.sh
 ```
 
 ## Setup Instructions

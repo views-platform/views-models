@@ -1,21 +1,20 @@
-# Invisible String 
+# {{Ensemble_NAME}} 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | LGBMRegressor                  |
+| **Models** | lavender_haze, blank_space                  |
 | **Level of Analysis** | pgm            |
 | **Target**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_broad   |
-| **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
+| **Aggregation**       |  mean   |
 | **Metrics**       |  RMSLE, CRPS    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  deployed    |
 
 ## Repository Structure
 
 ```
-Invisible String
+White Mustang
 ├── 
 │   ├── README.md
 │   ├── main.py
@@ -24,12 +23,9 @@ Invisible String
 │   │   ├── config_deployment.py
 │   │   ├── config_hyperparameters.py
 │   │   ├── config_meta.py
-│   │   ├── config_queryset.py
-│   │   ├── config_sweep.py
 │   ├── data
 │   │   ├── generated
 │   │   ├── processed
-│   │   ├── raw
 │   ├── logs
 │   ├── reports
 ├── requirements.txt
