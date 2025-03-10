@@ -14,7 +14,7 @@ def generate_tree(directory, prefix=""):
     """Recursively generate a text-based tree structure for a directory."""
     tree = []
     entries = sorted(os.listdir(directory))  # Sort to maintain consistent order
-    entries = [e for e in entries if not e.startswith(".")]  # Ignore hidden files
+    entries = [e for e in entries if not e.startswith(".") and e != "__pycache__"]  # Ignore hidden files
     
     for index, entry in enumerate(entries):
         path = os.path.join(directory, entry)
@@ -61,9 +61,16 @@ for subfolder in target_dir.iterdir():
             algorithm_all = algorithm
 
         target = meta_info['depvar']
+        if isinstance(target, list):
+            target = ", ".join(target)
         queryset = meta_info['queryset']
         level = meta_info['level']
-        metrics = meta_info['metrics']
+        try:
+            metrics = meta_info['metrics']
+        except KeyError:
+            metrics = "No information provided"
+        if isinstance(metrics, list):
+            metrics = ", ".join(metrics)
         model_name = meta_info['name']
         model_name = " ".join(word.capitalize() for word in model_name.split("_"))
 
@@ -76,7 +83,10 @@ for subfolder in target_dir.iterdir():
         queryset_info = config_modules["config_queryset"].generate()
         queryset_info
         description = queryset_info.description
-        description = " ".join(description.split())
+        try:
+            description = " ".join(description.split())
+        except AttributeError:
+            description = 'No description provided'
         name = queryset_info.name
 
         ## Update old README file - For Bitter Symphony Model 
@@ -114,7 +124,7 @@ for subfolder in target_dir.iterdir():
             "{{FEATURES}}": name, 
             "{{DESCRIPTION}}": description,
             "{{DEPLOYMENT}}": deployment,
-            "{{METRICS}}": ", ".join(metrics),
+            "{{METRICS}}": metrics,
             "{{CREATED_SECTION}}": new_string,
         }
 
@@ -147,7 +157,7 @@ for subfolder in target_dir.iterdir():
 for i in range(0,5)[:1]:
     print(i)
 
-configs_dir1 = Path("views-models/models/yellow_pikachu/configs")
+configs_dir1 = Path("views-models/models/purple_alien/configs")
 configs_dir1
 config_modules = {}
 
@@ -177,6 +187,8 @@ else:
 
 algorithm_all
 target = meta_info['depvar']
+if isinstance(target, list):
+        target = ", ".join(target)
 queryset = meta_info['queryset']
 level = meta_info['level']
 metrics = meta_info['metrics']
@@ -196,7 +208,11 @@ queryset_info = config_modules["config_queryset"].generate()
 queryset_info
 description = queryset_info.description
 print(description)
-description = " ".join(description.split())
+try:
+    description = " ".join(description.split())
+except AttributeError:
+    description = 'No description provided'
+    
 name = queryset_info.name
 
 
@@ -214,16 +230,15 @@ match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
 if match == None:
     pass
 else:
-created_section = match.group(1).strip()
-created_section
+    created_section = match.group(1).strip()
 
-insert_position = created_section.find("##")
+    insert_position = created_section.find("##")
 
 
-# Find where the '##' ends (after '##' and the next space)
-end_of_heading = len("##")  # Skip the '##' part itself
-new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
-new_string
+    # Find where the '##' ends (after '##' and the next space)
+    end_of_heading = len("##")  # Skip the '##' part itself
+    new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
+
 # Read scaffold.md content
 with open(scaffold_path, "r") as file:
     content = file.read()

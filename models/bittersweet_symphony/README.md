@@ -20,12 +20,6 @@
 │   ├── calibration_model_20250305_124458.pkl
 │   └── validation_model_20250306_104346.pkl
 ├── configs
-│   ├── __pycache__
-│   │   ├── config_deployment.cpython-311.pyc
-│   │   ├── config_hyperparameters.cpython-311.pyc
-│   │   ├── config_meta.cpython-311.pyc
-│   │   ├── config_queryset.cpython-311.pyc
-│   │   └── config_sweep.cpython-311.pyc
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
@@ -272,47 +266,6 @@
         └── tmp
             └── code
 ```
-```
-
-adjective_noun/ # should follow the naming convention adjective_noun
-|
-|-- artifacts/ #   
-|   |-- run_type_model_date.pkl # model/ensemble artifacts
-|
-|-- configs/ # ...
-|   |-- config_deployment.py # configuration for deploying the model into different environments
-|   |-- config_hyperparameters.py # hyperparameters for the model
-|   |-- config_meta # metadata for the model (model architecture, name, target variable, and level of analysis)
-|   |-- config_sweep # sweeping parameters for weights & biases
-|
-|-- data/ # all input, processed, output data
-|    |-- generated/ # Data generated - i.e. forecast/ evaluation
-|    |-- processed/ # Data processed
-|    |-- raw/ # Data directly from VIEiWSER
-|
-|-- logs/ # all VIEWS pipeline logs
-|
-|-- notebooks/ # should only contain experimental notebooks (see [ODR #003](https://github.com/views-platform/docs/blob/main/ODRs/general_003_no_jupyter_notebooks_in_production.md))
-|
-|-- reports/ # dissemination material - internal and external 
-|   |-- figures/ # figures for papers, reports, newsletters, and slides 
-|   |-- papers/ # working papers, white papers, articles ect.
-|   |-- plots/ # plots for papers, reports, newsletters, and slides
-|   |-- slides/ # slides, presentation and similar
-|   |-- timelapse/ # plots to create timelapse and the timelapse
-|
-|-- wandb/ # folder that stores Weights & Biases runs
-|
-|-- main.py
-|
-|-- README.md
-|
-|-- requirements.txt
-|
-|-- run.sh # sets up the environment and executes the main.py file inside the environment
-
-
-```
 
 ## Setup Instructions
 
@@ -329,7 +282,7 @@ python main.py -r calibration -t -e
 
 or
 
-./run.sh r calibration -t -e
+./run.sh -r calibration -t -e
 ```
 
-## Model Created on: 2024-11-05 10:55:38.515494
+
