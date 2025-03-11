@@ -16,25 +16,24 @@
 
 ```
 Electric Relaxation
-├── 
-│   ├── README.md
-│   ├── main.py
-│   ├── artifacts
-│   ├── configs
-│   │   ├── config_deployment.py
-│   │   ├── config_hyperparameters.py
-│   │   ├── config_meta.py
-│   │   ├── config_queryset.py
-│   │   ├── config_sweep.py
-│   ├── data
-│   │   ├── generated
-│   │   ├── processed
-│   │   ├── raw
-│   ├── logs
-│   ├── notebooks
-│   ├── reports
+├── README.md
+├── main.py
 ├── requirements.txt
 ├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

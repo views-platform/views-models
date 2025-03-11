@@ -8,70 +8,57 @@ from views_pipeline_core.managers.ensemble import  EnsembleManager, EnsemblePath
 
 ## change working directory to views models - optional
 base_dir = os.getcwd()
+#new_dir = Path(base_dir+'/views-models')
+#os.chdir(new_dir)
 target_dir = Path(base_dir + "/models")
 target_dir
 
 # Update repository structure:
-def generate_repo_structure(folders, scripts, model_name, root_key="model_dir"):
-    """Generate a structured repository tree with correct folder hierarchy and script placement."""
+def generate_repo_structure(folders, scripts, model_name):
+    """Generate a structured repository tree dynamically from folders and scripts."""
 
-    if root_key not in folders:
-        raise ValueError(f"Root key '{root_key}' not found in folders dictionary")
-
-    root_path = Path(folders[root_key])  # Get the main model directory path
+    root_path = Path(folders["model_dir"])  # Root directory
     tree = [model_name]  # Start with the model name
-    folder_structure = {}
 
-    # Build folder structure and ensure all folders exist in the mapping
-    for folder_name, folder_path in folders.items():
-        path = Path(folder_path)
-        relative_path = path.relative_to(root_path)
-        folder_structure[str(relative_path)] = {"name": folder_name, "scripts": []}
+    # Sort folders to ensure correct hierarchy
+    sorted_folders = sorted(folders.values(), key=lambda x: x.count("/"))  
+    folder_structure = {folder: [] for folder in sorted_folders}  
 
-    # Assign scripts to the correct folders
-    for script_name, script_path in scripts.items():
-        script_path_obj = Path(script_path)
-        parent_folder = script_path_obj.parent.relative_to(root_path)
+    # Assign scripts to their respective folders
+    for script, script_path in scripts.items():
+        parent_folder = str(Path(script_path).parent)
+        if parent_folder in folder_structure:
+            folder_structure[parent_folder].append(script)
 
-        # Ensure the parent folder exists in our dictionary before adding
-        parent_folder_str = str(parent_folder)
-        if parent_folder_str in folder_structure:
-            folder_structure[parent_folder_str]["scripts"].append(script_name)
-
-    # Generate the tree output
-    seen_folders = set()
-
-    def build_tree(path, depth=0):
-        """Recursive function to format the tree output."""
+    # Function to recursively build the tree
+    def build_tree(current_path, depth=0):
         indent = "│   " * depth
-        path_str = str(path)
+        rel_path = Path(current_path).relative_to(root_path)
+        tree.append(f"{indent}├── {rel_path.name}")
 
-        # Ensure we don't print duplicate folders
-        if path_str in seen_folders:
-            return
-        seen_folders.add(path_str)
+        # Add scripts in the current folder
+        for script in sorted(folder_structure[current_path]):
+            tree.append(f"{indent}│   ├── {script}")
 
-        tree.append(f"{indent}├── {path.name}")
+        # Add subfolders in order
+        subfolders = [f for f in sorted_folders if Path(f).parent == Path(current_path)]
+        for subfolder in subfolders:
+            build_tree(subfolder, depth + 1)
 
-        # Add scripts belonging to this folder
-        if path_str in folder_structure:
-            for script in sorted(folder_structure[path_str]["scripts"]):
-                tree.append(f"{indent}│   ├── {script}")
 
-        # Recurse into subfolders
-        subfolders = [p for p in folder_structure if Path(p).parent == path]
-        for subfolder in sorted(subfolders):
-            build_tree(Path(subfolder), depth + 1)
+    root_scripts = []
+    for key, value in scripts.items():
+        #print(Path(value).parent)
+        if Path(value).parent==Path(root_path):
+                root_scripts.append(key)
 
-    # Build tree from the root folder
-    build_tree(Path("."))  # "." represents the root of the model repo
+    for script in sorted(root_scripts):
+        tree.append(f"├── {script}")
 
-    # Add root-level files (only if they are not assigned elsewhere)
-    root_scripts = set(scripts.keys()) - {s for f in folder_structure.values() for s in f["scripts"]}
-    root_files = ["requirements.txt", "run.sh"] + sorted(root_scripts)
-
-    for file in root_files:
-        tree.append(f"├── {file}")
+    # Build tree from root
+    for folder in sorted_folders:
+        if Path(folder).parent == root_path:  # Start from root-level folders
+            build_tree(folder)
 
     return "\n".join(tree)
 
@@ -169,8 +156,12 @@ for subfolder in target_dir.iterdir():
             content = content.replace(placeholder, value)
 
 
-        repo_root = target_dir / subfolder.name
-        repo_structure = generate_repo_structure(mpm.get_directories(), mpm.get_scripts(), model_name=model_name)
+        #repo_root = target_dir / subfolder.name
+        scripts = mpm.get_scripts()
+        folders = mpm.get_directories()
+        scripts["run.sh"] = folders['model_dir']+'/run.sh'
+        scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
+        repo_structure = generate_repo_structure(folders, scripts, model_name=model_name)
         formatted_structure = f"```\n{repo_structure}\n```"
         formatted_structure
 
@@ -182,6 +173,7 @@ for subfolder in target_dir.iterdir():
         # Write the updated content to README.md
         with open(readme_path, "w") as file:
             file.write(updated_readme)
+
 
 ##############################################
 ####             Ensembles                ####
@@ -264,7 +256,11 @@ for subfolder in target_ens_dir.iterdir():
         for placeholder, value in replacements.items():
             content = content.replace(placeholder, value)
 
-        repo_structure = generate_repo_structure(epm.get_directories(), epm.get_scripts(), model_name=ens_name)
+        scripts = mpm.get_scripts()
+        folders = mpm.get_directories()
+        scripts["run.sh"] = folders['model_dir']+'/run.sh'
+        scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
+        repo_structure = generate_repo_structure(folders, scripts, model_name=model_name)
         formatted_structure = f"```\n{repo_structure}\n```"
         formatted_structure
 

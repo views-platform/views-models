@@ -17,21 +17,18 @@ This folder contains code for the White Mustang model, an ensemble machine learn
 
 ```
 White Mustang
-├── 
-│   ├── README.md
-│   ├── main.py
-│   ├── artifacts
-│   ├── configs
-│   │   ├── config_deployment.py
-│   │   ├── config_hyperparameters.py
-│   │   ├── config_meta.py
-│   ├── data
-│   │   ├── generated
-│   │   ├── processed
-│   ├── logs
-│   ├── reports
-├── requirements.txt
-├── run.sh
+├── README.md
+├── main.py
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+├── data
+│   ├── generated
+│   ├── processed
+├── reports
 ```
 
 ## Setup Instructions
