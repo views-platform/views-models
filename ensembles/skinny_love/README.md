@@ -1,5 +1,7 @@
-# {{Ensemble_NAME}} 
+# Skinny Love 
 ## Overview
+
+This folder contains code for the Skinny Love model, an ensemble machine learning model designed for predicting fatalities. 
 
 
 | Information         | Details                        |
@@ -43,11 +45,11 @@ Modify configurations in configs/.
 If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
-python main.py -r calibration -t -e
+python main.py -r calibration -t -e -en
 
 or
 
-./run.sh -r calibration -t -e
+./run.sh -r calibration -t -e -en
 ```
 
-## Model Created on: 2025-02-19 10:59:44.116719
+
