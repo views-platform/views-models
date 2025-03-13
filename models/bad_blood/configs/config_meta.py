@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "bad_blood", 
         "algorithm": "LGBMRegressor", 
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_natsoc",
         "level": "pgm",
         "creator": "Xiaolong"

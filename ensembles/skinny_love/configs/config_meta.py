@@ -22,7 +22,7 @@ def get_meta_config():
             "wildest_dream",
             "yellow_pikachu",
         ],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "level": "pgm",
         "aggregation": "mean",
         "metrics": ["RMSLE", "CRPS"],

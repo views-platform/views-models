@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "brown_cheese", 
         "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_baseline",
         "level": "cm",
         "creator": "Borbála"
