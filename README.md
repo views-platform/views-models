@@ -108,7 +108,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 ### PRIO-GRID-Month Model Catalog
 
 <!-- PGM_TABLE_START -->
-| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
+| Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
 | bad_blood | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_queryset.py) | - [hyperparameters bad_blood](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
 | blank_space | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_queryset.py) | - [hyperparameters blank_space](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
