@@ -9,7 +9,7 @@ def get_meta_config():
     meta_config = {
         "name": "purple_alien",
         "algorithm": "HydraNet", 
-        "depvar": ["ln_sb_best", "ln_ns_best", "ln_os_best", "ln_sb_best_binarized", "ln_ns_best_binarized", "ln_os_best_binarized"], 
+        "targets": ["ln_sb_best", "ln_ns_best", "ln_os_best", "ln_sb_best_binarized", "ln_ns_best_binarized", "ln_os_best_binarized"], 
         "queryset": "escwa001_cflong",
         "level": "pgm",
         "creator": "Simon" 

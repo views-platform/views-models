@@ -29,7 +29,7 @@ def extract_models(model_class):
     model_dict: A dictionary containing the following relevant keys:
         -name: model name from config_meta.py
         -algorithm: algorithm from config_meta.py
-        -depvar: depvar from config_meta.py
+        -targets: targets from config_meta.py
         -queryset: markdown link with marker 'queryset' from config_meta.py pointing to the queryset in common_querysets
         -level: 'priogrid_month' or 'country_month' from queryset
         -creator: creator from config_meta.py
@@ -104,14 +104,14 @@ def generate_markdown_table(models_list):
     
     for model in models_list:
         
-        depvar = model.get('depvar', '')
-        if isinstance(depvar, list):
-            depvar = ', '.join(depvar)
+        targets = model.get('targets', '')
+        if isinstance(targets, list):
+            targets = ', '.join(targets)
 
         row = [
             model.get('name', ''),
             str(model.get('algorithm', '')).split('(')[0],
-            depvar,
+            targets,
             model.get('queryset', ''),
             model.get('hyperparameters',''),
             'None',#Direct multi-step',
