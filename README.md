@@ -107,7 +107,7 @@ The purpose of this file is to specify which modules (probably including their v
 
 **It is the model creator's responsibility to ensure that this file is correctly populated.** Only modules named in this file (and their dependencies) will be installed in the model env. If your model needs `numpy` and it is not installed by any other dependencies, it needs to be specified here.
 
-It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=0.1.2,<1.0.0`.
+It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=1.0.0,<2.0.0`.
 
 ## `main.py`
 Once the `run.sh` script has created the model's environment, it activates the environment and executes the `main.py` file inside it. The `main.py` has several tasks:
@@ -238,7 +238,7 @@ The purpose of this file is to specify which modules (probably including their v
 
 **It is the ensemble creator's responsibility to ensure that this file is correctly populated.** Only modules named in this file (and their dependencies) will be installed in the ensemble env. If your ensemble needs `numpy` and it is not installed by any other dependencies, it needs to be specified here.
 
-It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=0.1.2,<1.0.0`.
+It is strongly advised to specify a range of acceptable versions for each installed module using the standard notation, e.g. `views-stepshifter>=1.0.0,<2.0.0`.
 
 ## `main.py`
 Once the `run.sh` script has created the ensemble's environment, it activates the environment and executes the `main.py` file inside it. The `main.py` has several tasks:
