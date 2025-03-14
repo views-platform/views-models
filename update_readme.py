@@ -72,7 +72,7 @@ for subfolder in target_dir.iterdir():
         print(f"Model: {subfolder.name}")
         #configs_dir = Path(subfolder.name+"/configs")
         configs_dir = target_dir / subfolder.name / "configs"
-        model_manager = ModelManager(model_path=ModelPathManager(configs_dir))
+        model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)
         mpm = ModelPathManager(configs_dir)
 
         ## Get Meta Info
@@ -187,7 +187,7 @@ for subfolder in target_ens_dir.iterdir():
         print(f"Model: {subfolder.name}")
         #configs_dir = Path(subfolder.name+"/configs")
         configs_dir = target_ens_dir / subfolder.name / "configs"
-        ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir))
+        ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir), use_prediction_store=False)
         epm = EnsemblePathManager(configs_dir)
 
         ## Get Meta Info
