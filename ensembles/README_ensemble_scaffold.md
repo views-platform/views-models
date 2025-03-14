@@ -8,7 +8,7 @@ This folder contains code for the {{ENSEMBLE_NAME}} model, an ensemble machine l
 |---------------------|--------------------------------|
 | **Models** | {{MODELS}}                  |
 | **Level of Analysis** | {{LEVEL_OF_ANALYSIS}}            |
-| **Target**         | {{TARGET}} |
+| **Targets**         | {{TARGET}} |
 | **Aggregation**       |  {{AGGREGATION}}   |
 | **Metrics**       |  {{METRICS}}    |
 | **Deployment Status**       |  {{DEPLOYMENT}}    |
