@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "midnight_rain", 
         "algorithm": "LGBMRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_escwa_drought",
         "level": "pgm",
         "creator": "Xiaolong"
