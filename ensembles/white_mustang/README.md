@@ -1,21 +1,22 @@
-# Car Radio 
+# White Mustang 
 ## Overview
+
+This folder contains code for the White Mustang model, an ensemble machine learning model designed for predicting fatalities. 
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | XGBRegressor                  |
-| **Level of Analysis** | cm            |
+| **Models** | lavender_haze, blank_space                  |
+| **Level of Analysis** | pgm            |
 | **Target**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_topics   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and Mueller & Rauh topic model features    |
+| **Aggregation**       |  mean   |
 | **Metrics**       |  RMSLE, CRPS    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  deployed    |
 
 ## Repository Structure
 
 ```
-Car Radio
+White Mustang
 ├── README.md
 ├── main.py
 ├── requirements.txt
@@ -26,14 +27,10 @@ Car Radio
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
-│   ├── config_queryset.py
-│   ├── config_sweep.py
 ├── data
 │   ├── generated
 │   ├── processed
-│   ├── raw
 ├── reports
-├── notebooks
 ```
 
 ## Setup Instructions

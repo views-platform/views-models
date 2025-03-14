@@ -1,3 +1,57 @@
-# Model README
-## Model name: high_hopes
-## Created on: 2024-11-01 17:18:35.973196
+# High Hopes 
+## Overview
+
+
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
+| **Level of Analysis** | cm            |
+| **Target**         | ln_ged_sb_dep |
+| **Features**       |  fatalities003_conflict_history   |
+| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and first set of conflict history features    |
+| **Metrics**       |  RMSLE, CRPS    |
+| **Deployment Status**       |  shadow    |
+
+## Repository Structure
+
+```
+High Hopes
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
+
+## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
+```
+
+
