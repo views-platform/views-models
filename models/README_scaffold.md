@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | {{MODEL_ALGORITHM}}                  |
 | **Level of Analysis** | {{LEVEL_OF_ANALYSIS}}            |
-| **Target**         | {{TARGET}} |
+| **Targets**         | {{TARGET}} |
 | **Features**       |  {{FEATURES}}   |
 | **Feature Description**       |  {{DESCRIPTION}}    |
 | **Metrics**       |  {{METRICS}}    |
