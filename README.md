@@ -191,9 +191,6 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 - `-a` or `--artifact_name`: flag allowing the name of the artifact to be evaluated to be supplied
 
 
-- `-en` or `--ensemble`: flag to indicate that a model is en ensemble
-
-
 - `-sa` or `--saved`: flag to indicate that saved data/artifacts should be used
 
 
@@ -300,9 +297,6 @@ The `run.sh` and `main.py` both require command line arguments to control their 
 
 
 - `-f` or `--forecast`: flag indicating if forecasts are to be generated
-
-
-- `-en` or `--ensemble`: flag to indicate that a model is en ensemble
 
 
 - `-sa` or `--saved`: flag to indicate that saved data/artifacts should be used
