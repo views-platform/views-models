@@ -341,7 +341,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 ### Country-Month Model Catalog
 
 <!-- CM_TABLE_START -->
-| Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
+| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
 | bittersweet_symphony | XGBRegressor | ln_ged_sb_dep | - [ fatalities003_all_features](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_queryset.py) | - [hyperparameters bittersweet_symphony](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
 | brown_cheese | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_baseline](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_queryset.py) | - [hyperparameters brown_cheese](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
@@ -371,7 +371,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 ### PRIO-GRID-Month Model Catalog
 
 <!-- PGM_TABLE_START -->
-| Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
+| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
 | bad_blood | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_queryset.py) | - [hyperparameters bad_blood](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
 | blank_space | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_queryset.py) | - [hyperparameters blank_space](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
@@ -394,7 +394,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 ### Ensemble Catalog
 
 <!-- ENSEMBLE_TABLE_START -->
-| Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
+| Model Name | Algorithm | Target | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------ | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
 | cruel_summer |  | ln_ged_sb_dep | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
 | pink_ponyclub |  | ln_ged_sb_dep | None | - [hyperparameters pink_ponyclub](https://github.com/views-platform/views-models/blob/main/ensembles/pink_ponyclub/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
