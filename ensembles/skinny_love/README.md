@@ -19,6 +19,8 @@ This folder contains code for the Skinny Love model, an ensemble machine learnin
 Skinny Love
 ├── README.md
 ├── main.py
+├── requirements.txt
+├── run.sh
 ├── logs
 ├── artifacts
 ├── configs

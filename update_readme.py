@@ -256,11 +256,11 @@ for subfolder in target_ens_dir.iterdir():
         for placeholder, value in replacements.items():
             content = content.replace(placeholder, value)
 
-        scripts = mpm.get_scripts()
-        folders = mpm.get_directories()
+        scripts = epm.get_scripts()
+        folders = epm.get_directories()
         scripts["run.sh"] = folders['model_dir']+'/run.sh'
         scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
-        repo_structure = generate_repo_structure(folders, scripts, model_name=model_name)
+        repo_structure = generate_repo_structure(folders, scripts, model_name=ens_name)
         formatted_structure = f"```\n{repo_structure}\n```"
         formatted_structure
 

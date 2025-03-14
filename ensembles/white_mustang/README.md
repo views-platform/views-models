@@ -19,6 +19,8 @@ This folder contains code for the White Mustang model, an ensemble machine learn
 White Mustang
 ├── README.md
 ├── main.py
+├── requirements.txt
+├── run.sh
 ├── logs
 ├── artifacts
 ├── configs

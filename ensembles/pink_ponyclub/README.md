@@ -19,6 +19,8 @@ This folder contains code for the Pink Ponyclub model, an ensemble machine learn
 Pink Ponyclub
 ├── README.md
 ├── main.py
+├── requirements.txt
+├── run.sh
 ├── logs
 ├── artifacts
 ├── configs

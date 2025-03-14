@@ -19,6 +19,8 @@ This folder contains code for the Cruel Summer model, an ensemble machine learni
 Cruel Summer
 ├── README.md
 ├── main.py
+├── requirements.txt
+├── run.sh
 ├── logs
 ├── artifacts
 ├── configs
