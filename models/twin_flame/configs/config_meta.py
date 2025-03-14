@@ -10,10 +10,10 @@ def get_meta_config():
     meta_config = {
         "name": "twin_flame", 
         "algorithm": "HurdleModel",
-        "model_clf": "LightGBMModel",
-        "model_reg": "LightGBMModel",
+        "model_clf": "LGBMClassifier",
+        "model_reg": "LGBMRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_topics",
         "level": "cm",
         "creator": "Borbála"

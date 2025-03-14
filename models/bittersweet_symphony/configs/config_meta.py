@@ -9,9 +9,9 @@ def get_meta_config():
     
     meta_config = {
         "name": "bittersweet_symphony", 
-        "algorithm": "XGBModel",
+        "algorithm": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": " fatalities003_all_features",
         "level": "cm",
         "creator": "Marina"

@@ -34,11 +34,12 @@ jobs:
       - name: Generate catalog if models directory has changed
         run: |
           python create_catalogs.py  
+          python update_readme.py
           if [ $? -ne 0 ]; then
             echo "Generating catalogs failed."
             exit 1
           fi
-          echo "Model catalog is updated."           
+          echo "Model catalog is updated. Model READMEs are updated."           
           git status
 
       - name: Configure Git
@@ -48,7 +49,7 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          git add README.md
+          git add README.md models/ ensembles/
           git commit -m "Automated changes by GitHub Actions" || echo "Nothing to commit"
           git push https://${{ secrets.VIEWS_MODELS_ACCESS_TOKEN }}@github.com/views-platform/views-models.git
       

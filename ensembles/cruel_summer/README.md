@@ -1,74 +1,54 @@
-# Cruel Summer Model
+# Cruel Summer 
 ## Overview
-This folder contains code for Cruel Summer model, an ensemble machine learning model designed for predicting fatalities. 
 
-The model uses log fatalities.
+This folder contains code for the Cruel Summer model, an ensemble machine learning model designed for predicting fatalities. 
+
+
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Models** | bittersweet_symphony, brown_cheese                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | ln_ged_sb_dep |
+| **Aggregation**       |  median   |
+| **Metrics**       |  RMSLE, CRPS    |
+| **Deployment Status**       |  shadow    |
 
 ## Repository Structure
-```
-cruel_summer/ # should follow the naming convention adjective_noun
-|-- README.md
-|-- requirements.txt
-|
-|-- artifacts/ # ensemble stepshifter models  
-|   |-- model_metadata_dict.py # the standard meta data dict for models
-|
-|-- configs/ # ...
-|   |-- config_deployment.py # configuration for deploying the model into different environments
-|   |-- config_hyperparameters.py # hyperparameters for the model
-|   |-- config_meta # metadata for the model (model architecture, name, target variable, and level of analysis)
-|
-|-- data/ # all input, processed, output data
-|    |-- generated/ # Data generated - i.e. forecast/ evaluation
-|    |-- processed/ # Data processed
-|
-|-- notebooks/
-|
-|-- reports/ # dissemination material - internal and external 
-|   |-- figures/ # figures for papers, reports, newsletters, and slides 
-|   |-- papers/ # working papers, white papers, articles ect.
-|   |-- plots/ # plots for papers, reports, newsletters, and slides
-|   |-- slides/ # slides, presentation and similar
-|   |-- timelapse/ # plots to create timelapse and the timelapse
-|
-|-- src/ # all source code needed to train, test, and forecast
-    |
-    |-- dataloaders/ # scripts to get data from VIEWSER (and input drift detection)
-    |
-    |-- forecasting/
-    |   |-- generate_forecast.py #script to genereate true-future fc.
-    |
-    |-- management/  
-    |   |-- execute_model_runs.py # execute a single run
-    |   |-- execute_model_tasks.py # execute various model-related tasks
-    |
-    |-- offline_evaluation/ # aka offline quality assurance
-    |   |-- evaluate_ensemble.py # script to evaluate an ensemble model
-    |
-    |-- training/ 
-    |   |-- train_ensemble.py # script to train an ensemble model
-    |
-    |-- utils/ # functions and classes 
-    |   |-- utils_check.py # utils function to check if an ensemble is valid
-    |   |-- utils_run.py # util functions for running models
-    | 
-    |-- visualization/ # scripts to create visualizations
-        |-- visual.py 
 
+```
+Cruel Summer
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+├── data
+│   ├── generated
+│   ├── processed
+├── reports
 ```
 
 ## Setup Instructions
-Clone the repository.
 
-Install dependencies.
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
 
 ## Usage
 Modify configurations in configs/.
 
-Run main.py.
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
-python main.py -r your_run_type -a your_aggregation_mothod
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
 ```
 
-Monitor progress and results using [Weights & Biases](https://wandb.ai/views_pipeline/white_snow).
+

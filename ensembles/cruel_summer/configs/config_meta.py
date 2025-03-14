@@ -10,7 +10,7 @@ def get_meta_config():
         "name": "cruel_summer",
         "models": ["bittersweet_symphony", "brown_cheese"],
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep", 
+        "targets": "ln_ged_sb_dep", 
         "level": "cm", 
         "aggregation": "median", 
         "creator": "Xiaolong" 

@@ -10,10 +10,10 @@ def get_meta_config():
     meta_config = {
         "name": "green_squirrel", 
         "algorithm": "HurdleModel",
-        "model_clf": "RandomForestModel",
-        "model_reg": "RandomForestModel",
+        "model_clf": "RandomForestClassifier",
+        "model_reg": "RandomForestRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_joint_broad",
         "level": "cm",
         "creator": "Borbála"

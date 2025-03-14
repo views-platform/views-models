@@ -9,9 +9,9 @@ def get_meta_config():
     
     meta_config = {
         "name": "yellow_submarine", 
-        "algorithm": "RandomForestModel",
+        "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_imfweo",
         "level": "cm",
         "creator": "Marina"
