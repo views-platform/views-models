@@ -34,11 +34,12 @@ jobs:
       - name: Generate catalog if models directory has changed
         run: |
           python create_catalogs.py  
+          python update_readme.py
           if [ $? -ne 0 ]; then
             echo "Generating catalogs failed."
             exit 1
           fi
-          echo "Model catalog is updated."           
+          echo "Model catalog is updated. Model READMEs are updated."           
           git status
 
       - name: Configure Git
