@@ -87,7 +87,7 @@ for subfolder in target_dir.iterdir():
         else:
             algorithm_all = algorithm
 
-        target = model_manager.configs['depvar']
+        target = model_manager.configs['targets']
         if isinstance(target, list):
             target = ", ".join(target)
         queryset = model_manager.configs['queryset']
@@ -197,7 +197,7 @@ for subfolder in target_ens_dir.iterdir():
         models = ens_manager.configs['models']
         models = ", ".join(models)
 
-        target = ens_manager.configs['depvar']
+        target = ens_manager.configs['targets']
         if isinstance(target, list):
             target = ", ".join(target)
         level = ens_manager.configs['level']
