@@ -42,11 +42,11 @@ Modify configurations in configs/.
 If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
-python main.py -r calibration -t -e -en
+python main.py -r calibration -t -e
 
 or
 
-./run.sh -r calibration -t -e -en
+./run.sh -r calibration -t -e
 ```
 
 
