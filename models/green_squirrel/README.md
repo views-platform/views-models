@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: RandomForestClassifier, Regressor: RandomForestRegressor)                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_joint_broad   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
 | **Metrics**       |  RMSLE, CRPS    |

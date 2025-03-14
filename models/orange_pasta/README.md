@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_pgm_baseline   |
 | **Feature Description**       |  Fatalities conflict history, cm level Predicting ln(fatalities) using conflict predictors, ultrashort    |
 | **Metrics**       |  RMSLE, CRPS    |
@@ -33,7 +33,6 @@ Orange Pasta
 │   ├── processed
 │   ├── raw
 ├── reports
-├── notebooks
 ```
 
 ## Setup Instructions

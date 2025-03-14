@@ -8,7 +8,7 @@ This folder contains code for the White Mustang model, an ensemble machine learn
 |---------------------|--------------------------------|
 | **Models** | lavender_haze, blank_space                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Aggregation**       |  mean   |
 | **Metrics**       |  RMSLE, CRPS    |
 | **Deployment Status**       |  deployed    |

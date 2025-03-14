@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRegressor                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_all_features   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level, queryset with all features    |
 | **Metrics**       |  RMSLE, CRPS    |

@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | RandomForestRegressor                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ged_sb_dep |
+| **Targets**         | ged_sb_dep |
 | **Features**       |  escwa001_cflong   |
 | **Feature Description**       |  Views-escwa conflict history, cm level    |
 | **Metrics**       |  RMSLE, CRPS    |
@@ -33,7 +33,6 @@ Electric Relaxation
 │   ├── processed
 │   ├── raw
 ├── reports
-├── notebooks
 ```
 
 ## Setup Instructions

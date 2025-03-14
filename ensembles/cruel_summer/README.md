@@ -8,7 +8,7 @@ This folder contains code for the Cruel Summer model, an ensemble machine learni
 |---------------------|--------------------------------|
 | **Models** | bittersweet_symphony, brown_cheese                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Aggregation**       |  median   |
 | **Metrics**       |  RMSLE, CRPS    |
 | **Deployment Status**       |  shadow    |

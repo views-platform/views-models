@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_pgm_conflict_sptime_dist   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS    |
@@ -33,7 +33,6 @@ Wildest Dream
 │   ├── processed
 │   ├── raw
 ├── reports
-├── notebooks
 ```
 
 ## Setup Instructions

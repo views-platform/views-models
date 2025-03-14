@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_wdi_short   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and short list of wdi features    |
 | **Metrics**       |  RMSLE, CRPS    |

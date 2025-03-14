@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_pgm_escwa_drought   |
 | **Feature Description**       |  Fatalities, escwa drought and vulnerability, pgm level Predicting number of fatalities with features from the escwa drought and vulnerability themes    |
 | **Metrics**       |  RMSLE, CRPS    |

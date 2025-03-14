@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | cm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_joint_narrow   |
 | **Feature Description**       |  Predicting ged_dummy_sb, cm level Queryset with features from various sources, 'joint narrow'    |
 | **Metrics**       |  RMSLE, CRPS    |

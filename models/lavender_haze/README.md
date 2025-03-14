@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_pgm_broad   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
 | **Metrics**       |  RMSLE, CRPS    |
@@ -33,7 +33,6 @@ Lavender Haze
 │   ├── processed
 │   ├── raw
 ├── reports
-├── notebooks
 ```
 
 ## Setup Instructions

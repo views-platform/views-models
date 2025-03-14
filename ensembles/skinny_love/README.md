@@ -8,7 +8,7 @@ This folder contains code for the Skinny Love model, an ensemble machine learnin
 |---------------------|--------------------------------|
 | **Models** | bad_blood, blank_space, caring_fish, chunky_cat, dark_paradise, invisible_string, lavender_haze, midnight_rain, old_money, orange_pasta, wildest_dream, yellow_pikachu                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Aggregation**       |  mean   |
 | **Metrics**       |  RMSLE, CRPS    |
 | **Deployment Status**       |  shadow    |

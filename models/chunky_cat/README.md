@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Target**         | ln_ged_sb_dep |
+| **Targets**         | ln_ged_sb_dep |
 | **Features**       |  fatalities003_pgm_conflictlong   |
 | **Feature Description**       |  fatalities longer conflict history, pgm level Predicting ln(ged_best_sb) using conflict predictors, longer version    |
 | **Metrics**       |  RMSLE, CRPS    |
