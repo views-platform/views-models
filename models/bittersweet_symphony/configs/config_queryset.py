@@ -34,7 +34,7 @@ def generate():
         .transform.missing.fill()
         )
     
-    .with_column(Column('lr_lr_gleditsch_ward', from_loa='country', from_column='gwcode')
+    .with_column(Column('lr_gleditsch_ward', from_loa='country', from_column='gwcode')
                  )
 
     .with_column(Column('ln_acled_sb', from_loa='country_month', from_column='acled_sb_fat')
@@ -52,7 +52,7 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_lr_wdi_ag_lnd_frst_k2', from_loa='country_year', from_column='wdi_ag_lnd_frst_k2')
+    .with_column(Column('lr_wdi_ag_lnd_frst_k2', from_loa='country_year', from_column='wdi_ag_lnd_frst_k2')
         .transform.missing.fill()
         .transform.temporal.tlag(12)
         .transform.missing.fill()
