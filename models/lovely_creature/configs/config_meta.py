@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "lovely_creature", 
         "algorithm": "SHURF",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "depvar": "ged_sb_dep",
+        "depvar": "sb_best",
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Håvard",
