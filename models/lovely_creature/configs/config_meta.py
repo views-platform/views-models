@@ -9,14 +9,10 @@ def get_meta_config():
     
     meta_config = {
         "name": "lovely_creature", 
-        "algorithm": "SHURF",
-        # Uncomment and modify the following lines as needed for additional metadata:
+        "algorithm": "ShurfModel",
         "targets": ["sb_best"],
-        # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Håvard",
-#        "model_reg": "RandomForestModel",
-#        "model_clf": "RandomForestModel",
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
         "metrics": ["RMSLE", "CRPS", "MSE"],
