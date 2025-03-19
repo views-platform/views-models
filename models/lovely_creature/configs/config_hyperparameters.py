@@ -10,7 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'submodels_to_train': 1,
+        'submodels_to_train': 50,
         'max_features': 0.3,
         'max_depth': None,
         'max_samples': None,

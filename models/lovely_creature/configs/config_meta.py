@@ -17,8 +17,8 @@ def get_meta_config():
         "creator": "Håvard",
 #        "model_reg": "RandomForestModel",
 #        "model_clf": "RandomForestModel",
-        "model_reg": "XGBModel",
-        "model_clf": "XGBModel",
+        "model_reg": "XGBRegressor",
+        "model_clf": "XGBClassifier",
         "metrics": ["RMSLE", "CRPS", "MSE"],
     }
     return meta_config
