@@ -31,7 +31,7 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
 
-    dataframe = read_dataframe("/Users/dylanpinheiro/Desktop/views-platform/experiments/activelearning/data/ex_rel.parquet").head(2000)
+    dataframe = read_dataframe(PATH OF YOUR FILE).head(2000)
     dataset = ViewsTextDataset(texts=dataframe["article"])
     ALModelManager(model_path=model_path, dataset=dataset).execute_active_learning(args=args)
 
