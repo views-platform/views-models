@@ -8,7 +8,6 @@ from views_pipeline_core.files.utils import read_dataframe
 
 from views_activelearning.managers.model import ALModelManager
 from views_activelearning.handlers.text import ViewsTextDataset
-import pandas as pd
 
 warnings.filterwarnings("ignore")
 
@@ -31,12 +30,6 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
 
-    dataframe = read_dataframe(PATH OF YOUR FILE).head(2000)
-    dataset = ViewsTextDataset(texts=dataframe["article"])
-    ALModelManager(model_path=model_path, dataset=dataset).execute_active_learning(args=args)
-
-# if __name__ == "__main__":
-#     print(__file__)
-#     model_path = ALModelPathManager(Path(__file__))
-#     model_path.view_scripts()
-#     model_path.view_directories()
+    dataframe = read_dataframe("FILEPATH").head(2000)
+    dataset = ViewsTextDataset(texts=dataframe["article"], labels=None)
+    ALModelManager(model_path=model_path, dataset=dataset).run(args=args)
