@@ -4,7 +4,7 @@ from pathlib import Path
 from views_activelearning.cli.utils import parse_args, validate_arguments
 from views_pipeline_core.managers.log import LoggingManager
 from views_activelearning.managers.model import ALModelPathManager
-
+from views_pipeline_core.files.utils import read_dataframe
 
 from views_activelearning.managers.model import ALModelManager
 from views_activelearning.handlers.text import ViewsTextDataset
@@ -31,8 +31,8 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
 
-    dataframe = pd.read_csv("/Users/dylanpinheiro/Desktop/views-platform/experiments/activelearning/data/pol_scored.csv").head(1000)
-    dataset = ViewsTextDataset(texts=dataframe["source_article"])
+    dataframe = read_dataframe("/Users/dylanpinheiro/Desktop/views-platform/experiments/activelearning/data/ex_rel.parquet").head(2000)
+    dataset = ViewsTextDataset(texts=dataframe["article"])
     ALModelManager(model_path=model_path, dataset=dataset).execute_active_learning(args=args)
 
 # if __name__ == "__main__":

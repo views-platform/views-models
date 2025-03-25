@@ -9,7 +9,7 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        "topics": ["Education & Jobs", "Politics", "Crime & Law", "Health"],
+        "topics": ["Education & Jobs", "Politics", "Crime & Law"],
         "priority_topic": "Education & Jobs",
         "batch_size": 100,
         "llm": "conflibert",
