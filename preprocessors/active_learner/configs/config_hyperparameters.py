@@ -12,11 +12,22 @@ def get_hp_config():
         "topics": ["Education & Jobs", "Politics", "Crime & Law"],
         "priority_topic": "Education & Jobs",
         "batch_size": 100,
-        "llm": "conflibert",
+        "llm": "snowood1/ConfliBERT-scr-uncased",
         "learning_rate": 1e-5,
         "epochs": 5,
         "monte_carlo_runs": 100,
         "early_stopping": 3,
+        "init_batch": 200,
+        "max_samples": 2000,
+        "metrics": ["accuracy", "f1"],
+        "doccano_url": "http://localhost:8000",
+        "doccano_user": "admin",
+        "doccano_password": "password",
+        "project_name": "Conflict Text Classification",
+        "max_iterations": 10,
+        "query_size": 100,
+        "min_batch_size": 50,
+        "labels": ["cat", "dog", "fish", "bird", "hamster"],
     }
     return hyperparameters
 
