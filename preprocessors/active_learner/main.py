@@ -37,11 +37,12 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe("PATH")
+    dataframe = read_dataframe(PATH)
 
     dataset = ViewsTextDataset(
-        texts=dataframe["text"], 
-        labels=None
+        texts=dataframe["what"], 
+        labels=None,
+        ids=dataframe["id"]
     )
 
     ALModelManager(

@@ -184,6 +184,8 @@ cython_debug/
 *.jpeg
 *.gif
 
+*.jsonl
+
 # presentation files
 *.pptx
 *.ppt
