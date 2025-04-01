@@ -39,11 +39,16 @@ if __name__ == "__main__":
     # Initialize dataset with multi-label support
     dataframe = read_dataframe(PATH)
 
-    dataset = ViewsTextDataset(
-        texts=dataframe["what"], 
-        labels=None,
-        ids=dataframe["id"]
-    )
+    #dataset = ViewsTextDataset(
+    #    texts=dataframe["what"], 
+    #    labels=None,
+    #    ids=dataframe["id"]
+    #)
+
+    dataset = ViewsTextDataset(dataframe, text_col="what", id_col="id", label_col=None)
+    print(dataset.ids)
+    print(dataset[0])
+    print(dataset.other_cols.columns)
 
     ALModelManager(
         model_path=model_path, 
