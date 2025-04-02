@@ -38,7 +38,7 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe(PATH).head(1000)
+    dataframe = read_dataframe(PATH).head(600)
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
