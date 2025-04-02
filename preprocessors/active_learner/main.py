@@ -9,6 +9,7 @@ import subprocess
 from views_activelearning.managers.model import ALModelManager
 from views_activelearning.handlers.text import ViewsTextDataset
 import os
+from functools import partial
 warnings.filterwarnings("ignore")
 
 from dotenv import load_dotenv
@@ -37,7 +38,7 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe(PATH)
+    dataframe = read_dataframe(PATH).head(1000)
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
@@ -45,12 +46,12 @@ if __name__ == "__main__":
     #    ids=dataframe["id"]
     #)
 
-    dataset = ViewsTextDataset(dataframe, text_col="what", id_col="id", label_col=None)
-    print(dataset.ids)
-    print(dataset[0])
-    print(dataset.other_cols.columns)
+    #dataset = ViewsTextDataset(dataframe, text_col="what", id_col="id", label_col=None, n_labels=)
+    # print(dataset.ids)
+    # print(dataset[50431])
+    # print(dataset.other_cols.columns)
 
     ALModelManager(
         model_path=model_path, 
-        dataset=dataset
+        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="what", id_col="id", label_col=None)
     ).run(args=args)
