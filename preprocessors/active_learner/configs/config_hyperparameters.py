@@ -25,8 +25,9 @@ def get_hp_config():
         "doccano_password": "password",
         "project_name": "Conflict Text Classification",
         "max_iterations": 10,
-        "query_size": 100,
-        "min_batch_size": 1,
+        "query_size": 10,
+        "min_batch_size": 3,
+        "annotation_size": 20,
         "labels": {"Attack_on_schools":0, "Attack_on_HE":1, "Attack_on_student_personal":2, "Threats_intimidation":3, "Military_use":4, "Child_recruitement_abductions":5, "Sexual_violence":6, "Incidents":7, "No_edattack":8},
     }
     return hyperparameters
