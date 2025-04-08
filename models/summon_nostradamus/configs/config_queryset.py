@@ -421,7 +421,7 @@ def generate():
         .transform.missing.replace_na()))
 
     .with_theme('fatalities002')
-    .describe("""Predicting ln(fatalities), cm level for Nowcasting"""))
+    .describe("""Predicting ln(fatalities), cm level for Nowcasting""")
 
     )
 
