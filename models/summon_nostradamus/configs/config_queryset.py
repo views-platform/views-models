@@ -177,7 +177,7 @@ def generate():
     # TOPICS DATA                                    
     .with_column(Column('topic_conflict_1', from_loa = 'country_month', from_column = 'topic_ste_theta6')
         .transform.missing.fill()
-        .transform.missing.
+        .transform.missing.replace_na()
         .transform.temporal.tlag(1)
         .transform.missing.fill())
 
