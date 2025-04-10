@@ -23,7 +23,7 @@ def get_hp_config():
         "doccano_url": "http://localhost:8000",
         "doccano_user": "admin",
         "doccano_password": "password",
-        "project_name": "Conflict Text Classification",
+        "project_name": ["Edattack_Annotator1", "Edattack_Annotator2", "Edattack_Annotator3", "Edattack_Annotator4", "Edattack_Annotator5"],
         "max_iterations": 10,
         "query_size": 10,
         "min_batch_size": 3,
