@@ -1,7 +1,16 @@
 # gp_plotting.py
+import torch
+import numpy as np
+import pandas as pd
+
+from collections import Counter
+
+from gp_kernel_factory import build_kernel  # assuming you’ve saved build_kernel separately
+from gpytorch.kernels import Kernel
+import gpytorch.kernels as kernels
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
 
 sns.set(style="whitegrid")
 
@@ -68,3 +77,300 @@ def plot_signal_vs_noise_comparison(df: pd.DataFrame):
     plt.xlabel("Timestep")
     plt.tight_layout()
     plt.show()
+
+
+
+def plot_component_distributions(df: pd.DataFrame, component: str):
+    """
+    Plots the distribution (KDE) of a single trend component across all series.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame from SyntheticTimeSeriesGenerator with decomposed components.
+    component : str
+        One of 'long_term', 'short_term', 'seasonal', or 'noise'.
+    """
+    if component not in ["long_term", "short_term", "seasonal", "noise"]:
+        raise ValueError("Invalid component. Must be one of: 'long_term', 'short_term', 'seasonal', 'noise'.")
+
+    plt.figure(figsize=(10, 4))
+    sns.kdeplot(df[component], fill=True, linewidth=2, color="skyblue")
+    plt.title(f"Distribution of {component.replace('_', ' ').title()} Component")
+    plt.xlabel("Value")
+    plt.ylabel("Density")
+    plt.tight_layout()
+    plt.show()
+
+
+
+def plot_kernel_prior_samples(
+    kernel_config: dict,
+    num_samples: int = 5,
+    x_range: tuple = (0, 1),
+    num_points: int = 100,
+    seed: int = None
+):
+    """
+    Plots sample functions drawn from a zero-mean GP with a kernel defined by a config,
+    where kernel hyperparameters are randomly sampled from their priors.
+
+    Parameters
+    ----------
+    kernel_config : dict
+        Configuration dictionary compatible with `build_kernel`.
+    num_samples : int
+        Number of function samples to draw.
+    x_range : tuple
+        Range of input values (e.g., (0, 1)).
+    num_points : int
+        Number of input points.
+    seed : int
+        Optional random seed for reproducibility.
+    """
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+
+    x = torch.linspace(x_range[0], x_range[1], num_points).unsqueeze(-1)  # [N, 1]
+    x_np = x.squeeze().numpy()
+
+    plt.figure(figsize=(10, 5))
+    for i in range(num_samples):
+        # Sample a kernel with sampled hyperparameters from priors
+        kernel = build_kernel_with_sampled_priors(kernel_config)
+
+        # Get covariance matrix and sample from MVN
+        cov = kernel(x).evaluate() + 1e-2 * torch.eye(num_points)  # numerical stability
+        samples = torch.distributions.MultivariateNormal(
+            loc=torch.zeros(num_points), covariance_matrix=cov
+        ).sample()
+
+        plt.plot(x_np, samples.numpy(), label=f"Sample {i+1}")
+
+    plt.title("Sample Functions from GP Prior (Sampled Hyperparameters)")
+    plt.xlabel("Input x")
+    plt.ylabel("f(x)")
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+
+
+def build_kernel_with_sampled_priors(config: dict) -> Kernel:
+    """
+    Helper to build a GPyTorch kernel with hyperparameters sampled from defined priors.
+    Assumes all priors are Normal.
+    """
+    import copy
+    kernel_type = config.get("type")
+
+    if kernel_type in ["add", "product"]:
+        subconfigs = [build_kernel_with_sampled_priors(sc) for sc in config["components"]]
+        cls = {"add": kernels.AdditiveKernel, "product": kernels.ProductKernel}[kernel_type]
+        return cls(*subconfigs)
+
+    if kernel_type == "scale":
+        base_kernel = build_kernel_with_sampled_priors(config["base_kernel"])
+        scale_kernel = kernels.ScaleKernel(base_kernel)
+
+        prior_cfg = config.get("outputscale_prior")
+        if prior_cfg:
+            mu, sigma = prior_cfg["mean"], prior_cfg["stddev"]
+            scale_kernel.outputscale = torch.tensor(np.random.normal(mu, sigma), dtype=torch.float32)
+
+        return scale_kernel
+
+    # Base kernels
+    if kernel_type == "RBF":
+        kernel = kernels.RBFKernel()
+
+    elif kernel_type == "Matern":
+        kernel = kernels.MaternKernel(nu=config.get("nu", 2.5))
+
+    elif kernel_type == "Periodic":
+        kernel = kernels.PeriodicKernel()
+        if "period_length" in config:
+            kernel.period_length = torch.tensor(config["period_length"], dtype=torch.float32)
+
+    elif kernel_type == "Linear":
+        kernel = kernels.LinearKernel()
+
+    else:
+        raise ValueError(f"Unsupported kernel type: {kernel_type}")
+
+    # Sample lengthscale
+    prior_cfg = config.get("lengthscale_prior")
+    if prior_cfg:
+        mu, sigma = prior_cfg["mean"], prior_cfg["stddev"]
+        sampled_lengthscale = torch.tensor(np.random.normal(mu, sigma), dtype=torch.float32)
+        kernel.lengthscale = sampled_lengthscale
+
+    return kernel
+
+
+def plot_curriculum_progression_over_epochs(
+    sampler,
+    dataset,
+    num_batches: int = 100,
+    num_epochs: int = 30
+):
+    """
+    Plots how the CurriculumSampler transitions from high to low signal series over training epochs.
+
+    Shows a grouped bar chart with counts of high vs low signal samples per epoch.
+    """
+    records = []
+
+    for epoch in range(num_epochs):
+        sampler.set_epoch(epoch)
+        it = iter(sampler)
+
+        high_count = 0
+        low_count = 0
+
+        for _ in range(num_batches):
+            try:
+                batch = next(it)
+            except StopIteration:
+                break
+
+            for idx in batch:
+                strength = dataset.series_groups[idx]["signal_strength"].iloc[0]
+                if strength == "high":
+                    high_count += 1
+                elif strength == "low":
+                    low_count += 1
+
+        records.append({"epoch": epoch, "signal": "high", "count": high_count})
+        records.append({"epoch": epoch, "signal": "low", "count": low_count})
+
+    df = pd.DataFrame(records)
+
+    plt.figure(figsize=(12, 5))
+    sns.barplot(data=df, x="epoch", y="count", hue="signal", palette="viridis")
+
+    plt.title("Curriculum Sampling Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Sample Count (over sampled batches)")
+    plt.legend(title="Signal Strength")
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+def plot_inducing_points_vs_inputs(train_x, train_y, inducing_points, title="Inducing Points vs Training Inputs"):
+    """
+    Plots training series (train_x, train_y) with inducing points overlaid.
+
+    Parameters
+    ----------
+    train_x : torch.Tensor
+        Shape [B, T, 1] — input time points for a batch of series.
+    train_y : torch.Tensor
+        Shape [B, T] — values for each series.
+    inducing_points : torch.Tensor
+        Shape [M, 1] — inducing point locations.
+    title : str
+        Plot title.
+    """
+    B, T, _ = train_x.shape
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(12, 5))
+
+    # Plot training series
+    for i in range(B):
+        plt.plot(train_x[i].squeeze(), train_y[i], alpha=0.5, label=f"Series {i}" if i < 5 else None)
+
+    # Overlay inducing points as vertical lines
+    for ip in inducing_points.squeeze():
+        plt.axvline(ip.item(), color="red", linestyle="--", alpha=0.7)
+
+    plt.title(title)
+    plt.xlabel("Timestep")
+    plt.ylabel("Value")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#
+#def plot_curriculum_sampling_distribution(sampler, dataset, num_batches=100, epoch=None):
+#    """
+#    Visualizes the proportion of high vs low signal series sampled by the CurriculumSampler.
+#
+#    Parameters
+#    ----------
+#    sampler : CurriculumSampler
+#        The curriculum sampler to inspect.
+#    dataset : TimeSeriesDataset
+#        The dataset (needed to query signal_strength metadata).
+#    num_batches : int
+#        How many batches to simulate.
+#    epoch : int, optional
+#        If provided, sets sampler to this epoch before sampling.
+#    """
+#    if epoch is not None:
+#        sampler.set_epoch(epoch)
+#
+#    high_count = 0
+#    low_count = 0
+#    total = 0
+#
+#    it = iter(sampler)
+#    for _ in range(num_batches):
+#        try:
+#            batch = next(it)
+#        except StopIteration:
+#            break
+#        for idx in batch:
+#            series_df = dataset.series_groups[idx]
+#            strength = series_df["signal_strength"].iloc[0]
+#            if strength == "high":
+#                high_count += 1
+#            elif strength == "low":
+#                low_count += 1
+#            total += 1
+#
+#    # Plotting
+#    sns.set(style="whitegrid")
+#    plt.figure(figsize=(6, 4))
+#    sns.barplot(x=["High Signal", "Low Signal"], y=[high_count, low_count], palette="viridis")
+#    plt.title(f"Curriculum Sampling Distribution at Epoch {sampler.epoch}")
+#    plt.ylabel("Sample Count")
+#    plt.tight_layout()
+#    plt.show()
+#
+#
+#
+#
