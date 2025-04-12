@@ -4,7 +4,11 @@ from gpytorch.models import ApproximateGP
 from gpytorch.variational import VariationalStrategy, CholeskyVariationalDistribution
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.means import ZeroMean
-from gp_kernel_factory import build_kernel
+from gpytorch.utils.cholesky import psd_safe_cholesky
+
+from gp_kernel_factory import KernelBuilder
+
+
 
 
 class VariationalGPModel(ApproximateGP):
@@ -45,9 +49,19 @@ class VariationalGPModel(ApproximateGP):
 
         # Mean and covariance modules
         self.mean_module = ZeroMean()
-        self.covar_module = build_kernel(kernel_config)
+        self.covar_module = KernelBuilder(kernel_config).build()
 
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
+
+
+    @staticmethod
+    def check_K_zz(model):
+        K = model.covar_module(model.variational_strategy.inducing_points).evaluate()
+        try:
+            psd_safe_cholesky(K + 1e-4 * torch.eye(K.size(0)))
+            print("✅ K_zz is stable")
+        except Exception as e:
+            print("❌ K_zz is not positive definite:", str(e))

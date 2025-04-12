@@ -5,9 +5,10 @@ import pandas as pd
 
 from collections import Counter
 
-from gp_kernel_factory import build_kernel  # assuming you’ve saved build_kernel separately
 from gpytorch.kernels import Kernel
 import gpytorch.kernels as kernels
+from gpytorch.utils.cholesky import psd_safe_cholesky
+
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -257,10 +258,6 @@ def plot_curriculum_progression_over_epochs(
     plt.show()
 
 
-
-
-
-
 def plot_inducing_points_vs_inputs(train_x, train_y, inducing_points, title="Inducing Points vs Training Inputs"):
     """
     Plots training series (train_x, train_y) with inducing points overlaid.
@@ -303,7 +300,124 @@ def plot_inducing_points_vs_inputs(train_x, train_y, inducing_points, title="Ind
 
 
 
+def plot_gp_diagnostics(
+    model,
+    likelihood,
+    num_samples=5,
+    include_data=None,
+    x_range=(0, 1),
+    num_points=200,
+    seed=None,
+    posterior=True,
+):
+    """
+    Plot GP posterior/prior samples and show learned kernel hyperparameters.
 
+    Parameters
+    ----------
+    model : ApproximateGP
+        Trained GP model.
+    likelihood : GaussianLikelihood
+        Trained likelihood (used for posterior).
+    num_samples : int
+        Number of samples to draw.
+    include_data : tuple[torch.Tensor, torch.Tensor], optional
+        (x_train, y_train) to overlay original data.
+    x_range : tuple
+        Input range to evaluate the GP over.
+    num_points : int
+        Number of evaluation points.
+    seed : int, optional
+        Random seed for reproducibility.
+    posterior : bool
+        If True, samples from the posterior; otherwise from the prior.
+    """
+    if seed is not None:
+        torch.manual_seed(seed)
+
+    model.eval()
+    likelihood.eval()
+
+    x = torch.linspace(x_range[0], x_range[1], num_points).unsqueeze(-1)
+    x_np = x.squeeze().cpu().numpy()
+
+    sns.set(style="whitegrid")
+    plt.figure(figsize=(12, 6))
+
+    try:
+        if posterior:
+            with torch.no_grad(), gpytorch.settings.fast_pred_var():
+                dist = likelihood(model(x))
+
+                for i in range(num_samples):
+                    # Handles both batch + non-batch
+                    sample = dist.rsample()[i] if dist.batch_shape else dist.rsample()
+                    plt.plot(x_np, sample.detach().cpu().numpy(), label=f"Posterior Sample {i+1}")
+        else:
+            # Fallback to prior sampling
+            with torch.no_grad():
+                cov = model.covar_module(x).evaluate()
+                cov += 1e-2 * torch.eye(num_points)
+                L = psd_safe_cholesky(cov)
+                for i in range(num_samples):
+                    z = torch.randn(num_points)
+                    sample = L @ z
+                    plt.plot(x_np, sample.detach().cpu().numpy(), label=f"Prior Sample {i+1}")
+    except Exception as e:
+        print("[WARNING] Failed to sample posterior, falling back to prior:", str(e))
+        with torch.no_grad():
+            cov = model.covar_module(x).evaluate()
+            cov += 1e-2 * torch.eye(num_points)
+            L = psd_safe_cholesky(cov)
+            for i in range(num_samples):
+                z = torch.randn(num_points)
+                sample = L @ z
+                plt.plot(x_np, sample.detach().cpu().numpy(), label=f"Prior Sample {i+1}")
+
+    # --- Optional training data overlay ---
+    if include_data is not None:
+        x_data, y_data = include_data
+        x_data = x_data.detach().cpu().squeeze()
+        y_data = y_data.detach().cpu()
+        plt.scatter(x_data, y_data, color="black", label="Training Data", alpha=0.6, s=30)
+
+    # --- Hyperparameter summary ---
+    def extract_params(k):
+        lines = []
+        if hasattr(k, "lengthscale") and k.lengthscale is not None:
+            val = k.lengthscale.item() if torch.is_tensor(k.lengthscale) else k.lengthscale
+            lines.append(f"lengthscale: {val:.4f}")
+        if hasattr(k, "outputscale") and k.outputscale is not None:
+            val = k.outputscale.item() if torch.is_tensor(k.outputscale) else k.outputscale
+            lines.append(f"outputscale: {val:.4f}")
+        if hasattr(k, "period_length") and k.period_length is not None:
+            val = k.period_length.item() if torch.is_tensor(k.period_length) else k.period_length
+            lines.append(f"period: {val:.4f}")
+        return lines
+
+    def get_all_kernel_params(kernel):
+        lines = []
+        if hasattr(kernel, "kernels"):  # Additive/Product
+            for i, subk in enumerate(kernel.kernels):
+                lines.append(f"[Kernel {i+1}]")
+                lines += extract_params(subk)
+        elif hasattr(kernel, "base_kernel"):
+            lines += extract_params(kernel)
+            lines += extract_params(kernel.base_kernel)
+        else:
+            lines += extract_params(kernel)
+        return lines
+
+    hyper_lines = get_all_kernel_params(model.covar_module)
+    param_text = "\n".join(hyper_lines)
+
+    plt.title("GP Diagnostic Plot", fontsize=14)
+    plt.suptitle(param_text, fontsize=10, y=1.02)
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 
 
