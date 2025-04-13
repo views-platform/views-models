@@ -51,29 +51,39 @@ class SyntheticTimeSeriesGenerator:
         self.random_state = np.random.RandomState(seed)
 
     def _generate_time_vector(self) -> np.ndarray:
-        """Generates a normalized time vector from 0 to 1."""
-        return np.linspace(0, 1, self.series_length)
+        # True time in months, not normalized (0 to T)
+        return np.arange(self.series_length)
 
     def _generate_long_term_trend(self, t: np.ndarray) -> np.ndarray:
-        """Generates a smooth long-term sinusoidal trend with random frequency and phase."""
-        freq = self.random_state.uniform(0.1, 0.5)
-        phase = self.random_state.uniform(0, 2 * np.pi)
-        return np.sin(2 * np.pi * freq * t + phase)
+        # Smooth quadratic drift + offset (up or down)
+        center = t.mean()
+        curvature = self.random_state.uniform(-5e-5, 5e-5)  # very slow
+        drift = self.random_state.uniform(-0.002, 0.002)
+        offset = self.random_state.uniform(0, 0.1)
+        return offset + drift * (t - center) + curvature * (t - center) ** 2
+
 
     def _generate_short_term_trend(self, t: np.ndarray) -> np.ndarray:
-        """Generates a smoothed short-term trend from random noise via convolution."""
-        noise = self.random_state.normal(0, 1, len(t))
-        window = np.hanning(15)  # Smooth window to apply convolution
+        # Gentle smooth local oscillations
+        base_freq = self.random_state.uniform(1/36, 1/12)  # 1-3 years
+        phase = self.random_state.uniform(0, 2 * np.pi)
+        amp = self.random_state.uniform(0.01, 0.05)
+        smooth_component = amp * np.sin(2 * np.pi * base_freq * t + phase)
+
+        # Optional: convolve light noise
+        noise = self.random_state.normal(0, 0.01, size=len(t))
+        window = np.hanning(18)
         window /= window.sum()
-        smooth_noise = np.convolve(noise, window, mode='same')
-        return smooth_noise
+        smooth_noise = np.convolve(noise, window, mode="same")
+
+        return smooth_component + smooth_noise
 
     def _generate_seasonal_trend(self, t: np.ndarray) -> np.ndarray:
-        """Generates a periodic seasonal trend with random amplitude and phase."""
-        amplitude = self.random_state.uniform(0.5, 1.5)
-        frequency = self.random_state.randint(2, 6)  # Number of cycles over the series
+        period = 12  # months
+        amplitude = self.random_state.uniform(0.02, 0.08)
         phase = self.random_state.uniform(0, 2 * np.pi)
-        return amplitude * np.sin(2 * np.pi * frequency * t + phase)
+        return amplitude * np.sin(2 * np.pi * t / period + phase)
+
 
     def _generate_noise(self) -> np.ndarray:
         """Generates Gaussian noise based on the configured noise level."""
