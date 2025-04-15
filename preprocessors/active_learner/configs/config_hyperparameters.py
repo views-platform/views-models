@@ -9,8 +9,8 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        "topics": ["Education & Jobs", "Politics", "Crime & Law"],
-        "priority_topic": "Education & Jobs",
+        "n_sublists": 5,
+        "shared_ratio":0.25,
         "batch_size": 8, #100
         "llm": "snowood1/ConfliBERT-scr-uncased",
         "learning_rate": 1e-5,
