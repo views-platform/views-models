@@ -1,8 +1,12 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
 
-    qs_broad = (Queryset('fatalities003_pgm_broad','priogrid_month')
+    qs_broad = (Queryset(f'{model_name}','priogrid_month')
                 
               .with_column(Column('lr_tlag1_dr_mod_gs', from_loa='priogrid_month', from_column='tlag1_dr_mod_gs')
                      .transform.missing.replace_na(0)

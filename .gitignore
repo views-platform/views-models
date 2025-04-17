@@ -11,6 +11,22 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+*.local
+*.safetensors
+*.ckpt
+*.onnx
+*.pt
+*.pth
+*.bin
+*.json
+*.yaml
+*.yml
+*.h5
+*.hdf5
+*_proto
+*_prototype
+
+
 # C extensions
 *.so
 

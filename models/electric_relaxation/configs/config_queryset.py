@@ -1,6 +1,8 @@
-# Defines the features to be pulled from the views storage and used - basically the queryset
-
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
     '''
@@ -9,7 +11,7 @@ def generate():
       spatial lag decay functions, and more.
     '''
     
-    qs_cm_cflong  = (Queryset("escwa001_cflong", "country_month")
+    qs_cm_cflong  = (Queryset(f"{model_name}", "country_month")
                 # target variable
                 .with_column(Column("lr_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
                             .transform.bool.gte(25)
