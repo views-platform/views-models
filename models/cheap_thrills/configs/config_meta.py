@@ -8,7 +8,7 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "purple_haze", 
+        "name": "cheap_thrills", 
         "algorithm": "ShurfModel",
         "targets": ["sb_best"],
         "level": "cm",
@@ -16,6 +16,6 @@ def get_meta_config():
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
         "metrics": ["RMSLE", "CRPS", "MSE"],
-        "queryset": "uncertainty_broad_nolog",
+        "queryset": "structural_brief_nolog",
     }
     return meta_config

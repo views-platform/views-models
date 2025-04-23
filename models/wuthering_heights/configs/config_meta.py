@@ -16,6 +16,6 @@ def get_meta_config():
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
         "metrics": ["RMSLE", "CRPS", "MSE"],
-        "queryset": "uncertainty_broad_nolog",
+        "queryset": "uncertainty_deep_conflict_nolog",
     }
     return meta_config

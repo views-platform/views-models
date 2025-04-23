@@ -10,7 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'submodels_to_train': 1,
+        'submodels_to_train': 50,
         'pred_samples': 10,
         'log_target': False,
         'draw_dist': 'Lognormal',
@@ -19,10 +19,14 @@ def get_hp_config():
         "parameters": {
             "clf": {
                 'n_estimators': 2,
+                'max_depth': 4,
+                'subsample': 0.2,
                 'n_jobs': -2,
             },
             "reg": {
                 'n_estimators': 2,
+                'max_depth': 4,
+                'subsample': 0.2,
                 'n_jobs': -2,
             }
         }

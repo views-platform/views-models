@@ -128,6 +128,14 @@ def generate():
             .transform.temporal.decay(24)
             .transform.missing.replace_na()
             )
+        
+        .with_column(Column('decay_240_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+            .transform.missing.replace_na()
+            .transform.bool.gte(100)
+            .transform.temporal.time_since()
+            .transform.temporal.decay(240)
+            .transform.missing.replace_na()
+            )
 
         .with_column(Column('decay_ged_sb_500', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
