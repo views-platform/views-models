@@ -38,7 +38,7 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe("/Users/dylanpinheiro/Desktop/views-platform/experiments/activelearning/data/preselected.parquet").head(30)
+    dataframe = read_dataframe("PATH").head(30)
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
