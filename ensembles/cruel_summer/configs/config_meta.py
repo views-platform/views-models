@@ -13,6 +13,7 @@ def get_meta_config():
         "targets": "ln_ged_sb_dep", 
         "level": "cm", 
         "aggregation": "median", 
-        "creator": "Xiaolong" 
+        "creator": "Xiaolong",
+        "reconciliation": None
     }
     return meta_config

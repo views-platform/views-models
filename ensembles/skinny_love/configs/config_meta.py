@@ -27,5 +27,7 @@ def get_meta_config():
         "aggregation": "mean",
         "metrics": ["RMSLE", "CRPS"],
         "creator": "Xiaolong",
+        "reconciliation": "pgm_cm_point",
+        "reconcile_with": "pink_ponyclub",
     }
     return meta_config

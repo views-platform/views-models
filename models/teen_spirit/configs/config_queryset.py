@@ -1,4 +1,8 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
     """
@@ -12,7 +16,7 @@ def generate():
     
     # VIEWSER 6, Example configuration. Modify as needed.
 
-    queryset = (Queryset('fatalities003_faoprices','country_month')
+    queryset = (Queryset(f'{model_name}','country_month')
     .with_column(Column('lr_fao_wheat_price', from_loa='country_month', from_column='wheat_price')
         .transform.missing.replace_na(0)
         )

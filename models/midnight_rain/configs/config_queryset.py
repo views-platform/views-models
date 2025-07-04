@@ -1,4 +1,8 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
     """
@@ -10,7 +14,7 @@ def generate():
     - queryset_base (Queryset): A queryset containing the base data for the model training.
     """
     
-    qs_escwa_drought = (Queryset('fatalities003_pgm_escwa_drought','priogrid_month')
+    qs_escwa_drought = (Queryset(f'{model_name}','priogrid_month')
                         
               .with_column(Column('lr_pgd_nlights_calib_mean', from_loa='priogrid_year', from_column='nlights_calib_mean')
                      .transform.missing.replace_na(0)
