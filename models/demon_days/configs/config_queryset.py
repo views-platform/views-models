@@ -17,6 +17,11 @@ def generate():
     # VIEWSER 6, Example configuration. Modify as needed.
 
     queryset = (Queryset(f'{model_name}','country_month')
+                
+    .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
+
+    .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
+    
     .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
         .transform.ops.ln()
         .transform.missing.fill()
