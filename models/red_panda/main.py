@@ -2,15 +2,16 @@ import wandb
 import warnings
 from pathlib import Path
 from views_pipeline_core.cli.utils import parse_args, validate_arguments
+from views_pipeline_core.managers.log import LoggingManager
 from views_pipeline_core.managers.model import ModelPathManager
 
-# Import your model manager class here
-# E.g. from views_stepshifter.manager.stepshifter_manager import StepshifterManager
+from views_r2darts2.manager.model import DartsForecastingModelManager
 
 warnings.filterwarnings("ignore")
 
 try:
     model_path = ModelPathManager(Path(__file__))
+    logger = LoggingManager(model_path).get_logger()
 except FileNotFoundError as fnf_error:
     raise RuntimeError(
         f"File not found: {fnf_error}. Check the file path and try again."
@@ -27,6 +28,6 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
     if args.sweep:
-        # YourModelManager(model_path=model_path).execute_sweep_run(args)
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
     else:
-        # YourModelManager(model_path=model_path).execute_single_run(args)
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=True).execute_single_run(args)
