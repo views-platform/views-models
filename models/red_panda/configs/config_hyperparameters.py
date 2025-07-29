@@ -86,7 +86,7 @@ def get_hp_config():
         "weight_decay": 0.00000195227196867771,
         "zero_threshold": 0.009411321834189218,
 
-        "num_samples": 1,
+        "num_samples": 200,
         "mc_dropout": True,
     }
 
