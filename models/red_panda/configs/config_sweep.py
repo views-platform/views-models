@@ -9,7 +9,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',  # Other options: 'grid', 'bayes'
-        'name': 'tide_proto',
+        'name': 'red_panda',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 5,
