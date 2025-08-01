@@ -15,7 +15,10 @@ def generate():
     queryset_base = (Queryset("zero_baseline", "country_month")
         # Create a new column 'ln_sb_best' using data from 'priogrid_month' and 'ged_sb_best_count_nokgi' column
         # Apply logarithmic transformation, handle missing values by replacing them with NA
-        .with_column(Column("ln_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_count_nokgi")
+
+        .with_column(Column("raw_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi"))
+
+        .with_column(Column("ln_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
             .transform.ops.ln().transform.missing.replace_na())
         
         # Create a new column 'ln_ns_best' using data from 'priogrid_month' and 'ged_ns_best_count_nokgi' column
