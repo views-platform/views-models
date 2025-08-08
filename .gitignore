@@ -26,6 +26,12 @@ __pycache__/
 *_proto
 *_prototype
 
+*.gz
+*.html
+*.zip
+*.tar
+*.tar.gz
+
 
 # C extensions
 *.so
