@@ -15,7 +15,7 @@ fi
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
-env_path="$project_path/envs/views-activelearning"
+env_path="$project_path/envs/views_ensemble"
 
 eval "$(conda shell.bash hook)"
 

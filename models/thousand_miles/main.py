@@ -3,13 +3,14 @@ import warnings
 from pathlib import Path
 from views_pipeline_core.cli.utils import parse_args, validate_arguments
 from views_pipeline_core.managers.log import LoggingManager
-from views_pipeline_core.managers.ensemble import EnsemblePathManager, EnsembleManager
+from views_pipeline_core.managers.model import ModelPathManager
+
+from views_r2darts2.manager.model import DartsForecastingModelManager
 
 warnings.filterwarnings("ignore")
 
 try:
-    ensemble_path = EnsemblePathManager(Path(__file__))
-    logger = LoggingManager(ensemble_path).get_logger()
+    model_path = ModelPathManager(Path(__file__))
 except FileNotFoundError as fnf_error:
     raise RuntimeError(
         f"File not found: {fnf_error}. Check the file path and try again."
@@ -25,5 +26,7 @@ if __name__ == "__main__":
     wandb.login()
     args = parse_args()
     validate_arguments(args)
-
-    EnsembleManager(ensemble_path=ensemble_path, wandb_notifications=False).execute_single_run(args)
+    if args.sweep:
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
+    else:
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)

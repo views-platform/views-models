@@ -26,6 +26,10 @@ __pycache__/
 *_proto
 *_prototype
 
+# Darts
+*.scalers
+*.pt.scalers
+
 
 # C extensions
 *.so

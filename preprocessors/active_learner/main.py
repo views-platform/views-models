@@ -38,7 +38,7 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe("PATH").head(30)
+    dataframe = read_dataframe("/Users/dylanpinheiro/Downloads/syntext.csv").head(300)
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
@@ -52,6 +52,6 @@ if __name__ == "__main__":
     # print(dataset.other_cols.columns)
 
     ALModelManager(
-        model_path=model_path, 
-        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="text", label_col=None)
+        model_path=model_path,
+        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="text", id_col="index", label_col=None)
     ).run(args=args)

@@ -26,4 +26,4 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
 
-    EnsembleManager(ensemble_path=ensemble_path, wandb_notifications=False).execute_single_run(args)
+    EnsembleManager(ensemble_path=ensemble_path).execute_single_run(args)

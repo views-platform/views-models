@@ -30,12 +30,12 @@ def generate(steps: int = 36) -> dict:
 
     return {
         "calibration": {
-            "train": (121, 444),
-            "test": (445, 493),
+            "train": (121, 396),
+            "test": (397, 444),
         },
         "validation": {
-            "train": (121, 493),
-            "test": (494, 542),
+            "train": (121, 444),
+            "test": (445, 492),
         },
         "forecasting": {
             "train": forecasting_train_range(),
