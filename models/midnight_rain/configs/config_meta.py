@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "midnight_rain", 
         "algorithm": "LGBMRegressor",
-        "metrics": ["MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "targets": "ln_ged_sb_dep",
         "queryset": "fatalities003_pgm_escwa_drought",
         "level": "pgm",
