@@ -25,12 +25,12 @@ def get_hp_config():
         "doccano_url": "http://localhost:8000",
         "doccano_user": "admin",
         "doccano_password": "password",
-        "project_name": ["Edattack_Annotator1", "Edattack_Annotator2", "Edattack_Annotator3", "Edattack_Annotator4", "Edattack_Annotator5"],
+        "project_name": ["Edattack_Annotator1", "Edattack_Annotator2", "Edattack_Annotator3", "Edattack_Annotator4", "Edattack_Annotator5", "Consensus_Edattack"],
         "max_iterations": 10,
         "query_size": 10,
         "min_batch_size": 3,
         "annotation_size": 20,
-        "labels": {"Attack_on_schools":0, "Attack_on_HE":1, "Attack_on_student_personal":2, "Threats_intimidation":3, "Military_use":4, "Child_recruitement_abductions":5, "Sexual_violence":6, "Incidents":7, "No_edattack":8},
+        "labels": {"Attack_on_schools":0, "Attack_on_HE":1, "Attack_on_student_personal":2, "Threats_intimidation":3, "Military_use":4, "Child_recruitement_abductions":5, "Sexual_violence":6, "Incidents":7, "No_edattack":8, "Female_only":9, "Male_only":'a'},
     }
     return hyperparameters
 
