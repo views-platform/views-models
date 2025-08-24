@@ -22,7 +22,7 @@ def get_hp_config():
         "init_batch": 200,
         "max_samples": 2000,
         "metrics": ["accuracy", "f1"],
-        "doccano_url": "http://localhost:8000",
+        "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
         "project_name": ["Edattack_Annotator1", "Edattack_Annotator2", "Edattack_Annotator3", "Edattack_Annotator4", "Edattack_Annotator5", "Consensus_Edattack"],
