@@ -16,7 +16,7 @@ def get_hp_config():
         "batch_size": 8, #100
         "llm": "snowood1/ConfliBERT-scr-uncased",
         "learning_rate": 1e-5,
-        "epochs": 1,
+        "epochs": 10,
         "monte_carlo_runs": 100,
         "early_stopping": 3,
         "init_batch": 200,
