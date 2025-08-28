@@ -25,12 +25,13 @@ def get_hp_config():
         "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
-        "project_name": ["Edattack_Annotator1", "Edattack_Annotator2", "Edattack_Annotator3", "Edattack_Annotator4", "Edattack_Annotator5", "Consensus_Edattack"],
+        "project_name": ["Edattack_Annotator1_Gudrun", "Edattack_Annotator2_Roos", "Edattack_Annotator_3_Kristine", "Edattack_Annotator4_Sonja", "Edattack_Annotator5_Dylan", "Consensus_Edattack"],
         "max_iterations": 10,
         "query_size": 10,
         "min_batch_size": 3,
         "annotation_size": 20,
-        "labels": {"Attack_on_schools":0, "Attack_on_HE":1, "Attack_on_student_personal":2, "Threats_intimidation":3, "Military_use":4, "Child_recruitement_abductions":5, "Sexual_violence":6, "Incidents":7, "No_edattack":8, "Female_only":9, "Male_only":'a'},
+        "labels": {"Violence":0, "Threats & Intimidation":1, "Recruitment & Abduction":2, "Sexual Violence":3, "Military Use / Occupation":4, "Arrest/Detention":5, "Target: Student":6, "Target: Personnel":7, "Target: Infrastructure":8, "Victim Gender: Only females":'a', "Victim Gender: Only males":'b', "Non-binary mentioned":'c', "Institution: Female-focused":'d', "Institution: Male-focused":'e', "Educational Level: Primary":'f', "Educational Level: Secondary":'g', "Educational Level: Higher":'h', "Incidental Flag":'i',"Known Conflict Actor":'j', "No attack on education":'k'},
+"colours": {"Violence":"#8a9bee", "Threats & Intimidation": "#8a9bee", "Recruitment & Abduction":"#8a9bee", "Sexual Violence":"#8a9bee", "Military Use / Occupation":"#8a9bee", "Arrest/Detention": "#8a9bee", "Known Conflict Actor":"#e77a81", "Target: Student":"#40864A", "Target: Personnel":"#40864A", "Target: Infrastructure":"#40864A", "Victim Gender: Only females":"#868440", "Victim Gender: Only males":"#868440", "Non-binary mentioned":"#868440", "Institution: Female-focused":"#868440", "Institution: Male-focused":"#868440", "Educational Level: Primary":"#C1C1B7", "Educational Level: Secondary":"#C1C1B7", "Educational Level: Higher":"#C1C1B7", "Incidental Flag":"#D594C8", "No attack on education":"#611C1E"},
     }
     return hyperparameters
 
