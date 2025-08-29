@@ -27,7 +27,7 @@ def get_hp_config():
         "doccano_password": "password",
         "project_name": ["Edattack_Annotator1_Gudrun", "Edattack_Annotator2_Roos", "Edattack_Annotator_3_Kristine", "Edattack_Annotator4_Sonja", "Edattack_Annotator5_Dylan", "Consensus_Edattack"],
         "max_iterations": 10,
-"disagreement_strategy": 1,
+        "disagreement_strategy": 1,
         "query_size": 10,
         "min_batch_size": 3,
         "annotation_size": 20,
