@@ -30,7 +30,14 @@ if __name__ == "__main__":
     wandb.login()
     args = parse_args()
     validate_arguments(args)
+
+    manager = StepshifterManager(
+        model_path=model_path,
+        wandb_notifications=args.wandb_notifications,
+        use_prediction_store=args.prediction_store,
+    )
+
     if args.sweep:
-        StepshifterManager(model_path=model_path).execute_sweep_run(args)
+        manager.execute_sweep_run(args)
     else:
-        StepshifterManager(model_path=model_path).execute_single_run(args)
+        manager.execute_single_run(args)
