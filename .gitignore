@@ -30,6 +30,12 @@ __pycache__/
 *.scalers
 *.pt.scalers
 
+*.gz
+*.html
+*.zip
+*.tar
+*.tar.gz
+
 
 # C extensions
 *.so
