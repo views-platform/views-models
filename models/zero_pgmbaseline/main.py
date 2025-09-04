@@ -6,9 +6,6 @@ from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.log import LoggingManager
 from views_baseline.manager.baseline_manager import BaselineForecastingModelManager
 
-# Import your model manager class here
-# E.g. from views_stepshifter.manager.stepshifter_manager import StepshifterManager
-
 warnings.filterwarnings("ignore")
 
 try:
@@ -29,8 +26,11 @@ if __name__ == "__main__":
     wandb.login()
     args = parse_args()
     validate_arguments(args)
+
     if args.sweep:
-        # YourModelManager(model_path=model_path).execute_sweep_run(args)
-        logger.info('No Sweep Run for Baseline Models')
+        logger.info("No Sweep Run for Baseline Models")
     else:
-        BaselineForecastingModelManager(model_path=model_path).execute_single_run(args)
+        BaselineForecastingModelManager(model_path=model_path,
+            wandb_notifications=args.wandb_notifications,
+            use_prediction_store=args.prediction_store,
+        ).execute_single_run(args)
