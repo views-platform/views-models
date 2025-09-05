@@ -8,7 +8,7 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "zero_baseline", 
+        "name": "zero_cmbaseline", 
         "algorithm": "ZeroModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "targets": ["ln_ged_sb_dep"],

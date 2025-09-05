@@ -8,7 +8,7 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "locf_baseline", 
+        "name": "locf_cmbaseline", 
         "algorithm": "LocfModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "targets": ["ln_ged_sb_dep"],

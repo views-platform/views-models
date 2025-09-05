@@ -8,7 +8,7 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "average_baseline", 
+        "name": "average_cmbaseline", 
         "algorithm": "AverageModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "targets": ["ln_ged_sb_dep"],
