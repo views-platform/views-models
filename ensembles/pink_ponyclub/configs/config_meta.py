@@ -32,7 +32,7 @@ def get_meta_config():
         "targets": "ln_ged_sb_dep",
         "level": "cm",
         "aggregation": "mean",
-        "metrics": ["RMSLE", "CRPS"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Xiaolong",
         "reconciliation": None,
     }

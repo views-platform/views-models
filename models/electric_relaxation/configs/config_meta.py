@@ -8,7 +8,7 @@ def get_meta_config():
     model_config = {
         "name": "electric_relaxation",
         "algorithm": "RandomForestRegressor", 
-        "metrics": ["RMSLE", "CRPS"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "targets": "ged_sb_dep", 
         "queryset": "escwa001_cflong",
         "level": "cm",

@@ -17,6 +17,21 @@ def generate():
     # VIEWSER 6, Example configuration. Modify as needed.
 
     queryset = (Queryset(f'{model_name}','country_month')
+                
+        .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
+
+        .with_column(Column('raw_ged_ns', from_loa='country_month', from_column='ged_ns_best_sum_nokgi'))
+
+        .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
+
+        .with_column(Column('raw_acled_sb', from_loa='country_month', from_column='acled_sb_fat'))
+
+        .with_column(Column('raw_acled_sb_count', from_loa='country_month', from_column='acled_sb_count'))
+
+        .with_column(Column('raw_acled_os', from_loa='country_month', from_column='acled_os_fat'))
+
+        .with_column(Column('raw_acled_ns', from_loa='country_month', from_column='acled_ns_fat'))
+
         .with_column(Column('lr_gleditsch_ward', from_loa='country', from_column='gwcode')
             )
 

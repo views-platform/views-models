@@ -15,7 +15,7 @@ def get_meta_config():
         "creator": "Håvard",
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
-        "metrics": ["RMSLE", "CRPS", "MSE"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "queryset": "structural_brief_nolog",
     }
     return meta_config
