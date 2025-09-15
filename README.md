@@ -333,6 +333,15 @@ In addition to the possibility of easily creating new models and ensembles, in o
 
 The catalogs are automatically filled out and updated, through a GitHub action, with every new model or ensemble which is created.  
 
+## UpdateViewser Class
+
+Currently, the data returned from viewser returns 0 from month id 543 onward. In order to still produce valid predictions, an emergency update solution has been implemented. For our most important datasources - Acled and UCDP - updates are fetched and then integrated into the dataframe returned from viewser. For this emergency solution to work note:
+
+- querysets need to be modified such that they return the raw data for all of the transformed variables. For all transformed variables, the raw base variables have to be added to the queryset and while it is up to the user to choose a name for them, they HAVE to start with "raw_". If the queryset does not contain variables staring with "raw_" and you use the -u flag, an exception is thrown. example queryset line: .with_column(Column("raw_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi"))
+- UCDP & Acled updates are stored in a folder of your choice. For the update dataframes, contact Sonja. 
+- As a user you need to: 1. Place the update dataframes in a folder of your choice. 2. In the dotenv file in views-models add the path to your update dataframes (cm_path='path/to/file' & pgm_path='path/to/file') and month_to_update as a list of ints e.g.: month_to_update= [543,544,545,546].
+- Execute the pipeline with your usual flags and add -u or --update_viewser. The default is to NOT update the viewser dataframe if you just use the usual flags. 
+
 ---
 ## Catalogs
 
@@ -356,6 +365,7 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 | heavy_rotation | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_joint_broad](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_queryset.py) | - [hyperparameters heavy_rotation](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
 | high_hopes | HurdleModel | ln_ged_sb_dep | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_queryset.py) | - [hyperparameters high_hopes](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
 | little_lies | HurdleModel | ln_ged_sb_dep | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_queryset.py) | - [hyperparameters little_lies](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| lovely_creature | ShurfModel | sb_best | - [uncertainty_broad_nolog](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_queryset.py) | - [hyperparameters lovely_creature](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
 | national_anthem | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_wdi_short](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_queryset.py) | - [hyperparameters national_anthem](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
 | ominous_ox | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_queryset.py) | - [hyperparameters ominous_ox](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
 | plastic_beach | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_aquastat](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_queryset.py) | - [hyperparameters plastic_beach](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_hyperparameters.py) | None | shadow | NA | Marina |

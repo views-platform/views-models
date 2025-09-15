@@ -25,7 +25,9 @@ def get_meta_config():
         "targets": "ln_ged_sb_dep",
         "level": "pgm",
         "aggregation": "mean",
-        "metrics": ["RMSLE", "CRPS"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Xiaolong",
+        "reconciliation": "pgm_cm_point",
+        "reconcile_with": "pink_ponyclub",
     }
     return meta_config

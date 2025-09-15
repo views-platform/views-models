@@ -90,7 +90,7 @@ for subfolder in target_dir.iterdir():
         target = model_manager.configs['targets']
         if isinstance(target, list):
             target = ", ".join(target)
-        queryset = model_manager.configs['queryset']
+        queryset = model_manager.configs.get("queryset", "")
         level = model_manager.configs['level']
         try:
             metrics = model_manager.configs['metrics']
@@ -104,12 +104,16 @@ for subfolder in target_dir.iterdir():
 
         ## Get queryset description
         queryset_info = mpm.get_queryset()
-        description = queryset_info.description
-        try:
-            description = " ".join(description.split())
-        except AttributeError:
-            description = 'No description provided'
-        name = queryset_info.name
+        if queryset_info:
+            description = queryset_info.description
+            try:
+                description = " ".join(description.split())
+            except AttributeError:
+                description = 'No description provided'
+            name = queryset_info.name
+        else:
+            description = ""
+            name = ""
 
         ## Update old README file - For Bitter Symphony Model 
         scaffold_path = target_dir / "README_scaffold.md"
