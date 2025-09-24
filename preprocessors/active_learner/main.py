@@ -39,7 +39,9 @@ if __name__ == "__main__":
     
     # Initialize dataset with multi-label support
     PATH = Path.home() / "edattack_synthetic_texts" / "lemonade.csv"
-    dataframe = read_dataframe(PATH).head(100)
+    #dataframe = read_dataframe('/home/sonja/Desktop/ucdp_aec_try/ucdp_aec_data.csv')
+    #dataframe = read_dataframe('/home/sonja/Downloads/windows.csv')/home/sonja/Downloads/Africa_lagged_data_up_to-2024-09-12.xlsx
+    dataframe = read_dataframe('/home/sonja/Desktop/Edattack sprint/data/combined_icr_acled.csv')
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
@@ -54,5 +56,5 @@ if __name__ == "__main__":
 
     ALModelManager(
         model_path=model_path, 
-        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="plain_text", id_col="event_id_in_acled", label_col=None)
+        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="window_text", id_col="index", label_col=None) #text_col="plain_text", id_col="event_id_in_acled"
     ).run(args=args)
