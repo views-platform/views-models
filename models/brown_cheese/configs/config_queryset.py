@@ -1,4 +1,8 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
     """
@@ -10,7 +14,18 @@ def generate():
     - queryset_base (Queryset): A queryset containing the base data for the model training.
     """
     
-    queryset = (Queryset('fatalities003_baseline','country_month')
+    queryset = (Queryset(f'{model_name}','country_month')
+                
+
+        .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+                     .transform.missing.fill()
+                     .transform.missing.replace_na()    
+                )
+
+        .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+                     .transform.missing.fill()
+                     .transform.missing.replace_na()
+                    )
         .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.ops.ln()
             .transform.missing.fill()

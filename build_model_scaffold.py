@@ -8,6 +8,7 @@ from views_pipeline_core.templates.model import (
     template_config_queryset,
     template_config_meta,
     template_config_sweep,
+    template_config_partitions,
     template_main,
     template_run_sh,
     template_requirement_txt
@@ -150,8 +151,9 @@ class ModelScaffoldBuilder:
         5. Generates the queryset configuration script.
         6. Generates the `config_meta.py` script with model name and algorithm.
         7. Generates the `config_sweep.py` script with model name and algorithm.
-        8. Generates the main script for the model.
-        9. Reminds the user to update the queryset file.
+        8. Generates the `config_partitions.py` script.
+        9. Generates the main script for the model.
+        10. Reminds the user to update the queryset file.
 
         Raises:
             FileNotFoundError: If the model directory does not exist.
@@ -168,13 +170,6 @@ class ModelScaffoldBuilder:
                 "Enter the algorithm of the model (e.g. XGBModel, LightGBMModel, HurdleModel, HydraNet): "
             )
         )
-        # self._model_manager_name = str(
-        #     input(
-        #         "Enter the name of your ModelManager subclass (e.g. StepshifterManager, HydranetManager. Defaults to StepshifterManager): "
-        #     )
-        # )
-        # if not self._model_manager_name:
-        #     self._model_manager_name = "StepshifterManager"
         template_config_hyperparameters.generate(
             script_path=self._model.configs / "config_hyperparameters.py",
         )
@@ -192,6 +187,7 @@ class ModelScaffoldBuilder:
             model_name=self._model.model_name,
             model_algorithm=self._model_algorithm,
         )
+        template_config_partitions.generate(script_path=self._model.configs / "config_partitions.py")
         template_main.generate(script_path=self._model.model_dir / "main.py")
 
         self.package_name = str(input("Enter the name of the architecture package: "))
@@ -200,7 +196,12 @@ class ModelScaffoldBuilder:
             logging.error(error)
             self.package_name = str(input("Enter the name of the architecture package: "))
         template_run_sh.generate(script_path=self._model.model_dir / "run.sh", package_name=self.package_name)
-        template_requirement_txt.generate(script_path=self.requirements_path, package_name=self.package_name, package_version_range=PackageManager.get_latest_release_version_from_github(self.package_name))
+        try:
+            _latest_package_release_version = PackageManager.get_latest_release_version_from_github(self.package_name)
+        except Exception as e:
+            logging.error(f"Error fetching latest release version for {self.package_name}: {e}. Using default version 0.1.0.")
+            _latest_package_release_version = None
+        template_requirement_txt.generate(script_path=self.requirements_path, package_name=self.package_name, package_version_range=_latest_package_release_version)
 
 
         print(f"\033[91m\033[1mRemember to update the queryset file at {self._model.queryset_path}!\033[0m")
