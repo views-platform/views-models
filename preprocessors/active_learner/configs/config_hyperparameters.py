@@ -43,7 +43,75 @@ def get_hp_config():
         "min_batch_size": 3,
         "annotation_size": 20,
         "labels": {"Violence":0, "Threats & Intimidation":1, "Recruitment & Abduction":2, "Sexual Violence":3, "Military Use / Occupation":4, "Arrest/Detention":5, "Target: Student":6, "Target: Personnel":7, "Target: Infrastructure":8, "Victim Gender: Only females":'a', "Victim Gender: Only males":'b', "Non-binary mentioned":'c', "Institution: Female-focused":'d', "Institution: Male-focused":'e', "Educational Level: Primary":'f', "Educational Level: Secondary":'g', "Educational Level: Higher":'h', "Incidental Flag":'i',"Known Conflict Actor":'j', "No attack on education":'k'},
-"colours": {"Violence":"#8a9bee", "Threats & Intimidation": "#8a9bee", "Recruitment & Abduction":"#8a9bee", "Sexual Violence":"#8a9bee", "Military Use / Occupation":"#8a9bee", "Arrest/Detention": "#8a9bee", "Known Conflict Actor":"#e77a81", "Target: Student":"#40864A", "Target: Personnel":"#40864A", "Target: Infrastructure":"#40864A", "Victim Gender: Only females":"#868440", "Victim Gender: Only males":"#868440", "Non-binary mentioned":"#868440", "Institution: Female-focused":"#868440", "Institution: Male-focused":"#868440", "Educational Level: Primary":"#C1C1B7", "Educational Level: Secondary":"#C1C1B7", "Educational Level: Higher":"#C1C1B7", "Incidental Flag":"#D594C8", "No attack on education":"#611C1E"},
+        "colours": {"Violence":"#8a9bee", "Threats & Intimidation": "#8a9bee", "Recruitment & Abduction":"#8a9bee", "Sexual Violence":"#8a9bee", "Military Use / Occupation":"#8a9bee", "Arrest/Detention": "#8a9bee", "Known Conflict Actor":"#e77a81", "Target: Student":"#40864A", "Target: Personnel":"#40864A", "Target: Infrastructure":"#40864A", "Victim Gender: Only females":"#868440", "Victim Gender: Only males":"#868440", "Non-binary mentioned":"#868440", "Institution: Female-focused":"#868440", "Institution: Male-focused":"#868440", "Educational Level: Primary":"#C1C1B7", "Educational Level: Secondary":"#C1C1B7", "Educational Level: Higher":"#C1C1B7", "Incidental Flag":"#D594C8", "No attack on education":"#611C1E"},
+        # --- Preselection settings ---
+        "preselection": {
+            "engine": "spacy",      # future-proofing toggle
+            "require_attack_on_education": True,
+            "apply_before_annotation": True,
+
+            # ⚙️ NLP model
+            "spacy_model": "en_core_web_sm",
+
+            # 📚 Keyword dictionaries
+            "edu_places": [
+                "school", "primary school", "secondary school", "high school", "college", "university",
+                "campus", "classroom", "lecture hall", "kindergarten", "nursery",
+                "madrasah", "madrasa", "madrassa",
+                "academy", "institute", "polytechnic",
+                "boarding school", "dorm", "dormitory", "school bus", "school van",
+                "playground", "schoolyard", "faculty", "faculty of education", "department",
+                "department of education", "tutoring center", "tuition center", "coaching center",
+                "coaching class", "tuition centre", "coaching centre"
+            ],
+            "edu_persons": [
+                "student", "pupil", "teacher", "professor", "lecturer",
+                "headteacher", "headmaster", "headmistress"
+            ],
+            "edu_head_hints": ["faculty", "department", "academy"],
+            "attack_terms": [
+                "attack", "assault", "storm", "raid", "ambush", "clash",
+                "bomb", "car bomb", "improvised explosive device", "ied", "airstrike", "air strike",
+                "shell", "shelling", "mortar", "rocket", "grenade",
+                "shoot", "open fire", "gun down", "fire shots", "fired shots", "open fires",
+                "kill", "injure", "wound", "stab",
+                "burn", "torch", "arson", "firebomb", "set ablaze", "set alight", "set on fire",
+                "explode", "detonate", "blast", "explosion", "shrapnel", "debris",
+                "vandalize", "ransack", "loot", "massacre", "destroy",
+                "threaten", "death threat", "anonymous bomb threat", "warn", "intimidate", "harass", "coerce",
+                "recruit", "conscript", "conscription", "abduct", "kidnap", "seize", "take hostage",
+                "rape", "sexual assault", "molest", "sexual slavery", "coerced sex",
+                "occupy", "commandeer", "garrison", "use as barracks", "station troops", "fortify", "base",
+                "store weapons", "stockpile",
+                "blaze", "on fire", "caught fire", "caught on fire", "catch fire", "flames", "burning",
+                "take positions", "took positions", "taking positions", "military presence", "armed presence",
+                "deploy", "deployment", "station"
+            ],
+            "target_linkers": [
+                "at", "on", "against", "in", "inside", "outside", "near", "into", "towards", "toward", "by", "from"
+            ],
+            "guard_phrases": [
+                "bomb squad", "training drill", "mock drill", "exercise drill", "fire drill",
+                "parking ban", "ban parking", "traffic ban", "travel ban",
+                "cyber attack", "phishing attack", "ransomware attack",
+                "football attack", "attacking play", "attack the argument", "verbal attack",
+                "peaceful protest", "peaceful demonstration", "student protest",
+                "student demonstration", "sit-in", "rally", "march", "vigil",
+                "burn effigy", "effigy burning"
+            ],
+            "protest_hints": [
+                "protest", "demonstration", "sit-in", "rally", "march", "vigil", "peaceful"
+            ],
+
+            # 📏 Logic hyperparameters
+            "proximity_linkers_wide": ["inside", "in", "at"],
+            "proximity_k_default": 5,
+            "proximity_k_wide": 10,
+            "doc_near_k": 12,
+            "explosion_lemmas": ["explode", "detonate", "blast", "explosion", "bomb", "ied", "device"],
+            "incidental_terms": ["damage", "hit", "strike", "blast", "explosion", "shrapnel", "debris", "crossfire", "explode", "detonate"],
+            "places_only_for_proximity": True
+        }
     }
     return hyperparameters
 
