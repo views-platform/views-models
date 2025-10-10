@@ -1,10 +1,7 @@
 import wandb
 import warnings
 from pathlib import Path
-from views_pipeline_core.cli.utils import parse_args, validate_arguments
-from views_pipeline_core.managers.api import APIPathManager
-
-
+from views_faoapi.managers.api import APIPathManager
 from views_faoapi.managers.api import FAOApiManager
 
 warnings.filterwarnings("ignore")
