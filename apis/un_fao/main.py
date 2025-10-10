@@ -1,7 +1,7 @@
 import wandb
 import warnings
 from pathlib import Path
-from views_faoapi.managers.api import APIPathManager
+from views_faoapi.managers.model import APIPathManager
 from views_faoapi.managers.api import FAOApiManager
 
 warnings.filterwarnings("ignore")
