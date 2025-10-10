@@ -1,17 +1,17 @@
 #!/bin/zsh
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
-    echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
-    echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
-    echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
-  fi
-  source ~/.zshrc
-fi
+# if [[ "$OSTYPE" == "darwin"* ]]; then
+#   if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
+#     echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
+#   fi
+#   if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
+#     echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
+#   fi
+#   if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
+#     echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+#   fi
+#   source ~/.zshrc
+# fi
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
@@ -35,7 +35,8 @@ else
   echo "Creating new Conda environment at $env_path..."
   conda create --prefix "$env_path" python=3.11 -y
   conda activate "$env_path"
-  pip install -r $script_path/requirements.txt
+  # pip install -r $script_path/requirements.txt
+  pip install git+https://github.com/views-platform/views-faoapi.git@development
 fi
 
 echo "Running $script_path/main.py "
