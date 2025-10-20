@@ -4,12 +4,12 @@
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | HurdleModel (Classifier: RandomForestClassifier, Regressor: RandomForestRegressor)                  |
+| **Model Algorithm** | HurdleModel (Classifier: XGBRFClassifier, Regressor: XGBRFRegressor)                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_joint_broad   |
+| **Features**       |  green_squirrel   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Green Squirrel
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

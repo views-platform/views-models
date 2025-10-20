@@ -7,9 +7,9 @@
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_joint_narrow   |
+| **Features**       |  fluorescent_adolescent   |
 | **Feature Description**       |  Predicting ged_dummy_sb, cm level Queryset with features from various sources, 'joint narrow'    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Fluorescent Adolescent
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

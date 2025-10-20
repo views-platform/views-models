@@ -7,9 +7,9 @@
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_baseline   |
+| **Features**       |  brown_cheese   |
 | **Feature Description**       |  Fatalities conflict history, cm level Predicting ln(fatalities) using conflict predictors, ultrashort    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Brown Cheese
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

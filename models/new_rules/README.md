@@ -1,3 +1,58 @@
-# Model README
-## Model name: new_rules
-## Created on: 2025-08-02 18:04:47.832584
+# New Rules 
+## Overview
+
+
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | NBEATSModel                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | ln_ged_sb_dep |
+| **Features**       |  new_rules   |
+| **Feature Description**       |  Base features for neural network models    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Deployment Status**       |  shadow    |
+
+## Repository Structure
+
+```
+New Rules
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
+
+## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
+```
+
+## Model Created on: 2025-08-02 18:04:47.832584

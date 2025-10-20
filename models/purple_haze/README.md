@@ -1,4 +1,4 @@
-# Lovely Creature 
+# Purple Haze 
 ## Overview
 
 
@@ -9,13 +9,13 @@
 | **Targets**         | sb_best |
 | **Features**       |  uncertainty_broad_nolog   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
-| **Metrics**       |  RMSLE, CRPS, MSE    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-Lovely Creature
+Purple Haze
 ├── README.md
 ├── main.py
 ├── requirements.txt
@@ -26,6 +26,7 @@ Lovely Creature
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data
@@ -54,4 +55,4 @@ or
 ./run.sh -r calibration -t -e
 ```
 
-## Model Created on: 2025-02-20 21:10:25.277860
+

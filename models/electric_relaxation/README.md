@@ -7,9 +7,9 @@
 | **Model Algorithm** | RandomForestRegressor                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ged_sb_dep |
-| **Features**       |  escwa001_cflong   |
+| **Features**       |  electric_relaxation   |
 | **Feature Description**       |  Views-escwa conflict history, cm level    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  deprecated    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Electric Relaxation
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

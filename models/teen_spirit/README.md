@@ -7,9 +7,9 @@
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_faoprices   |
+| **Features**       |  teen_spirit   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and faoprices features    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Teen Spirit
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

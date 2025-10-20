@@ -10,7 +10,7 @@ This folder contains code for the Cruel Summer model, an ensemble machine learni
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
 | **Aggregation**       |  median   |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -27,6 +27,7 @@ Cruel Summer
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 ├── data
 │   ├── generated
 │   ├── processed
