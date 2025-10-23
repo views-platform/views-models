@@ -11,5 +11,6 @@ def get_meta_config():
         "name": "un_fao", 
         "algorithm": "API",
         # "creator": "Your name here",
+        "historical_targets": ["lr_ged_sb"],
     }
     return meta_config

@@ -14,7 +14,7 @@ def get_meta_config():
         "targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "pgm",
-        "ensemble": "skinny_love"
+        "ensemble": "un_fao"
         # "creator": "Your name here",
     }
     return meta_config
