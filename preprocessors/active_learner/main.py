@@ -38,10 +38,11 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    PATH = Path.home() / "edattack_synthetic_texts" / "lemonade.csv"
-    #dataframe = read_dataframe('/home/sonja/Desktop/ucdp_aec_try/ucdp_aec_data.csv')
-    #dataframe = read_dataframe('/home/sonja/Downloads/windows.csv')/home/sonja/Downloads/Africa_lagged_data_up_to-2024-09-12.xlsx
-    dataframe = read_dataframe('/home/sonja/Desktop/Edattack sprint/data/combined_icr_acled.csv')
+    # PATH = Path.home() / "edattack_synthetic_texts" / "lemonade.csv"
+    # dataframe = read_dataframe('/home/sonja/Desktop/ucdp_aec_try/ucdp_aec_data.csv')
+    # dataframe = read_dataframe('/home/sonja/Downloads/windows.csv')/home/sonja/Downloads/Africa_lagged_data_up_to-2024-09-12.xlsx
+    # dataframe = read_dataframe('/home/sonja/Desktop/Edattack sprint/data/combined_icr_acled.csv')
+    dataframe = read_dataframe('/Users/xiaolong/views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv')
 
     #dataset = ViewsTextDataset(
     #    texts=dataframe["what"], 
