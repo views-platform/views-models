@@ -6,7 +6,7 @@ This folder contains code for the Pink Ponyclub model, an ensemble machine learn
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | bittersweet_symphony, brown_cheese, car_radio, counting_stars, demon_days, fast_car, good_riddance, green_squirrel, heavy_rotation, high_hopes, little_lies, national_anthem, ominous_ox, popular_monster, twin_flame                  |
+| **Models** | bittersweet_symphony, brown_cheese, car_radio, counting_stars, demon_days, fast_car, fluorescent_adolescent, good_riddance, green_squirrel, heavy_rotation, high_hopes, little_lies, national_anthem, ominous_ox, plastic_beach, popular_monster, teen_spirit, twin_flame, yellow_submarine                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | ln_ged_sb_dep |
 | **Aggregation**       |  mean   |
