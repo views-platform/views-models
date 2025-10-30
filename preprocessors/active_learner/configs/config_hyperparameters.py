@@ -321,11 +321,13 @@ def get_hp_config():
             ],
         },
 
-        "use_synthetic_data_augmentation": True,
-        "augmentation_strategy": "paraphrase",
-        "augmentation_n_variants": 3,
-        "augmentation_pivot_languages": ["fr", "de", "es"],
-        
+        # --- Augmentation settings ---
+        "augmentation": {
+            "enabled": True,
+            "strategy": "nlpaug",
+            "n_variants": 3,
+            "nlpaug_strategy": ["backtranslation_fr", "backtranslation_de"],
+        },
     }
     return hyperparameters
 
