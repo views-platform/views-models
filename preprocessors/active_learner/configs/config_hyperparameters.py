@@ -54,7 +54,7 @@ def get_hp_config():
             "Recruitment & Abduction": 2,
             "Sexual Violence": 3,
             "Military Use / Occupation": 4,
-            "Arrest/Detention": 5,
+            "Arrest / Detention": 5,
             "Target: Student": 6,
             "Target: Personnel": 7,
             "Target: Infrastructure": 8,
@@ -325,8 +325,11 @@ def get_hp_config():
         "augmentation": {
             "enabled": True,
             "strategy": "nlpaug",
-            "n_variants": 3,
-            "nlpaug_strategy": ["backtranslation_fr", "backtranslation_de"],
+            "nlpaug_strategies": {
+                "synonym": ["synonym"],
+                "backtranslation_fr_backtranslation_de": ["backtranslation_fr", "backtranslation_de"],
+                "synonym_backtranslation_fr_backtranslation_de": ["synonym", "backtranslation_fr", "backtranslation_de"],
+            },
         },
     }
     return hyperparameters
