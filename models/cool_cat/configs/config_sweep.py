@@ -94,25 +94,24 @@ def get_sweep_config():
 
         # False positives: Predicting conflict when there is none
         # Lower weight = more conservative predictions
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 2.0,
-            'max': 20.0,  # High penalty to avoid false alarms
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 1.5,  # At least 1.5x base weight
+            "max": 5.0,  # Up to 5x base weight
         },
         
-        # False negatives: Missing actual conflicts
-        # Higher weight = prioritize recall over precision
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 5.0,
-            'max': 30.0,  # Very high penalty - missing conflicts is critical
+        # False negatives: Missing actual conflicts (CRITICAL)
+        "false_negative_weight": {
+            "distribution": "uniform",
+            'min': 2.0,  # At least 2x base weight (FN worse than FP)
+            'max': 8.0,  # Up to 8x base weight
         },
         
         # Non-zero weight: General importance of conflict events
         'non_zero_weight': {
             'distribution': 'uniform',
             'min': 3.0,
-            'max': 20.0,
+            'max': 15.0,
         },
         
         # Huber delta: Transition point between L2 and L1 loss
