@@ -1,4 +1,3 @@
-
 def get_sweep_config():
     """
     Contains the configuration for hyperparameter sweeps using WandB.
@@ -9,67 +8,129 @@ def get_sweep_config():
     """
 
     sweep_config = {
-        "method": "bayes",  # Other options: 'grid', 'bayes'
-        "name": "elastic_heart",
-        "early_terminate": {"type": "hyperband", "min_iter": 5, "eta": 2},
+        "method": "bayes",
+        "name": "elastic_heart_tsmixer",
+        "early_terminate": {
+            "type": "hyperband",
+            "min_iter": 5,  # TSMixer converges reasonably fast
+            "eta": 2
+        },
     }
 
-    # Example metric setup:
-    metric = {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"}
+    metric = {
+        "name": "time_series_wise_msle_mean_sb",
+        "goal": "minimize"
+    }
     sweep_config["metric"] = metric
 
-    # Example parameters setup:
     parameters_dict = {
+        # Temporal Configuration
         "steps": {"values": [[*range(1, 36 + 1, 1)]]},
-        "input_chunk_length": {"values": [24, 36, 48, 60, 72]},
-        "batch_size": {"values": [32, 64, 128, 256, 512]},
+        
+        # Input length: TSMixer benefits from moderate to long context
+        "input_chunk_length": {"values": [36, 48, 60, 72, 84]},
+        
+        # Training Configuration
+        "batch_size": {"values": [64, 128, 256]},  # Reasonable range for memory/stability
+        "n_epochs": {"values": [300]},
+        "early_stopping_patience": {"values": [6]},
+        
+        # Learning rate: TSMixer is stable like other MLP-based models
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-6,
+            "min": 1e-5,
             "max": 1e-3,
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
             "min": 1e-6,
-            "max": 1e-2,
+            "max": 1e-3,
         },
-        "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [6]},
+        
+        # Scaling: Critical for zero-inflated fatality data
         'feature_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler',  None]
+            'values': ['MaxAbsScaler', 'MinMaxScaler']
         },
         'target_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler',  None]
+            'values': ['LogTransform', 'MinMaxScaler', 'MaxAbsScaler']  # LogTransform best for count data
         },
         
-        # TSMixer-specific parameters
-        "num_blocks": {"values": [1, 2, 3, 4, 5, 6]},
-        "ff_size": {"values": [2, 4, 8, 16, 32, 64, 128, 256]},
-        "hidden_size": {"values": [2, 4, 8, 16, 32, 64, 128, 256]},
-        "activation": {"values": ['ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU']},
-        "dropout": {"values": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]},
-        "norm_type": {"values": ["LayerNorm", "LayerNormNoBias", "TimeBatchNorm2d"]},
+        # TSMixer Architecture Parameters - CORE HYPERPARAMETERS
+        
+        # Number of mixer blocks: Controls model depth
+        # More blocks = more mixing of time/feature dimensions
+        "num_blocks": {"values": [2, 3, 4, 5, 6]},  # Removed 1 (too shallow)
+        
+        # Feed-forward size: Hidden dimension in MLP layers
+        # Controls capacity of time/feature mixing
+        "ff_size": {"values": [32, 64, 128, 256, 512]},  # Removed extremes
+        
+        # Hidden size: Projection dimension after mixing
+        # Should be comparable to or smaller than ff_size
+        "hidden_size": {"values": [32, 64, 128, 256, 512]},  # Removed extremes
+        
+        # Activation functions: TSMixer paper uses ReLU, but worth exploring
+        "activation": {
+            "values": [
+                "ReLU",      # Original paper default
+                "GELU",      # Smoother gradients, modern standard
+                "LeakyReLU", # Prevents dead neurons
+                "ELU",       # Smooth, good for sparse data
+            ]
+        },  # Removed sigmoid/tanh (saturate), SELU/PReLU (less common)
+        
+        # Dropout: TSMixer can overfit on sparse data
+        "dropout": {"values": [0.1, 0.2, 0.3, 0.4, 0.5]},  # Wide range
+        
+        # Normalization type: Critical for mixing stability
+        "norm_type": {
+            "values": [
+                "LayerNorm",           # Standard, proven
+                "LayerNormNoBias",     # Simpler variant
+                "TimeBatchNorm2d",     # Temporal-aware normalization
+            ]
+        },  # Removed RMSNorm (not standard in TSMixer)
+        
+        # Normalize before vs after mixing: Architectural choice
         "normalize_before": {"values": [True, False]},
         
-        # Loss function configuration
+        # Loss Function Configuration - Critical for zero-inflated data
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-        "zero_threshold": {"distribution": "uniform", "min": 0.001, "max": 0.3},
+        
+        # Zero threshold: What counts as "zero" in fatality data
+        "zero_threshold": {
+            "distribution": "uniform",
+            "min": 0.001,
+            "max": 1.0,
+        },
+        
+        # False positives: Predicting conflict when there is none
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 15.0,
+            "min": 2.0,
+            "max": 20.0,
         },
+        
+        # False negatives: Missing actual conflicts (CRITICAL)
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 15.0,
+            "min": 5.0,
+            "max": 30.0,
         },
+        
+        # Non-zero weight: General importance of conflict events
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 15.0,
+            "min": 3.0,
+            "max": 20.0,
         },
-        "delta": {"distribution": "uniform", "min": 0.01, "max": 5.0},
+        
+        # Huber delta: Transition point between L2 and L1 loss
+        "delta": {
+            "distribution": "uniform",
+            "min": 0.01,
+            "max": 5.0,
+        },
     }
 
     sweep_config['parameters'] = parameters_dict
