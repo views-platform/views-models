@@ -50,11 +50,12 @@ def get_sweep_config():
         
         # Scaling: Critical for zero-inflated data
         'feature_scaler': {
-            'values': ['MaxAbsScaler', 'MinMaxScaler']
+            'values': ['MinMaxScaler']
         },
         'target_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler']  # LogTransform best for count data
+            'values': ['MinMaxScaler']  # LogTransform best for count data
         },
+        
         
         # TiDE Architecture Parameters
         # Encoder/Decoder layers: TiDE is designed to be shallow

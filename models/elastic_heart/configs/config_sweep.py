@@ -49,10 +49,10 @@ def get_sweep_config():
         
         # Scaling: Critical for zero-inflated fatality data
         'feature_scaler': {
-            'values': ['MaxAbsScaler', 'MinMaxScaler']
+            'values': ['MinMaxScaler']
         },
         'target_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler']  # LogTransform best for count data
+            'values': ['MinMaxScaler']  # LogTransform best for count data
         },
         
         # TSMixer Architecture Parameters - CORE HYPERPARAMETERS
