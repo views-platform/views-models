@@ -86,11 +86,11 @@ def get_sweep_config():
         
         # Zero threshold: What counts as "zero" in fatality data
         'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.001,
-            'max': 1.0  # Allow higher thresholds for fatality counts
+            'distribution': 'log_uniform_values',
+            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
+            'max': 0.01,    # ~100-250 fatalities in typical scaled space
         },
-        
+
         # False positives: Predicting conflict when there is none
         # Lower weight = more conservative predictions
         'false_positive_weight': {
@@ -116,7 +116,7 @@ def get_sweep_config():
         
         # Huber delta: Transition point between L2 and L1 loss
         'delta': {
-            'distribution': 'uniform',
+            'distribution': 'log_uniform_values',
             'min': 0.01,
             'max': 3.0  # Allow larger deltas for fatality counts
         },

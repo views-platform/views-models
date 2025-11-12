@@ -98,10 +98,10 @@ def get_sweep_config():
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
         # Zero threshold: What counts as "zero" in fatality data
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.001,
-            "max": 1.0,
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
+            'max': 0.01,    # ~100-250 fatalities in typical scaled space
         },
         
         # False positives: Predicting conflict when there is none
