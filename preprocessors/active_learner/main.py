@@ -1,18 +1,16 @@
-import wandb
+import os
+import subprocess
+from functools import partial
 import warnings
 from pathlib import Path
-from views_activelearning.cli.utils import parse_args, validate_arguments
-from views_pipeline_core.managers.log import LoggingManager
-from views_activelearning.managers.model import ALModelPathManager
+import wandb
 from views_pipeline_core.files.utils import read_dataframe
-import subprocess
-from views_activelearning.managers.model import ALModelManager
+from views_activelearning.cli.utils import parse_args, validate_arguments
+from views_activelearning.managers.model import ALModelPathManager, ALModelManager
 from views_activelearning.handlers.text import ViewsTextDataset
-import os
-from functools import partial
-warnings.filterwarnings("ignore")
 
-from dotenv import load_dotenv
+
+warnings.filterwarnings("ignore")
 
 def start_doccano_server():
     """Start local Doccano instance using docker-compose"""
@@ -28,7 +26,6 @@ def start_doccano_server():
 
 if __name__ == "__main__":
     model_path = ALModelPathManager(Path(__file__))
-    logger = LoggingManager(model_path).get_logger()
 
     wandb.login()
     args = parse_args()

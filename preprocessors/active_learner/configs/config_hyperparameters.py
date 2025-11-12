@@ -323,21 +323,28 @@ def get_hp_config():
 
         # --- Augmentation settings ---
         "augmentation": {
-            "nlpaug": {
-                "enabled": True,
-                "strategies": {
-                    "synonym": ["synonym"],
-                    "backtranslation_fr_backtranslation_de": ["backtranslation_fr", "backtranslation_de"],
-                    "synonym_backtranslation_fr_backtranslation_de": ["synonym", "backtranslation_fr", "backtranslation_de"],
+            "model": "gemma3:27b",
+            "strategies": {
+                "synonym": {
+                    "enabled": True,
+                    "n_variants": 1,
+                },
+                "paraphrase": {
+                    "enabled": True,
+                    "n_variants": 1,
+                },
+                "backtranslation_fr_zh": {
+                    "enabled": True,
+                    "source_language": "en",
+                    "n_variants": 1,
+                },
+                "counterfactual": {
+                    "enabled": True,
+                    "n_variants": 1,
+                    "num_flips": 2,
                 },
             },
-            "counterfactual": {
-                "enabled": True,
-                "model": "llama3",
-                "num_flips": 2, # number of labels to flip
-                "n_variants": 1, # number of variants to generate
-            },
-        },
+        }
     }
     return hyperparameters
 
