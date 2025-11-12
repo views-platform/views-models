@@ -39,8 +39,8 @@ def get_sweep_config():
         # Learning rate: TiDE prefers slightly higher LR than transformers
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-4,
-            'max': 5e-3,  # Upper bound increased based on catalog default
+            'min': 1e-5,
+            'max': 1e-3,
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
