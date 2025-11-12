@@ -56,7 +56,7 @@ def get_sweep_config():
             'values': ['MaxAbsScaler', 'MinMaxScaler']
         },
         'target_scaler': {
-            'values': ['LogTransform', 'MinMaxScaler', 'MaxAbsScaler']  # LogTransform best for count data
+            'values': ['MinMaxScaler', 'MaxAbsScaler']  # LogTransform best for count data
         },
         
         # Transformer Architecture Parameters - CORE HYPERPARAMETERS
