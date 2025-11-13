@@ -2,7 +2,7 @@ import wandb
 import warnings
 from pathlib import Path
 from views_postprocessing.managers.unfao import UNFAOPostProcessorManager
-from views_pipeline_core.managers.postprocessor import PostprocessorPathManager
+from views_pipeline_core.managers.postprocessor.postprocessor import PostprocessorPathManager
 
 # Import your model manager class here
 # E.g. from views_stepshifter.manager.stepshifter_manager import StepshifterManager

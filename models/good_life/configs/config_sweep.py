@@ -11,139 +11,114 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'good_life_transformer',
+        'name': 'good_life_transformer_focus',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 5,  # Transformers need time for attention to converge
+            'min_iter': 8,      # Give model time to move off trivial zero
             'eta': 2
+        },
+        'metric': {
+            'name': 'time_series_wise_msle_mean_sb',
+            'goal': 'minimize'
         },
     }
 
-    metric = {
-        'name': 'time_series_wise_msle_mean_sb',
-        'goal': 'minimize'
-    }
-    sweep_config['metric'] = metric
-
     parameters_dict = {
-        # Temporal Configuration
-        'steps': {'values': [[*range(1, 36 + 1, 1)]]},
-        
-        # Input length: Transformers handle longer sequences well (quadratic attention)
-        'input_chunk_length': {'values': [36, 48, 60, 72, 84]},  # Added 84
-        
-        # Training Configuration
-        'batch_size': {'values': [64, 128, 256]},  # Transformers memory-intensive
-        'n_epochs': {'values': [300]},  # Consolidated (let early stopping decide)
-        'early_stopping_patience': {'values': [5, 7]},  # Removed impatient values
-        
-        # Learning rate: Transformers are sensitive, need careful tuning
+        # ---------------- Temporal ----------------
+        # Limit maximum context to 72 (84 often adds noise & memory overhead without improving spike capture).
+        'steps': {'values': [[*range(1, 36 + 1)]]},
+        'input_chunk_length': {'values': [36, 48, 60, 72]},
+
+        # ---------------- Training ----------------
+        # Batch size: very large (256+) averages away rare spike gradients; keep moderate range.
+        'batch_size': {'values': [64, 96, 128, 192]},
+        'n_epochs': {'values': [300]},
+        'early_stopping_patience': {'values': [8, 12]},  # Longer patience for late-emerging non-zero prediction behavior
+
+        # ---------------- Optimization ----------------
+        # LR upper bound lowered (<1e-3) to avoid rapid convergence to zero baseline; log-uniform for exploration of small rates.
         'lr': {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
-            'max': 1e-3,  # Conservative upper bound
+            'max': 7e-4,
         },
-        
-        # Weight decay: Important for transformer regularization
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-3,  # Reduced from 1e-2
+            'min': 5e-6,
+            'max': 3e-4,  # High WD suppresses small positive signals
         },
-        
-        # Scaling: Critical for zero-inflated fatality data
-        'feature_scaler': {
-            'values': ['MinMaxScaler']
+        'lr_scheduler_factor': {
+            'distribution': 'uniform',
+            'min': 0.35,
+            'max': 0.6,
         },
-        'target_scaler': {
-            'values': ['MinMaxScaler']  # LogTransform best for count data
+        'lr_scheduler_patience': {'values': [3, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-6]},
+
+        # ---------------- Scaling & Logging ----------------
+        # Single robust target scaler to keep semantics of zero_threshold stable across runs.
+        'feature_scaler': {'values': ['RobustScaler']},
+        'target_scaler': {'values': ['RobustScaler']},
+        'log_targets': {'values': [True]},  # log1p expands low counts without flattening spikes
+        'log_features': {
+            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", "lr_ged_sb_tsum_24", 
+                         "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
         },
-        
-        # Transformer Architecture Parameters - CORE HYPERPARAMETERS
-        
-        # Model dimension: Must be divisible by nhead
-        # d_model = nhead * d_k (dimension per head)
-        'd_model': {'values': [64, 128, 256, 512]},  # Removed 32 (too small for attention)
-        
-        # Number of attention heads: Must divide d_model evenly
-        # More heads = more diverse attention patterns
-        'nhead': {'values': [2, 4, 8]},  # Removed 16 (requires d_model>=256)
-        
-        # Encoder layers: Process input sequence
-        'num_encoder_layers': {'values': [2, 3, 4]},  # Removed 1 (too shallow)
-        
-        # Decoder layers: Generate output sequence
-        'num_decoder_layers': {'values': [2, 3, 4]},  # Removed 1 (too shallow)
-        
-        # Feedforward dimension: Hidden size in FFN after attention
-        # Typically 2-4x d_model (Transformer paper uses 4x)
-        'dim_feedforward': {'values': [128, 256, 512, 1024]},  # Removed extremes
-        
-        # Activation functions: For feedforward networks
-        'activation': {
-            'values': [
-                'ReLU',   # Original Transformer paper default
-                'GELU',   # Modern standard (BERT, GPT)
-                'GLU',    # Gated Linear Unit
-                'GEGLU',  # GELU-Gated (best of both worlds)
-            ]
-        },  # Removed Bilinear, ReGLU, SwiGLU (less tested in Darts)
-        
-        # Normalization type: Pre-norm vs post-norm architecture
-        'norm_type': {
-            'values': [
-                'LayerNorm',        # Standard (post-norm)
-                'RMSNorm',          # More stable, faster
-                'LayerNormNoBias',  # Simpler variant
-            ]
-        },
-        
-        # Dropout: Critical for transformer regularization
-        'dropout': {'values': [0.1, 0.2, 0.3, 0.4]},  # Removed 0.0, 0.5
-        
-        # Gradient clipping: Essential for attention stability
+
+        # ---------------- Transformer Architecture ----------------
+        # d_model kept <=256 to prevent memorizing a few historic spikes; 192 included for intermediate capacity.
+        'd_model': {'values': [64, 128, 192, 256]},
+        # nhead chosen to divide most d_model values cleanly (4 divides all in list; 8 divides 128 & 256).
+        'nhead': {'values': [4, 8]},
+        # Encoder/decoder depth restricted; deeper stacks overfit sparse tails and inflate memory.
+        'num_encoder_layers': {'values': [2, 3]},
+        'num_decoder_layers': {'values': [2, 3]},
+        # Feedforward dimension roughly 2–3x d_model; exclude 1024 to avoid overfitting spikes.
+        'dim_feedforward': {'values': [128, 256, 384, 512]},
+        # Activation set includes GELU (smooth), ReLU (baseline), GEGLU (gated), LeakyReLU (better near-zero).
+        'activation': {'values': ['GELU', 'ReLU', 'GEGLU', 'LeakyReLU']},
+        # Normalization variants; RMSNorm stabilizes scale shifts after log+robust transforms.
+        'norm_type': {'values': ['LayerNorm', 'RMSNorm', 'LayerNormNoBias']},
+        # Dropout moderate; >0.4 erases rare pattern signals, <0.1 risks overfit to spikes.
+        'dropout': {'values': [0.15, 0.25, 0.35]},
+        # Gradient clipping tight to retain spike gradients but prevent explosion.
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.5
+            'min': 0.6,
+            'max': 1.4,
         },
-        
-        # Loss Function Configuration
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},  # Best for fatalities
-        
-        # Zero threshold: What counts as "zero" in fatality data
+
+        # ---------------- Loss & Imbalance Handling ----------------
+        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        # zero_threshold tuned for post log1p + RobustScaler so 1–3 fatalities remain positive class.
         'zero_threshold': {
             'distribution': 'log_uniform_values',
-            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
-            'max': 0.01,    # ~100-250 fatalities in typical scaled space
+            'min': 3e-4,
+            'max': 7e-3,
         },
-        
-        # False positives: Predicting conflict when there is none
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 1.5,  # At least 1.5x base weight
-            "max": 5.0,  # Up to 5x base weight
+        # False positive weight capped to avoid suppression of emerging conflict signals.
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 1.2,
+            'max': 3.2,
         },
-        
-        # False negatives: Missing actual conflicts (CRITICAL)
-        "false_negative_weight": {
-            "distribution": "uniform",
-            'min': 2.0,  # At least 2x base weight (FN worse than FP)
-            'max': 8.0,  # Up to 8x base weight
+        # False negative weight emphasizes catching spikes; range narrowed to prevent instability.
+        'false_negative_weight': {
+            'distribution': 'uniform',
+            'min': 2.5,
+            'max': 5.5,
         },
-        
-        # Non-zero weight: General importance of conflict events
+        # Non-zero weight maintains gradient flow from sparse positive months.
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 15.0,
+            'min': 4.0,
+            'max': 8.0,
         },
-        
-        # Huber delta: Transition point between L2 and L1 loss
+        # Huber delta controls sensitivity to moderate spikes; log range balances L2 near small errors / L1 on large.
         'delta': {
-            'distribution': 'uniform',
-            'min': 0.01,
-            'max': 5.0,
+            'distribution': 'log_uniform_values',
+            'min': 0.06,
+            'max': 1.5,
         },
     }
     sweep_config['parameters'] = parameters_dict

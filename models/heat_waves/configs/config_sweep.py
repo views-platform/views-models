@@ -9,122 +9,106 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft",
+        "name": "heat_waves_tft_focus",
         "early_terminate": {
             "type": "hyperband",
-            "min_iter": 5,
+            "min_iter": 10,  # allow emergence of non-zero predictions
             "eta": 2
+        },
+        "metric": {
+            "name": "time_series_wise_msle_mean_sb",
+            "goal": "minimize"
         },
     }
 
-    metric = {
-        "name": "time_series_wise_msle_mean_sb",
-        "goal": "minimize"
-    }
-    sweep_config["metric"] = metric
-
     parameters_dict = {
-        # Temporal Configuration
-        "steps": {"values": [[*range(1, 36 + 1, 1)]]},
-        
-        # Input length: TFT benefits from longer context for attention
-        "input_chunk_length": {"values": [36, 48, 60, 72]},  # Removed 24 (too short)
-        
-        # Training Configuration
-        "batch_size": {"values": [64, 128, 256]},  # Catalog default 256, removed 512
+        # -------- Temporal Context --------
+        "steps": {"values": [[*range(1, 36 + 1)]]},  # Predict 36 future months
+        "input_chunk_length": {"values": [36, 48, 60, 72]},  # >72 adds memory, dilutes sharp pre-spike patterns
+
+        # -------- Training Regime --------
+        "batch_size": {"values": [64, 96, 128]},  # Avoid 256+ (averages away rare spike gradients)
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [5]},
-        
-        # Learning rate: TFT is sensitive, needs careful tuning
+        "early_stopping_patience": {"values": [10]},  # Longer patience for late emerging positive signals
+
+        # -------- Optimization / Scheduler --------
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,  # More conservative minimum
-            "max": 1e-3,  # Catalog default 3e-4, explore around it
+            "min": 1e-5,
+            "max": 8e-4,  # Cap below 1e-3 to reduce rapid zero collapse
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
-            "min": 1e-6,
-            "max": 1e-3,  # Catalog default 1e-3
+            "min": 5e-6,
+            "max": 3e-4,  # Excessive WD suppresses small positives
         },
-        
-        # Scaling: Critical for zero-inflated fatality data
-        'feature_scaler': {
-            'values': ['MinMaxScaler']
+        "lr_scheduler_factor": {
+            "distribution": "uniform",
+            "min": 0.35,
+            "max": 0.6,
         },
-        'target_scaler': {
-            'values': ['MinMaxScaler']  # LogTransform best for count data
-        },      
-        
-        
-        # TFT Architecture Parameters - CORE HYPERPARAMETERS
-        
-        # Hidden size: Main capacity control (LSTM hidden state dimension)
-        # TFT paper uses 16-256 range
-        "hidden_size": {"values": [32, 64, 128, 256, 512]},
-        
-        # LSTM layers: Temporal feature extractor depth
-        # More layers = more capacity but slower training
-        "lstm_layers": {"values": [1, 2, 3]},
-        
-        # Attention heads: Multi-head attention mechanism
-        # Must divide hidden_size evenly (e.g., 256/4=64 per head)
-        "num_attention_heads": {"values": [1, 2, 4, 8]},  # Power of 2 for efficiency
-        
-        # Full attention: Whether to use full or sparse attention
-        # Full = quadratic memory, sparse = linear memory
-        "full_attention": {"values": [False]},  # Set to False only - full is too expensive
-        
-        # Feed-forward network type: Critical for TFT's gating mechanisms
+        "lr_scheduler_patience": {"values": [3, 5]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
+
+        # -------- Scaling & Logging --------
+        "feature_scaler": {"values": ["RobustScaler"]},  # Median/IQR robust to spike outliers
+        "target_scaler": {"values": ["RobustScaler"]},   # Single choice for stable threshold semantics
+        "log_targets": {"values": [True]},  # log1p expands resolution of 1–5 fatalities
+        "log_features": {
+            "values": [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", "lr_ged_sb_tsum_24", 
+                         "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
+        },
+
+        # -------- TFT Architecture --------
+        "hidden_size": {"values": [64, 128, 192, 256]},  # Drop 512 (overfits rare spikes)
+        "lstm_layers": {"values": [1, 2]},  # Deeper → diminishing returns + noise
+        "num_attention_heads": {"values": [2, 4, 8]},  # Ensure divisibility with hidden_size choices
+        "full_attention": {"values": [False]},  # Sparse attention keeps memory lower; full not needed
         "feed_forward": {
             "values": [
-                "GatedResidualNetwork",  # TFT paper default - BEST for sparse data
-                "GLU",                    # Gated Linear Unit - good alternative
-                "GEGLU",                  # Gated GELU - modern variant
-                "ReLU",                   # Simple baseline
+                "GatedResidualNetwork",  # TFT default; good for sparse gating
+                "GEGLU",                 # Smoother gated variant
+                "GLU",                   # Simpler gate
+                "ReLU"                   # Baseline ablation
             ]
         },
-        
-        # Attention dropout: Prevents attention overfitting
-        "attention_dropout": {"values": [0.0, 0.1, 0.2, 0.3]},
-        
-        # Reversible Instance Normalization
-        "use_reversible_instance_norm": {"values": [True, False]},
-        
-        # Loss Function Configuration - Critical for zero-inflated data
+        "attention_dropout": {"values": [0.05, 0.1, 0.2]},  # Avoid 0 (overfit) and >0.3 (loses rare spikes)
+        "dropout": {"values": [0.15, 0.25, 0.35]},  # Moderate regularization; >0.4 erodes small signals
+        "use_reversible_instance_norm": {"values": [True, False]},  # Can stabilize shifting sparse distributions
+
+        # -------- Loss / Imbalance Handling --------
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-        
-        # Zero threshold: What counts as "zero" in fatality data
-        'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
-            'max': 0.01,    # ~100-250 fatalities in typical scaled space
+        "zero_threshold": {
+            "distribution": "log_uniform_values",
+            "min": 3e-4,
+            "max": 7e-3,  # Ensures 1–3 fatalities remain non-zero post log+robust scaling
         },
-        # False positives: Predicting conflict when there is none
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 1.5,  # At least 1.5x base weight
-            "max": 5.0,  # Up to 5x base weight
+            "min": 1.2,
+            "max": 3.0,  # Cap to avoid suppressing emerging conflict signals
         },
-        
-        # False negatives: Missing actual conflicts (CRITICAL)
         "false_negative_weight": {
             "distribution": "uniform",
-            'min': 2.0,  # At least 2x base weight (FN worse than FP)
-            'max': 8.0,  # Up to 8x base weight
+            "min": 2.4,
+            "max": 5.4,  # Penalize missed spikes; avoid instability > ~6
         },
-        
-        # Non-zero weight: General importance of conflict events
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 15.0,
-        },
-        
-        # Huber delta: Transition point between L2 and L1 loss
-        "delta": {
+        "non_zero_weight": {
             "distribution": "uniform",
-            "min": 0.01,  # Increased from 0.01
-            "max": 5.0  # Same as other models
+            "min": 4.0,
+            "max": 8.0,  # Maintain gradient from sparse positives
+        },
+        "delta": {
+            "distribution": "log_uniform_values",
+            "min": 0.06,
+            "max": 1.6,  # Huber transition controls sensitivity to moderate spikes
+        },
+
+        # -------- Gradient Stability --------
+        "gradient_clip_val": {
+            "distribution": "uniform",
+            "min": 0.6,
+            "max": 1.4,  # Tight window preserves spike gradients, avoids explosions
         },
     }
     sweep_config["parameters"] = parameters_dict

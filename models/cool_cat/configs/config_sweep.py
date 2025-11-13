@@ -9,116 +9,114 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide',
+        'name': 'cool_cat_tide_focus',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 8,  # Allow TiDE's temporal features to stabilize
+            'min_iter': 10,  # allow emergence of non-zero predictions
             'eta': 2
+        },
+        'metric': {
+            'name': 'time_series_wise_msle_mean_sb', 
+            'goal': 'minimize'
         },
     }
 
-    metric = {
-        'name': 'time_series_wise_msle_mean_sb',
-        'goal': 'minimize'
-    }
-    sweep_config['metric'] = metric
-
     parameters_dict = {
-        # Temporal Configuration
-        'steps': {'values': [[*range(1, 36 + 1, 1)]]},
-        
-        # Input length: TiDE works well with moderate history for sparse data
-        # Too long = overfitting to zeros, too short = missing conflict patterns
-        'input_chunk_length': {'values': [36, 48, 60, 72]},
-        
-        # Training Configuration
-        'batch_size': {'values': [64, 128]},  # Larger batches help with sparse data stability (I hope lol)
+        # ---------------- Temporal ----------------
+        # History window: longer than 24 to capture pre-escalation patterns, capped at 60 to avoid dilution.
+        'steps': {'values': [[*range(1, 36 + 1)]]},
+        'input_chunk_length': {'values': [36, 48, 60]},
+
+        # ---------------- Training ----------------
+        'batch_size': {'values': [64, 96, 128]},  # Balanced gradient diversity vs stability
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [8]},  # Increased for sparse data convergence
-        
-        # Learning rate: TiDE prefers slightly higher LR than transformers
+        'early_stopping_patience': {'values': [8, 12]},  # Give time for rare positives to appear
+
+        # ---------------- Optimization ----------------
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
+            'min': 1.2e-5,
+            'max': 8e-4,  # Upper bound below 1e-3 to reduce rapid collapse to zeros
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-4  # Lower range to avoid over-regularizing sparse signals
+            'min': 5e-6,
+            'max': 2e-4,  # Moderate regularization; high WD suppresses small signals
         },
-        
-        # Scaling: Critical for zero-inflated data
+        'lr_scheduler_factor': {
+            'distribution': 'uniform',
+            'min': 0.35,
+            'max': 0.6,
+        },
+        'lr_scheduler_patience': {'values': [3, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-6]},
+
+        # ---------------- Scaling & Logging ----------------
+        # RobustScaler preferred for conflict targets; single scaler to ensure consistent zero_threshold semantics.
         'feature_scaler': {
-            'values': ['MinMaxScaler']
+            'values': ['RobustScaler']
         },
         'target_scaler': {
-            'values': ['MinMaxScaler']  # LogTransform best for count data
+            'values': ['RobustScaler']
         },
-        
-        
-        # TiDE Architecture Parameters
-        # Encoder/Decoder layers: TiDE is designed to be shallow
-        'num_encoder_layers': {'values': [1, 2]},  # Original paper uses 1-2
+        'log_targets': {'values': [True]},  # log1p before scaling to expand low-count resolution
+        'log_features': {
+            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", "lr_ged_sb_tsum_24", 
+                         "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
+        },
+
+        # ---------------- TiDE Architecture ----------------
+        # Shallow layers (1–2) per paper & to avoid overfit to rare spikes.
+        'num_encoder_layers': {'values': [1, 2]},
         'num_decoder_layers': {'values': [1, 2]},
-        
-        # Hidden size: Main capacity control for TiDE
-        'hidden_size': {'values': [64, 128, 256, 512]},
-        
-        # Decoder output: Should be smaller than hidden_size
-        'decoder_output_dim': {'values': [8, 16, 32, 64]},
-        
-        # These capture time-varying patterns in conflict data
-        'temporal_width_past': {'values': [2, 4, 8]},  # How many past features to extract
-        'temporal_width_future': {'values': [2, 4, 8]},  # How many future features to project
-        'temporal_decoder_hidden': {'values': [16, 32, 64, 128]},
-        
-        # Regularization
-        'dropout': {'values': [0.2, 0.3, 0.4, 0.5]},  # Higher range for sparse data
+        # Hidden capacity: keep upper bound at 256; 512 frequently memorizes spikes.
+        'hidden_size': {'values': [64, 128, 192, 256]},
+        # Decoder output dim smaller than hidden_size to constrain final projection noise.
+        'decoder_output_dim': {'values': [16, 32, 48, 64]},
+        # Temporal widths: small receptive fields retain sharp escalation transitions.
+        'temporal_width_past': {'values': [2, 4, 6]},
+        'temporal_width_future': {'values': [2, 4, 6]},
+        # Temporal decoder hidden size: moderate range; large sizes over-smooth spikes.
+        'temporal_decoder_hidden': {'values': [32, 48, 64]},
         'use_layer_norm': {'values': [True, False]},
+        'dropout': {'values': [0.15, 0.25, 0.35]},  # High dropout (>0.4) erases rare spike signal
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,
-            'max': 2.0  # Increased for sparse data gradient instability
-        },
-        
-        # Loss Function Configuration - Critical for zero-inflated data
-        "loss_function": {'values': ["WeightedPenaltyHuberLoss"]},
-        
-        # Zero threshold: What counts as "zero" in fatality data
-        'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
-            'max': 0.01,    # ~100-250 fatalities in typical scaled space
+            'max': 1.4,  # Tight clipping keeps spike gradients usable but prevents explosions
         },
 
-        # False positives: Predicting conflict when there is none
-        # Lower weight = more conservative predictions
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 1.5,  # At least 1.5x base weight
-            "max": 5.0,  # Up to 5x base weight
+        # ---------------- Loss (Spike Sensitivity) ----------------
+        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        # Single zero_threshold range (post log + robust scaling). Ensures 1–3 fatalities not merged into zero.
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 3e-4,
+            'max': 7e-3,
         },
-        
-        # False negatives: Missing actual conflicts (CRITICAL)
-        "false_negative_weight": {
-            "distribution": "uniform",
-            'min': 2.0,  # At least 2x base weight (FN worse than FP)
-            'max': 8.0,  # Up to 8x base weight
+        # false_positive_weight: keep low upper bound; high penalties suppress early escalation predictions.
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 1.2,
+            'max': 3.0,
         },
-        
-        # Non-zero weight: General importance of conflict events
+        # false_negative_weight: emphasize missing spikes; too large destabilizes gradients.
+        'false_negative_weight': {
+            'distribution': 'uniform',
+            'min': 2.4,
+            'max': 5.4,
+        },
+        # non_zero_weight: reinforces learning of rare conflict months; avoid very high (>9) to prevent over-correction.
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 15.0,
+            'min': 4.0,
+            'max': 8.0,
         },
-        
-        # Huber delta: Transition point between L2 and L1 loss
+        # Huber delta: lower bound preserves sensitivity to small deviations; upper bound avoids masking moderate spikes.
         'delta': {
             'distribution': 'log_uniform_values',
-            'min': 0.01,
-            'max': 3.0  # Allow larger deltas for fatality counts
+            'min': 0.06,
+            'max': 1.6,
         },
     }
     sweep_config['parameters'] = parameters_dict

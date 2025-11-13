@@ -11,120 +11,107 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'dancing_queen_rnn',
+        'name': 'dancing_queen_rnn_focus',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 5,  # RNNs need time to learn temporal dependencies
+            'min_iter': 10,
             'eta': 2
         },
+        'metric': {
+            'name': 'time_series_wise_msle_mean_sb',
+            'goal': 'minimize'
+        },
     }
 
-    metric = {
-        'name': 'time_series_wise_msle_mean_sb',
-        'goal': 'minimize'
-    }
-    sweep_config['metric'] = metric
+    parameters = {
+        # Temporal horizon & context
+        'steps': {'values': [[*range(1, 36 + 1)]]},
+        'input_chunk_length': {'values': [36, 48, 60]},
 
-    parameters_dict = {
-        # Temporal Configuration
-        'steps': {'values': [[*range(1, 36 + 1, 1)]]},
-        
-        # Input length: RNNs can handle longer sequences but risk vanishing gradients
-        'input_chunk_length': {'values': [36, 48, 60, 72]},  # Removed 24 (too short)
-        
-        # Training Configuration
-        'batch_size': {'values': [64, 128, 256]},  # RNNs benefit from moderate batch sizes
-        'n_epochs': {'values': [300]},  # Consolidated to single value
-        'early_stopping_patience': {'values': [5, 7]},  # Removed 2,3 (too impatient)
-        
-        # Learning rate: RNNs are sensitive, need careful tuning
+        # Training basics
+        'batch_size': {'values': [64, 96, 128]},
+        'n_epochs': {'values': [300]},
+        'early_stopping_patience': {'values': [10]},  # Allow learning of rare spikes
+
+        # Optimizer / scheduler
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,  # More conservative minimum
-            'max': 1e-3,  # Upper bound for stability
+            'min': 1e-5,
+            'max': 4e-4,  # Cap prevents rapid collapse to zero baseline
         },
-        
-        # Weight decay: Regularization for recurrent connections
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-3,  # Reduced max from 1e-2
+            'min': 5e-6,
+            'max': 2e-4,
         },
-        
-        # Scaling: Critical for zero-inflated fatality data
+        'lr_scheduler_factor': {
+            'distribution': 'uniform',
+            'min': 0.35,
+            'max': 0.6,
+        },
+        'lr_scheduler_patience': {'values': [3, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-6]},
+
+        # Scaling (fixed target scaler)
         'feature_scaler': {
-            'values': ['MinMaxScaler']
+            'values': ['RobustScaler']  # Consistent handling of outliers across logged conflict features
         },
         'target_scaler': {
-            'values': ['MinMaxScaler']  # LogTransform best for count data
+            'values': ['RobustScaler']  # Single choice per requirement
         },
-        
-        # RNN Architecture Parameters - CORE HYPERPARAMETERS
-        
-        # RNN type: Different architectures for temporal patterns
-        'rnn_type': {'values': ['LSTM', 'GRU']},  # Removed vanilla RNN (vanishing gradients)
-        
-        # Hidden dimension: Size of recurrent state
-        # Too small = can't capture patterns, too large = overfitting
-        'hidden_dim': {'values': [32, 64, 128, 256]},  # Removed 16 (too small for conflict data)
-        
-        # Number of recurrent layers: Depth of temporal processing
-        'n_rnn_layers': {'values': [1, 2, 3]},  # Removed 4 (too deep, gradient issues)
-        
-        # Dropout: Critical for RNN regularization
-        'dropout': {'values': [0.2, 0.3, 0.4, 0.5]},  # Removed 0.0, 0.1 (need regularization)
-        
-        # Gradient clipping: Essential for RNN stability
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.5  # Tighter range, catalog uses 0.8
+        'log_targets': {'values': [True]},
+        'log_features': {
+            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", "lr_ged_sb_tsum_24", 
+                         "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
         },
-        
-        # Activation: Output layer activation
-        'activation': {'values': ['ReLU', 'Tanh']},  # Removed SELU (less common for RNNs)
-        
-        # Reversible Instance Normalization
+
+        # Architecture (balanced capacity)
+        'rnn_type': {'values': ['GRU', 'LSTM']},
+        'hidden_dim': {'values': [64, 128, 192]},
+        'n_rnn_layers': {'values': [1, 2]},
+        'dropout': {'values': [0.15, 0.25, 0.35]},  # Lower dropout retains rare signal
+        'activation': {'values': ['LeakyReLU', 'ReLU', 'Tanh']},
         'use_reversible_instance_norm': {'values': [True, False]},
-        
-        # Loss Function Configuration - Critical for zero-inflated data
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},  # Only best loss
-        
-        # Zero threshold: What counts as "zero" in fatality data
+
+        # Loss (spike-sensitive)
+        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+
+        # Single zero threshold range (post log+RobustScaler); keeps 1–3 fatalities > 0 class
         'zero_threshold': {
             'distribution': 'log_uniform_values',
-            'min': 0.0001,  # ~1-10 fatalities in typical scaled space
-            'max': 0.01,    # ~100-250 fatalities in typical scaled space
+            'min': 3e-4,
+            'max': 7e-3,
         },
-        
-        # False positives: Predicting conflict when there is none
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 1.5,  # At least 1.5x base weight
-            "max": 5.0,  # Up to 5x base weight
+
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 1.3,
+            'max': 3.2,  # Limit to avoid suppressing emergent positives
         },
-        
-        # False negatives: Missing actual conflicts (CRITICAL)
-        "false_negative_weight": {
-            "distribution": "uniform",
-            'min': 2.0,  # At least 2x base weight (FN worse than FP)
-            'max': 8.0,  # Up to 8x base weight
+        'false_negative_weight': {
+            'distribution': 'uniform',
+            'min': 2.5,
+            'max': 5.2,  # Emphasize missing spikes
         },
-        
-        # Non-zero weight: General importance of conflict events
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 15.0,
+            'min': 4.0,
+            'max': 8.0,
         },
-        
-        # Huber delta: Transition point between L2 and L1 loss
         'delta': {
+            'distribution': 'log_uniform_values',
+            'min': 0.08,
+            'max': 1.5,  # Mid-range keeps sensitivity to moderate spike errors
+        },
+
+        # Gradient stability
+        'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.01,
-            'max': 5.0,  # Increased from 1.0
+            'min': 0.6,
+            'max': 1.4,
         },
     }
-    sweep_config['parameters'] = parameters_dict
+
+    sweep_config['parameters'] = parameters
 
     return sweep_config
