@@ -72,7 +72,7 @@ def get_sweep_config():
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.3
         'full_attention': {'values': [True, False]},
         'feed_forward': {'values': ['GatedResidualNetwork', 'Linear']},
-        'add_relative_index': {'values': [True, False]},
+        'add_relative_index': {'values': [True]},
         'use_static_covariates': {'values': [True]},
         'norm_type': {'values': ['LayerNorm', 'RMSNorm']},
         'force_reset': {'values': [True]},
