@@ -24,81 +24,95 @@ def get_sweep_config():
     parameters = {
         # Temporal horizon & context
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [24, 36, 48]},
+        'input_chunk_length': {'values': [24, 36, 48, 60]},
+        'output_chunk_shift': {'values': [0, 1, 2]},
 
         # Training basics
-        'batch_size': {'values': [64, 96, 128]},
+        'batch_size': {'values': [32, 64, 96]},
         'n_epochs': {'values': [300]},
         'early_stopping_patience': {'values': [10]},
+        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
         # Optimizer / scheduler
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 4e-4,
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
             'min': 5e-6,
             'max': 2e-4,
         },
+        'weight_decay': {
+            'distribution': 'log_uniform_values',
+            'min': 1e-6,
+            'max': 1e-3,
+        },
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.35,
-            'max': 0.6,
+            'min': 0.1,
+            'max': 0.5,
         },
-        'lr_scheduler_patience': {'values': [3, 5]},
-        'lr_scheduler_min_lr': {'values': [1e-6]},
+        'lr_scheduler_patience': {'values': [3, 5, 7]},
+        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
 
         # Scaling and transformation
         'feature_scaler': {'values': ['RobustScaler']},
         'target_scaler': {'values': ['RobustScaler']},
         'log_targets': {'values': [True]},
         'log_features': {
-            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
-                       "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
+            'values': [
+                ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
+                 "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]
+            ]
         },
 
-        # TiDE specific architecture
-        'num_encoder_layers': {'values': [1, 2, 3]},  # Number of encoder layers
-        'num_decoder_layers': {'values': [1, 2, 3]},  # Number of decoder layers
-        'decoder_output_dim': {'values': [8, 16, 32]},  # Dimension of decoder output
-        'hidden_size': {'values': [64, 128, 256]},  # Size of hidden layers
-        'temporal_width_past': {'values': [2, 4, 8]},  # Width of temporal encoding for past
-        'temporal_width_future': {'values': [2, 4, 8]},  # Width of temporal encoding for future
-        'temporal_decoder_hidden': {'values': [16, 32, 64]},  # Size of temporal decoder hidden layers
-        'use_layer_norm': {'values': [True, False]},  # Whether to use layer normalization
-        'dropout': {'values': [0.1, 0.2, 0.3]},
-        'use_static_covariates': {'values': [True, False]},  # Use static covariates for country/priogrid info
+        # TiDE specific architecture - CRITICAL: layer norm enabled to prevent explosion
+        'num_encoder_layers': {'values': [1, 2, 3]},  # More layers for complexity
+        'num_decoder_layers': {'values': [1, 2, 3]},  # More layers for complexity
+        'decoder_output_dim': {'values': [8, 16, 32]},  # Larger for capacity
+        'hidden_size': {'values': [64, 128, 256]},  # Larger for capacity
+        'temporal_width_past': {'values': [2, 4, 6, 8]},  # More context
+        'temporal_width_future': {'values': [2, 4, 6, 8]},  # More context
+        'temporal_hidden_size_past': {'values': [None, 16, 32]},  # Test both
+        'temporal_hidden_size_future': {'values': [None, 16, 32]},  # Test both
+        'temporal_decoder_hidden': {'values': [16, 32, 64, 128]},  # Larger for capacity
+        'use_layer_norm': {'values': [True]},  # Always True to prevent explosion
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
+        'use_static_covariates': {'values': [True, False]},  # Use country/priogrid info
+        'random_state': {'values': [42, 123, 2023]},
+        'force_reset': {'values': [True]},
 
         # Loss function
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
-        # Loss function parameters - adjusted for log-transformed data
+        # Loss function parameters
         'zero_threshold': {
             'distribution': 'uniform',
-            'min': 0.1,  # Well above 0 to account for scaling
-            'max': 0.5,  # Well below 0.693 to distinguish from smallest non-zero
+            'min': 0.1,
+            'max': 0.5,
         },
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.3,
-            'max': 3.2,
+            'min': 1.0,
+            'max': 3.0,
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 2.5,
-            'max': 5.2,
+            'min': 3.0,
+            'max': 8.0,
         },
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 2.0,
-            'max': 8.0,
+            'min': 3.0,
+            'max': 7.0,
         },
         'delta': {
             'distribution': 'log_uniform_values',
-            'min': 0.08,
-            'max': 1.5,
+            'min': 0.1,
+            'max': 1.0,
+        },
+        
+        'gradient_clip_val': {
+            'distribution': 'uniform',
+            'min': 0.5,
+            'max': 1.0,
         },
     }
 
