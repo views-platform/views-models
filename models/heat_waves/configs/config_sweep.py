@@ -71,7 +71,7 @@ def get_sweep_config():
         'num_attention_heads': {'values': [2, 4]},  # Reduced from 8
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.3
         'full_attention': {'values': [True, False]},
-        'feed_forward': {'values': ['GatedResidualNetwork', 'Linear']},
+        'feed_forward': {'values': ['GLU', 'Bilinear', 'ReGLU', 'GEGLU', 'SwiGLU', 'ReLU', 'GELU', 'GatedResidualNetwork']},
         'add_relative_index': {'values': [True]},
         'use_static_covariates': {'values': [True]},
         'norm_type': {'values': ['LayerNorm', 'RMSNorm']},
