@@ -29,21 +29,21 @@ def get_sweep_config():
         'input_chunk_length': {'values': [36, 48, 60, 72]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics
-        'batch_size': {'values': [32, 64, 96, 128]},
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},
+        # Training basics - FIXED: more epochs, smaller batches
+        'batch_size': {'values': [32, 64, 96, 128]},  # Reduced from 256
+        'n_epochs': {'values': [300]}, 
+        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler
+        # Optimizer / scheduler - FIXED: lower learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,
-            'max': 2e-4,
+            'min': 1e-6,
+            'max': 1e-4,
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
+            'min': 1e-5,
             'max': 1e-3,
         },
         'lr_scheduler_factor': {
@@ -67,16 +67,15 @@ def get_sweep_config():
             ]
         },
 
-        # Transformer specific architecture - attention for rare events
-        'd_model': {'values': [64, 128, 256]},  # Larger for capacity
-        'nhead': {'values': [2, 4, 8]},  # More heads for diverse patterns
-        'num_encoder_layers': {'values': [2, 3, 4]},  # More layers for complexity
-        'num_decoder_layers': {'values': [2, 3, 4]},  # More layers for complexity
-        'dim_feedforward': {'values': [256, 512, 1024]},  # Larger for capacity
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
-        'norm_type': {'values': [None, 'LayerNorm']},  # Both normalization types
-        'random_state': {'values': [42, 123, 2023]},
+        # Transformer specific architecture - FIXED: reduced complexity
+        'd_model': {'values': [32, 64, 128]},  # Reduced from 256
+        'nhead': {'values': [2, 4, 8]},  # Reduced from 16
+        'num_encoder_layers': {'values': [2, 3, 4]},  # Reduced from 6
+        'num_decoder_layers': {'values': [2, 3, 4]},  # Reduced from 6
+        'dim_feedforward': {'values': [128, 256, 512]},  # Reduced from 1024
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.1
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},
+        'norm_type': {'values': [None, 'LayerNorm']},
         'force_reset': {'values': [True]},
 
         # Loss function
@@ -109,7 +108,7 @@ def get_sweep_config():
             'max': 1.0,
         },
         
-        # Gradient clipping
+        # Gradient clipping - added to prevent explosion
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,

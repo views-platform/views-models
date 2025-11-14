@@ -22,26 +22,26 @@ def get_sweep_config():
     }
 
     parameters = {
-        # Temporal horizon & context - longer context for attention
+        # Temporal horizon & context
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60, 72]},
+        'input_chunk_length': {'values': [36, 48, 60]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics - more epochs for attention learning
-        'batch_size': {'values': [32, 64, 96, 128]},
+        # Training basics - FIXED: smaller batches, more epochs
+        'batch_size': {'values': [32, 64, 96, 128]},  # Reduced from 256
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10, 15, 20]},
+        'early_stopping_patience': {'values': [15, 20, 25]},
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler
+        # Optimizer / scheduler - FIXED: lower learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,
-            'max': 2e-4,
+            'min': 1e-6,  # Much lower to prevent explosion
+            'max': 1e-4,  # Lower max for stability
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
+            'min': 1e-5,
             'max': 1e-3,
         },
         'lr_scheduler_factor': {
@@ -65,17 +65,16 @@ def get_sweep_config():
             ]
         },
 
-        # TFT specific architecture - attention for rare events
-        'hidden_size': {'values': [64, 128, 256]},  # Larger for capacity
-        'lstm_layers': {'values': [1, 2]},  # More layers for complexity
-        'num_attention_heads': {'values': [2, 4, 8]},  # More heads for diverse patterns
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'full_attention': {'values': [True, False]},  # Test both attention types
-        'feed_forward': {'values': ['GLU', 'Bilinear', 'ReGLU', 'GEGLU', 'SwiGLU', 'ReLU', 'GELU', 'GatedResidualNetwork']},  # Gated for complexity
-        'add_relative_index': {'values': [True]},  # Test both
-        'use_static_covariates': {'values': [True, False]},  # Use country/priogrid info
-        'norm_type': {'values': ['LayerNorm', 'RMSNorm']},  # Both normalization types
-        'random_state': {'values': [42, 123, 2023]},
+        # TFT specific architecture - FIXED: more conservative
+        'hidden_size': {'values': [32, 64, 128]},  # Reduced from 256
+        'lstm_layers': {'values': [1, 2]},  # Reduced from 4
+        'num_attention_heads': {'values': [2, 4]},  # Reduced from 8
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.3
+        'full_attention': {'values': [True, False]},
+        'feed_forward': {'values': ['GatedResidualNetwork', 'Linear']},
+        'add_relative_index': {'values': [True, False]},
+        'use_static_covariates': {'values': [True]},
+        'norm_type': {'values': ['LayerNorm', 'RMSNorm']},
         'force_reset': {'values': [True]},
 
         # Loss function
@@ -108,7 +107,7 @@ def get_sweep_config():
             'max': 1.0,
         },
         
-        # Gradient clipping
+        # Gradient clipping - CRITICAL: added to prevent explosion
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,

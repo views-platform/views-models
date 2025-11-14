@@ -78,7 +78,6 @@ def get_sweep_config():
         'use_layer_norm': {'values': [True]},  # Always True to prevent explosion
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
         'use_static_covariates': {'values': [True, False]},  # Use country/priogrid info
-        'random_state': {'values': [42, 123, 2023]},
         'force_reset': {'values': [True]},
 
         # Loss function

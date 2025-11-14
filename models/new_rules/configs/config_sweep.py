@@ -73,7 +73,6 @@ def get_sweep_config():
         'layer_widths': {'values': [32, 64, 128]},  # Reduced from 512
         'activation': {'values': ['ReLU', 'LeakyReLU']},  # Removed complex activations
         'dropout': {'values': [0.2, 0.3, 0.4]},  # Higher dropout
-        'random_state': {'values': [42, 123, 2023]},
         'force_reset': {'values': [True]},
 
         # Loss function

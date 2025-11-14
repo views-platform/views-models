@@ -74,7 +74,6 @@ def get_sweep_config():
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
         'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
         'use_reversible_instance_norm': {'values': [False]},  # disabled to prevent smoothing (this is a big damn problem ffs)
-        'random_state': {'values': [42, 123, 2023]},
         'force_reset': {'values': [True]},
 
         # Loss function

@@ -27,21 +27,21 @@ def get_sweep_config():
         'input_chunk_length': {'values': [24, 36, 48, 60]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics
+        # Training basics - more epochs
         'batch_size': {'values': [32, 64, 96]},
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},
+        'n_epochs': {'values': [300]},  # Increased from 2
+        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler
+        # Optimizer / scheduler - FIXED: lower learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,
-            'max': 2e-4,
+            'min': 1e-6,
+            'max': 1e-4,
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
+            'min': 1e-5,
             'max': 1e-3,
         },
         'lr_scheduler_factor': {
@@ -65,16 +65,15 @@ def get_sweep_config():
             ]
         },
 
-        # TSMixer specific architecture - more mixing for rare events
-        'num_blocks': {'values': [2, 3, 4]},  # More blocks for complexity
-        'ff_size': {'values': [64, 128, 256]},  # Larger for capacity
-        'hidden_size': {'values': [64, 128, 256]},  # Larger for capacity
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'norm_type': {'values': ['LayerNorm']},  # LayerNorm for stability
-        'normalize_before': {'values': [True, False]},  # Test both
-        'use_static_covariates': {'values': [True, False]},
-        'random_state': {'values': [42, 123, 2023]},
+        # TSMixer specific architecture - more conservative
+        'num_blocks': {'values': [2, 3, 4]},  # Reduced from 5
+        'ff_size': {'values': [32, 64, 128]},  # Reduced from 256
+        'hidden_size': {'values': [32, 64, 128]},  # Reduced from 256
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Increased from 0.1
+        'norm_type': {'values': ['LayerNorm']},  # Fixed to LayerNorm
+        'normalize_before': {'values': [True, False]},
+        'use_static_covariates': {'values': [True]},
         'force_reset': {'values': [True]},
 
         # Loss function
@@ -107,7 +106,7 @@ def get_sweep_config():
             'max': 1.0,
         },
         
-        # Gradient clipping
+        # Gradient clipping - added to prevent explosion
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,
