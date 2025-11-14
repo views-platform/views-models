@@ -31,13 +31,13 @@ def get_sweep_config():
         # Training basics
         'batch_size': {'values': [64, 96, 128]},
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},  # Allow learning of rare spikes
+        'early_stopping_patience': {'values': [10]},
 
         # Optimizer / scheduler
         'lr': {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
-            'max': 4e-4,  # Cap prevents rapid collapse to zero baseline
+            'max': 4e-4,
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -52,66 +52,53 @@ def get_sweep_config():
         'lr_scheduler_patience': {'values': [3, 5]},
         'lr_scheduler_min_lr': {'values': [1e-6]},
 
-        # Scaling (fixed target scaler)
-        'feature_scaler': {
-            'values': ['RobustScaler']  # Consistent handling of outliers across logged conflict features
-        },
-        'target_scaler': {
-            'values': ['RobustScaler']  # Single choice per requirement
-        },
+        # Scaling and transformation
+        'feature_scaler': {'values': ['RobustScaler']},
+        'target_scaler': {'values': ['RobustScaler']},
         'log_targets': {'values': [True]},
         'log_features': {
-            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", "lr_ged_sb_tsum_24", 
-                         "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
+            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
+                       "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
         },
 
-        # Architecture (balanced capacity)
-        'rnn_type': {'values': ['GRU', 'LSTM']},
-        'hidden_dim': {'values': [64, 128, 192]},
-        'n_rnn_layers': {'values': [1, 2]},
+        # RNN specific architecture
+        'rnn_type': {'values': ['GRU', 'LSTM']},  # Type of RNN cell
+        'hidden_dim': {'values': [64, 128, 192]},  # Size of hidden layers
+        'n_rnn_layers': {'values': [1, 2]},  # Number of RNN layers
         'dropout': {'values': [0.15, 0.25, 0.35]},  # Lower dropout retains rare signal
         'activation': {'values': ['LeakyReLU', 'ReLU', 'Tanh']},
         'use_reversible_instance_norm': {'values': [True, False]},
 
-        # Loss (spike-sensitive)
+        # Loss function
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
-        # Single zero threshold range (post log+RobustScaler); keeps 1–3 fatalities > 0 class
+        # Loss function parameters - adjusted for log-transformed data
         'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 3e-4,
-            'max': 7e-3,
+            'distribution': 'uniform',
+            'min': 0.1,  # Well above 0 to account for scaling
+            'max': 0.5,  # Well below 0.693 to distinguish from smallest non-zero
         },
-
         'false_positive_weight': {
             'distribution': 'uniform',
             'min': 1.3,
-            'max': 3.2,  # Limit to avoid suppressing emergent positives
+            'max': 3.2,
         },
         'false_negative_weight': {
             'distribution': 'uniform',
             'min': 2.5,
-            'max': 5.2,  # Emphasize missing spikes
+            'max': 5.2,
         },
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 4.0,
+            'min': 2.0,
             'max': 8.0,
         },
         'delta': {
             'distribution': 'log_uniform_values',
             'min': 0.08,
-            'max': 1.5,  # Mid-range keeps sensitivity to moderate spike errors
-        },
-
-        # Gradient stability
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.6,
-            'max': 1.4,
+            'max': 1.5,
         },
     }
 
     sweep_config['parameters'] = parameters
-
     return sweep_config

@@ -8,116 +8,98 @@ def get_sweep_config():
     """
 
     sweep_config = {
-        "method": "bayes",
-        "name": "new_rules_nbeats_focus",
-        "early_terminate": {
-            "type": "hyperband",
-            "min_iter": 8,  # Allow emergence of non-zero predictions
-            "eta": 2
+        'method': 'bayes',
+        'name': 'new_rules_nbeats_focus',
+        'early_terminate': {
+            'type': 'hyperband',
+            'min_iter': 10,
+            'eta': 2
         },
-        "metric": {
-            "name": "time_series_wise_msle_mean_sb",
-            "goal": "minimize"
-        },
-    }
-
-    parameters_dict = {
-        # -------- Temporal Context --------
-        # Longer lookbacks help capture escalation patterns; >84 rarely adds benefit vs memory cost.
-        "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48, 60, 72, 84]},
-
-        # -------- Training Regime --------
-        # Moderate batch sizes: very large (256+) can dilute rare spike gradients.
-        "batch_size": {"values": [64, 128, 192]},
-        "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [8, 12]},  # Give time for late small positives to emerge
-
-        # -------- Optimization / Scheduler --------
-        "lr": {
-            "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 7e-4,  # Cap below 1e-3 to prevent rapid zero collapse
-        },
-        "weight_decay": {
-            "distribution": "log_uniform_values",
-            "min": 5e-6,
-            "max": 4e-4,  # Excessive WD suppresses small positives
-        },
-        "lr_scheduler_factor": {
-            "distribution": "uniform",
-            "min": 0.35,
-            "max": 0.6,
-        },
-        "lr_scheduler_patience": {"values": [3, 5]},
-        "lr_scheduler_min_lr": {"values": [1e-6]},
-
-        # -------- Scaling & Logging --------
-        # Single scaler for consistency with zero_threshold semantics.
-        "feature_scaler": {"values": ["RobustScaler"]},
-        "target_scaler": {"values": ["RobustScaler"]},
-        "log_targets": {"values": [True]},  # log1p expands 1–5 fatalities
-        "log_features": {
-            "values": [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os",
-                        "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
-        },
-
-        # -------- N-BEATS Architecture --------
-        # generic_architecture False enables interpretable stacks; both tested.
-        "generic_architecture": {"values": [True, False]},
-        # Stacks & blocks control hierarchical decomposition; avoid very deep (>7) to reduce overfit to rare spikes.
-        "num_stacks": {"values": [3, 4, 5, 6]},
-        "num_blocks": {"values": [1, 2, 3]},
-        # Layers per block: shallow (1–3) keeps focus on sharp changes rather than smooth long trends only.
-        "num_layers": {"values": [2, 3]},
-        # Layer widths: cap at 512 (1024 often memorizes extreme events); include smaller for regularization.
-        "layer_widths": {"values": [128, 256, 384, 512]},
-        # Dropout moderate to retain rare spikes; >0.4 erodes small escalation signals.
-        "dropout": {"values": [0.1, 0.2, 0.3, 0.35]},
-        # Activation variety to handle sparse gradients; LeakyReLU prevents dead units; GELU smooth; ELU aids near-zero.
-        "activation": {"values": ["ReLU", "LeakyReLU", "GELU", "ELU"]},
-
-        # -------- Loss / Imbalance Handling --------
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-        # zero_threshold tuned post log+RobustScaler: keeps 1–3 fatalities > threshold (not collapsed to zero).
-        "zero_threshold": {
-            "distribution": "log_uniform_values",
-            "min": 3e-4,
-            "max": 7e-3,
-        },
-        # FP penalty capped to avoid suppressing emerging conflict predictions.
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 1.2,
-            "max": 3.2,
-        },
-        # FN penalty emphasizes missed spikes; range restrained to prevent instability.
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 2.5,
-            "max": 5.5,
-        },
-        # Non-zero weight maintains gradient signal from sparse positive months.
-        "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 4.0,
-            "max": 8.5,
-        },
-        # Huber delta controls transition; smaller values increase sensitivity to modest spikes.
-        "delta": {
-            "distribution": "log_uniform_values",
-            "min": 0.06,
-            "max": 1.6,
-        },
-
-        # -------- Gradient Stability --------
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 0.6,
-            "max": 1.4,  # Tight window protects against spike-driven exploding gradients
+        'metric': {
+            'name': 'time_series_wise_msle_mean_sb',
+            'goal': 'minimize'
         },
     }
 
-    sweep_config["parameters"] = parameters_dict
+    parameters = {
+        # Temporal horizon & context
+        'steps': {'values': [[*range(1, 36 + 1)]]},
+        'input_chunk_length': {'values': [24, 36, 48]},  # Shorter context for NBEATS as it decomposes patterns
 
+        # Training basics
+        'batch_size': {'values': [64, 96, 128]},
+        'n_epochs': {'values': [300]},
+        'early_stopping_patience': {'values': [10]},
+
+        # Optimizer / scheduler
+        'lr': {
+            'distribution': 'log_uniform_values',
+            'min': 1e-5,
+            'max': 4e-4,
+        },
+        'weight_decay': {
+            'distribution': 'log_uniform_values',
+            'min': 5e-6,
+            'max': 2e-4,
+        },
+        'lr_scheduler_factor': {
+            'distribution': 'uniform',
+            'min': 0.35,
+            'max': 0.6,
+        },
+        'lr_scheduler_patience': {'values': [3, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-6]},
+
+        # Scaling and transformation
+        'feature_scaler': {'values': ['RobustScaler']},  # Handles outliers in conflict data
+        'target_scaler': {'values': ['RobustScaler']},
+        'log_targets': {'values': [True]},  # Log transform helps with zero-inflated data
+        'log_features': {
+            'values': [["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
+                       "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns"]]
+        },
+
+        # NBEATS specific architecture
+        'generic_architecture': {'values': [True, False]},  # Test both generic and interpretable
+        'num_stacks': {'values': [2, 3, 4]},  # Number of stacks for different components
+        'num_blocks': {'values': [2, 3, 4]},  # Blocks per stack
+        'num_layers': {'values': [2, 3, 4]},  # Layers per block
+        'layer_widths': {'values': [64, 128, 256]},  # Width of layers
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'Tanh']},
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Regularization to prevent overfitting
+
+        # Loss function
+        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+
+        # Loss function parameters - adjusted for log-transformed data
+        # After log1p, 0 remains 0, and the smallest non-zero is log(2) ≈ 0.693
+        # Threshold should be between these values to distinguish zeros from non-zeros
+        'zero_threshold': {
+            'distribution': 'uniform',
+            'min': 0.1,  # Well above 0 to account for scaling
+            'max': 0.5,  # Well below 0.693 to distinguish from smallest non-zero
+        },
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 1.3,
+            'max': 3.2,
+        },
+        'false_negative_weight': {
+            'distribution': 'uniform',
+            'min': 2.5,
+            'max': 5.2,
+        },
+        'non_zero_weight': {
+            'distribution': 'uniform',
+            'min': 2.0,
+            'max': 8.0,
+        },
+        'delta': {
+            'distribution': 'log_uniform_values',
+            'min': 0.08,
+            'max': 1.5,
+        },
+    }
+
+    sweep_config['parameters'] = parameters
     return sweep_config
