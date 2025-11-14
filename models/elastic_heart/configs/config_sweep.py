@@ -27,17 +27,17 @@ def get_sweep_config():
         'input_chunk_length': {'values': [24, 36, 48, 60]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics - more epochs
-        'batch_size': {'values': [32, 64, 96]},
-        'n_epochs': {'values': [300]},  # Increased from 2
-        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
+        # Training basics - FIXED: more epochs, smaller batches
+        'batch_size': {'values': [16, 32, 64]},  # Smaller for better gradient variety
+        'n_epochs': {'values': [300]},
+        'early_stopping_patience': {'values': [10]},  # Increased from 5
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler - FIXED: lower learning rates
+        # Optimizer / scheduler - FIXED: higher learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-4,
+            'min': 5e-6,  # Slightly higher for better convergence
+            'max': 2e-4,  # Increased max for more flexibility
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -65,21 +65,21 @@ def get_sweep_config():
             ]
         },
 
-        # TSMixer specific architecture - more conservative
-        'num_blocks': {'values': [2, 3, 4]},  # Reduced from 5
-        'ff_size': {'values': [32, 64, 128]},  # Reduced from 256
-        'hidden_size': {'values': [32, 64, 128]},  # Reduced from 256
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Increased from 0.1
+        # TSMixer specific architecture - FIXED: increased capacity
+        'num_blocks': {'values': [3, 4, 5, 6]},  # Increased from 2-4
+        'ff_size': {'values': [64, 128, 256]},  # Increased from 32-128
+        'hidden_size': {'values': [64, 128, 256]},  # Increased from 32-128
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU', 'SELU', 'Swish']},  # More options
+        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
         'norm_type': {'values': ['LayerNorm']},  # Fixed to LayerNorm
-        'normalize_before': {'values': [True, False]},
-        'use_static_covariates': {'values': [True]},
+        'normalize_before': {'values': [True, False]},  # Test both
+        'use_static_covariates': {'values': [True, False]}, 
         'force_reset': {'values': [True]},
 
-        # Loss function
+        # Loss function - FIXED: balanced weights
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
-        # Loss function parameters
+        # Loss function parameters - FIXED: more balanced
         'zero_threshold': {
             'distribution': 'uniform',
             'min': 0.1,
@@ -92,8 +92,8 @@ def get_sweep_config():
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
+            'min': 2.0,  # Reduced from 3.0
+            'max': 5.0,  # Reduced from 8.0
         },
         'non_zero_weight': {
             'distribution': 'uniform',
@@ -106,7 +106,7 @@ def get_sweep_config():
             'max': 1.0,
         },
         
-        # Gradient clipping - added to prevent explosion
+        # Gradient clipping - CRITICAL: added to prevent explosion
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,

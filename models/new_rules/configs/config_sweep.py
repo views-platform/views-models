@@ -24,20 +24,20 @@ def get_sweep_config():
     parameters = {
         # Temporal horizon & context - moderate length
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [24, 36, 48]},  # Reduced from 72
+        'input_chunk_length': {'values': [12, 18, 24]},  # Reduced from 72
         'output_chunk_shift': {'values': [0, 1, 2]},
 
         # Training basics - more epochs with smaller batches
-        'batch_size': {'values': [16, 32, 64]},  # Smaller for better gradient variety
-        'n_epochs': {'values': [300]},  # More epochs to learn rare events
-        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for rare events
+        'batch_size': {'values': [8, 16, 32]},  # Much smaller for better gradient variety
+        'n_epochs': {'values': [300]},
+        'early_stopping_patience': {'values': [10]},
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler - lower learning rates
+        # Optimizer / scheduler - much lower learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,  # Much lower to prevent explosion
-            'max': 1e-4,  # Lower max for stability
+            'min': 1e-7,  # Much lower to prevent explosion
+            'max': 5e-5,  # Lower max for stability
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -65,17 +65,17 @@ def get_sweep_config():
             ]
         },
 
-        # NBEATS specific architecture - FIXED: reduced complexity
+        # NBEATS specific architecture
         'generic_architecture': {'values': [True, False]},  # Test both
-        'num_stacks': {'values': [1, 2, 3]},  # Reduced from 5
-        'num_blocks': {'values': [1, 2, 3]},  # Reduced from 5
-        'num_layers': {'values': [2, 3]},  # Reduced from 4
-        'layer_widths': {'values': [32, 64, 128]},  # Reduced from 512
-        'activation': {'values': ['ReLU', 'LeakyReLU']},  # Removed complex activations
-        'dropout': {'values': [0.2, 0.3, 0.4]},  # Higher dropout
+        'num_stacks': {'values': [1]},  # Reduced from 3
+        'num_blocks': {'values': [1]},  # Reduced from 3
+        'num_layers': {'values': [1]},  # Reduced from 2
+        'layer_widths': {'values': [16, 32]},  # Reduced from 128
+        'activation': {'values': ['ReLU', 'LeakyReLU']},  # Simple activations
+        'dropout': {'values': [0.3, 0.4, 0.5]},  # Higher dropout
         'force_reset': {'values': [True]},
 
-        # Loss function
+        # Loss function - FIXED: balanced weights
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
         # Loss function parameters - FIXED for log-transformed data
@@ -91,13 +91,13 @@ def get_sweep_config():
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
+            'min': 2.0,  # Reduced from 5.9
+            'max': 5.0,  # Reduced from 8.0
         },
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
+            'min': 2.0,  # Reduced from 3.7
+            'max': 5.0,  # Reduced from 7.0
         },
         'delta': {
             'distribution': 'log_uniform_values',

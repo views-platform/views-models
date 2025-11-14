@@ -29,17 +29,17 @@ def get_sweep_config():
         'input_chunk_length': {'values': [36, 48, 60, 72]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics - more epochs to learn rare patterns
+        # Training basics
         'batch_size': {'values': [32, 64, 96, 128]},
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for rare events
+        'early_stopping_patience': {'values': [10]},
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler
+        # Optimizer / scheduler - FIXED: higher learning rate
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 2e-4,
+            'min': 5e-5,  # Increased from 1e-6
+            'max': 1e-3,  # Increased from 2e-4
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -67,19 +67,19 @@ def get_sweep_config():
             ]
         },
 
-        # RNN specific architecture - FIXED: increased capacity
-        'rnn_type': {'values': ['LSTM', 'GRU']},  # Both tested
-        'hidden_dim': {'values': [128, 256, 512]},  # Increased from 256
-        'n_rnn_layers': {'values': [2, 3, 4]},  # More layers for complexity
+        # RNN specific architecture - increased capacity
+        'rnn_type': {'values': ['LSTM', 'GRU']},
+        'hidden_dim': {'values': [256, 512, 1024]},  # Increased from 256
+        'n_rnn_layers': {'values': [2, 3, 4]},  # Increased from 2
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
-        'use_reversible_instance_norm': {'values': [False]},  # disabled to prevent smoothing (this is a big damn problem ffs)
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU', 'SELU']},  # More activation options
+        'use_reversible_instance_norm': {'values': [True, False]},  # FIXED: test both
         'force_reset': {'values': [True]},
 
-        # Loss function
+        # Loss function - FIXED: balanced weights
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
-        # Loss function parameters
+        # Loss function parameters - more balanced
         'zero_threshold': {
             'distribution': 'uniform',
             'min': 0.1,
@@ -87,13 +87,13 @@ def get_sweep_config():
         },
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
+            'min': 1.0,  # Increased from 1.7
+            'max': 3.0,  # But not too high
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
+            'min': 2.0,  # Decreased from 4.5
+            'max': 5.0,  # But not too low
         },
         'non_zero_weight': {
             'distribution': 'uniform',
