@@ -29,13 +29,13 @@ def get_sweep_config():
         'input_chunk_length': {'values': [36, 48, 60, 72]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics
+        # Training basics - more epochs to learn rare patterns
         'batch_size': {'values': [32, 64, 96, 128]},
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},
+        'early_stopping_patience': {'values': [10]},  # More patience for rare events
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler - FIXED: higher learning rate
+        # Optimizer / scheduler - higher learning rates
         'lr': {
             'distribution': 'log_uniform_values',
             'min': 5e-5,  # Increased from 1e-6
@@ -68,15 +68,15 @@ def get_sweep_config():
         },
 
         # RNN specific architecture - increased capacity
-        'rnn_type': {'values': ['LSTM', 'GRU']},
+        'rnn_type': {'values': ['LSTM', 'GRU']},  # Both tested
         'hidden_dim': {'values': [256, 512, 1024]},  # Increased from 256
-        'n_rnn_layers': {'values': [2, 3, 4]},  # Increased from 2
+        'n_rnn_layers': {'values': [2, 3, 4]},  # More layers for complexity
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
         'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU', 'SELU']},  # More activation options
-        'use_reversible_instance_norm': {'values': [True, False]},  # FIXED: test both
+        'use_reversible_instance_norm': {'values': [True, False]},  # Test both
         'force_reset': {'values': [True]},
 
-        # Loss function - FIXED: balanced weights
+        # Loss function - balanced weights
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
         # Loss function parameters - more balanced
@@ -87,13 +87,13 @@ def get_sweep_config():
         },
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,  # Increased from 1.7
-            'max': 3.0,  # But not too high
+            'min': 1.0,
+            'max': 3.0,
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 2.0,  # Decreased from 4.5
-            'max': 5.0,  # But not too low
+            'min': 2.0,  # Reduced from 4.5
+            'max': 5.0,
         },
         'non_zero_weight': {
             'distribution': 'uniform',
