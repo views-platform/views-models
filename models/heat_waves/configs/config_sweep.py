@@ -71,8 +71,8 @@ def get_sweep_config():
         'num_attention_heads': {'values': [2, 4, 8]},  # More heads for diverse patterns
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
         'full_attention': {'values': [True, False]},  # Test both attention types
-        'feed_forward': {'values': ['GatedResidualNetwork', 'Linear']},  # Gated for complexity
-        'add_relative_index': {'values': [True, False]},  # Test both
+        'feed_forward': {'values': ['GLU', 'Bilinear', 'ReGLU', 'GEGLU', 'SwiGLU', 'ReLU', 'GELU', 'GatedResidualNetwork']},  # Gated for complexity
+        'add_relative_index': {'values': [True]},  # Test both
         'use_static_covariates': {'values': [True, False]},  # Use country/priogrid info
         'norm_type': {'values': ['LayerNorm', 'RMSNorm']},  # Both normalization types
         'random_state': {'values': [42, 123, 2023]},
