@@ -22,26 +22,26 @@ def get_sweep_config():
     }
 
     parameters = {
-        # Temporal horizon & context - longer context for rare event patterns
+        # Temporal horizon & context - moderate length
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60, 72]},  # Longer to capture rare patterns
-        'output_chunk_shift': {'values': [0, 1, 2]},  # Shift prediction horizon
+        'input_chunk_length': {'values': [24, 36, 48]},  # Reduced from 72
+        'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics - more epochs to learn rare patterns
-        'batch_size': {'values': [32, 64, 96]},  # Smaller batches for better gradient variety
-        'n_epochs': {'values': [200, 300, 400]},  # More epochs to learn rare events
-        'early_stopping_patience': {'values': [10, 15, 20]},  # More patience for rare events
+        # Training basics - more epochs with smaller batches
+        'batch_size': {'values': [16, 32, 64]},  # Smaller for better gradient variety
+        'n_epochs': {'values': [300]},  # More epochs to learn rare events
+        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for rare events
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
-        # Optimizer / scheduler - lower learning rates for stability
+        # Optimizer / scheduler - lower learning rates
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,  # Lower to prevent missing rare events
-            'max': 2e-4,
+            'min': 1e-6,  # Much lower to prevent explosion
+            'max': 1e-4,  # Lower max for stability
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
+            'min': 1e-5,  # Higher regularization
             'max': 1e-3,
         },
         'lr_scheduler_factor': {
@@ -52,10 +52,10 @@ def get_sweep_config():
         'lr_scheduler_patience': {'values': [3, 5, 7]},
         'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
 
-        # Scaling and transformation - RobustScaler for outlier handling
-        'feature_scaler': {'values': ['RobustScaler']},  # Fixed for consistency
-        'target_scaler': {'values': ['RobustScaler']},  # Fixed for consistency
-        'log_targets': {'values': [True]},  # Fixed to handle zero-inflation
+        # Scaling and transformation
+        'feature_scaler': {'values': ['RobustScaler']},
+        'target_scaler': {'values': ['RobustScaler']},
+        'log_targets': {'values': [True]},
         'log_features': {
             'values': [
                 ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
@@ -65,48 +65,48 @@ def get_sweep_config():
             ]
         },
 
-        # NBEATS specific architecture - deeper for complex patterns
-        'generic_architecture': {'values': [True]},  # Generic for flexibility
-        'num_stacks': {'values': [3, 4, 5]},  # More stacks for complexity
-        'num_blocks': {'values': [3, 4, 5]},  # More blocks for rare events
-        'num_layers': {'values': [3, 4]},  # Deeper networks
-        'layer_widths': {'values': [128, 256, 512]},  # Wider for capacity
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
+        # NBEATS specific architecture - FIXED: reduced complexity
+        'generic_architecture': {'values': [True, False]},  # Test both
+        'num_stacks': {'values': [1, 2, 3]},  # Reduced from 5
+        'num_blocks': {'values': [1, 2, 3]},  # Reduced from 5
+        'num_layers': {'values': [2, 3]},  # Reduced from 4
+        'layer_widths': {'values': [32, 64, 128]},  # Reduced from 512
+        'activation': {'values': ['ReLU', 'LeakyReLU']},  # Removed complex activations
+        'dropout': {'values': [0.2, 0.3, 0.4]},  # Higher dropout
         'random_state': {'values': [42, 123, 2023]},
         'force_reset': {'values': [True]},
 
-        # Loss function - WeightedPenaltyHuberLoss for rare events
+        # Loss function
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
 
-        # Loss function parameters - adjusted for log-transformed data and rare events
+        # Loss function parameters - FIXED for log-transformed data
         'zero_threshold': {
             'distribution': 'uniform',
-            'min': 0.1,  # Well above 0 to account for scaling
-            'max': 0.5,  # Well below 0.693 to distinguish from smallest non-zero
+            'min': 0.1,
+            'max': 0.5,
         },
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,  # Lower to avoid over-penalizing rare events
+            'min': 1.0,
             'max': 3.0,
         },
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 3.0,  # Higher to penalize missing rare events
+            'min': 3.0,
             'max': 8.0,
         },
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,  # Weight for non-zero events
+            'min': 3.0,
             'max': 7.0,
         },
         'delta': {
             'distribution': 'log_uniform_values',
-            'min': 0.1,  # Higher to focus on absolute errors for rare events
+            'min': 0.1,
             'max': 1.0,
         },
         
-        # Gradient clipping to prevent explosion
+        # Gradient clipping - CRITICAL for NBEATS
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,

@@ -24,26 +24,26 @@ def get_sweep_config():
     }
 
     parameters = {
-        # Temporal horizon & context - longer for memory
+        # Temporal horizon & context
         'steps': {'values': [[*range(1, 36 + 1)]]},
         'input_chunk_length': {'values': [36, 48, 60, 72]},
         'output_chunk_shift': {'values': [0, 1, 2]},
 
-        # Training basics
+        # Training basics - more epochs to learn rare patterns
         'batch_size': {'values': [32, 64, 96, 128]},
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},
+        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for rare events
         'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
 
         # Optimizer / scheduler
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,
+            'min': 1e-6,
             'max': 2e-4,
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-6,
+            'min': 1e-5,
             'max': 1e-3,
         },
         'lr_scheduler_factor': {
@@ -67,13 +67,13 @@ def get_sweep_config():
             ]
         },
 
-        # RNN specific architecture - more capacity for rare events
+        # RNN specific architecture - FIXED: increased capacity
         'rnn_type': {'values': ['LSTM', 'GRU']},  # Both tested
-        'hidden_dim': {'values': [64, 128, 256]},  # Larger for capacity
-        'n_rnn_layers': {'values': [1, 2, 3]},  # More layers for complexity
+        'hidden_dim': {'values': [128, 256, 512]},  # Increased from 256
+        'n_rnn_layers': {'values': [2, 3, 4]},  # More layers for complexity
         'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'Tanh', 'GELU']},  # GELU for rare events
-        'use_reversible_instance_norm': {'values': [True, False]},  # Test both
+        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},  # GELU for rare events
+        'use_reversible_instance_norm': {'values': [False]},  # disabled to prevent smoothing (this is a big damn problem ffs)
         'random_state': {'values': [42, 123, 2023]},
         'force_reset': {'values': [True]},
 
