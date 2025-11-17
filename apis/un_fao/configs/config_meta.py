@@ -12,5 +12,7 @@ def get_meta_config():
         "algorithm": "API",
         # "creator": "Your name here",
         "historical_targets": ["lr_ged_sb"],
+        "ensemble": "orange_ensemble",
+        "level": "pgm"
     }
     return meta_config

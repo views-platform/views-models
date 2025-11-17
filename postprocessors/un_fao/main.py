@@ -1,7 +1,7 @@
 import wandb
 import warnings
 from pathlib import Path
-from views_postprocessing.managers.unfao import UNFAOPostProcessorManager
+from views_postprocessing.unfao.managers import UNFAOPostProcessorManager
 from views_pipeline_core.managers.postprocessor.postprocessor import PostprocessorPathManager
 
 # Import your model manager class here
