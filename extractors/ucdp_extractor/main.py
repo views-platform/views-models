@@ -1,8 +1,7 @@
 import wandb
 import warnings
 from pathlib import Path
-from views_pipeline_core.cli.utils import parse_args, validate_arguments
-from views_graphdb.manager import UCDPExtractorManager
+from views_graphdb.manager.extractor import UCDPExtractorManager
 from views_graphdb.manager.extractor import ExtractorPathManager
 
 warnings.filterwarnings("ignore")
@@ -21,8 +20,6 @@ except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
 
 if __name__ == "__main__":
-    wandb.login()
     args = None
-    # validate_arguments(args)
 
     UCDPExtractorManager(model_path=extractor_path).run(args)
