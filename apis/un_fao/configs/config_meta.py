@@ -11,8 +11,8 @@ def get_meta_config():
         "name": "un_fao", 
         "algorithm": "API",
         # "creator": "Your name here",
-        "historical_targets": ["lr_ged_sb"],
-        "ensemble": "orange_ensemble",
+        "historical_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
+        # "ensemble": "orange_ensemble",
         "level": "pgm"
     }
     return meta_config

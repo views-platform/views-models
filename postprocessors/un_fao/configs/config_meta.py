@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "un_fao", 
         "algorithm": "Postprocessor",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb"],
+        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",
         "level": "pgm",
         "ensemble": "orange_ensemble"

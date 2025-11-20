@@ -53,8 +53,8 @@ def get_sweep_config():
         'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
 
         # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler']},
-        'target_scaler': {'values': ['RobustScaler']},
+        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
+        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
         'log_targets': {'values': [True]},
         'log_features': {
             'values': [
