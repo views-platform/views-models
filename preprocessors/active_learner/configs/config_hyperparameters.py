@@ -12,26 +12,29 @@ def get_hp_config():
         "priority_topic": "Education & Jobs",
         "n_sublists": 5,
         "shared_ratio": 0.25,
-        "batch_size": 8,  # 100
+
         "llm": "snowood1/ConfliBERT-scr-uncased",
-        "learning_rate": 1e-5,
-        "epochs": 10,
-        "monte_carlo_runs": 100,
-        "early_stopping": 3,
-        "init_batch": 200,
         "max_samples": 2000,
-        "metrics": ["accuracy", "f1"],
+        "batch_size": 8,  # 100
         "dropout_prob": 0.1,
+        "monte_carlo_runs": 100,
+        
+        "learning_rate": 1e-5,
         "num_train_epochs": 10,
-        "batch_size": 8,
-        "early_stopping_patience": 3,
-        "early_stopping_threshold": 0.0,
-        "metric_for_best_model": "eval_loss",
+
+        "evaluation_strategy": "steps",
         "eval_steps": 10,
         "save_strategy": "steps",
         "save_steps": 10,
         "save_total_limit": 1,
         "load_best_model_at_end": True,
+
+        "early_stopping_patience": 3, # Stop training if no improvement for 3 epochs
+        "early_stopping_threshold": 0.01, # Improvement must > 1% to be considered
+        "metric_for_best_model": "eval_loss",
+        
+        "metrics": ["accuracy", "f1"],        
+
         "doccano_url": "http://localhost:8000",  # "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
