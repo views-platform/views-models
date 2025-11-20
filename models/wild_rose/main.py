@@ -6,10 +6,6 @@ from views_pipeline_core.managers.log import LoggingManager
 from views_pipeline_core.managers.model import ModelPathManager
 from views_stepshifter.manager.stepshifter_manager import StepshifterManager
 
-
-# Import your model manager class here
-# E.g. from views_stepshifter.manager.stepshifter_manager import StepshifterManager
-
 warnings.filterwarnings("ignore")
 
 try:
@@ -26,10 +22,12 @@ except PermissionError as perm_error:
 except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
 
+
 if __name__ == "__main__":
     wandb.login()
     args = parse_args()
     validate_arguments(args)
+
     manager = StepshifterManager(
         model_path=model_path,
         wandb_notifications=args.wandb_notifications,

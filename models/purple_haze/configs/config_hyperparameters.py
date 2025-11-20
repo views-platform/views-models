@@ -1,4 +1,3 @@
-
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -10,8 +9,8 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'submodels_to_train': 50,
-        'pred_samples': 10,
+        'submodels_to_train': 100,
+        'pred_samples': 5,
         'log_target': False,
         'draw_dist': 'Lognormal',
         'draw_sigma': 0.6,
@@ -19,14 +18,14 @@ def get_hp_config():
         "parameters": {
             "clf": {
                 'n_estimators': 2,
-                'max_depth': 3,
-                'subsample': 0.3,
+                'max_depth': 4,
+                'subsample': 0.2,
                 'n_jobs': -2,
             },
             "reg": {
                 'n_estimators': 2,
-                'max_depth': 3,
-                'subsample': 0.3,
+                'max_depth': 4,
+                'subsample': 0.2,
                 'n_jobs': -2,
             }
         }
