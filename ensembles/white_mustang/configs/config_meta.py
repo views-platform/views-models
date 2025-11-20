@@ -10,7 +10,7 @@ def get_meta_config():
         "name": "white_mustang",
         "models": ["lavender_haze", "blank_space"],
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "ln_ged_sb_dep",  # Double-check the target variables of each model
+        "targets": "lr_ged_sb_dep",  # Double-check the target variables of each model
         "level": "pgm",
         "aggregation": "mean",
         "creator": "Xiaolong",
