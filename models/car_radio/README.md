@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  car_radio   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and Mueller & Rauh topic model features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

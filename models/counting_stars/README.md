@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  counting_stars   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline, first set and extended set of conflict history features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

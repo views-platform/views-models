@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | AverageModel                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  average_pgmbaseline   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

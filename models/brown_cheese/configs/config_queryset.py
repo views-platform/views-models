@@ -26,13 +26,13 @@ def generate():
                      .transform.missing.fill()
                      .transform.missing.replace_na()
                     )
-        .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-            .transform.ops.ln()
+        .with_column(Column('lr_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+            # .transform.ops.ln()
             .transform.missing.fill()
             )
 
-        .with_column(Column('ln_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-            .transform.ops.ln()
+        .with_column(Column('lr_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+            # .transform.ops.ln()
             .transform.missing.fill()
             )
 

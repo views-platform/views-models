@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "demon_days", 
         "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "ln_ged_sb_dep",
+        "targets": "lr_ged_sb_dep",
         "queryset": "fatalities003_faostat",
         "level": "cm",
         "creator": "Marina"

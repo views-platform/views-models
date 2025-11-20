@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  caring_fish   |
 | **Feature Description**       |  Fatalities conflict history Predicting ln(fatalities) using conflict predictors    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

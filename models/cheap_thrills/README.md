@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ShurfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | sb_best |
+| **Targets**         | lr_sb_best |
 | **Features**       |  structural_brief_nolog   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with a small number of structural features, no conflict history    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

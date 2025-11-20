@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  little_lies   |
 | **Feature Description**       |  Predicting ged_dummy_sb, cm level Queryset with features from various sources, 'joint narrow'    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

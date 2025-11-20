@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "locf_pgmbaseline", 
         "algorithm": "LocfModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["ln_ged_sb_dep"],
+        "targets": ["lr_ged_sb_dep"],
         # "queryset": "escwa001_cflong",
         "level": "pgm",
         "creator": "Sonja",

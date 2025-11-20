@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "caring_fish", 
         "algorithm": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "ln_ged_sb_dep",
+        "targets": "lr_ged_sb_dep",
         "queryset": "fatalities003_pgm_conflict_history",
         "level": "pgm",
         "creator": "Xiaolong"

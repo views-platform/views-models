@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  heavy_rotation   |
 | **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

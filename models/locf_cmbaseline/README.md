@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LocfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  locf_baseline   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

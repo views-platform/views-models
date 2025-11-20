@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  orange_pasta   |
 | **Feature Description**       |  Fatalities conflict history, cm level Predicting ln(fatalities) using conflict predictors, ultrashort    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

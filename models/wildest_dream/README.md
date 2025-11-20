@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb_dep |
 | **Features**       |  wildest_dream   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
