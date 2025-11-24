@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | RandomForestRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  electric_relaxation   |
 | **Feature Description**       |  Views-escwa conflict history, cm level    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

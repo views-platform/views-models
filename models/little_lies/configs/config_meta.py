@@ -13,7 +13,7 @@ def get_meta_config():
         "model_clf": "LGBMClassifier", 
         "model_reg": "LGBMRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb_dep",
+        "targets": "lr_ged_sb",
         "queryset": "fatalities003_joint_narrow",
         "level": "cm",
         "creator": "Marina"

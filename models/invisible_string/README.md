@@ -6,9 +6,9 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  invisible_string   |
-| **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
+| **Feature Description**       |  fatalities broad model, pgm level Predicting lr_ged_sb, broad model    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

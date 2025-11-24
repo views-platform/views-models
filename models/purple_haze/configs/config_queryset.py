@@ -601,7 +601,7 @@ def generate():
             )
 
         .with_theme('uncertainty')
-        .describe("""Predicting ln(fatalities), cm level
+        .describe("""Predicting fatalities, cm level
         
                                 Queryset with baseline and broad list of features from all sources
         

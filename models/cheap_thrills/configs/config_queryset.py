@@ -48,7 +48,7 @@ def generate():
 
 
         .with_theme('uncertainty')
-        .describe("""Predicting ln(fatalities), cm level
+        .describe("""Predicting fatalities, cm level
         
                                 Queryset with a small number of structural features, no conflict history
         

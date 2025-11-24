@@ -8,7 +8,7 @@
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_sb_best |
 | **Features**       |  lovely_creature   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
+| **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and broad list of features from all sources    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

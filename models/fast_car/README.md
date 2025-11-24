@@ -6,9 +6,9 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  fast_car   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and short list of vdem features    |
+| **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and short list of vdem features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

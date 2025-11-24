@@ -6,9 +6,9 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  blank_space   |
-| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting ln(fatalities) using natural and social geography features    |
+| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting fatalities using natural and social geography features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

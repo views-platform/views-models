@@ -6,9 +6,9 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  demon_days   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and faostat features    |
+| **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and faostat features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

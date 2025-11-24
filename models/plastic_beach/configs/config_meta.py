@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "plastic_beach", 
         "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb_dep",
+        "targets": "lr_ged_sb",
         "queryset": "fatalities003_aquastat",
         "level": "cm",
         "creator": "Marina"

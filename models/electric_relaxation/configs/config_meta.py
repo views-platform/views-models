@@ -9,7 +9,7 @@ def get_meta_config():
         "name": "electric_relaxation",
         "algorithm": "RandomForestRegressor", 
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb_dep", 
+        "targets": "lr_ged_sb", 
         "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Sara" 

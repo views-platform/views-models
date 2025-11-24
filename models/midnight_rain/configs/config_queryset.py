@@ -16,11 +16,11 @@ def generate():
     
     qs_escwa_drought = (Queryset(f'{model_name}','priogrid_month')
                         
-              .with_column(Column('raw_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
+              # .with_column(Column('raw_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
 
-              .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi'))
+              # .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi'))
 
-              .with_column(Column('raw_ged_ns', from_loa='priogrid_month', from_column='ged_ns_best_sum_nokgi'))
+              # .with_column(Column('raw_ged_ns', from_loa='priogrid_month', from_column='ged_ns_best_sum_nokgi'))
                         
               .with_column(Column('lr_pgd_nlights_calib_mean', from_loa='priogrid_year', from_column='nlights_calib_mean')
                      .transform.missing.replace_na(0)
@@ -102,10 +102,10 @@ def generate():
                      .transform.missing.replace_na(0)
                      )
 
-              .with_column(Column('lr_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
-                     .transform.missing.replace_na()
-                     # .transform.ops.ln()
-                     )
+              # .with_column(Column('lr_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+              #        .transform.missing.replace_na()
+              #        # .transform.ops.ln()
+              #        )
 
               .with_column(Column('lr_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                      .transform.missing.replace_na()

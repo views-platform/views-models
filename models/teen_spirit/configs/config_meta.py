@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "teen_spirit", 
         "algorithm": "XGBRFRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb_dep",
+        "targets": "lr_ged_sb",
         "queryset": "fatalities003_faoprices",
         "level": "cm",
         "creator": "Marina"

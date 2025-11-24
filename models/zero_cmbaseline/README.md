@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ZeroModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  zero_baseline   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

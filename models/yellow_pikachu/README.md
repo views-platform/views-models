@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: XGBClassifier, Regressor: XGBRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  yellow_pikachu   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

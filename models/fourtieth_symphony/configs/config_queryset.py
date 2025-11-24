@@ -27,7 +27,7 @@ def generate():
             .transform.missing.fill()
             .transform.missing.replace_na()
             # .transform.ops.ln()
-            .transform.missing.replace_na()
+            # .transform.missing.replace_na()
             )
 
         .with_column(Column('lr_ged_ns', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
@@ -354,7 +354,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_tokens_t2', from_loa='country_month', from_column='topic_tokens')
+        .with_column(Column('lr_topic_tokens_t2', from_loa='country_month', from_column='topic_tokens')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(2)
@@ -362,7 +362,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta4_stock_t1', from_loa='country_month', from_column='topic_ste_theta4_stock')
+        .with_column(Column('lr_topic_ste_theta4_stock_t1', from_loa='country_month', from_column='topic_ste_theta4_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(1)
@@ -370,7 +370,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta4_stock_t2', from_loa='country_month', from_column='topic_ste_theta4_stock')
+        .with_column(Column('lr_topic_ste_theta4_stock_t2', from_loa='country_month', from_column='topic_ste_theta4_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(2)
@@ -378,7 +378,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta4_stock_t13', from_loa='country_month', from_column='topic_ste_theta4_stock')
+        .with_column(Column('lr_topic_ste_theta4_stock_t13', from_loa='country_month', from_column='topic_ste_theta4_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(13)
@@ -386,7 +386,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta2_stock_t1', from_loa='country_month', from_column='topic_ste_theta5_stock')
+        .with_column(Column('lr_topic_ste_theta2_stock_t1', from_loa='country_month', from_column='topic_ste_theta5_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(1)
@@ -394,7 +394,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta2_stock_t2', from_loa='country_month', from_column='topic_ste_theta5_stock')
+        .with_column(Column('lr_topic_ste_theta2_stock_t2', from_loa='country_month', from_column='topic_ste_theta5_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(2)
@@ -402,7 +402,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta2_stock_t13', from_loa='country_month', from_column='topic_ste_theta5_stock')
+        .with_column(Column('lr_topic_ste_theta2_stock_t13', from_loa='country_month', from_column='topic_ste_theta5_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(13)
@@ -596,7 +596,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta4_stock_t1_splag', from_loa='country_month', from_column='topic_ste_theta4_stock')
+        .with_column(Column('lr_topic_ste_theta4_stock_t1_splag', from_loa='country_month', from_column='topic_ste_theta4_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(13)
@@ -605,7 +605,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        with_column(Column('lr_topic_ste_theta2_stock_t1_splag', from_loa='country_month', from_column='topic_ste_theta5_stock')
+        .with_column(Column('lr_topic_ste_theta2_stock_t1_splag', from_loa='country_month', from_column='topic_ste_theta5_stock')
             .transform.missing.fill()
             .transform.missing.replace_na()
             .transform.temporal.tlag(13)
@@ -615,7 +615,7 @@ def generate():
             )
 
         .with_theme('uncertainty')
-        .describe("""Predicting ln(fatalities), cm level
+        .describe("""Predicting fatalities, cm level
         
                                 Queryset with baseline and broad list of features from all sources
         
