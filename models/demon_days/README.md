@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRFRegressor                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_faostat   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and faostat features    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  demon_days   |
+| **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and faostat features    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Demon Days
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

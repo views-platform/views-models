@@ -10,13 +10,13 @@ def get_hp_config():
     
     hyperparameters = {
         "steps": [*range(1, 36 + 1, 1)],
-        "num_samples": 1,
+        "num_samples": 500,
         "mc_dropout": True,
 
         "batch_size": 64,
         "decoder_output_dim": 32,
         "delta": 0.1425562139624501,
-        "dropout": 0.1,
+        "dropout": 0.4,
         "early_stopping_min_delta": 0.005,
         "early_stopping_patience": 10,
         "false_negative_weight": 6.808821877873163,

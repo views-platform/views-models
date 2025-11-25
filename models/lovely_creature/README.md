@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ShurfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | sb_best |
-| **Features**       |  uncertainty_broad_nolog   |
-| **Feature Description**       |  Predicting ln(fatalities), cm level Queryset with baseline and broad list of features from all sources    |
-| **Metrics**       |  RMSLE, CRPS, MSE    |
+| **Targets**         | lr_sb_best |
+| **Features**       |  lovely_creature   |
+| **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and broad list of features from all sources    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Lovely Creature
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

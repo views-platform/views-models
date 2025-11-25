@@ -18,17 +18,17 @@ def generate():
 
     queryset = (Queryset(f'{model_name}','country_month')
                 
-    .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
+    # .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
 
-    .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
+    # .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
     
-    .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-        .transform.ops.ln()
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+    #     # .transform.ops.ln()
+    #     .transform.missing.fill()
+    #     )
 
-    .with_column(Column('ln_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-        .transform.ops.ln()
+    .with_column(Column('lr_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        # .transform.ops.ln()
         .transform.missing.fill()
         )
 
@@ -67,11 +67,11 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_avg_fprod_value', from_loa='country_year', from_column='avg_fprod_value')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_avg_fprod_value', from_loa='country_year', from_column='avg_fprod_value')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
     .with_column(Column('lr_avg_protein_pcap_day', from_loa='country_year', from_column='avg_protein_pcap_day')
         .transform.missing.fill()
@@ -79,11 +79,11 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_gdp_pc_ppp', from_loa='country_year', from_column='gdp_pc_ppp')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_gdp_pc_ppp', from_loa='country_year', from_column='gdp_pc_ppp')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
     .with_column(Column('lr_kcal_pcap_day', from_loa='country_year', from_column='kcal_pcap_day')
         .transform.missing.fill()
@@ -91,17 +91,17 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_kcal_pcap_day_cerotu', from_loa='country_year', from_column='kcal_pcap_day_cerotu')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_kcal_pcap_day_cerotu', from_loa='country_year', from_column='kcal_pcap_day_cerotu')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
-    .with_column(Column('lr_pcap_fprod_var', from_loa='country_year', from_column='pcap_fprod_var')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_pcap_fprod_var', from_loa='country_year', from_column='pcap_fprod_var')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
     .with_column(Column('lr_pcap_fsupply_var', from_loa='country_year', from_column='pcap_fsupply_var')
         .transform.missing.fill()
@@ -181,11 +181,11 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_pct_undernourished', from_loa='country_year', from_column='pct_undernourished')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_pct_undernourished', from_loa='country_year', from_column='pct_undernourished')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
     .with_column(Column('lr_pol_stability', from_loa='country_year', from_column='pol_stability')
         .transform.missing.fill()
@@ -274,7 +274,7 @@ def generate():
         )
 
     .with_theme('fatalities002')
-    .describe("""Predicting ln(fatalities), cm level
+    .describe("""Predicting fatalities, cm level
     
                              Queryset with baseline and faostat features
     

@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_broad   |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  invisible_string   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Invisible String
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data
