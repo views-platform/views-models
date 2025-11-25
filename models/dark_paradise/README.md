@@ -8,7 +8,7 @@
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb |
 | **Features**       |  dark_paradise   |
-| **Feature Description**       |  fatalities longer conflict history, pgm level Predicting lr_ged_sb using conflict predictors, longer version    |
+| **Feature Description**       |  fatalities longer conflict history, pgm level Predicting lr_ged_sb_dep using conflict predictors, longer version    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
