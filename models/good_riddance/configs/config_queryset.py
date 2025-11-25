@@ -17,24 +17,24 @@ def generate():
 
     queryset = (Queryset(f'{model_name}','country_month')
                 
-    .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
+    # .with_column(Column('raw_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi'))
 
-    .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
+    # .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
 
-    .with_column(Column('raw_acled_os', from_loa='country_month', from_column='acled_os_fat'))
+    # .with_column(Column('raw_acled_os', from_loa='country_month', from_column='acled_os_fat'))
 
-    .with_column(Column('ln_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-        .transform.ops.ln()
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+    #     # .transform.ops.ln()
+    #     .transform.missing.fill()
+    #     )
 
     .with_column(Column('lr_gleditsch_ward', from_loa='country', from_column='gwcode')
         .transform.missing.fill()
         .transform.missing.replace_na()
         )
 
-    .with_column(Column('ln_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-        .transform.ops.ln()
+    .with_column(Column('lr_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        # .transform.ops.ln()
         .transform.missing.fill()
         )
 
@@ -226,7 +226,7 @@ def generate():
         )
 
     .with_theme('fatalities')
-    .describe("""Predicting ged_dummy_sb, cm level
+    .describe("""Predicting lr_ged_sb_dep, cm level
 
                              Queryset with features from various sources, 'joint narrow'
 

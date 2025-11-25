@@ -13,7 +13,7 @@ def generate():
     
     qs_cm_cflong  = (Queryset(f"{model_name}", "country_month")
                 # target variable
-                .with_column(Column("lr_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
+                .with_column(Column("lr_ged_sb", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
                             .transform.bool.gte(25)
                             .transform.missing.fill()
                             )

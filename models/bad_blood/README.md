@@ -6,9 +6,9 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  bad_blood   |
-| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting ln(fatalities) using natural and social geography features    |
+| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting fatalities using natural and social geography features    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

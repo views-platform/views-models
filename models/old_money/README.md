@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  old_money   |
 | **Feature Description**       |  Fatalities, escwa drought and vulnerability, pgm level Predicting number of fatalities with features from the escwa drought and vulnerability themes    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |

@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "counting_stars", 
         "algorithm": "XGBRegressor",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "ln_ged_sb_dep",
+        "targets": "lr_ged_sb",
         "queryset": "fatalities003_conflict_history_long",
         "level": "cm",
         "creator": "Borbála"
