@@ -85,11 +85,11 @@ def generate():
     #     .transform.missing.fill()
     #     )
 
-    .with_column(Column('lr_kcal_pcap_day', from_loa='country_year', from_column='kcal_pcap_day')
-        .transform.missing.fill()
-        .transform.temporal.tlag(12)
-        .transform.missing.fill()
-        )
+    # .with_column(Column('lr_kcal_pcap_day', from_loa='country_year', from_column='kcal_pcap_day')
+    #     .transform.missing.fill()
+    #     .transform.temporal.tlag(12)
+    #     .transform.missing.fill()
+    #     )
 
     # .with_column(Column('lr_kcal_pcap_day_cerotu', from_loa='country_year', from_column='kcal_pcap_day_cerotu')
     #     .transform.missing.fill()
