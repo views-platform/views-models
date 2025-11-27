@@ -86,9 +86,9 @@ def generate():
                      .transform.missing.replace_na(0)
                      )
 
-              .with_column(Column('lr_tlag_12_crop_sum', from_loa='priogrid_month', from_column='tlag_12_crop_sum')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_tlag_12_crop_sum', from_loa='priogrid_month', from_column='tlag_12_crop_sum')
+              #        .transform.missing.replace_na(0)
+              #        )
 
               # .with_column(Column('lr_tlag_12_harvarea_maincrops', from_loa='priogrid_month', from_column='tlag_12_harvarea_maincrops')
               #        .transform.missing.replace_na(0)
