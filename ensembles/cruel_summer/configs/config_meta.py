@@ -14,6 +14,11 @@ def get_meta_config():
         "level": "cm", 
         "aggregation": "median", 
         "creator": "Xiaolong",
-        "reconciliation": None
+        "reconciliation": None,
+        "use_weights": False,
+        "weights": {  # Only used if use_weights is True
+            "bittersweet_symphony": 0.5,
+            "brown_cheese": 0.5
+        }
     }
     return meta_config
