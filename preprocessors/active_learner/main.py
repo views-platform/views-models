@@ -35,26 +35,45 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    # PATH = Path.home() / "edattack_synthetic_texts" / "lemonade.csv"
-    # dataframe = read_dataframe('/home/sonja/Desktop/ucdp_aec_try/ucdp_aec_data.csv')
-    # dataframe = read_dataframe('/home/sonja/Downloads/windows.csv')/home/sonja/Downloads/Africa_lagged_data_up_to-2024-09-12.xlsx
-    # dataframe = read_dataframe('/home/sonja/Desktop/Edattack sprint/data/combined_icr_acled.csv')
-    HOME = Path.home()
-    file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
-    dataframe = read_dataframe(file_path)
+    dataframe = read_dataframe('/home/sonja/Downloads/acled_tenthousand.csv')
+    #HOME = Path.home()
+    #file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
+    #dataframe = read_dataframe(file_path)
 
-    #dataset = ViewsTextDataset(
-    #    texts=dataframe["what"], 
-    #    labels=None,
-    #    ids=dataframe["id"]
-    #)
 
-    #dataset = ViewsTextDataset(dataframe, text_col="what", id_col="id", label_col=None, n_labels=)
-    # print(dataset.ids)
-    # print(dataset[50431])
-    # print(dataset.other_cols.columns)
+    # --- OPTIONAL INFERENCE DATA ---
+    inference_df = None
+    inference_text_col = None
+    inference_id_col = None
 
-    ALModelManager(
-        model_path=model_path, 
-        dataset=partial(ViewsTextDataset, dataframe=dataframe, text_col="window_text", id_col="index", label_col=None) #text_col="plain_text", id_col="event_id_in_acled"
-    ).run(args=args)
+    if getattr(args, "inference", False) and getattr(args, "inference_data", None):
+        inference_df = read_dataframe(args.inference_data)
+        # define columns IN main.py as you wanted
+        inference_text_col = args.inference_text_col or "notes"
+        inference_id_col = args.inference_id_col or "event_id_cnty"
+
+    manager = ALModelManager(
+        model_path=model_path,
+        dataset=partial(
+            ViewsTextDataset,
+            dataframe=dataframe.head(5000),
+            text_col="notes",
+            id_col="event_id_cnty",
+            label_col=None,
+        ),
+    )
+
+
+    manager.run(
+        args=args,
+        inference_df=inference_df,
+        inference_text_col=inference_text_col,
+        inference_id_col=inference_id_col,
+    )
+
+    
+
+    #ALModelManager(
+    #    model_path=model_path, 
+    #    dataset=partial(ViewsTextDataset, dataframe=dataframe.head(5000), text_col="notes", id_col="event_id_cnty", label_col=None) #text_col="plain_text", id_col="event_id_in_acled"
+    #).run(args=args)
