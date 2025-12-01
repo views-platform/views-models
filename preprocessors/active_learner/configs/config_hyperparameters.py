@@ -53,8 +53,10 @@ def get_hp_config():
         "annotation_size": 20,
         "labels": {
             "Violence": 0,
+            "Arrest & Detention": 1,
             "Recruitment & Abduction": 2,
             "Sexual Violence": 3,
+            "Threats/Intimidation": 4,
             "Target: Student": 6,
             "Target: Personnel": 7,
             "Target: Infrastructure": 8,
@@ -68,11 +70,14 @@ def get_hp_config():
             "Educational Level: Higher": "h",
             "Incidental Flag": "i",
             "No attack on education": "k",
+            "In Educational Role": "j",
         },
         "colours": {
             "Violence": "#8a9bee",
+            "Arrest & Detention": "#8a9bee",
             "Recruitment & Abduction": "#8a9bee",
             "Sexual Violence": "#8a9bee",
+            "Threats/Intimidation": "#8a9bee",
             "Target: Student": "#40864A",
             "Target: Personnel": "#40864A",
             "Target: Infrastructure": "#40864A",
@@ -86,6 +91,7 @@ def get_hp_config():
             "Educational Level: Higher": "#C1C1B7",
             "Incidental Flag": "#D594C8",
             "No attack on education": "#611C1E",
+            "In Educational Role": "#D5963C",
         },
         # --- Preselection settings ---
         "preselection": {
