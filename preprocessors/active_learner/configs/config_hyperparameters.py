@@ -13,6 +13,7 @@ def get_hp_config():
         "n_sublists": 4,
         "shared_ratio": 0.25,
         "majority":3,
+        "random_seed": 42,
 
         "llm": "snowood1/ConfliBERT-scr-uncased",
         "max_samples": 2000,
