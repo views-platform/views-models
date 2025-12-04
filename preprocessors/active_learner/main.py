@@ -54,10 +54,10 @@ if __name__ == "__main__":
         start_doccano_server()
     
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe('/home/sonja/Downloads/acled_tenthousand.csv')
-    #HOME = Path.home()
-    #file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
-    #dataframe = read_dataframe(file_path)
+    # dataframe = read_dataframe('/home/sonja/Downloads/acled_tenthousand.csv')
+    HOME = Path.home()
+    file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
+    dataframe = read_dataframe(file_path)
 
 
     # --- OPTIONAL INFERENCE DATA ---
