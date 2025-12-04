@@ -1,14 +1,16 @@
 import os
 import subprocess
 from functools import partial
-import warnings
 from pathlib import Path
+import random
+import numpy as np
+import torch
+import warnings
 import wandb
 from views_pipeline_core.files.utils import read_dataframe
 from views_activelearning.cli.utils import parse_args, validate_arguments
 from views_activelearning.managers.model import ALModelPathManager, ALModelManager
 from views_activelearning.handlers.text import ViewsTextDataset
-
 
 warnings.filterwarnings("ignore")
 
@@ -23,8 +25,25 @@ def start_doccano_server():
     except subprocess.CalledProcessError as e:
         print(f"Error starting Doccano: {e}")
 
+def set_global_determinism(seed: int):
+    """Sets global seeds and PyTorch deterministic flags."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        
+        # CUDNN Determinism Flags
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        
+        # May cause RuntimeError if a required deterministic kernel is missing.
+        torch.use_deterministic_algorithms(True)
 
 if __name__ == "__main__":
+    set_global_determinism(seed=42)
+
     model_path = ALModelPathManager(Path(__file__))
 
     wandb.login()
