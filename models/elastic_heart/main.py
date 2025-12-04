@@ -5,7 +5,7 @@ from views_pipeline_core.cli.utils import parse_args, validate_arguments
 from views_pipeline_core.managers.log import LoggingManager
 from views_pipeline_core.managers.model import ModelPathManager
 
-from views_r2darts2.manager.model import DartsForecastingModelManager
+from views_r2darts2.manager.model import DartsForecastingModelManager, DartsLikelihoodForecastingModelManager
 
 warnings.filterwarnings("ignore")
 
@@ -26,6 +26,6 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
     if args.sweep:
-        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
+        DartsLikelihoodForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
     else:
-        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)
+        DartsLikelihoodForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)

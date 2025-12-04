@@ -10,10 +10,11 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "log_targets": True,
         
         # classic-sweep-120
         "activation": "Tanh",
-        "batch_size": 256,
+        "batch_size": 191,
         "delta": 3.789929511070176,
         "dropout": 0.4,
         "early_stopping_patience": 5,
@@ -23,9 +24,10 @@ def get_hp_config():
         "ff_size": 256,
         "hidden_size": 128,
         "input_chunk_length": 36,
-        "loss_function": "WeightedPenaltyHuberLoss",
+        # "loss_function": "WeightedPenaltyHuberLoss",
+        "likelihood_function": "zinb_likelihood",
         "lr": 0.0000548349633455129,
-        "n_epochs": 10,
+        "n_epochs": 2,
         "non_zero_weight": 17.16365112650754,
         "norm_type": "LayerNormNoBias",
         "normalize_before": False,
