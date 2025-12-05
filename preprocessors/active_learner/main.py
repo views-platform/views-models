@@ -41,6 +41,9 @@ def set_global_determinism(seed: int):
         # May cause RuntimeError if a required deterministic kernel is missing.
         torch.use_deterministic_algorithms(True)
 
+        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+        
+
 if __name__ == "__main__":
     set_global_determinism(seed=42)
 
