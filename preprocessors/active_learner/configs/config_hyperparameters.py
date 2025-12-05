@@ -37,7 +37,7 @@ def get_hp_config():
         
         "metrics": ["accuracy", "f1"],        
 
-        "doccano_url": "http://localhost:8888",  # "doccano_url": "http://localhost:5900",
+        "doccano_url": "http://localhost:8000",  # "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
         "project_name": [
