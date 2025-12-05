@@ -17,7 +17,7 @@ def get_hp_config():
 
         "llm": "snowood1/ConfliBERT-scr-uncased",
         "max_samples": 2000,
-        "batch_size": 8,  # 100
+        "batch_size": 128,  # 100
         "dropout_prob": 0.1,
         "monte_carlo_runs": 100,
         
