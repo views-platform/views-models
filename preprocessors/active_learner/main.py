@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # Initialize dataset with multi-label support
     # dataframe = read_dataframe('/home/sonja/Downloads/acled_tenthousand.csv')
     HOME = Path.home()
-    file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
+    file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/acled_tenthousand.csv'
     dataframe = read_dataframe(file_path)
 
 
