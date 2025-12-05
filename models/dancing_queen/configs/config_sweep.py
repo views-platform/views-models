@@ -66,18 +66,65 @@ def get_sweep_config():
         },
 
         # ============== SCALING ==============
-        # RobustScaler as default for features not in feature_scaler_map
-        # AsinhTransform optimal for zero-inflated fatality counts
-        # feature_scaler_map applies AsinhTransform to zero-inflated features
-        'feature_scaler': {'values': ['RobustScaler']},
+        # RobustScaler as default fallback for unmapped features
+        # feature_scaler_map assigns optimal scalers based on feature characteristics:
+        # - AsinhTransform: Zero-inflated counts (fatalities) and heavily skewed economic data
+        # - MinMaxScaler: Bounded percentages (0-100), V-Dem indices (0-1), topic proportions
+        # - StandardScaler: Growth rates (normal-ish, can be negative)
+        # - SqrtTransform: Mortality rates (positive, moderate skew)
+        'feature_scaler': {'values': [None]},
         'target_scaler': {'values': ['AsinhTransform', 'RobustScaler']},
-        'log_targets': {'values': [False]},
         'feature_scaler_map': {
             'values': [{
+                # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
                 "AsinhTransform": [
-                    "ged_sb", "ged_ns", "ged_os", "acled_sb", "acled_os",
-                    "ged_sb_tsum_24", "splag_1_ged_sb", "splag_1_ged_os", "splag_1_ged_ns",
-                    "wdi_sm_pop_netm", "wdi_sm_pop_refg_or", "wdi_sp_dyn_imrt_fe_in", "wdi_ny_gdp_mktp_kd"
+                    "ged_sb", "ged_sb_dep", "ged_ns", "ged_os",
+                    "acled_sb", "acled_sb_count", "acled_os",
+                    "ged_sb_tsum_24",
+                    "splag_1_ged_sb", "splag_1_ged_os", "splag_1_ged_ns",
+                    # Large-scale economic data with extreme skew
+                    "wdi_ny_gdp_mktp_kd", "wdi_nv_agr_totl_kn",
+                    "wdi_sm_pop_netm", "wdi_sm_pop_refg_or"
+                ],
+                # Bounded percentages and rates (0-100 scale)
+                "MinMaxScaler": [
+                    "wdi_sl_tlf_totl_fe_zs", "wdi_se_enr_prim_fm_zs",
+                    "wdi_sp_urb_totl_in_zs", "wdi_sh_sta_maln_zs", "wdi_sh_sta_stnt_zs",
+                    "wdi_dt_oda_odat_pc_zs", "wdi_ms_mil_xpnd_gd_zs",
+                    # V-Dem indices (already 0-1 bounded)
+                    "vdem_v2x_horacc", "vdem_v2xnp_client", "vdem_v2x_veracc",
+                    "vdem_v2x_divparctrl", "vdem_v2xpe_exlpol", "vdem_v2x_diagacc",
+                    "vdem_v2xpe_exlgeo", "vdem_v2xpe_exlgender", "vdem_v2xpe_exlsocgr",
+                    "vdem_v2x_ex_party", "vdem_v2x_genpp", "vdem_v2xeg_eqdr",
+                    "vdem_v2xcl_prpty", "vdem_v2xeg_eqprotec", "vdem_v2x_ex_military",
+                    "vdem_v2xcl_dmove", "vdem_v2x_clphy", "vdem_v2x_hosabort",
+                    "vdem_v2xnp_regcorr",
+                    # Topic model proportions (0-1 bounded)
+                    "topic_ste_theta0", "topic_ste_theta1", "topic_ste_theta2",
+                    "topic_ste_theta3", "topic_ste_theta4", "topic_ste_theta5",
+                    "topic_ste_theta6", "topic_ste_theta7", "topic_ste_theta8",
+                    "topic_ste_theta9", "topic_ste_theta10", "topic_ste_theta11",
+                    "topic_ste_theta12", "topic_ste_theta13", "topic_ste_theta14",
+                    "topic_ste_theta0_stock_t1_splag", "topic_ste_theta1_stock_t1_splag",
+                    "topic_ste_theta2_stock_t1_splag", "topic_ste_theta3_stock_t1_splag",
+                    "topic_ste_theta4_stock_t1_splag", "topic_ste_theta5_stock_t1_splag",
+                    "topic_ste_theta6_stock_t1_splag", "topic_ste_theta7_stock_t1_splag",
+                    "topic_ste_theta8_stock_t1_splag", "topic_ste_theta9_stock_t1_splag",
+                    "topic_ste_theta10_stock_t1_splag", "topic_ste_theta11_stock_t1_splag",
+                    "topic_ste_theta12_stock_t1_splag", "topic_ste_theta13_stock_t1_splag",
+                    "topic_ste_theta14_stock_t1_splag"
+                ],
+                # Growth rates (can be negative, roughly normal)
+                "StandardScaler": [
+                    "wdi_sp_pop_grow"
+                ],
+                # Mortality rates (positive, moderate skew)
+                "SqrtTransform": [
+                    "wdi_sp_dyn_imrt_fe_in"
+                ],
+                # Token counts (moderate skew)
+                "RobustScaler": [
+                    "topic_tokens_t1", "topic_tokens_t1_splag"
                 ]
             }]
         },
