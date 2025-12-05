@@ -9,23 +9,35 @@ def get_hp_config():
     """
     
     hyperparameters = {
+        # Temporal configuration
         "steps": [*range(1, 36 + 1, 1)],
+        "input_chunk_length": 48,  # Longer context for conflict patterns
+        "output_chunk_shift": 0,
+        
+        # Inference settings
         "num_samples": 500,
         "mc_dropout": True,
 
+        # Training basics
         "batch_size": 64,
-        "decoder_output_dim": 32,
-        "delta": 0.1425562139624501,
-        "dropout": 0.4,
-        "early_stopping_min_delta": 0.005,
-        "early_stopping_patience": 10,
-        "false_negative_weight": 6.808821877873163,
-        "false_positive_weight": 1.560537933024682,
-        "feature_scaler": "RobustScaler",
+        "n_epochs": 300,
+        "early_stopping_min_delta": 0.001,
+        "early_stopping_patience": 12,
+        "gradient_clip_val": 0.8,
         "force_reset": True,
-        "gradient_clip_val": 0.91744867128012,
-        "hidden_size": 64,
-        "input_chunk_length": 36,
+        "random_state": 67,
+
+        # Optimizer settings
+        "lr": 1e-4,
+        "weight_decay": 5e-4,
+        "lr_scheduler_factor": 0.3,
+        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_patience": 5,
+
+        # Scaling - AsinhTransform is optimal for zero-inflated targets
+        "feature_scaler": "RobustScaler",
+        "target_scaler": "AsinhTransform",  # Best for zero-inflated data
+        "log_targets": False,  # AsinhTransform handles this
         "log_features": [
             "lr_ged_sb",
             "lr_ged_ns",
@@ -41,28 +53,28 @@ def get_hp_config():
             "lr_wdi_sp_dyn_imrt_fe_in",
             "lr_wdi_ny_gdp_mktp_kd"
         ],
-        "log_targets": True,
-        "loss_function": "WeightedPenaltyHuberLoss",
-        "lr": 0.00014739725450640124,
-        "lr_scheduler_factor": 0.38192257067339064,
-        "lr_scheduler_min_lr": 0.00001,
-        "lr_scheduler_patience": 7,
-        "n_epochs": 300,
-        "non_zero_weight": 6.9673927758239085,
+
+        # TiDE Architecture - optimized for conflict forecasting
+        "num_encoder_layers": 2,
         "num_decoder_layers": 2,
-        "num_encoder_layers": 1,
-        "output_chunk_shift": 0,
-        "random_state": 2023,
-        "target_scaler": "RobustScaler",
-        "temporal_decoder_hidden": 128,
-        "temporal_hidden_size_future": None,
-        "temporal_hidden_size_past": 16,
-        "temporal_width_future": 6,
+        "decoder_output_dim": 32,
+        "hidden_size": 128,
         "temporal_width_past": 4,
+        "temporal_width_future": 4,
+        "temporal_hidden_size_past": 32,
+        "temporal_hidden_size_future": 32,
+        "temporal_decoder_hidden": 64,
         "use_layer_norm": True,
-        "use_static_covariates": False,
-        "weight_decay": 0.0007039914716229751,
-        "zero_threshold": 0.28929505832987634
+        "dropout": 0.3,
+        "use_static_covariates": False,  # Country/priogrid info helps
+        "use_reversible_instance_norm": True,  # Critical for non-stationary conflict data
+
+        # Loss function - ZeroInflatedLoss for sparse conflict data
+        "loss_function": "ZeroInflatedLoss",
+        "zero_weight": 1.0,        # Weight for zero/non-zero classification
+        "count_weight": 2.0,       # Weight for intensity prediction
+        "delta": 0.5,              # Huber delta for count component
+        "zero_threshold": 0.01,    # Threshold for zero classification
     }
 
 
