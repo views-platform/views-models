@@ -26,6 +26,6 @@ if __name__ == "__main__":
     args = parse_args()
     validate_arguments(args)
     if args.sweep:
-        DartsLikelihoodForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
     else:
-        DartsLikelihoodForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)
+        DartsForecastingModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)
