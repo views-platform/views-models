@@ -31,7 +31,7 @@ def get_hp_config():
         "early_stopping_threshold": 0.01,  # Improvement must > 1% to be considered
         "metric_for_best_model": "eval_loss",
         "metrics": ["accuracy", "f1"],
-        "doccano_url": "http://localhost:8888",  # "doccano_url": "http://localhost:5900",
+        "doccano_url": "http://localhost:8000",  # "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
         "project_name": [
