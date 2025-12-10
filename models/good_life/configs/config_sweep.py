@@ -73,9 +73,10 @@ def get_sweep_config():
         # - MinMaxScaler: Bounded percentages (0-100), V-Dem indices (0-1), topic proportions
         # - StandardScaler: Growth rates (normal-ish, can be negative)
         # - SqrtTransform: Mortality rates (positive, moderate skew)
+        # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform', 'RobustScaler']},
-        'log_targets': {'values': [False, True]},  # Asinh handles zeros and skew
+        'target_scaler': {'values': ['AsinhTransform']},  # AsinhTransform best for zero-inflated
+        'log_targets': {'values': [False]},  # NEVER True with AsinhTransform - causes NaN!
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
@@ -133,13 +134,14 @@ def get_sweep_config():
 
         # ============== TRANSFORMER ARCHITECTURE ==============
         # Note: d_model must be divisible by nhead
-        'd_model': {'values': [64, 128, 256]},  # Embedding dimension
-        'nhead': {'values': [4, 8]},  # Attention heads (d_model / nhead should be reasonable)
-        'num_encoder_layers': {'values': [2, 3, 4]},  # Moderate depth
-        'num_decoder_layers': {'values': [2, 3, 4]},
-        'dim_feedforward': {'values': [256, 512, 768]},  # FFN dimension
-        'dropout': {'values': [0.2, 0.3, 0.4]},  # Higher dropout for sparse data
-        'activation': {'values': ['relu', 'gelu']},
+        # Constraint: d_model / nhead >= 16 for stable attention (avoid 64/8=8 which can cause NaN)
+        'd_model': {'values': [128, 256]},  # Larger embedding dims more stable
+        'nhead': {'values': [4, 8]},  # 128/4=32, 128/8=16, 256/4=64, 256/8=32 - all safe
+        'num_encoder_layers': {'values': [2, 3]},  # Moderate depth, less prone to vanishing gradients
+        'num_decoder_layers': {'values': [2, 3]},
+        'dim_feedforward': {'values': [256, 512]},  # FFN dimension
+        'dropout': {'values': [0.2, 0.3]},  # Moderate dropout
+        'activation': {'values': ['gelu']},  # GELU more stable than ReLU for transformers
         'norm_type': {'values': ['LayerNorm']},  # LayerNorm standard for transformers
         'use_reversible_instance_norm': {'values': [True]},  # Helps with non-stationarity
 
