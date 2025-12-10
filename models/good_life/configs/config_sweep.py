@@ -75,6 +75,7 @@ def get_sweep_config():
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         'feature_scaler': {'values': [None]},
         'target_scaler': {'values': ['AsinhTransform', 'RobustScaler']},
+        'log_targets': {'values': [False, True]},  # Asinh handles zeros and skew
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
