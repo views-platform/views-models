@@ -25,51 +25,51 @@ def get_sweep_config():
         "batch_size": {"values": [32, 64, 128, 256, 512]},
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-6,
-            "max": 1e-3,
+            "min": 1e-5,
+            "max": 1e-2,
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
-            "min": 1e-6,
+            "min": 1e-5,
             "max": 1e-2,
         },
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [6]},
         'feature_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler',  None]
+            'values': ['MinMaxScaler', 'MaxAbsScaler']
         },
         'target_scaler': {
-            'values': ['MinMaxScaler', 'MaxAbsScaler',  None]
+            'values': ['MinMaxScaler', 'MaxAbsScaler']
         },
         
         # TSMixer-specific parameters
-        "num_blocks": {"values": [1, 2, 3, 4, 5, 6]},
-        "ff_size": {"values": [2, 4, 8, 16, 32, 64, 128, 256]},
-        "hidden_size": {"values": [2, 4, 8, 16, 32, 64, 128, 256]},
+        "num_blocks": {"values": [2, 3, 4, 5, 6, 8]},
+        "ff_size": {"values": [32, 64, 128, 256]},
+        "hidden_size": {"values": [16, 32, 64, 128, 256]},
         "activation": {"values": ['ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU']},
-        "dropout": {"values": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]},
+        "dropout": {"values": [0.0, 0.1, 0.2, 0.3]},
         "norm_type": {"values": ["LayerNorm", "LayerNormNoBias", "TimeBatchNorm2d"]},
         "normalize_before": {"values": [True, False]},
         
         # Loss function configuration
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-        "zero_threshold": {"distribution": "uniform", "min": 0.001, "max": 0.3},
+        "zero_threshold": {"distribution": "uniform", "min": 0.01, "max": 0.2},
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 15.0,
+            "min": 1.0,
+            "max": 5.0,
         },
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 15.0,
+            "min": 1.0,
+            "max": 5.0,
         },
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 15.0,
+            "max": 5.0,
         },
-        "delta": {"distribution": "uniform", "min": 0.01, "max": 5.0},
+        "delta": {"distribution": "uniform", "min": 0.1, "max": 1.0},
     }
 
     sweep_config['parameters'] = parameters_dict
