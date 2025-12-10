@@ -9,7 +9,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_focus",
+        "name": "heat_waves_tft_sonja",
         "early_terminate": {"type": "hyperband", "min_iter": 10, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
