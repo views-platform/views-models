@@ -76,7 +76,7 @@ def get_sweep_config():
         # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
         'feature_scaler': {'values': [None]},
         'target_scaler': {'values': ['AsinhTransform']},  # AsinhTransform best for zero-inflated
-        'log_targets': {'values': [False]},  # NEVER True with AsinhTransform - causes NaN!
+        'log_targets': {'values': [False]},
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
@@ -136,7 +136,7 @@ def get_sweep_config():
         # Note: d_model must be divisible by nhead
         # Constraint: d_model / nhead >= 16 for stable attention (avoid 64/8=8 which can cause NaN)
         'd_model': {'values': [128, 256]},  # Larger embedding dims more stable
-        'nhead': {'values': [4, 8]},  # 128/4=32, 128/8=16, 256/4=64, 256/8=32 - all safe
+        'num_attention_heads': {'values': [4, 8]},  # 128/4=32, 128/8=16, 256/4=64, 256/8=32 - all safe
         'num_encoder_layers': {'values': [2, 3]},  # Moderate depth, less prone to vanishing gradients
         'num_decoder_layers': {'values': [2, 3]},
         'dim_feedforward': {'values': [256, 512]},  # FFN dimension
