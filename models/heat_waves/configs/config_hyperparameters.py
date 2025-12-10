@@ -46,7 +46,7 @@ def get_hp_config():
         "loss_function": "WeightedPenaltyHuberLoss",
         "lr": 0.0001,
         "lstm_layers": 1,
-        "n_epochs": 300,
+        "n_epochs": 2,
         "non_zero_weight": 11.810582310673835,
         "num_attention_heads": 4,
         "target_scaler": "RobustScaler",
