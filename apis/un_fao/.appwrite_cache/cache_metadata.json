@@ -1,0 +1,11 @@
+{
+  "unfao_production_forecasts_68fa256b0008e83cfc7f": {
+    "bucket_id": "unfao_production_forecasts",
+    "file_id": "68fa256b0008e83cfc7f",
+    "path": ".appwrite_cache/unfao_production_forecasts/historical_dataset.parquet",
+    "cached_at": "2025-10-27T07:33:02.871589",
+    "size_bytes": 11077113,
+    "filename": "historical_dataset.parquet",
+    "remote_updated_at": "2025-10-23T12:54:06.376+00:00"
+  }
+}
