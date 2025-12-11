@@ -226,7 +226,7 @@ def generate():
         )
 
     .with_theme('fatalities')
-    .describe("""Predicting lr_ged_sb_dep, cm level
+    .describe("""Predicting lr_ged_sb, cm level
 
                              Queryset with features from various sources, 'joint narrow'
 
