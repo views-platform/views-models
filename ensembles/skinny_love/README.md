@@ -8,9 +8,9 @@ This folder contains code for the Skinny Love model, an ensemble machine learnin
 |---------------------|--------------------------------|
 | **Models** | bad_blood, blank_space, caring_fish, chunky_cat, dark_paradise, invisible_string, lavender_haze, midnight_rain, old_money, orange_pasta, wildest_dream, yellow_pikachu                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -27,6 +27,7 @@ Skinny Love
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 ├── data
 │   ├── generated
 │   ├── processed

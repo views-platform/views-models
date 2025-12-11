@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_natsoc   |
-| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting ln(fatalities) using natural and social geography features    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  blank_space   |
+| **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting fatalities using natural and social geography features    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Blank Space
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

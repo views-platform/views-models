@@ -29,7 +29,7 @@ def get_meta_config():
             "twin_flame",
             "yellow_submarine",
         ],
-        "targets": "ln_ged_sb_dep",
+        "targets": "lr_ged_sb",
         "level": "cm",
         "aggregation": "mean",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],

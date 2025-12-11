@@ -40,6 +40,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Misc.
+appwrite_cache/
+
 # Distribution / packaging
 .Python
 build/
