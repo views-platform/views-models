@@ -9,7 +9,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_sonja",
+        "name": "heat_waves_tft_new_hope",
         "early_terminate": {"type": "hyperband", "min_iter": 10, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -17,10 +17,10 @@ def get_sweep_config():
     parameters = {
         # Temporal horizon & context
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48, 60]},
-        "output_chunk_shift": {"values": [0, 1, 2]},
+        "input_chunk_length": {"values": [18, 24, 48]},
+        "output_chunk_shift": {"values": [0]},
         # Training basics - FIXED: smaller batches, more epochs
-        "batch_size": {"values": [32, 64, 128]},  # Reduced from 256
+        "batch_size": {"values": [256, 512]},  # Reduced from 256
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [15]},
         "early_stopping_min_delta": {"values": [0.001]},
@@ -28,7 +28,7 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5,  # Much lower to prevent explosion
-            "max": 5e-4,  # Lower max for stability
+            "max": 5e-3,  # Lower max for stability
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
@@ -46,33 +46,15 @@ def get_sweep_config():
         "feature_scaler": {"values": ["RobustScaler", "MinMaxScaler"]},
         "target_scaler": {"values": ["RobustScaler"]},
         "log_targets": {"values": [True]},
-        "log_features": {
-            "values": [
-                [
-                    "lr_ged_sb",
-                    "lr_ged_ns",
-                    "lr_ged_os",
-                    "lr_acled_sb",
-                    "lr_acled_os",
-                    "lr_ged_sb_tsum_24",
-                    "lr_splag_1_ged_sb",
-                    "lr_splag_1_ged_os",
-                    "lr_splag_1_ged_ns",
-                    "lr_wdi_sm_pop_netm",
-                    "lr_wdi_sm_pop_refg_or",
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    "lr_wdi_ny_gdp_mktp_kd",
-                ]
-            ]
-        },
+        "log_targets": {"values": [True]},
         # TFT specific architecture - FIXED: more conservative
-        "hidden_size": {"values": [64, 128]},  # Reduced from 256
+        "hidden_size": {"values": [2, 4, 8]},  # Reduced from 256
         "lstm_layers": {"values": [1, 2]},  # Reduced from 4
         "num_attention_heads": {"values": [2, 4]},  # Reduced from 8
         "dropout": {"values": [0.1, 0.2, 0.3]},  # Reduced from 0.3
-        "full_attention": {"values": [True, False]},
+        "full_attention": {"values": [True]},
         "feed_forward": {
-            "values": ["GatedResidualNetwork"]
+            "values": ["ReGLU", "GEGLU", "GLU"]
         },  # dylan: 'GLU', 'Bilinear', 'ReGLU', 'GEGLU', 'SwiGLU', 'ReLU', 'GELU', 'GatedResidualNetwork'
         "add_relative_index": {"values": [True]},
         "use_static_covariates": {"values": [True]},
@@ -83,8 +65,8 @@ def get_sweep_config():
         # Loss function parameters
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
+            "min": -0.3,
+            "max": -0.1,
         },
         "false_positive_weight": {
             "distribution": "uniform",
