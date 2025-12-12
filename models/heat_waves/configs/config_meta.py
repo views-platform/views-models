@@ -6,9 +6,9 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
+
     meta_config = {
-        "name": "heat_waves", 
+        "name": "heat_waves",
         "algorithm": "TFTModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "targets": ["lr_ged_sb_dep"],
