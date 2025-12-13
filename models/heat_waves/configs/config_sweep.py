@@ -9,7 +9,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_new_hope",
+        "name": "heat_waves_tft_seed",
         "early_terminate": {"type": "hyperband", "min_iter": 10, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -18,6 +18,7 @@ def get_sweep_config():
         # Temporal horizon & context
         "steps": {"values": [[*range(1, 36 + 1)]]},
         "input_chunk_length": {"values": [18, 24, 48]},
+        "random_state": {"values": [42, 12, 0, 5, 100]},
         "output_chunk_shift": {"values": [0]},
         # Training basics - FIXED: smaller batches, more epochs
         "batch_size": {"values": [256, 512]},  # Reduced from 256
