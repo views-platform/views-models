@@ -15,7 +15,7 @@ def get_hp_config():
         "num_blocks": 1,
         "num_layers": 1,
         "layer_widths": 64,
-        "dropout": 0.10,
+        "dropout": 0.3,
         "input_chunk_length": 24,
         "output_chunk_shift": 0,
         "batch_size": 8,
