@@ -28,10 +28,10 @@ def get_hp_config():
         "save_total_limit": 1,
         "load_best_model_at_end": True,
         "early_stopping_patience": 3,  # Stop training if no improvement for 3 epochs
-        "early_stopping_threshold": 0.01,  # Improvement must > 1% to be considered
+        "early_stopping_threshold": 0.001,  # Improvement must > 1% to be considered
         "metric_for_best_model": "eval_loss",
         "metrics": ["accuracy", "f1"],
-        "doccano_url": "http://localhost:8000",  # "doccano_url": "http://localhost:5900",
+        "doccano_url": "http://localhost:8888",  # "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
         "project_name": [
