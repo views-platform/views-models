@@ -14,35 +14,37 @@ from views_activelearning.handlers.text import ViewsTextDataset
 
 warnings.filterwarnings("ignore")
 
+
 def start_doccano_server():
     """Start local Doccano instance using docker-compose"""
     try:
-        subprocess.run([
-            "docker-compose", "-f", "docker-compose.prod.yml", 
-            "up", "-d", "--build"
-        ], check=True)
+        subprocess.run(
+            ["docker-compose", "-f", "docker-compose.prod.yml", "up", "-d", "--build"],
+            check=True,
+        )
         print("Doccano server started successfully")
     except subprocess.CalledProcessError as e:
         print(f"Error starting Doccano: {e}")
+
 
 def set_global_determinism(seed: int):
     """Sets global seeds and PyTorch deterministic flags."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    
+
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-        
+
         # CUDNN Determinism Flags
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        
+
         # May cause RuntimeError if a required deterministic kernel is missing.
         torch.use_deterministic_algorithms(True)
 
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-        
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 
 if __name__ == "__main__":
     set_global_determinism(seed=42)
@@ -55,13 +57,12 @@ if __name__ == "__main__":
 
     if os.getenv("START_DOCCANO", "false").lower() == "true":
         start_doccano_server()
-    
-    # Initialize dataset with multi-label support
-    # dataframe = read_dataframe('/home/sonja/Downloads/acled_tenthousand.csv')
-    HOME = Path.home()
-    file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/acled_tenthousand.csv'
-    dataframe = read_dataframe(file_path)
 
+    # Initialize dataset with multi-label support
+    dataframe = read_dataframe("/home/sonja/Downloads/acled_tenthousand.csv")
+    # HOME = Path.home()
+    # file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/acled_tenthousand.csv'
+    # dataframe = read_dataframe(file_path)
 
     # --- OPTIONAL INFERENCE DATA ---
     inference_df = None
@@ -85,7 +86,6 @@ if __name__ == "__main__":
         ),
     )
 
-
     manager.run(
         args=args,
         inference_df=inference_df,
@@ -93,9 +93,7 @@ if __name__ == "__main__":
         inference_id_col=inference_id_col,
     )
 
-    
-
-    #ALModelManager(
-    #    model_path=model_path, 
+    # ALModelManager(
+    #    model_path=model_path,
     #    dataset=partial(ViewsTextDataset, dataframe=dataframe.head(5000), text_col="notes", id_col="event_id_cnty", label_col=None) #text_col="plain_text", id_col="event_id_in_acled"
-    #).run(args=args)
+    # ).run(args=args)
