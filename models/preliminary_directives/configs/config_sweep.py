@@ -8,7 +8,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'new_rules_nbeats_blocks_test',
+        'name': 'preliminary_directives_nbeats_blocks_test',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'

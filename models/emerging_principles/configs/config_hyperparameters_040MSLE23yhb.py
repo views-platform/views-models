@@ -8,19 +8,19 @@ def get_hp_config():
 
     hyperparameters = {
         # --- From Best Old Model ---
-        "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+        "steps": [*range(1, 36 + 1, 1)],
         "activation": "LeakyReLU",
         "generic_architecture": True,
         "num_stacks": 1,
-        "num_blocks": 6,
+        "num_blocks": 1,
         "num_layers": 1,
-        "layer_widths": 16,
+        "layer_widths": 64,
         "dropout": 0.3,
         "input_chunk_length": 24,
         "output_chunk_shift": 0,
         "batch_size": 8,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 10,
         "early_stopping_min_delta": 0.001,
         "lr": 0.0005873328851386325,
         "weight_decay": 0.0003292268280079564,
@@ -48,36 +48,6 @@ def get_hp_config():
         "force_reset": True,
         "num_samples": 1,
         "mc_dropout": True,
-        "input_dim": 72,
-        "nr_params": 1,
-        "batch_norm": False,
-        "likelihood": None,
-        "output_dim": 1,
-        "optimizer_cls": "Adam",
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "optimizer_kwargs": {
-            "lr": 0.0005873328851386325,
-            "weight_decay": 0.0003292268280079564
-        },
-        "train_sample_shape": [
-            [24, 1],
-            [24, 71],
-            None,
-            None,
-            None,
-            [36, 1]
-        ],
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.46300979785707297,
-            "min_lr": 0.00001,
-            "monitor": "train_loss",
-            "patience": 7
-        },
-        "output_chunk_length": 36,
-        "trend_polynomial_degree": 2,
-        "expansion_coefficient_dim": 5,
-        "use_reversible_instance_norm": False,
     }
 
     return hyperparameters
