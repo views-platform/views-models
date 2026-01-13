@@ -61,7 +61,8 @@ if __name__ == "__main__":
         start_doccano_server()
 
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe("/home/sonja/Downloads/acled_tenthousand.csv")
+    dataframe = read_dataframe("/home/sonja/Desktop/Kristine_MT/data/acled_train.csv")
+    # dataframe = read_dataframe("/home/sonja/Downloads/icr_examples.csv")
     # HOME = Path.home()
     # file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
     # dataframe = read_dataframe(file_path)
@@ -73,6 +74,7 @@ if __name__ == "__main__":
 
     if getattr(args, "inference", False) and getattr(args, "inference_data", None):
         inference_df = read_dataframe(args.inference_data)
+        inference_df = inference_df.head(2000)  # limit for testing
         # define columns IN main.py as you wanted
         inference_text_col = args.inference_text_col or "notes"
         inference_id_col = args.inference_id_col or "event_id_cnty"

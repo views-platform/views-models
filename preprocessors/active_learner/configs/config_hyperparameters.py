@@ -16,22 +16,22 @@ def get_hp_config():
         "random_seed": 42,
         "llm": "snowood1/ConfliBERT-scr-uncased",
         "max_samples": 2000,
-        "batch_size": 8,  # 100
+        "batch_size": 16,  # 100
         "dropout_prob": 0.1,
         "monte_carlo_runs": 100,
         "learning_rate": 1e-5,
         "num_train_epochs": 10,
-        "evaluation_strategy": "steps",
-        "eval_steps": 10,
-        "save_strategy": "steps",
-        "save_steps": 10,
+        "evaluation_strategy": "epoch",
+        # "eval_steps": 250,
+        "save_strategy": "epoch",
+        # "save_steps": 250,
         "save_total_limit": 1,
         "load_best_model_at_end": True,
         "early_stopping_patience": 3,  # Stop training if no improvement for 3 epochs
         "early_stopping_threshold": 0.001,  # Improvement must > 1% to be considered
         "metric_for_best_model": "eval_loss",
         "metrics": ["accuracy", "f1"],
-        "doccano_url": "http://localhost:8888",  # "doccano_url": "http://localhost:5900",
+        "doccano_url": "http://localhost:8000",  # "doccano_url": "http://localhost:5900",
         "doccano_user": "admin",
         "doccano_password": "password",
         "project_name": [
@@ -318,7 +318,7 @@ def get_hp_config():
         },
         # --- Augmentation settings ---
         "augmentation": {
-            "model": "gemma3:27b",
+            "model": "gemma2:2b",
             "strategies": {
                 "synonym": {
                     "enabled": False,
@@ -340,6 +340,7 @@ def get_hp_config():
                 },
             },
         },
+        "event_extraction": False,
     }
     return hyperparameters
 
