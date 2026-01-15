@@ -243,6 +243,7 @@ cython_debug/
 
 # txt logs
 *.txt
+!requirements.txt
 
 # logs
 *.log
