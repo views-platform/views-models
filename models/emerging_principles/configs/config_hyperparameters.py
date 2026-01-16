@@ -7,27 +7,27 @@ def get_hp_config():
     """
 
     hyperparameters = {
-        # --- From Best Old Model ---
+        "random_state": 1,
         "steps": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
         "activation": "LeakyReLU",
         "generic_architecture": True,
         "num_stacks": 1,
         "num_blocks": 1,
-        "num_layers": 3,
-        "layer_widths": 128,
+        "num_layers": 1,
+        "layer_widths": 64,
         "dropout": 0.3,
         "input_chunk_length": 24,
         "output_chunk_shift": 0,
         "batch_size": 8,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
-        "lr": 0.0005873328851386325,
-        "weight_decay": 0.0003292268280079564,
-        "lr_scheduler_factor": 0.46300979785707297,
+        "lr": 0.0005287407010658105,
+        "weight_decay": 0.0003986664896562576,
+        "lr_scheduler_factor": 0.463,
         "lr_scheduler_min_lr": 0.00001,
         "lr_scheduler_patience": 7,
-        "gradient_clip_val": 0.6336557913524701,
+        "gradient_clip_val": 0.7385327252940406,
         "feature_scaler": "MinMaxScaler",
         "target_scaler": "MinMaxScaler",
         "log_targets": True,
@@ -40,10 +40,10 @@ def get_hp_config():
             "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
         ],
         "loss_function": "WeightedPenaltyHuberLoss",
-        "delta": 0.129050050430042,
-        "zero_threshold": 0.12953171739852642,
-        "false_positive_weight": 1.4269851202559674,
-        "false_negative_weight": 3.8819100926929138,
+        "delta": 0.1062374241948369,
+        "zero_threshold": 0.12865748805363353,
+        "false_positive_weight": 1.5966931712838135,
+        "false_negative_weight": 5.259843624858069,
         "non_zero_weight": 2.504275866632825,
         "force_reset": True,
         "num_samples": 1,
@@ -56,8 +56,8 @@ def get_hp_config():
         "optimizer_cls": "Adam",
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "optimizer_kwargs": {
-            "lr": 0.0005873328851386325,
-            "weight_decay": 0.0003292268280079564
+            "lr": 0.0005287407010658105,
+            "weight_decay": 0.0003986664896562576
         },
         "train_sample_shape": [
             [24, 1],
@@ -69,7 +69,7 @@ def get_hp_config():
         ],
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.46300979785707297,
+            "factor": 0.463,
             "min_lr": 0.00001,
             "monitor": "train_loss",
             "patience": 7
