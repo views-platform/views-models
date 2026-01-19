@@ -35,9 +35,9 @@ def get_sweep_config():
         'output_chunk_length': {'values': [36]},
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [64, 128, 256]},
+        'batch_size': {'values': [32, 64, 128, 256]},
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [12, 15]},  # Transformers need patience
+        'early_stopping_patience': {'values': [15, 25]},  # Transformers need patience
         'early_stopping_min_delta': {'values': [0.001, 0.005]},
         'force_reset': {'values': [True]},
 
@@ -139,7 +139,7 @@ def get_sweep_config():
         'num_attention_heads': {'values': [4, 8]},  # 128/4=32, 128/8=16, 256/4=64, 256/8=32 - all safe
         'num_encoder_layers': {'values': [2, 3]},  # Moderate depth, less prone to vanishing gradients
         'num_decoder_layers': {'values': [2, 3]},
-        'dim_feedforward': {'values': [256, 512]},  # FFN dimension
+        'dim_feedforward': {'values': [256, 512, 1024]},  # FFN dimension
         'dropout': {'values': [0.2, 0.3]},  # Moderate dropout
         'activation': {'values': ['gelu']},  # GELU more stable than ReLU for transformers
         'norm_type': {'values': ['LayerNorm']},  # LayerNorm standard for transformers
