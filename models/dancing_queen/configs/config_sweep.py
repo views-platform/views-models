@@ -32,11 +32,11 @@ def get_sweep_config():
         # ============== TEMPORAL CONFIGURATION ==============
         'steps': {'values': [[*range(1, 36 + 1)]]},
         'input_chunk_length': {'values': [36, 48, 60]},  # RNNs handle long sequences well
-        'output_chunk_shift': {'values': [0]},
+        'ut_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [64, 128, 256]},  # Larger batches stabilize RNN training
-        'n_epochs': {'values': [300]},
+        'batch_size': {'values': [64, 128, 256, 512]},  # Larger batches stabilize RNN training
+        'n_epochs': {'values': [200,300,400]},
         'early_stopping_patience': {'values': [10, 12]},
         'early_stopping_min_delta': {'values': [0.001, 0.005]},
         'force_reset': {'values': [True]},
@@ -64,6 +64,10 @@ def get_sweep_config():
             'min': 0.5,
             'max': 1.0,
         },
+        'lr_scheduler_type': {
+            'values': ['none', 'ReduceLROnPlateau', 'cosine', 'onecycle']
+        },
+
 
         # ============== SCALING ==============
         # RobustScaler as default fallback for unmapped features
@@ -134,7 +138,7 @@ def get_sweep_config():
         'hidden_dim': {'values': [256, 512, 768]},  # Larger for rare event patterns
         'n_rnn_layers': {'values': [2, 3, 4]},  # Deeper for complex temporal patterns
         'activation': {'values': ['ReLU', 'GELU', 'Tanh']},
-        'dropout': {'values': [0.2, 0.3, 0.4]},  # Moderate dropout prevents overfitting on zeros
+        'dropout': {'values': [0.2, 0.3, 0.4, 0.5]},  # Moderate dropout prevents overfitting on zeros
         'use_reversible_instance_norm': {'values': [True]},  # Helps with non-stationary conflict
 
         # ============== LOSS FUNCTION ==============
@@ -148,8 +152,8 @@ def get_sweep_config():
         },
         'delta': {
             'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 0.8,
+            'min': 0.05, #0.1,
+            'max': 2.0, #0.8,
         },
         'non_zero_weight': {
             'distribution': 'uniform',
