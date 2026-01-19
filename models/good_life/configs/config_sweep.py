@@ -42,11 +42,11 @@ def get_sweep_config():
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # Transformers need lower learning rates for stability
+        # Transformers need VERY low learning rates for stability - NaN if too high!
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 2e-4,
+            'min': 1e-6,
+            'max': 5e-5,  # Much lower max to prevent NaN
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
@@ -55,15 +55,16 @@ def get_sweep_config():
         },
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.4,
+            'min': 0.3,
+            'max': 0.6,
         },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6]},
+        'lr_scheduler_patience': {'values': [5, 7, 10]},
+        'lr_scheduler_min_lr': {'values': [1e-7]},
+        # Tight gradient clipping critical for Transformer stability
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
+            'min': 0.1,
+            'max': 0.5,  # Much tighter to prevent explosion
         },
 
         # ============== SCALING ==============
@@ -133,14 +134,14 @@ def get_sweep_config():
         },
 
         # ============== TRANSFORMER ARCHITECTURE ==============
-        # Note: d_model must be divisible by nhead
-        # Constraint: d_model / nhead >= 16 for stable attention (avoid 64/8=8 which can cause NaN)
-        'd_model': {'values': [128, 256]},  # Larger embedding dims more stable
-        'num_attention_heads': {'values': [4, 8]},  # 128/4=32, 128/8=16, 256/4=64, 256/8=32 - all safe
-        'num_encoder_layers': {'values': [2, 3]},  # Moderate depth, less prone to vanishing gradients
-        'num_decoder_layers': {'values': [2, 3]},
-        'dim_feedforward': {'values': [256, 512, 1024]},  # FFN dimension
-        'dropout': {'values': [0.2, 0.3]},  # Moderate dropout
+        # CRITICAL: d_model / nhead >= 32 for stable attention (16 causes NaN!)
+        # Safe combos: 128/4=32, 256/4=64, 256/8=32. AVOID 128/8=16!
+        'd_model': {'values': [256]},  # Larger d_model more stable, start with 256 only
+        'num_attention_heads': {'values': [4, 8]},  # 256/4=64, 256/8=32 - both safe
+        'num_encoder_layers': {'values': [1, 2]},  # Shallower to prevent gradient issues
+        'num_decoder_layers': {'values': [1, 2]},
+        'dim_feedforward': {'values': [512, 1024]},  # 2-4x d_model is standard
+        'dropout': {'values': [0.1, 0.2]},  # Lower dropout helps with NaN issues
         'activation': {'values': ['gelu']},  # GELU more stable than ReLU for transformers
         'norm_type': {'values': ['LayerNorm']},  # LayerNorm standard for transformers
         'use_reversible_instance_norm': {'values': [True]},  # Helps with non-stationarity
