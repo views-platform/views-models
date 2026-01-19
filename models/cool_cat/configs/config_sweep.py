@@ -15,7 +15,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_sweep_week_dylan',
+        'name': 'cool_cat_tide_chained_scalers',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 15,
@@ -72,7 +72,7 @@ def get_sweep_config():
         # - StandardScaler: Growth rates (normal-ish, can be negative)
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform', 'RobustScaler']},
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler', 'RobustScaler']},
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes

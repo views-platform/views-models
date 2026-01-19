@@ -1,4 +1,3 @@
-
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -9,73 +8,132 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        # Temporal configuration
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 48,  # Longer context for conflict patterns
-        "output_chunk_shift": 0,
-        
-        # Inference settings
         "num_samples": 500,
         "mc_dropout": True,
 
-        # Training basics
         "batch_size": 64,
-        "n_epochs": 300,
-        "early_stopping_min_delta": 0.001,
-        "early_stopping_patience": 12,
-        "gradient_clip_val": 0.8,
+        "decoder_output_dim": 64,
+        "delta": 0.5040077285176587,
+        "dropout": 0.4,
+        "early_stopping_min_delta": 0.002,
+        "early_stopping_patience": 15,
+        "false_negative_weight": 4.268824908707432,
+        "false_positive_weight": 1.912926430805426,
+        "feature_scaler": None,
+        "feature_scaler_map": {
+            "AsinhTransform": [
+                "ged_sb",
+                "ged_sb_dep",
+                "ged_ns",
+                "ged_os",
+                "acled_sb",
+                "acled_sb_count",
+                "acled_os",
+                "ged_sb_tsum_24",
+                "splag_1_ged_sb",
+                "splag_1_ged_os",
+                "splag_1_ged_ns",
+                "wdi_ny_gdp_mktp_kd",
+                "wdi_nv_agr_totl_kn",
+                "wdi_sm_pop_netm",
+                "wdi_sm_pop_refg_or",
+            ],
+            "MinMaxScaler": [
+                "wdi_sl_tlf_totl_fe_zs",
+                "wdi_se_enr_prim_fm_zs",
+                "wdi_sp_urb_totl_in_zs",
+                "wdi_sh_sta_maln_zs",
+                "wdi_sh_sta_stnt_zs",
+                "wdi_dt_oda_odat_pc_zs",
+                "wdi_ms_mil_xpnd_gd_zs",
+                "vdem_v2x_horacc",
+                "vdem_v2xnp_client",
+                "vdem_v2x_veracc",
+                "vdem_v2x_divparctrl",
+                "vdem_v2xpe_exlpol",
+                "vdem_v2x_diagacc",
+                "vdem_v2xpe_exlgeo",
+                "vdem_v2xpe_exlgender",
+                "vdem_v2xpe_exlsocgr",
+                "vdem_v2x_ex_party",
+                "vdem_v2x_genpp",
+                "vdem_v2xeg_eqdr",
+                "vdem_v2xcl_prpty",
+                "vdem_v2xeg_eqprotec",
+                "vdem_v2x_ex_military",
+                "vdem_v2xcl_dmove",
+                "vdem_v2x_clphy",
+                "vdem_v2x_hosabort",
+                "vdem_v2xnp_regcorr",
+                "topic_ste_theta0",
+                "topic_ste_theta1",
+                "topic_ste_theta2",
+                "topic_ste_theta3",
+                "topic_ste_theta4",
+                "topic_ste_theta5",
+                "topic_ste_theta6",
+                "topic_ste_theta7",
+                "topic_ste_theta8",
+                "topic_ste_theta9",
+                "topic_ste_theta10",
+                "topic_ste_theta11",
+                "topic_ste_theta12",
+                "topic_ste_theta13",
+                "topic_ste_theta14",
+                "topic_ste_theta0_stock_t1_splag",
+                "topic_ste_theta1_stock_t1_splag",
+                "topic_ste_theta2_stock_t1_splag",
+                "topic_ste_theta3_stock_t1_splag",
+                "topic_ste_theta4_stock_t1_splag",
+                "topic_ste_theta5_stock_t1_splag",
+                "topic_ste_theta6_stock_t1_splag",
+                "topic_ste_theta7_stock_t1_splag",
+                "topic_ste_theta8_stock_t1_splag",
+                "topic_ste_theta9_stock_t1_splag",
+                "topic_ste_theta10_stock_t1_splag",
+                "topic_ste_theta11_stock_t1_splag",
+                "topic_ste_theta12_stock_t1_splag",
+                "topic_ste_theta13_stock_t1_splag",
+                "topic_ste_theta14_stock_t1_splag",
+            ],
+            "RobustScaler": [
+                "topic_tokens_t1",
+                "topic_tokens_t1_splag",
+            ],
+            "SqrtTransform": [
+                "wdi_sp_dyn_imrt_fe_in",
+            ],
+            "StandardScaler": [
+                "wdi_sp_pop_grow",
+            ],
+        },
         "force_reset": True,
-        "random_state": 67,
-
-        # Optimizer settings
-        "lr": 1e-4,
-        "weight_decay": 5e-4,
-        "lr_scheduler_factor": 0.3,
-        "lr_scheduler_min_lr": 1e-6,
-        "lr_scheduler_patience": 5,
-
-        # Scaling - AsinhTransform is optimal for zero-inflated targets
-        "feature_scaler": "RobustScaler",
-        "target_scaler": "AsinhTransform",  # Best for zero-inflated data
-        "log_targets": False,  # AsinhTransform handles this
-        "log_features": [
-            "lr_ged_sb",
-            "lr_ged_ns",
-            "lr_ged_os",
-            "lr_acled_sb",
-            "lr_acled_os",
-            "lr_ged_sb_tsum_24",
-            "lr_splag_1_ged_sb",
-            "lr_splag_1_ged_os",
-            "lr_splag_1_ged_ns",
-            "lr_wdi_sm_pop_netm",
-            "lr_wdi_sm_pop_refg_or",
-            "lr_wdi_sp_dyn_imrt_fe_in",
-            "lr_wdi_ny_gdp_mktp_kd"
-        ],
-
-        # TiDE Architecture - optimized for conflict forecasting
-        "num_encoder_layers": 2,
-        "num_decoder_layers": 2,
-        "decoder_output_dim": 32,
-        "hidden_size": 128,
+        "gradient_clip_val": 0.7874044462791248,
+        "hidden_size": 256,
+        "input_chunk_length": 36,
+        "loss_function": "WeightedPenaltyHuberLoss",
+        "lr": 0.0004711630970575593,
+        "lr_scheduler_factor": 0.2710489325585236,
+        "lr_scheduler_min_lr": 0.000001,
+        "lr_scheduler_patience": 4,
+        "n_epochs": 300,
+        "non_zero_weight": 3.369225106876461,
+        "num_decoder_layers": 1,
+        "num_encoder_layers": 3,
+        "output_chunk_shift": 0,
+        "random_state": 2023,
+        "target_scaler": "AsinhTransform",
+        "temporal_decoder_hidden": 32,
+        "temporal_hidden_size_future": 64,
+        "temporal_hidden_size_past": 64,
+        "temporal_width_future": 8,
         "temporal_width_past": 4,
-        "temporal_width_future": 4,
-        "temporal_hidden_size_past": 32,
-        "temporal_hidden_size_future": 32,
-        "temporal_decoder_hidden": 64,
         "use_layer_norm": True,
-        "dropout": 0.3,
-        "use_static_covariates": False,  # Country/priogrid info helps
-        "use_reversible_instance_norm": True,  # Critical for non-stationary conflict data
-
-        # Loss function - ZeroInflatedLoss for sparse conflict data
-        "loss_function": "ZeroInflatedLoss",
-        "zero_weight": 1.0,        # Weight for zero/non-zero classification
-        "count_weight": 2.0,       # Weight for intensity prediction
-        "delta": 0.5,              # Huber delta for count component
-        "zero_threshold": 0.01,    # Threshold for zero classification
+        "use_reversible_instance_norm": True,
+        "use_static_covariates": True,
+        "weight_decay": 0.0009021260079531008,
+        "zero_threshold": 0.09543950140679763,
     }
-
 
     return hyperparameters
