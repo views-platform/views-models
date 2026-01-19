@@ -42,8 +42,8 @@ def get_sweep_config():
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        # Larger batches for stable gradients with highly sparse data
-        'batch_size': {'values': [128, 256, 512]},
+        # Smaller batches for memory efficiency (~80GB RAM)
+        'batch_size': {'values': [32, 64, 128]},
         'n_epochs': {'values': [200]},  # Fewer epochs, more data per epoch
         'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for noisy loss
         'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Finer convergence detection
