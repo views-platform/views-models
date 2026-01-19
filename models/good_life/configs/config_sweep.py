@@ -16,7 +16,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'good_life_transformer_sweep_week_dylan',
+        'name': 'good_life_transformer_chained_scalers_cm',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 12,
@@ -74,13 +74,13 @@ def get_sweep_config():
         # - StandardScaler: Growth rates (normal-ish, can be negative)
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
-        'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform']},  # AsinhTransform best for zero-inflated
         'log_targets': {'values': [False]},
+        'feature_scaler': {'values': [None]},
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler', 'RobustScaler->MinMaxScaler']},
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
-                "AsinhTransform": [
+                "AsinhTransform->MinMaxScaler": [
                     "ged_sb", "ged_sb_dep", "ged_ns", "ged_os",
                     "acled_sb", "acled_sb_count", "acled_os",
                     "ged_sb_tsum_24",
@@ -118,15 +118,15 @@ def get_sweep_config():
                     "topic_ste_theta14_stock_t1_splag"
                 ],
                 # Growth rates (can be negative, roughly normal)
-                "StandardScaler": [
+                "StandardScaler->MinMaxScaler": [
                     "wdi_sp_pop_grow"
                 ],
                 # Mortality rates (positive, moderate skew)
-                "SqrtTransform": [
+                "SqrtTransform->MinMaxScaler": [
                     "wdi_sp_dyn_imrt_fe_in"
                 ],
                 # Token counts (moderate skew)
-                "RobustScaler": [
+                "RobustScaler->MinMaxScaler": [
                     "topic_tokens_t1", "topic_tokens_t1_splag"
                 ]
             }]
