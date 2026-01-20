@@ -19,7 +19,7 @@ def generate():
     def _add_minimal_features(queryset: Queryset) -> Queryset:
         return queryset.with_column(
             Column(
-                "lr_ged_sb_dep",
+                "lr_ged_sb",
                 from_loa="country_month",
                 from_column="ged_sb_best_sum_nokgi",
             ).transform.missing.fill()
