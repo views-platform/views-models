@@ -10,33 +10,42 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        "log_targets": True,
         
-        # classic-sweep-120
-        "activation": "Tanh",
-        "batch_size": 32,
-        "delta": 0.18801030586157305,
-        "dropout": 0.3,
-        "early_stopping_patience": 6,
-        "false_negative_weight": 3.301437035350488,
-        "false_positive_weight": 4.293752976960905,
-        "feature_scaler": None,
-        "ff_size": 64,
-        "hidden_size": 128,
-        "input_chunk_length": 36,
-        # "loss_function": "WeightedPenaltyHuberLoss",
-        "likelihood_function": "zinb_likelihood",
-        "lr": 0.00004713247142351203,
-        "n_epochs": 300,
-        "non_zero_weight": 4.7850572475316415,
-        "norm_type": "TimeBatchNorm2d",
-        "normalize_before": False,
-        "num_blocks": 3,
-        "target_scaler": None,
-        "weight_decay": 0.007733920154915341,
-        "zero_threshold": 0.08236470534880172,
+        "log_targets": True,  
+        "feature_scaler": "MinMaxScaler", 
+        "target_scaler": None,  
 
+        # Model architecture 
+        "activation": "ReLU",
+        "batch_size": 128,
+        "dropout": 0.3,
+        "ff_size": 128,
+        "hidden_size": 128,
+        "input_chunk_length": 36, 
+        "norm_type": "TimeBatchNorm2d",
+        "normalize_before": True,
+        "num_blocks": 2,
+        
+        # Training params 
+        "n_epochs": 300,
+        "lr": 0.0004409588821525886,
+        "weight_decay": 0.00000651940711962416,
+        "early_stopping_patience": 20,
+        "early_stopping_min_delta": 0.01,
+        "gradient_clip_val": 0.1, 
+        
+        # Loss function: WeightedPenaltyHuberLoss
+        "loss_function": "WeightedPenaltyHuberLoss",
+        "non_zero_weight": 9.928451099354408,
+        "false_positive_weight": 2.1913572944255617,
+        "false_negative_weight": 7.396545661266665,
+        "delta": 0.15094303659874916,
+        "zero_threshold": 0.09818129846394924,
+
+        # Prediction params
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": True
     }
     return hyperparameters
+
+   
