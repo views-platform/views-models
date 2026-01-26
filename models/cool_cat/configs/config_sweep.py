@@ -15,7 +15,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_chained_scalers_cm_2',
+        'name': 'cool_cat_tide_cm_rinF',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 15,

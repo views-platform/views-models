@@ -22,7 +22,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'warm_cat_tide_chained_scalers_pgm',
+        'name': 'warm_cat_tide_pgm',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 20,  # More iterations needed for large-scale convergence
@@ -124,10 +124,10 @@ def get_sweep_config():
         'temporal_decoder_hidden': {'values': [16, 32, 64]},
         
         # Regularization & normalization - stronger for sparse data
-        'use_layer_norm': {'values': [True]},  # Critical for stability
+        'use_layer_norm': {'values': [True, False]},  # Critical for stability
         'dropout': {'values': [0.3, 0.4, 0.5]},  # Higher dropout for sparse data
         'use_static_covariates': {'values': [False]},  # Disable for memory with 60k series
-        'use_reversible_instance_norm': {'values': [True]},  # Critical for non-stationary conflict
+        'use_reversible_instance_norm': {'values': [False]},  # Critical for non-stationary conflict
 
         # ============== LOSS FUNCTION ==============
         # WeightedPenaltyHuberLoss optimized for heavily zero-inflated priogrid data
