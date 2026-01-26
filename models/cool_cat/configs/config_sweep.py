@@ -143,10 +143,10 @@ def get_sweep_config():
         'temporal_decoder_hidden': {'values': [32, 64, 128]},
         
         # Regularization & normalization
-        'use_layer_norm': {'values': [True]},  # Critical for stability
+        'use_layer_norm': {'values': [True, False]},  # Critical for stability
         'dropout': {'values': [0.2, 0.3, 0.4]},
         'use_static_covariates': {'values': [True, False]},
-        'use_reversible_instance_norm': {'values': [True]},  # Critical for non-stationary conflict
+        'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
