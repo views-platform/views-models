@@ -14,18 +14,26 @@ def get_sweep_config():
     - Uses n_freq_downsample for output interpolation scales
     - Generally faster training with comparable accuracy
     
+    Anti-Smoothing / Maximize y_hat Strategy:
+    - HIGH false_negative_weight: penalize under-prediction heavily
+    - LOW false_positive_weight: don't punish over-prediction
+    - HIGH early_stopping_patience: let model train longer
+    - Lower LR: more stable convergence
+    - Lower delta: more L1-like loss (less mean regression)
+    - Higher dropout: regularization helps avoid local minima
+    
     For conflict forecasting (zero-inflated, sparse events):
     - Moderate num_stacks (2-3) to capture trend/seasonality/residual
     - Low num_blocks (1-2) per stack to avoid overfitting sparse data
     - Moderate layer_width (256-512) - too wide overfits sparse targets
-    - Higher dropout (0.2-0.4) for regularization on imbalanced data
+    - Higher dropout (0.3-0.45) for regularization on imbalanced data
     """
     sweep_config = {
         'method': 'bayes',
-        'name': 'revolving_door_nhits_cm_rinF',
+        'name': 'revolving_door_nhits_aggressive',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 15,
+            'min_iter': 20,  # Let runs go longer
             'eta': 2
         },
         'metric': {
@@ -81,38 +89,40 @@ def get_sweep_config():
         'activation': {'values': ['ReLU', 'GELU']},
         
         # dropout: Regularization (critical for sparse conflict data)
-        # - Higher values (0.2-0.4) help prevent overfitting to rare events
+        # - Higher values (0.3-0.45) help prevent overfitting and avoid smoothing
         'dropout': {
             'distribution': 'uniform',
-            'min': 0.15,
-            'max': 0.35,
+            'min': 0.3,
+            'max': 0.45,
         },
 
         # ============== TRAINING BASICS ==============
         'batch_size': {'values': [64, 128]},  # N-HiTS handles larger batches well
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10, 15]},
-        'early_stopping_min_delta': {'values': [0.001]},
+        'n_epochs': {'values': [400]},  # More epochs
+        'early_stopping_patience': {'values': [18, 22, 25]},  # MUCH HIGHER for anti-smoothing
+        'early_stopping_min_delta': {'values': [0.0005]},  # Tighter threshold
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
+        # Lower LR for stable convergence
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-4,
-            'max': 1e-3,  # N-HiTS typically uses slightly higher LR than TiDE
+            'min': 1e-5,
+            'max': 2e-4,  # Lower upper bound
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
-            'max': 1e-3,
+            'max': 5e-4,
         },
+        # More aggressive LR decay
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.2,
-            'max': 0.5,
+            'min': 0.1,
+            'max': 0.3,
         },
-        'lr_scheduler_patience': {'values': [4, 5, 6]},
-        'lr_scheduler_min_lr': {'values': [1e-6]},
+        'lr_scheduler_patience': {'values': [3, 4, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-7]},
         'gradient_clip_val': {
             'distribution': 'uniform',
             'min': 0.5,
@@ -126,28 +136,37 @@ def get_sweep_config():
         'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
-        # WeightedPenaltyHuberLoss optimized for zero-inflated conflict data
+        # ANTI-SMOOTHING: High FN weight + Low FP weight → pushes predictions UP
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-        'zero_threshold': {'values': [0.01]},  # Below this = "zero" for loss weighting
+        
+        'zero_threshold': {'values': [0.01]},  # Fixed (data-dependent)
+        
+        # Lower delta = more L1-like, less regression to mean
         'delta': {
             'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.7,
+            'min': 0.1,
+            'max': 0.4,
         },
+        
+        # Higher non_zero_weight to focus on predicting events
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
+            'min': 5.0,
+            'max': 10.0,
         },
+        
+        # HIGH FN weight: Heavily penalize under-prediction (KEY for anti-smoothing)
         'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 10.0,
-            'max': 20.0,  # Penalize missing actual conflict heavily
-        },
-        'false_positive_weight': {
             'distribution': 'uniform',
             'min': 5.0,
             'max': 12.0,
+        },
+        
+        # LOW FP weight: Don't punish over-prediction
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 1.0,
+            'max': 2.0,
         },
 
         # ============== SCALING ==============

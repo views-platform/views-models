@@ -9,6 +9,14 @@ def get_sweep_config():
     - Gradient clipping prevents attention collapse
     - Temporal encodings (add_encoders) help capture seasonality
     - Learning rate must be low enough for stable attention learning
+    
+    Anti-Smoothing / Maximize y_hat Strategy:
+    - HIGH false_negative_weight: penalize under-prediction heavily
+    - LOW false_positive_weight: don't punish over-prediction
+    - HIGH early_stopping_patience: let model train longer
+    - Lower LR: more stable convergence
+    - Lower delta: more L1-like loss (less mean regression)
+    - Higher dropout: regularization helps avoid local minima
 
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -16,23 +24,23 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_dylan_cm_rinF",
-        "early_terminate": {"type": "hyperband", "min_iter": 15, "eta": 2},
+        "name": "tft_heat_waves_aggressive",
+        "early_terminate": {"type": "hyperband", "min_iter": 10, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48, 60]},  # Longer context helps TFT
+        "input_chunk_length": {"values": [48, 60, 72]},  # Longer context helps avoid smoothing
         "output_chunk_shift": {"values": [0]},
         
         # ============== TRAINING BASICS ==============
         # Smaller batches help with sparse/zero-inflated data
         "batch_size": {"values": [32, 64]},
-        "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [12, 15]},
-        "early_stopping_min_delta": {"values": [0.0005, 0.001]},
+        "n_epochs": {"values": [400]},  # More epochs
+        "early_stopping_patience": {"values": [18, 22, 25]},  # MUCH HIGHER
+        "early_stopping_min_delta": {"values": [0.0005]},  # Tighter threshold
         "force_reset": {"values": [True]},
         
         # ============== OPTIMIZER / SCHEDULER ==============
@@ -40,19 +48,20 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5,
-            "max": 5e-4,  # REDUCED: high LR causes flat predictions
+            "max": 2e-4,  # Lower upper bound
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
             "min": 1e-5,
             "max": 5e-4,
         },
+        # More aggressive LR decay helps with stable convergence
         "lr_scheduler_factor": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.5,
+            "min": 0.1,
+            "max": 0.3,  # More aggressive decay
         },
-        "lr_scheduler_patience": {"values": [5, 7]},
+        "lr_scheduler_patience": {"values": [3, 4, 5]},  # Faster decay trigger
         "lr_scheduler_min_lr": {"values": [1e-7]},
         
         # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
@@ -63,9 +72,7 @@ def get_sweep_config():
         },
         # Scaling and transformation
         "feature_scaler": {"values": [None]},
-        "target_scaler": {
-            "values": ["AsinhTransform->MinMaxScaler", "RobustScaler->MinMaxScaler"]
-        },
+        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},  # Fixed best option
         "feature_scaler_map": {
             "values": [
                 {
@@ -165,50 +172,54 @@ def get_sweep_config():
         # CRITICAL: hidden_size was 2-8, which causes flat lines!
         # TFT needs sufficient capacity for attention mechanism to learn patterns.
         # Rule: hidden_size / num_attention_heads >= 16 for meaningful attention
-        "hidden_size": {"values": [64, 128]},  # FIXED: was [2,4,8] - WAY too small!
-        "lstm_layers": {"values": [1, 2]},
-        "num_attention_heads": {"values": [4]},  # 64/4=16, 128/4=32 dimensions per head
+        "hidden_size": {"values": [128, 256]},  # Larger for more capacity
+        "lstm_layers": {"values": [2, 3]},  # Slightly deeper
+        "num_attention_heads": {"values": [4]},  # 128/4=32, 256/4=64 dimensions per head
         
-        # Regularization - moderate dropout for sparse data
-        "dropout": {"values": [0.1, 0.2]},
+        # Regularization - higher dropout helps avoid smoothing
+        "dropout": {"values": [0.2, 0.3, 0.35]},  # Higher dropout
         
         # Attention configuration
-        "full_attention": {"values": [True, False]},
+        "full_attention": {"values": [True]},  # Full attention for better patterns
         "feed_forward": {"values": ["GatedResidualNetwork"]},  # Best for TFT interpretability
         "add_relative_index": {"values": [True]},  # Helps with temporal patterns
-        "use_static_covariates": {"values": [True, False]},
+        "use_static_covariates": {"values": [True]},  # Fixed for country-level
         "norm_type": {"values": ["LayerNorm"]},
         "use_reversible_instance_norm": {"values": [False]},
         
         # ============== LOSS FUNCTION ==============
+        # High FN weight + Low FP weight → pushes predictions UP
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
-        # Loss parameters tuned for zero-inflated data
-        # More balanced weights to avoid collapsing to zero predictions
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.1,  # FIXED: was negative (-0.3 to -0.1)  dwhich is wrong
-        },
+        # Loss parameters tuned to maximize y_hat and avoid smoothing
+        "zero_threshold": {"values": [0.01]},  # Fixed (data-dependent)
+        
+        # Lower delta = more L1-like, less regression to mean
         "delta": {
-            "distribution": "log_uniform_values",
-            "min": 0.5,
-            "max": 2.0,
+            "distribution": "uniform",
+            "min": 0.1,
+            "max": 0.4,  # Lower range
         },
+        
+        # Higher non_zero_weight to focus on predicting events
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 5.0,  # REDUCED: too high causes instability
+            "min": 5.0,
+            "max": 10.0,
         },
+        
+        # LOW FP weight: Don't punish over-prediction
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 2.5,
+            "max": 2.0,  # Lower range
         },
+        
+        # HIGH FN weight: Heavily penalize under-prediction
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 4.0,  # REDUCED: was 4-10, too aggressive
+            "min": 5.0,
+            "max": 12.0,  # MUCH HIGHER - pushes predictions UP
         },
     }
 

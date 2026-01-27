@@ -7,8 +7,15 @@ def get_sweep_config():
     - Uses stacked LSTM/GRU blocks for sequential pattern learning
     - GRU often faster and comparable performance to LSTM
     - Hidden state captures temporal dependencies in conflict escalation
-    - Reversible instance norm helps with distribution shift across time
     - Needs larger hidden dims to capture rare conflict events
+    
+    Anti-Smoothing / Maximize y_hat Strategy:
+    - HIGH false_negative_weight: penalize under-prediction heavily
+    - LOW false_positive_weight: don't punish over-prediction
+    - HIGH early_stopping_patience: let model train longer
+    - Lower LR: more stable convergence
+    - Lower delta: more L1-like loss (less mean regression)
+    - Higher dropout: regularization helps avoid local minima
     
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -16,10 +23,10 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'dancing_queen_blockrnn_cm_rinF',
+        'name': 'dancing_queen_blockrnn_aggressive',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 12,
+            'min_iter': 20,  # Let runs go longer
             'eta': 2
         },
         'metric': {
@@ -31,37 +38,40 @@ def get_sweep_config():
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [24, 36, 48]},  # RNNs handle long sequences well
+        'input_chunk_length': {'values': [36, 48, 60]},  # Longer context helps avoid smoothing
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [64, 128, 256]},  # Larger batches stabilize RNN training
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10, 12]},
-        'early_stopping_min_delta': {'values': [0.001, 0.005]},
+        # Higher patience is KEY for avoiding under-prediction
+        'batch_size': {'values': [64, 128]},  # Moderate batches
+        'n_epochs': {'values': [400]},  # More epochs
+        'early_stopping_patience': {'values': [18, 22, 25]},  # MUCH HIGHER
+        'early_stopping_min_delta': {'values': [0.0005]},  # Tighter threshold
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
+        # Lower LR for stable convergence
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-5,
-            'max': 5e-4,
+            'min': 1e-5,
+            'max': 2e-4,  # Lower upper bound
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
-            'max': 1e-3,
+            'max': 5e-4,
         },
+        # More aggressive LR decay
         'lr_scheduler_factor': {
             'distribution': 'uniform',
             'min': 0.1,
-            'max': 0.4,
+            'max': 0.3,
         },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6]},
+        'lr_scheduler_patience': {'values': [3, 4, 5]},
+        'lr_scheduler_min_lr': {'values': [1e-7]},
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.1,
+            'min': 0.5,
             'max': 1.0,
         },
 
@@ -73,7 +83,7 @@ def get_sweep_config():
         # - StandardScaler: Growth rates (normal-ish, can be negative)
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler', 'RobustScaler->MinMaxScaler']},
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},  # Fixed best option
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
@@ -131,40 +141,44 @@ def get_sweep_config():
 
         # ============== BLOCKRNN ARCHITECTURE ==============
         'rnn_type': {'values': ['LSTM', 'GRU']},  # GRU often faster with similar performance
-        'hidden_dim': {'values': [128, 256, 512]},  # Larger for rare event patterns
-        'n_rnn_layers': {'values': [2, 3, 4]},  # Deeper for complex temporal patterns
-        'activation': {'values': ['ReLU', 'GELU', 'Tanh']},
-        'dropout': {'values': [0.2, 0.3, 0.4]},  # Moderate dropout prevents overfitting on zeros
-        'use_reversible_instance_norm': {'values': [False]},  # Helps with non-stationary conflict
+        'hidden_dim': {'values': [256, 384, 512]},  # Larger for rare event patterns
+        'n_rnn_layers': {'values': [2, 3]},  # Moderate depth
+        'activation': {'values': ['ReLU', 'GELU']},  # Removed Tanh (saturates easily)
+        'dropout': {'values': [0.3, 0.4, 0.45]},  # Higher dropout helps avoid smoothing
+        'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
+        # ANTI-SMOOTHING: High FN weight + Low FP weight → pushes predictions UP
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        # Optimized for sparse conflict data
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.01,
-            'max': 0.1,
-        },
+        'zero_threshold': {'values': [0.01]},  # Fixed (data-dependent)
+        
+        # Lower delta = more L1-like, less regression to mean
         'delta': {
-            'distribution': 'log_uniform_values',
+            'distribution': 'uniform',
             'min': 0.1,
-            'max': 0.8,
+            'max': 0.4,
         },
+        
+        # Higher non_zero_weight to focus on predicting events
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 4.0,
-            'max': 8.0,
+            'min': 5.0,
+            'max': 10.0,
         },
+        
+        # LOW FP weight: Don't punish over-prediction
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.5,
-            'max': 3.0,
+            'min': 1.0,
+            'max': 2.0,
         },
+        
+        # HIGH FN weight: Heavily penalize under-prediction
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 2.5,
-            'max': 6.0,
+            'min': 5.0,
+            'max': 12.0,
         },
     }
 
