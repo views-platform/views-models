@@ -1,54 +1,52 @@
+# file: sweep_configs/shrinkage_log1p_test_sweep.py
+
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-
-    This is a targeted 4-run grid search to test if the best-performing
-    1x6 block architecture can be improved by slightly tuning the number
-    of blocks and the dropout rate.
+    Configuration for testing ShrinkageLoss with log1p transformation
+    and a fixed, optimized learning rate on the N-BEATS model.
     """
 
     sweep_config = {
-        'method': 'grid',
-        'name': 'emerging_principles_14',
-        'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
-            'goal': 'minimize'
-        },
+        "method": "grid",
+        "name": "emerging_principles_26",
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
-
 
     parameters = {
         # --- N-BEATS Architecture ---
         'num_blocks': {'values': [4]},
         'num_stacks': {'values': [2]},
         'dropout': {'values': [0.3]},
-        'layer_widths': {'values': [16]},
-        'num_layers': {'values': [2]},
+        'layer_widths': {'values': [64]},
+        'num_layers': {'values': [3]},
         'activation': {'values': ['LeakyReLU']},
         'generic_architecture': {'values': [True]},
 
 
 
         # --- Loss Function ---
-        'loss_function': {'values': ['ShrinkageLoss']},
-        'a': {'values': [2.0, 5.0, 10.0]}, # Whether the predictions are log-transformed
-        'c': {'values': [0.1, 0.2, 0.5]},     # Whether to include the Stirling approximation term
+        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        'zero_threshold': {'values': [0.01]},
+        'delta': {'values': [0.025,]},
+        'non_zero_weight': {'values': [7]},
+        'false_positive_weight': {'values': [1]},
+        'false_negative_weight': {'values': [10.0]},
 
         # --- Trainer & Optimizer ---
         'n_epochs': {'values': [300]},
-        'lr': {'values': [0.0006]},
+        'lr': {'values': [0.0003]},
         'optimizer_cls': {'values': ['Adam']},
         'weight_decay': {'values': [0.0003]},
-        'gradient_clip_val': {'values': [0.64]},
+        'gradient_clip_val': {'values': [1]},
         'lr_scheduler_cls': {'values': ['ReduceLROnPlateau']},
         'lr_scheduler_patience': {'values': [7]},
         'lr_scheduler_factor': {'values': [0.46]},
         'lr_scheduler_min_lr': {'values': [0.00001]},
-        'early_stopping_patience': {'values': [20]},
-        'early_stopping_min_delta': {'values': [0.001]},
+        'early_stopping_patience': {'values': [40]},
+        'early_stopping_min_delta': {'values': [0.01]},
         
         # --- Data Handling & Input/Output ---
-        'input_chunk_length': {'values': [24]},
+        'input_chunk_length': {'values': [36]},
         'output_chunk_length': {'values': [36]},
         'output_chunk_shift': {'values': [0]},
         'batch_size': {'values': [8]},

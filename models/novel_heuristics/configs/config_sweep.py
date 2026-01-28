@@ -9,7 +9,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'novel_heuristics_04',
+        'name': 'novel_heuristics_16',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -17,51 +17,53 @@ def get_sweep_config():
     }
 
     parameters = {
-        # --- Swept Parameters (2x2 grid) ---
-        'num_blocks': {'values': [4]},
+        # --- N-BEATS Architecture ---
+        'num_blocks': {'values': [3]},
         'num_stacks': {'values': [2]},
         'dropout': {'values': [0.3]},
-        'layer_widths': {'values': [16]},
-        'num_layers': {'values': [2]},
-        'input_chunk_length': {'values': [24]},
-        'lr': {'values': [0.0006]},
-        'random_state': {'values': [1,2]},
-
-        # --- Frozen Parameters (from Best Run #1) ---
-        'delta': {'values': [0.13]},
-        'steps': {'values': [[*range(1, 37)]]},
-        'n_epochs': {'values': [300]},
+        'layer_widths': {'values': [64]},
+        'num_layers': {'values': [3]},
         'activation': {'values': ['LeakyReLU']},
-        'batch_norm': {'values': [False]},
-        'batch_size': {'values': [8]},
-        'mc_dropout': {'values': [True]},
-        'force_reset': {'values': [True]},
-        'log_targets': {'values': [True]},
-        'log_features': {'values': [None]}, # [[
-            #"lr_ged_sb", "lr_ged_ns", "lr_ged_os", 
-            #"lr_acled_sb", "lr_acled_os",
-            #"lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
-            #"lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or", "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd"
-        #]]},
-        'weight_decay': {'values': [0.0003]},
+        'generic_architecture': {'values': [True]},
+
+
+
+        # --- Loss Function ---
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        'zero_threshold': {'values': [0.01]},
+        'delta': {'values': [0.025,]},
+        'non_zero_weight': {'values': [7]},
+        'false_positive_weight': {'values': [1]},
+        'false_negative_weight': {'values': [10.0]},
+
+        # --- Trainer & Optimizer ---
+        'n_epochs': {'values': [300]},
+        'lr': {'values': [0.0003]},
         'optimizer_cls': {'values': ['Adam']},
-        'target_scaler': {'values': [None]}, # ['MinMaxScaler']},
-        'feature_scaler': {'values': ['MinMaxScaler']},
-        'zero_threshold': {'values': [0.13]},
-        'non_zero_weight': {'values': [2.5]},
+        'weight_decay': {'values': [0.0003]},
+        'gradient_clip_val': {'values': [1]},
         'lr_scheduler_cls': {'values': ['ReduceLROnPlateau']},
-        'gradient_clip_val': {'values': [0.64]},
-        'output_chunk_shift': {'values': [0]},
+        'lr_scheduler_patience': {'values': [7]},
         'lr_scheduler_factor': {'values': [0.46]},
         'lr_scheduler_min_lr': {'values': [0.00001]},
+        'early_stopping_patience': {'values': [40]},
+        'early_stopping_min_delta': {'values': [0.01]},
+        
+        # --- Data Handling & Input/Output ---
+        'input_chunk_length': {'values': [24]},
         'output_chunk_length': {'values': [36]},
-        'generic_architecture': {'values': [True]},
-        'false_negative_weight': {'values': [4]},
-        'false_positive_weight': {'values': [1.5]},
-        'lr_scheduler_patience': {'values': [7]},
-        'early_stopping_patience': {'values': [20]},
-        'early_stopping_min_delta': {'values': [0.001]},
+        'output_chunk_shift': {'values': [0]},
+        'batch_size': {'values': [8]},
+        'target_scaler': {'values': ['MinMaxScaler']},
+        'feature_scaler': {'values': ['MinMaxScaler']},
+        'log_targets': {'values': [True]},
+        'log_features': {'values': [None]},
+        
+        # --- Other ---
+        'steps': {'values': [[*range(1, 37)]]},
+        'mc_dropout': {'values': [True]},
+        'force_reset': {'values': [True]},
+        'random_state': {'values': [1, 2]},
     }
 
     sweep_config['parameters'] = parameters

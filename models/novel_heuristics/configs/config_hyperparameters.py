@@ -1,12 +1,20 @@
 def get_hp_config():
-    """
-    Hyperparameter configuration transferred from W&B sweep `novel_heuristics_04`.
 
-    NOTE:
-    - This is a controlled transfer from the sweep config.
-    - All stochasticity and random seed behavior is preserved (no seed added or modified).
-    - Differences vs. the old baseline are intentional and documented.
     """
+    Hyperparameter configuration transferred from W&B sweep `novel_heuristics_16`.
+    
+    N-BEATS model with 2 stacks and 3 blocks per stack. Each block uses
+    3 fully connected layers of width 64, with LeakyReLU activation and
+    a dropout rate of 0.3. The model uses a 24-month lookback window
+    (input chunk length) and forecasts 36 months ahead.
+    
+    NOTE:
+    - This is a controlled, deterministic transfer from the sweep definition.
+    - All hyperparameters correspond to concrete sweep values.
+    - One random seed (`random_state = 1`) is selected to freeze the configuration.
+    - No additional stochasticity is introduced beyond existing MC dropout.
+    """
+
 
     hyperparameters = {
         # --- Forecast horizon ---
@@ -16,11 +24,11 @@ def get_hp_config():
         "activation": "LeakyReLU",
         "generic_architecture": True,
         "num_stacks": 2,
-        "num_blocks": 4,            # UPDATED (was 3)
-        "num_layers": 2,            # UPDATED (was 1)
-        "layer_widths": 16,
+        "num_blocks": 3,
+        "num_layers": 3,
+        "layer_widths": 64,
         "dropout": 0.3,
-        "batch_norm": False,
+        "batch_norm": False,          # not part of sweep; unchanged default
         "mc_dropout": True,
 
         # --- Input / output structure ---
@@ -31,66 +39,40 @@ def get_hp_config():
         # --- Training ---
         "batch_size": 8,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
-        "early_stopping_min_delta": 0.001,
-        "gradient_clip_val": 0.64,  # UPDATED
+        "early_stopping_patience": 40,
+        "early_stopping_min_delta": 0.01,
+        "gradient_clip_val": 1.0,
         "force_reset": True,
+        "random_state": 1,            # selected from sweep [1, 2]
 
         # --- Optimizer ---
-        "lr": 0.0006,               # UPDATED
-        "weight_decay": 0.0003,     # UPDATED
+        "lr": 0.0003,
+        "weight_decay": 0.0003,
         "optimizer_cls": "Adam",
-        "optimizer_kwargs": {
-            "lr": 0.0006,
-            "weight_decay": 0.0003,
-        },
 
         # --- LR scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.46,   # UPDATED
+        "lr_scheduler_factor": 0.46,
         "lr_scheduler_min_lr": 0.00001,
         "lr_scheduler_patience": 7,
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.46,
-            "min_lr": 0.00001,
-            "monitor": "train_loss",
-            "patience": 7,
-        },
 
         # --- Scaling & transforms ---
         "feature_scaler": "MinMaxScaler",
-        "target_scaler": None,      # UPDATED (was MinMaxScaler)
+        "target_scaler": "MinMaxScaler",
         "log_targets": True,
-        "log_features": None,       # UPDATED (was explicit feature list)
+        "log_features": None,
 
         # --- Loss & penalties ---
         "loss_function": "WeightedPenaltyHuberLoss",
-        "delta": 0.13,              # UPDATED
-        "zero_threshold": 0.13,     # UPDATED
-        "non_zero_weight": 2.5,
-        "false_negative_weight": 4.0,   # UPDATED
-        "false_positive_weight": 1.5,   # UPDATED
+        "delta": 0.025,
+        "zero_threshold": 0.01,
+        "non_zero_weight": 7.0,
+        "false_positive_weight": 1.0,
+        "false_negative_weight": 10.0,
 
         # --- Probabilistic / sampling ---
         "num_samples": 1,
-
-        # --- Model plumbing (unchanged, out of sweep scope) ---
-        "input_dim": 72,
-        "output_dim": 1,
-        "nr_params": 1,
-        "likelihood": None,
-        "train_sample_shape": [
-            [24, 1],
-            [24, 71],
-            None,
-            None,
-            None,
-            [36, 1],
-        ],
-        "trend_polynomial_degree": 2,
-        "expansion_coefficient_dim": 5,
-        "use_reversible_instance_norm": False,
     }
 
     return hyperparameters
+
