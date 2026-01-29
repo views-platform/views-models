@@ -183,17 +183,26 @@ def get_sweep_config():
         # lstm_layers: -0.2 importance → more layers help
         "hidden_size": {"values": [192, 256, 320]},  # Larger (was 128-256)
         "lstm_layers": {"values": [2, 3, 4]},  # More layers (was 2-3)
-        "num_attention_heads": {"values": [4]},  # Keep fixed
+        "num_attention_heads": {"values": [4, 8]},  # Try more heads with larger hidden_size
+        
+        # hidden_continuous_size: controls processing of continuous variables
+        # Default 8 is too small for 50+ features - scale with hidden_size
+        "hidden_continuous_size": {"values": [32, 64]},
         
         # Regularization
         "dropout": {"values": [0.15, 0.25, 0.3]},  # Slightly lower dropout
         
         # Attention configuration
         "full_attention": {"values": [True]},  # Full attention for better patterns
-        "feed_forward": {"values": ["GatedResidualNetwork"]},  # Best for TFT interpretability
+        # feed_forward: GLU variants from "GLU Variants Improve Transformer" paper
+        # SwiGLU/GEGLU often outperform GRN for learning sharp patterns
+        "feed_forward": {"values": ["GatedResidualNetwork", "SwiGLU", "GEGLU"]},
         "add_relative_index": {"values": [True]},  # Helps with temporal patterns
+        # skip_interpolation: skips interpolation in VariableSelectionNetwork
+        # Can increase training speed without hurting accuracy
+        "skip_interpolation": {"values": [False, True]},
         "use_static_covariates": {"values": [True]},  # Fixed for country-level
-        "norm_type": {"values": ["LayerNorm"]},
+        "norm_type": {"values": ["LayerNorm", "RMSNorm"]},  # RMSNorm can be more stable
         "use_reversible_instance_norm": {"values": [False]},
         
         # ============== LOSS FUNCTION ==============
