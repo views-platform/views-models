@@ -6,15 +6,22 @@ def get_sweep_config():
     TiDE (Time-series Dense Encoder) Architecture Notes:
     - Uses MLPs for encoding past and future covariates
     - Temporal projections compress time dimension before dense layers
-    - Layer normalization critical for stability with sparse data
+    - Layer normalization may hurt for sparse priogrid data
     - Reversible instance normalization helps with non-stationary conflict patterns
     
-    Priogrid-specific considerations:
-    - Heavily zero-inflated (>95% zeros in most cells)
-    - Large batch sizes for stable gradient estimates across sparse data
-    - Higher dropout for regularization with many similar zero-dominated series
-    - Aggressive false negative weighting to catch rare conflict events
-    - Smaller model capacity to prevent overfitting on sparse signals
+    Parameter Importance Analysis (10 sweeps vs MSE):
+    - delta: +0.94 → CRITICAL: MUCH LOWER delta needed!
+    - batch_size: -0.7 → LARGER batches help significantly
+    - weight_decay: +0.83 → MUCH LOWER weight_decay
+    - temporal_hidden_size_past/future: -0.7/-0.6 → LARGER temporal hidden
+    - gradient_clip_val: -0.63 → HIGHER clipping
+    - lr_scheduler_patience: -0.6 → HIGHER patience
+    - num_encoder_layers: -0.5 → MORE encoder layers
+    - early_stopping_patience: -0.5 → HIGHER patience
+    - target_scaler AsinhTransform: -0.4 → USE AsinhTransform (fixed)
+    - use_layer_norm: +0.5 → try disabling
+    - dropout: +0.5 → LOWER dropout
+    - false_negative_weight: -0.218 → HIGHER helps
     
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -22,11 +29,11 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'warm_cat_tide_pgm',
+        'name': 'warm_cat_tide_pgm_balanced_v1',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 20,  # More iterations needed for large-scale convergence
-            'eta': 3  # More aggressive pruning for faster sweeps
+            'min_iter': 15,
+            'eta': 2
         },
         'metric': {
             'name': 'time_series_wise_mse_mean_sb',
@@ -36,42 +43,48 @@ def get_sweep_config():
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
+        # input_chunk_length: +0.5 → SHORTER input helps
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        # Shorter input chunks for memory efficiency with large series
-        'input_chunk_length': {'values': [24, 36, 48]},
+        'input_chunk_length': {'values': [18, 24, 30]},  # Shorter (was 24-48)
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        # Smaller batches for memory efficiency (~80GB RAM)
-        'batch_size': {'values': [32, 64, 128]},
-        'n_epochs': {'values': [200]},  # Fewer epochs, more data per epoch
-        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for noisy loss
-        'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Finer convergence detection
+        # batch_size: -0.7 → LARGER batches help significantly!
+        # early_stopping_patience: -0.5 → HIGHER patience
+        # early_stopping_min_delta: +0.2 → smaller threshold
+        'batch_size': {'values': [256, 512, 1024]},  # MUCH LARGER (was 32-128)
+        'n_epochs': {'values': [250]},
+        'early_stopping_patience': {'values': [25, 30, 35]},  # HIGHER (was 15-25)
+        'early_stopping_min_delta': {'values': [0.0001, 0.0003]},  # Smaller
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # Lower learning rates for stability with large batches
+        # lr: -0.3 → HIGHER LR helps
+        # weight_decay: +0.83 → MUCH LOWER weight_decay!
+        # lr_scheduler_patience: -0.6 → HIGHER patience
+        # gradient_clip_val: -0.63 → HIGHER clipping
+        # lr_scheduler_factor: -0.2 → more aggressive decay
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 2e-4,
+            'min': 5e-5,   # Higher (was 1e-5)
+            'max': 5e-4,   # Higher (was 2e-4)
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-4,
-            'max': 1e-2,  # Stronger regularization for sparse data
+            'min': 1e-6,   # MUCH LOWER (was 1e-4)
+            'max': 1e-4,   # MUCH LOWER (was 1e-2)
         },
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.6,
+            'min': 0.1,    # More aggressive (was 0.3)
+            'max': 0.4,    # More aggressive (was 0.6)
         },
-        'lr_scheduler_patience': {'values': [5, 7, 10]},  # More patience between reductions
+        'lr_scheduler_patience': {'values': [8, 10, 12]},  # HIGHER (was 5-10)
         'lr_scheduler_min_lr': {'values': [1e-7]},
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.8,  # Tighter clipping for sparse gradient spikes
+            'min': 0.8,    # HIGHER (was 0.3)
+            'max': 1.5,    # HIGHER (was 0.8)
         },
 
         # ============== SCALING ==============
@@ -82,7 +95,8 @@ def get_sweep_config():
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         # - LogTransform: Distance/population features with large positive skew
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler', 'RobustScaler->MinMaxScaler']},
+        # target_scaler AsinhTransform: -0.4 → USE AsinhTransform (fixed)
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},  # Fixed (RobustScaler was +0.4 worse)
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
@@ -110,58 +124,69 @@ def get_sweep_config():
         },
 
         # ============== TiDE ARCHITECTURE ==============
-        # Smaller capacity to prevent overfitting on sparse priogrid data
-        'num_encoder_layers': {'values': [1, 2]},
-        'num_decoder_layers': {'values': [1, 2]},
-        'decoder_output_dim': {'values': [8, 16, 32]},
-        'hidden_size': {'values': [32, 64, 128]},  # Smaller for 60k sparse series
+        # num_encoder_layers: -0.5 → MORE encoder layers help
+        # num_decoder_layers: +0.26 → fewer decoder layers
+        # hidden_size: +0.4 → SMALLER hidden_size
+        # decoder_output_dim: -0.2 → larger helps
+        'num_encoder_layers': {'values': [2, 3, 4]},  # MORE (was 1-2)
+        'num_decoder_layers': {'values': [1, 2]},  # Fewer/same
+        'decoder_output_dim': {'values': [16, 24, 32]},  # Slightly larger
+        'hidden_size': {'values': [24, 32, 48]},  # SMALLER (was 32-128)
         
-        # Temporal width controls information compression
-        'temporal_width_past': {'values': [2, 4, 6]},  # Smaller for memory
-        'temporal_width_future': {'values': [2, 4, 6]},
-        'temporal_hidden_size_past': {'values': [8, 16, 32]},
-        'temporal_hidden_size_future': {'values': [8, 16, 32]},
-        'temporal_decoder_hidden': {'values': [16, 32, 64]},
+        # temporal_hidden_size_past: -0.7 → LARGER helps significantly!
+        # temporal_hidden_size_future: -0.6 → LARGER helps
+        # temporal_decoder_hidden: -0.14 → larger helps
+        # temporal_width_past: +0.2 → smaller
+        # temporal_width_future: +0.6 → SMALLER
+        'temporal_width_past': {'values': [2, 3, 4]},  # Smaller (was 2-6)
+        'temporal_width_future': {'values': [2, 3]},  # SMALLER (was 2-6)
+        'temporal_hidden_size_past': {'values': [32, 48, 64]},  # LARGER (was 8-32)
+        'temporal_hidden_size_future': {'values': [32, 48, 64]},  # LARGER (was 8-32)
+        'temporal_decoder_hidden': {'values': [32, 48, 64]},  # Larger (was 16-64)
         
-        # Regularization & normalization - stronger for sparse data
-        'use_layer_norm': {'values': [True, False]},  # Critical for stability
-        'dropout': {'values': [0.3, 0.4, 0.5]},  # Higher dropout for sparse data
-        'use_static_covariates': {'values': [False]},  # Disable for memory with 60k series
-        'use_reversible_instance_norm': {'values': [False]},  # Critical for non-stationary conflict
+        # Regularization & normalization
+        # use_layer_norm: +0.5 → disabling may help
+        # dropout: +0.5 → LOWER dropout
+        'use_layer_norm': {'values': [False]},  # Disabled (was hurting)
+        'dropout': {'values': [0.1, 0.15, 0.2]},  # LOWER (was 0.3-0.5)
+        'use_static_covariates': {'values': [False]},
+        'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
-        # WeightedPenaltyHuberLoss optimized for heavily zero-inflated priogrid data
+        # delta: +0.94 → CRITICAL: MUCH LOWER delta needed!
+        # false_negative_weight: -0.218 → HIGHER helps
+        # false_positive_weight: +0.5 → LOWER
+        # non_zero_weight: +0.02 → near zero importance
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        # Zero threshold: higher for priogrid where >95% are zeros
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.05,
-            'max': 0.2,
-        },
-        # Smaller delta for less outlier robustness (we want to learn from rare events)
+        'zero_threshold': {'values': [0.05, 0.1]},  # Simplified
+        
+        # delta: +0.94 → CRITICAL: MUCH LOWER (was 0.05-0.5)
         'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.05,
-            'max': 0.5,
+            'distribution': 'uniform',
+            'min': 0.01,
+            'max': 0.08,  # MUCH LOWER - near pure L1
         },
-        # Higher non-zero weight to focus on the rare conflict events
+        
+        # non_zero_weight: +0.02 → near zero importance, keep moderate
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 15.0,
+            'min': 4.0,
+            'max': 8.0,  # Slightly reduced
         },
-        # Lower false positive weight (false positives less costly than missing events)
+        
+        # false_positive_weight: +0.5 → LOWER
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 2.5,
+            'min': 0.5,   # Lower (was 1.0)
+            'max': 1.5,   # Lower (was 2.5)
         },
-        # Much higher false negative weight - missing a conflict event is critical
+        
+        # false_negative_weight: -0.218 → HIGHER helps
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 15.0,
+            'min': 8.0,   # Higher (was 5.0)
+            'max': 20.0,  # Higher (was 15.0)
         },
     }
 
