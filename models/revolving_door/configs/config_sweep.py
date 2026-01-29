@@ -14,26 +14,25 @@ def get_sweep_config():
     - Uses n_freq_downsample for output interpolation scales
     - Generally faster training with comparable accuracy
     
-    Anti-Smoothing / Maximize y_hat Strategy:
-    - HIGH false_negative_weight: penalize under-prediction heavily
-    - LOW false_positive_weight: don't punish over-prediction
-    - HIGH early_stopping_patience: let model train longer
-    - Lower LR: more stable convergence
-    - Lower delta: more L1-like loss (less mean regression)
-    - Higher dropout: regularization helps avoid local minima
+    Balanced Strategy (based on parameter importance analysis):
+    - num_stacks: -0.6 correlation → USE 2 STACKS ONLY (simpler = better)
+    - input_chunk_length: +0.4 correlation → shorter context is better
+    - lr: +0.4 correlation → keep LR low
+    - non_zero_weight: -0.3 → moderate values help
+    - BALANCED loss weights to avoid over/under prediction
     
     For conflict forecasting (zero-inflated, sparse events):
-    - Moderate num_stacks (2-3) to capture trend/seasonality/residual
-    - Low num_blocks (1-2) per stack to avoid overfitting sparse data
-    - Moderate layer_width (256-512) - too wide overfits sparse targets
-    - Higher dropout (0.3-0.45) for regularization on imbalanced data
+    - 2 stacks (trend + seasonality) - avoid overfitting
+    - Low num_blocks (1-2) per stack
+    - Moderate layer_width (256-384)
+    - Higher dropout (0.25-0.4) for regularization
     """
     sweep_config = {
         'method': 'bayes',
-        'name': 'revolving_door_nhits_aggressive',
+        'name': 'revolving_door_nhits_balanced_v1',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 20,  # Let runs go longer
+            'min_iter': 15,
             'eta': 2
         },
         'metric': {
@@ -44,30 +43,24 @@ def get_sweep_config():
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
-        # N-HiTS auto-configures pooling/downsampling based on input/output lengths
-        # input_chunk_length should be >= 2x output for good multi-scale decomposition
+        # input_chunk_length: +0.4 importance → shorter is better for MSLE
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [48, 60, 72]},  # 4-6 years of monthly data
+        'input_chunk_length': {'values': [36, 48]},  # Shorter context (was 48-72)
         'output_chunk_shift': {'values': [0]},
 
         # ============== N-HiTS ARCHITECTURE ==============
-        # num_stacks: Each stack captures different temporal scales
-        # - 2 stacks: trend + seasonality (simpler, less overfitting risk)
-        # - 3 stacks: trend + seasonality + residual (default, more expressive)
-        'num_stacks': {'values': [2, 3]},
+        # num_stacks: -0.6 importance → FEWER stacks = better MSLE
+        # 2 stacks (trend + seasonality) is optimal - simpler model generalizes better
+        'num_stacks': {'values': [2]},  # FIXED to 2 (was 2-3)
         
         # num_blocks: Blocks per stack (depth within each scale)
-        # - Keep low (1-2) for sparse conflict data to avoid overfitting
         'num_blocks': {'values': [1, 2]},
         
-        # num_layers: FC layers per block (before forking layers)
-        # - 2-3 is typical; more layers = more capacity but slower
+        # num_layers: FC layers per block
         'num_layers': {'values': [2, 3]},
         
-        # layer_width: Neurons per FC layer
-        # - 256-512 is sweet spot for conflict data
-        # - Larger (1024) may overfit sparse events
-        'layer_width': {'values': [256, 384, 512]},
+        # layer_width: Slightly smaller to avoid overprediction
+        'layer_width': {'values': [256, 384]},  # Reduced (was 256-512)
         
         # pooling_kernel_sizes: Controls multi-rate input sampling
         # - None = auto-configured based on input_chunk_length (recommended)
@@ -88,40 +81,38 @@ def get_sweep_config():
         # - GELU: smoother gradients, often better for time series
         'activation': {'values': ['ReLU', 'GELU']},
         
-        # dropout: Regularization (critical for sparse conflict data)
-        # - Higher values (0.3-0.45) help prevent overfitting and avoid smoothing
+        # dropout: Regularization to prevent overprediction
         'dropout': {
             'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.45,
+            'min': 0.25,
+            'max': 0.4,
         },
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [64, 128]},  # N-HiTS handles larger batches well
-        'n_epochs': {'values': [400]},  # More epochs
-        'early_stopping_patience': {'values': [18, 22, 25]},  # MUCH HIGHER for anti-smoothing
-        'early_stopping_min_delta': {'values': [0.0005]},  # Tighter threshold
+        'batch_size': {'values': [64, 128]},
+        'n_epochs': {'values': [350]},
+        'early_stopping_patience': {'values': [12, 15, 18]},  # Moderate patience
+        'early_stopping_min_delta': {'values': [0.001]},
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # Lower LR for stable convergence
+        # lr: +0.4 importance → keep LR LOW
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 2e-4,  # Lower upper bound
+            'min': 5e-6,
+            'max': 1e-4,  # Lower upper bound to avoid overprediction
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
             'max': 5e-4,
         },
-        # More aggressive LR decay
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.3,
+            'min': 0.15,
+            'max': 0.35,
         },
-        'lr_scheduler_patience': {'values': [3, 4, 5]},
+        'lr_scheduler_patience': {'values': [4, 5, 6]},
         'lr_scheduler_min_lr': {'values': [1e-7]},
         'gradient_clip_val': {
             'distribution': 'uniform',
@@ -136,37 +127,37 @@ def get_sweep_config():
         'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
-        # ANTI-SMOOTHING: High FN weight + Low FP weight → pushes predictions UP
+        # BALANCED: Symmetric-ish weights to avoid over/under prediction
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        'zero_threshold': {'values': [0.01]},  # Fixed (data-dependent)
+        'zero_threshold': {'values': [0.01]},
         
-        # Lower delta = more L1-like, less regression to mean
+        # Moderate delta for balanced L1/L2 behavior
         'delta': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.4,
+            'min': 0.3,
+            'max': 0.6,
         },
         
-        # Higher non_zero_weight to focus on predicting events
+        # non_zero_weight: -0.3 importance → moderate values
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 10.0,
+            'min': 3.0,
+            'max': 6.0,  # Reduced (was 5-10)
         },
         
-        # HIGH FN weight: Heavily penalize under-prediction (KEY for anti-smoothing)
+        # BALANCED: Similar FN/FP weights to avoid bias
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 12.0,
+            'min': 2.5,
+            'max': 5.0,  # Reduced from 5-12 to stop overprediction
         },
         
-        # LOW FP weight: Don't punish over-prediction
+        # Increase FP penalty to curb overprediction
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 2.0,
+            'min': 2.0,
+            'max': 4.0,  # Increased from 1-2
         },
 
         # ============== SCALING ==============

@@ -7,15 +7,22 @@ def get_sweep_config():
     - Uses stacked LSTM/GRU blocks for sequential pattern learning
     - GRU often faster and comparable performance to LSTM
     - Hidden state captures temporal dependencies in conflict escalation
-    - Needs larger hidden dims to capture rare conflict events
     
-    Anti-Smoothing / Maximize y_hat Strategy:
-    - HIGH false_negative_weight: penalize under-prediction heavily
-    - LOW false_positive_weight: don't punish over-prediction
-    - HIGH early_stopping_patience: let model train longer
-    - Lower LR: more stable convergence
-    - Lower delta: more L1-like loss (less mean regression)
-    - Higher dropout: regularization helps avoid local minima
+    Parameter Importance Analysis:
+    - delta: +0.5 → LOWER delta (more L1-like, anti-smoothing)
+    - dropout: +0.4 → LOWER dropout is better
+    - false_negative_weight: +0.4 → LOWER FN weight is better
+    - hidden_dim: +0.32 → SMALLER hidden_dim
+    - lr: -0.3 → HIGHER LR is better
+    - lr_scheduler_factor: -0.2 → more aggressive decay helps
+    - gradient_clip_val: -0.13 → HIGHER clipping helps
+    - input_chunk_length: -0.12 → LONGER context helps
+    
+    Anti-Smoothing Strategy:
+    - Very low delta (0.05-0.15) for L1-like loss
+    - Higher LR with aggressive decay
+    - Smaller hidden_dim to prevent over-capacity
+    - Lower dropout (model is regularized via loss function)
     
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -23,10 +30,10 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'dancing_queen_blockrnn_aggressive',
+        'name': 'dancing_queen_blockrnn_balanced_v1',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 20,  # Let runs go longer
+            'min_iter': 12,
             'eta': 2
         },
         'metric': {
@@ -37,42 +44,47 @@ def get_sweep_config():
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
+        # input_chunk_length: -0.12 → LONGER context helps
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60]},  # Longer context helps avoid smoothing
+        'input_chunk_length': {'values': [36, 48, 60]},  # Longer (was 24-48)
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        # Higher patience is KEY for avoiding under-prediction
-        'batch_size': {'values': [64, 128]},  # Moderate batches
-        'n_epochs': {'values': [400]},  # More epochs
-        'early_stopping_patience': {'values': [18, 22, 25]},  # MUCH HIGHER
-        'early_stopping_min_delta': {'values': [0.0005]},  # Tighter threshold
+        # batch_size: +0.08 → slightly smaller helps
+        # early_stopping_patience: +0.1 → slightly lower
+        # early_stopping_min_delta: +0.04 → smaller threshold
+        'batch_size': {'values': [64, 128]},  # Slightly smaller (was 64-256)
+        'n_epochs': {'values': [350]},
+        'early_stopping_patience': {'values': [8, 10, 12]},  # Slightly lower
+        'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Smaller
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # Lower LR for stable convergence
+        # lr: -0.3 → HIGHER LR is better!
+        # lr_scheduler_factor: -0.2 → more aggressive decay
+        # gradient_clip_val: -0.13 → HIGHER clipping helps
+        # weight_decay: +0.11 → LOWER is better
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 2e-4,  # Lower upper bound
+            'min': 2e-4,   # Higher (was 5e-5)
+            'max': 1e-3,   # Higher (was 5e-4)
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 5e-4,
+            'min': 1e-6,   # Lower (was 1e-5)
+            'max': 1e-4,   # Lower (was 1e-3)
         },
-        # More aggressive LR decay
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.3,
+            'min': 0.05,   # More aggressive (was 0.1)
+            'max': 0.2,    # More aggressive (was 0.4)
         },
         'lr_scheduler_patience': {'values': [3, 4, 5]},
-        'lr_scheduler_min_lr': {'values': [1e-7]},
+        'lr_scheduler_min_lr': {'values': [1e-6]},
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
+            'min': 0.5,    # Higher (was 0.1)
+            'max': 1.5,    # Higher (was 1.0)
         },
 
         # ============== SCALING ==============
@@ -140,45 +152,52 @@ def get_sweep_config():
         },
 
         # ============== BLOCKRNN ARCHITECTURE ==============
-        'rnn_type': {'values': ['LSTM', 'GRU']},  # GRU often faster with similar performance
-        'hidden_dim': {'values': [256, 384, 512]},  # Larger for rare event patterns
-        'n_rnn_layers': {'values': [2, 3]},  # Moderate depth
-        'activation': {'values': ['ReLU', 'GELU']},  # Removed Tanh (saturates easily)
-        'dropout': {'values': [0.3, 0.4, 0.45]},  # Higher dropout helps avoid smoothing
+        # hidden_dim: +0.32 → SMALLER is better
+        # dropout: +0.4 → LOWER is better
+        # n_rnn_layers: +0.02 → near zero importance
+        'rnn_type': {'values': ['LSTM', 'GRU']},
+        'hidden_dim': {'values': [64, 128, 192]},  # SMALLER (was 128-512)
+        'n_rnn_layers': {'values': [2, 3]},  # Simplified (was 2-4)
+        'activation': {'values': ['ReLU', 'GELU']},  # Removed Tanh
+        'dropout': {'values': [0.1, 0.15, 0.2]},  # LOWER (was 0.2-0.4)
         'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
-        # ANTI-SMOOTHING: High FN weight + Low FP weight → pushes predictions UP
+        # delta: +0.5 → LOWER delta (more L1-like, anti-smoothing!)
+        # false_negative_weight: +0.4 → LOWER is better
+        # non_zero_weight: +0.2 → LOWER is better
+        # zero_threshold: +0.2 → LOWER is better
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        'zero_threshold': {'values': [0.01]},  # Fixed (data-dependent)
+        # zero_threshold: +0.2 → LOWER is better
+        'zero_threshold': {'values': [0.005, 0.01]},  # Lower (was 0.01-0.1)
         
-        # Lower delta = more L1-like, less regression to mean
+        # delta: +0.5 → MUCH LOWER (key for anti-smoothing!)
         'delta': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.4,
+            'min': 0.05,
+            'max': 0.15,  # MUCH lower (was 0.1-0.8)
         },
         
-        # Higher non_zero_weight to focus on predicting events
+        # non_zero_weight: +0.2 → LOWER is better
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 10.0,
+            'min': 2.0,   # Lower (was 4.0)
+            'max': 5.0,   # Lower (was 8.0)
         },
         
-        # LOW FP weight: Don't punish over-prediction
+        # false_positive_weight: near zero importance, keep moderate
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 2.0,
+            'min': 1.5,
+            'max': 3.0,
         },
         
-        # HIGH FN weight: Heavily penalize under-prediction
+        # false_negative_weight: +0.4 → LOWER is better
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 5.0,
-            'max': 12.0,
+            'min': 1.5,   # Lower (was 2.5)
+            'max': 4.0,   # Lower (was 6.0)
         },
     }
 

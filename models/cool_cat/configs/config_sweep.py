@@ -9,16 +9,27 @@ def get_sweep_config():
     - Layer normalization critical for stability with sparse data
     - Reversible instance normalization helps with non-stationary conflict patterns
     
+    Parameter Importance Analysis (vs MSLE):
+    - batch_size: +0.83 → CRITICAL: much smaller batches needed!
+    - lr: -0.53 → HIGHER LR is better for TiDE (unlike TFT)
+    - weight_decay: -0.4 → HIGHER weight_decay helps (regularization)
+    - non_zero_weight: +0.4 → LOWER values are better
+    - delta: +0.4 → LOWER delta is better
+    - early_stopping_patience: -0.34 → HIGHER patience helps
+    - early_stopping_min_delta: +0.24 → smaller threshold needed
+    - temporal_width_future: -0.2 → larger values help
+    - temporal_hidden_size_past: -0.09 → larger values help
+    
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_cm_aggressive',
+        'name': 'cool_cat_tide_balanced_v1',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 20,  # Increased: let runs go longer before terminating
+            'min_iter': 15,
             'eta': 2
         },
         'metric': {
@@ -30,41 +41,44 @@ def get_sweep_config():
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [48, 60, 72]},  # Longer context helps avoid smoothing
+        'input_chunk_length': {'values': [36, 48]},  # Slightly shorter
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
-        # Higher patience strongly correlated with lower MSLE (-0.7)
-        'batch_size': {'values': [32, 64]},  # Smaller batches = more gradient updates
-        'n_epochs': {'values': [400]},  # More epochs since we want longer training
-        'early_stopping_patience': {'values': [18, 22, 25]},  # MUCH HIGHER (was 10-15)
-        'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Tighter threshold
+        # batch_size: +0.83 importance → CRITICAL: MUCH smaller batches!
+        # early_stopping_patience: -0.34 → higher patience helps
+        # early_stopping_min_delta: +0.24 → smaller threshold needed
+        'batch_size': {'values': [16, 24]},  # MUCH SMALLER (was 32-64)
+        'n_epochs': {'values': [400]},
+        'early_stopping_patience': {'values': [20, 25, 30]},  # HIGHER (was 18-25)
+        'early_stopping_min_delta': {'values': [0.0001, 0.0003]},  # SMALLER (was 0.0005-0.001)
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # Lower LR strongly correlated with lower MSLE (+0.7 means high LR = bad)
+        # lr: -0.53 importance → HIGHER LR is better for TiDE!
+        # weight_decay: -0.4 → HIGHER weight_decay helps
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,   # Lower bound (was 5e-5)
-            'max': 2e-4,   # Much lower upper bound (was 5e-4)
+            'min': 5e-5,   # Higher (was 1e-5)
+            'max': 5e-4,   # Higher (was 2e-4)
         },
         'weight_decay': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 5e-4,  # Slightly reduced
+            'min': 5e-4,   # MUCH HIGHER (was 1e-5)
+            'max': 5e-3,   # MUCH HIGHER (was 5e-4)
         },
-        # Lower factor = more aggressive decay, correlated with lower MSLE (-0.4)
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,   # More aggressive (was 0.2)
-            'max': 0.3,   # More aggressive (was 0.5)
+            'min': 0.15,
+            'max': 0.35,
         },
-        'lr_scheduler_patience': {'values': [3, 4, 5]},  # Faster decay trigger
-        'lr_scheduler_min_lr': {'values': [1e-7]},  # Lower floor
+        'lr_scheduler_patience': {'values': [4, 5, 6]},  # Slightly higher
+        'lr_scheduler_min_lr': {'values': [1e-7]},
+        # gradient_clip_val: -0.076 → slightly higher helps
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
+            'min': 0.7,
+            'max': 1.2,  # Slightly higher range
         },
 
         # ============== SCALING ==============
@@ -113,57 +127,62 @@ def get_sweep_config():
         },
 
         # ============== TiDE ARCHITECTURE ==============
-        'num_encoder_layers': {'values': [2, 3]},  # Slightly deeper
+        # num_encoder_layers: +0.06 → slightly fewer is fine
+        'num_encoder_layers': {'values': [2]},  # Simplified
         'num_decoder_layers': {'values': [2, 3]},
-        'decoder_output_dim': {'values': [32, 64]},
-        'hidden_size': {'values': [128, 256]},  # Larger to capture signal
+        'decoder_output_dim': {'values': [32, 48]},
+        'hidden_size': {'values': [128, 192, 256]},
         
+        # temporal_width_future: -0.2 → larger values help
+        # temporal_hidden_size_past: -0.09 → larger values help
         'temporal_width_past': {'values': [4, 6, 8]},
-        'temporal_width_future': {'values': [4, 6, 8]},
-        'temporal_hidden_size_past': {'values': [32, 64]},
-        'temporal_hidden_size_future': {'values': [32, 64]},
-        'temporal_decoder_hidden': {'values': [64, 128]},
+        'temporal_width_future': {'values': [6, 8, 10]},  # Larger (was 4-8)
+        'temporal_hidden_size_past': {'values': [48, 64, 80]},  # Larger (was 32-64)
+        'temporal_hidden_size_future': {'values': [32, 48, 64]},
+        'temporal_decoder_hidden': {'values': [64, 96, 128]},
         
         # Regularization & normalization
-        'use_layer_norm': {'values': [True]},  # Fixed True (correlation -0.2)
-        'dropout': {'values': [0.35, 0.4, 0.45]},  # Higher dropout (correlation -0.3)
-        'use_static_covariates': {'values': [True]},  # Fixed True for country-level
+        # dropout: +0.01 → near zero importance, keep moderate
+        'use_layer_norm': {'values': [True]},
+        'dropout': {'values': [0.25, 0.3, 0.35]},  # Moderate (was 0.35-0.45)
+        'use_static_covariates': {'values': [True]},
         'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
-        # Optimized to maximize y_hat while minimizing MSLE
-        # Key: High FN weight + Low FP weight → pushes predictions UP (avoids smoothing)
+        # non_zero_weight: +0.4 → LOWER values are better!
+        # delta: +0.4 → LOWER delta is better
+        # false_negative_weight: +0.124 → slightly lower is better
+        # false_positive_weight: +0.03 → near zero importance
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        'zero_threshold': {'values': [0.01]},  # Fixed (data-dependent, not HP)
+        'zero_threshold': {'values': [0.01]},
         
-        # Lower delta = more L1-like, less smoothing (correlation -0.2)
+        # delta: +0.4 importance → LOWER is better
         'delta': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.4,  # Lower range (was 0.1-1.0)
+            'min': 0.05,
+            'max': 0.2,  # Much lower (was 0.1-0.4)
         },
         
+        # non_zero_weight: +0.4 importance → LOWER is better
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 5.0,   # Higher to focus on non-zero values
-            'max': 10.0,
+            'min': 2.0,   # Lower (was 5.0)
+            'max': 5.0,   # Lower (was 10.0)
         },
         
-        # LOW FP weight: Don't over-penalize false positives (correlation +0.3)
-        # This allows model to predict higher without being punished
+        # false_positive_weight: +0.03 → near zero, keep low-moderate
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,   # Lower (was 1.5-3.0)
-            'max': 2.0,
+            'min': 1.0,
+            'max': 2.5,
         },
         
-        # HIGH FN weight: Heavily penalize under-prediction (correlation -0.2)
-        # This pushes predictions UP, avoiding smoothing/mean regression
+        # false_negative_weight: +0.124 → slightly lower is better
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 5.0,   # Much higher (was 2.0-5.0)
-            'max': 12.0,
+            'min': 3.0,   # Lower (was 5.0)
+            'max': 7.0,   # Lower (was 12.0)
         },
     }
 

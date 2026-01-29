@@ -10,13 +10,21 @@ def get_sweep_config():
     - Temporal encodings (add_encoders) help capture seasonality
     - Learning rate must be low enough for stable attention learning
     
-    Anti-Smoothing / Maximize y_hat Strategy:
-    - HIGH false_negative_weight: penalize under-prediction heavily
-    - LOW false_positive_weight: don't punish over-prediction
-    - HIGH early_stopping_patience: let model train longer
-    - Lower LR: more stable convergence
-    - Lower delta: more L1-like loss (less mean regression)
-    - Higher dropout: regularization helps avoid local minima
+    Parameter Importance Analysis (vs MSLE):
+    - weight_decay: +0.7 → MUCH LOWER weight decay needed
+    - lr_scheduler_patience: +0.7 → shorter patience (faster decay)
+    - input_chunk_length: +0.3 → shorter context is better
+    - non_zero_weight: -0.4 → HIGHER values improve MSLE
+    - lr_scheduler_factor: -0.3 → more aggressive decay helps
+    - hidden_size: -0.2 → larger hidden_size helps
+    - lstm_layers: -0.2 → more LSTM layers help
+    - false_negative_weight: -0.2 → higher FN weight helps (anti-underprediction)
+    - delta: -0.2 → slightly higher delta helps TFT
+    
+    Anti-Underprediction Strategy:
+    - HIGH false_negative_weight + HIGH non_zero_weight → pick up conflict patterns
+    - LOW weight_decay → less regularization, let model learn signal
+    - Larger hidden_size + more lstm_layers → more capacity for patterns
 
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -24,44 +32,46 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_aggressive",
-        "early_terminate": {"type": "hyperband", "min_iter": 10, "eta": 2},
+        "name": "tft_heat_waves_balanced_v1",
+        "early_terminate": {"type": "hyperband", "min_iter": 12, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
+        # input_chunk_length: +0.3 importance → shorter context is better
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [48, 60, 72]},  # Longer context helps avoid smoothing
+        "input_chunk_length": {"values": [36, 48]},  # Shorter (was 48-72)
         "output_chunk_shift": {"values": [0]},
         
         # ============== TRAINING BASICS ==============
-        # Smaller batches help with sparse/zero-inflated data
+        # early_stopping_patience: +0.2 → slightly lower is better
         "batch_size": {"values": [32, 64]},
-        "n_epochs": {"values": [400]},  # More epochs
-        "early_stopping_patience": {"values": [18, 22, 25]},  # MUCH HIGHER
-        "early_stopping_min_delta": {"values": [0.0005]},  # Tighter threshold
+        "n_epochs": {"values": [350]},
+        "early_stopping_patience": {"values": [12, 15, 18]},  # Reduced (was 18-25)
+        "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         
         # ============== OPTIMIZER / SCHEDULER ==============
-        # TFT needs LOW learning rates to prevent attention collapse
+        # weight_decay: +0.7 importance → MUCH LOWER needed
+        # lr_scheduler_patience: +0.7 → shorter patience (faster decay)
+        # lr_scheduler_factor: -0.3 → more aggressive decay
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 2e-4,  # Lower upper bound
+            "min": 5e-6,
+            "max": 1e-4,  # Lower range
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 5e-4,
+            "min": 1e-6,   # MUCH LOWER (was 1e-5)
+            "max": 5e-5,   # MUCH LOWER (was 5e-4)
         },
-        # More aggressive LR decay helps with stable convergence
         "lr_scheduler_factor": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 0.3,  # More aggressive decay
+            "min": 0.05,   # More aggressive (was 0.1)
+            "max": 0.2,    # More aggressive (was 0.3)
         },
-        "lr_scheduler_patience": {"values": [3, 4, 5]},  # Faster decay trigger
+        "lr_scheduler_patience": {"values": [2, 3]},  # Shorter (was 3-5)
         "lr_scheduler_min_lr": {"values": [1e-7]},
         
         # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
@@ -169,15 +179,14 @@ def get_sweep_config():
         },
         
         # ============== TFT ARCHITECTURE ==============
-        # CRITICAL: hidden_size was 2-8, which causes flat lines!
-        # TFT needs sufficient capacity for attention mechanism to learn patterns.
-        # Rule: hidden_size / num_attention_heads >= 16 for meaningful attention
-        "hidden_size": {"values": [128, 256]},  # Larger for more capacity
-        "lstm_layers": {"values": [2, 3]},  # Slightly deeper
-        "num_attention_heads": {"values": [4]},  # 128/4=32, 256/4=64 dimensions per head
+        # hidden_size: -0.2 importance → larger is better
+        # lstm_layers: -0.2 importance → more layers help
+        "hidden_size": {"values": [192, 256, 320]},  # Larger (was 128-256)
+        "lstm_layers": {"values": [2, 3, 4]},  # More layers (was 2-3)
+        "num_attention_heads": {"values": [4]},  # Keep fixed
         
-        # Regularization - higher dropout helps avoid smoothing
-        "dropout": {"values": [0.2, 0.3, 0.35]},  # Higher dropout
+        # Regularization
+        "dropout": {"values": [0.15, 0.25, 0.3]},  # Slightly lower dropout
         
         # Attention configuration
         "full_attention": {"values": [True]},  # Full attention for better patterns
@@ -188,38 +197,39 @@ def get_sweep_config():
         "use_reversible_instance_norm": {"values": [False]},
         
         # ============== LOSS FUNCTION ==============
-        # High FN weight + Low FP weight → pushes predictions UP
+        # non_zero_weight: -0.4 importance → HIGHER values improve MSLE significantly
+        # false_negative_weight: -0.2 → higher helps avoid underprediction
+        # delta: -0.2 → slightly higher delta helps TFT (more L2-like)
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
-        # Loss parameters tuned to maximize y_hat and avoid smoothing
-        "zero_threshold": {"values": [0.01]},  # Fixed (data-dependent)
+        "zero_threshold": {"values": [0.01]},
         
-        # Lower delta = more L1-like, less regression to mean
+        # delta: -0.2 importance → higher values help TFT
         "delta": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 0.4,  # Lower range
+            "min": 0.3,
+            "max": 0.7,  # Higher range (was 0.1-0.4)
         },
         
-        # Higher non_zero_weight to focus on predicting events
+        # non_zero_weight: -0.4 importance → MUCH HIGHER
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 10.0,
+            "min": 8.0,   # Higher (was 5.0)
+            "max": 15.0,  # Higher (was 10.0)
         },
         
-        # LOW FP weight: Don't punish over-prediction
+        # false_positive_weight: -0.009 → near zero importance, keep moderate
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 2.0,  # Lower range
+            "min": 1.5,
+            "max": 3.0,
         },
         
-        # HIGH FN weight: Heavily penalize under-prediction
+        # false_negative_weight: -0.2 → higher helps avoid underprediction
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 12.0,  # MUCH HIGHER - pushes predictions UP
+            "min": 6.0,
+            "max": 14.0,  # Higher to push predictions UP
         },
     }
 
