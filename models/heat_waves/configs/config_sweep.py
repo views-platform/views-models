@@ -196,7 +196,7 @@ def get_sweep_config():
         "full_attention": {"values": [True]},  # Full attention for better patterns
         # feed_forward: GLU variants from "GLU Variants Improve Transformer" paper
         # SwiGLU/GEGLU often outperform GRN for learning sharp patterns
-        "feed_forward": {"values": ["GatedResidualNetwork", "SwiGLU", "GEGLU"]},
+        "feed_forward": {"values": ["GatedResidualNetwork", "GLU", "Bilinear", "ReGLU", "GEGLU", "SwiGLU", "ReLU", "GELU"]},
         "add_relative_index": {"values": [True]},  # Helps with temporal patterns
         # skip_interpolation: skips interpolation in VariableSelectionNetwork
         # Can increase training speed without hurting accuracy
