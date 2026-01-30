@@ -21,7 +21,7 @@ def generate():
         return (
             queryset.with_column(
                 Column(
-                    "lr_ged_sb_dep",
+                    "lr_ged_sb",
                     from_loa="country_month",
                     from_column="ged_sb_best_sum_nokgi",
                 ).transform.missing.fill()
@@ -729,5 +729,5 @@ def generate():
 
     queryset = Queryset(f"{model_name}", "country_month")
 
-    return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
-    # return _add_topics(_add_conflict_history(queryset=queryset))
+    # return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
+    return _add_conflict_history(queryset=queryset)

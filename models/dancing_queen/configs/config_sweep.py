@@ -30,7 +30,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'dancing_queen_blockrnn_balanced_v1',
+        'name': 'dancing_queen_blockrnn_balanced_cd_v1',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 12,
