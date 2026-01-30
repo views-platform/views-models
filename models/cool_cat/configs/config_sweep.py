@@ -26,7 +26,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_balanced_v1',
+        'name': 'cool_cat_tide_balanced_v2',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 15,
@@ -143,9 +143,9 @@ def get_sweep_config():
         
         # Regularization & normalization
         # dropout: +0.01 → near zero importance, keep moderate
-        'use_layer_norm': {'values': [True]},
+        'use_layer_norm': {'values': [True, False]},
         'dropout': {'values': [0.25, 0.3, 0.35]},  # Moderate (was 0.35-0.45)
-        'use_static_covariates': {'values': [True]},
+        'use_static_covariates': {'values': [True, False]},
         'use_reversible_instance_norm': {'values': [False]},
 
         # ============== LOSS FUNCTION ==============
@@ -155,7 +155,11 @@ def get_sweep_config():
         # false_positive_weight: +0.03 → near zero importance
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        'zero_threshold': {'values': [0.01]},
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 0.01,
+            'max': 0.1,
+        },
         
         # delta: +0.4 importance → LOWER is better
         'delta': {
@@ -168,21 +172,21 @@ def get_sweep_config():
         'non_zero_weight': {
             'distribution': 'log_uniform_values',
             'min': 2.0,   # Lower (was 5.0)
-            'max': 5.0,   # Lower (was 10.0)
+            'max': 8.0,   # Lower (was 10.0)
         },
         
         # false_positive_weight: +0.03 → near zero, keep low-moderate
         'false_positive_weight': {
             'distribution': 'uniform',
             'min': 1.0,
-            'max': 2.5,
+            'max': 3.5,
         },
         
         # false_negative_weight: +0.124 → slightly lower is better
         'false_negative_weight': {
             'distribution': 'uniform',
             'min': 3.0,   # Lower (was 5.0)
-            'max': 7.0,   # Lower (was 12.0)
+            'max': 12.0,   # Lower (was 12.0)
         },
     }
 
