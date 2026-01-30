@@ -32,7 +32,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_balanced_v1",
+        "name": "tft_heat_waves_balanced_v2",
         "early_terminate": {"type": "hyperband", "min_iter": 12, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -41,14 +41,14 @@ def get_sweep_config():
         # ============== TEMPORAL CONFIGURATION ==============
         # input_chunk_length: +0.3 importance → shorter context is better
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},  # Shorter (was 48-72)
+        "input_chunk_length": {"values": [48, 60, 72]},
         "output_chunk_shift": {"values": [0]},
         
         # ============== TRAINING BASICS ==============
         # early_stopping_patience: +0.2 → slightly lower is better
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [16, 32, 256, 512]},
         "n_epochs": {"values": [350]},
-        "early_stopping_patience": {"values": [12, 15, 18]},  # Reduced (was 18-25)
+        "early_stopping_patience": {"values": [20, 25]},  # Reduced (was 18-25)
         "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         
@@ -58,18 +58,18 @@ def get_sweep_config():
         # lr_scheduler_factor: -0.3 → more aggressive decay
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-6,
-            "max": 1e-4,  # Lower range
+            "min": 1e-5,
+            "max": 5e-4,  # Can go higher with simpler model
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
-            "min": 1e-6,   # MUCH LOWER (was 1e-5)
-            "max": 5e-5,   # MUCH LOWER (was 5e-4)
+            "min": 1e-7,   # VERY LOW - don't regularize away sparse signal
+            "max": 1e-5,
         },
         "lr_scheduler_factor": {
             "distribution": "uniform",
-            "min": 0.05,   # More aggressive (was 0.1)
-            "max": 0.2,    # More aggressive (was 0.3)
+            "min": 0.1,
+            "max": 0.3,
         },
         "lr_scheduler_patience": {"values": [2, 3]},  # Shorter (was 3-5)
         "lr_scheduler_min_lr": {"values": [1e-7]},
@@ -78,7 +78,7 @@ def get_sweep_config():
         "gradient_clip_val": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.8,
+            "max": 1.0,
         },
         # Scaling and transformation
         "feature_scaler": {"values": [None]},
@@ -181,16 +181,16 @@ def get_sweep_config():
         # ============== TFT ARCHITECTURE ==============
         # hidden_size: -0.2 importance → larger is better
         # lstm_layers: -0.2 importance → more layers help
-        "hidden_size": {"values": [192, 256, 320]},  # Larger (was 128-256)
+        "hidden_size": {"values": [64, 96, 128]},
         "lstm_layers": {"values": [2, 3, 4]},  # More layers (was 2-3)
-        "num_attention_heads": {"values": [4, 8]},  # Try more heads with larger hidden_size
+        "num_attention_heads": {"values": [2, 4]},
         
         # hidden_continuous_size: controls processing of continuous variables
         # Default 8 is too small for 50+ features - scale with hidden_size
-        "hidden_continuous_size": {"values": [32, 64]},
+        "hidden_continuous_size": {"values": [8, 16, 24]},
         
         # Regularization
-        "dropout": {"values": [0.15, 0.25, 0.3]},  # Slightly lower dropout
+        "dropout": {"values": [0.2, 0.3, 0.4]},  # Slightly lower dropout
         
         # Attention configuration
         "full_attention": {"values": [True]},  # Full attention for better patterns
@@ -201,7 +201,7 @@ def get_sweep_config():
         # skip_interpolation: skips interpolation in VariableSelectionNetwork
         # Can increase training speed without hurting accuracy
         "skip_interpolation": {"values": [False, True]},
-        "use_static_covariates": {"values": [True]},  # Fixed for country-level
+        "use_static_covariates": {"values": [True, False]},  # Fixed for country-level
         "norm_type": {"values": ["LayerNorm", "RMSNorm", None, "LayerNormNoBias"]},  # RMSNorm can be more stable
         "use_reversible_instance_norm": {"values": [False]},
         
@@ -211,12 +211,16 @@ def get_sweep_config():
         # delta: -0.2 → slightly higher delta helps TFT (more L2-like)
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
-        "zero_threshold": {"values": [0.01]},
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 0.01,
+            'max': 0.1,
+        },
         
         # delta: -0.2 importance → higher values help TFT
         "delta": {
-            "distribution": "log_uniform_values",
-            "min": 0.3,
+            "distribution": "uniform",
+            "min": 0.2,
             "max": 0.7,  # Higher range (was 0.1-0.4)
         },
         
@@ -237,8 +241,8 @@ def get_sweep_config():
         # false_negative_weight: -0.2 → higher helps avoid underprediction
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 6.0,
-            "max": 14.0,  # Higher to push predictions UP
+            "min": 8.0,
+            "max": 15.0,  # Higher to push predictions UP
         },
     }
 
