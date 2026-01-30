@@ -215,7 +215,7 @@ def get_sweep_config():
         
         # delta: -0.2 importance → higher values help TFT
         "delta": {
-            "distribution": "uniform",
+            "distribution": "log_uniform_values",
             "min": 0.3,
             "max": 0.7,  # Higher range (was 0.1-0.4)
         },
