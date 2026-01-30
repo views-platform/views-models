@@ -166,7 +166,7 @@ def get_sweep_config():
         
         # non_zero_weight: +0.4 importance → LOWER is better
         'non_zero_weight': {
-            'distribution': 'uniform',
+            'distribution': 'log_uniform_values',
             'min': 2.0,   # Lower (was 5.0)
             'max': 5.0,   # Lower (was 10.0)
         },

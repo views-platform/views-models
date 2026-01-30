@@ -176,12 +176,12 @@ def get_sweep_config():
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
         'zero_threshold': {
-            'distribution': 'uniform',
+            'distribution': 'log_uniform_values',
             'min': 0.01,
             'max': 0.1,
         },
         'delta': {
-            'distribution': 'log_uniform_values',
+            'distribution': 'uniform',
             'min': 0.1,
             'max': 0.8,
         },

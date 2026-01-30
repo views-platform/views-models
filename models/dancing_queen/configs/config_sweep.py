@@ -174,7 +174,7 @@ def get_sweep_config():
         
         # delta: +0.5 → MUCH LOWER (key for anti-smoothing!)
         'delta': {
-            'distribution': 'uniform',
+            'distribution': 'log_uniform_values',
             'min': 0.05,
             'max': 0.15,  # MUCH lower (was 0.1-0.8)
         },
