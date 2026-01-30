@@ -202,7 +202,7 @@ def get_sweep_config():
         # Can increase training speed without hurting accuracy
         "skip_interpolation": {"values": [False, True]},
         "use_static_covariates": {"values": [True]},  # Fixed for country-level
-        "norm_type": {"values": ["LayerNorm", "RMSNorm"]},  # RMSNorm can be more stable
+        "norm_type": {"values": ["LayerNorm", "RMSNorm", None, "LayerNormNoBias"]},  # RMSNorm can be more stable
         "use_reversible_instance_norm": {"values": [False]},
         
         # ============== LOSS FUNCTION ==============
