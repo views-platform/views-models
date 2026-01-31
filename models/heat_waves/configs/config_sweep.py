@@ -77,8 +77,8 @@ def get_sweep_config():
         # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.0,
+            "min": 0.1,
+            "max": 1.2,
         },
         # Scaling and transformation
         "feature_scaler": {"values": [None]},

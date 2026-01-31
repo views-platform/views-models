@@ -73,7 +73,7 @@ def get_sweep_config():
         # Can relax gradient clipping slightly for denser country data
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.3,
+            'min': 0.2,
             'max': 1.0,
         },
 

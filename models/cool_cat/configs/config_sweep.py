@@ -77,7 +77,7 @@ def get_sweep_config():
         # gradient_clip_val: -0.076 → slightly higher helps
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.7,
+            'min': 0.1,
             'max': 1.2,  # Slightly higher range
         },
 
