@@ -48,7 +48,7 @@ def get_sweep_config():
         # early_stopping_patience: +0.2 → slightly lower is better
         "batch_size": {"values": [16, 32, 256, 512]},
         "n_epochs": {"values": [350]},
-        "early_stopping_patience": {"values": [20, 25]},  # Reduced (was 18-25)
+        "early_stopping_patience": {"values": [4]},  # Reduced (was 18-25)
         "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         

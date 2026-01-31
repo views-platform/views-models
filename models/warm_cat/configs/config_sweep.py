@@ -53,7 +53,7 @@ def get_sweep_config():
             # early_stopping_min_delta: +0.24 → smaller threshold needed
             'batch_size': {'values': [128, 256, 512, 1024]},
             'n_epochs': {'values': [100]},
-            'early_stopping_patience': {'values': [4]},  # HIGHER (was 18-25)
+            'early_stopping_patience': {'values': [5]},  # HIGHER (was 18-25)
             'early_stopping_min_delta': {'values': [0.001]},
             'force_reset': {'values': [True]},
 
@@ -75,7 +75,7 @@ def get_sweep_config():
                 'min': 0.1,
                 'max': 0.25,
             },
-            'lr_scheduler_patience': {'values': [4]},
+            'lr_scheduler_patience': {'values': [3, 4]},
             'lr_scheduler_min_lr': {'values': [1e-7]},
             # gradient_clip_val: -0.076 → slightly higher helps
             'gradient_clip_val': {
