@@ -34,7 +34,7 @@ def get_sweep_config():
         'batch_size': {'values': [8, 16, 32, 24]},  # MUCH SMALLER (was 32-64)
         'n_epochs': {'values': [100]},
         'early_stopping_patience': {'values': [12]},  # HIGHER (was 18-25)
-        'early_stopping_min_delta': {'values': [0.0001, 0.0003]},  # SMALLER (was 0.0005-0.001)
+        'early_stopping_min_delta': {'values': [0.001]},
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
