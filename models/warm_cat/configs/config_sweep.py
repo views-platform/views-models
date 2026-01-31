@@ -53,7 +53,7 @@ def get_sweep_config():
             # early_stopping_min_delta: +0.24 → smaller threshold needed
             'batch_size': {'values': [128, 256, 512, 1024]},
             'n_epochs': {'values': [100]},
-            'early_stopping_patience': {'values': [12]},  # HIGHER (was 18-25)
+            'early_stopping_patience': {'values': [4]},  # HIGHER (was 18-25)
             'early_stopping_min_delta': {'values': [0.001]},
             'force_reset': {'values': [True]},
 

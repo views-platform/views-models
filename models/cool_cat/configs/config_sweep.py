@@ -168,7 +168,7 @@ def get_sweep_config():
         # false_negative_weight: +0.124 → slightly lower is better
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 3.0,   # Lower (was 5.0)
+            'min': 1.0,   # Lower (was 5.0)
             'max': 12.0,   # Lower (was 12.0)
         },
     }
