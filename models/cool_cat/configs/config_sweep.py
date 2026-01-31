@@ -55,7 +55,7 @@ def get_sweep_config():
             'min': 0.1,
             'max': 0.25,
         },
-        'lr_scheduler_patience': {'values': [4, 5, 6]},  # Slightly higher
+        'lr_scheduler_patience': {'values': [4]},  # Slightly higher
         'lr_scheduler_min_lr': {'values': [1e-7]},
         # gradient_clip_val: -0.076 → slightly higher helps
         'gradient_clip_val': {
