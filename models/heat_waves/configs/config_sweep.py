@@ -32,7 +32,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_balanced_v2",
+        "name": "tft_heat_waves_balanced_v3",
         "early_terminate": {"type": "hyperband", "min_iter": 12, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -41,14 +41,14 @@ def get_sweep_config():
         # ============== TEMPORAL CONFIGURATION ==============
         # input_chunk_length: +0.3 importance → shorter context is better
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [48, 60, 72]},
+        "input_chunk_length": {"values": [24, 36, 48]},  # MUCH SHORTER (was 48-72)
         "output_chunk_shift": {"values": [0]},
         
         # ============== TRAINING BASICS ==============
-        # early_stopping_patience: +0.2 → slightly lower is better
-        "batch_size": {"values": [16, 32, 256, 512]},
-        "n_epochs": {"values": [350]},
-        "early_stopping_patience": {"values": [5]},  # Reduced (was 18-25)
+        # batch_size: -0.2 → LARGER batches help
+        "batch_size": {"values": [64, 128, 256, 512]},  # Larger (was 16-1024)
+        "n_epochs": {"values": [100]},
+        "early_stopping_patience": {"values": [6]},  # Reduced (was 18-25)
         "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         
@@ -58,8 +58,8 @@ def get_sweep_config():
         # lr_scheduler_factor: -0.3 → more aggressive decay
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 5e-4,  # Can go higher with simpler model
+            "min": 5e-6,   # LOWER (was 1e-5)
+            "max": 2e-4,   # LOWER (was 5e-4)
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
@@ -71,7 +71,7 @@ def get_sweep_config():
             "min": 0.1,
             "max": 0.3,
         },
-        "lr_scheduler_patience": {"values": [2, 3, 4]},  # Shorter (was 3-5)
+        "lr_scheduler_patience": {"values": [4]},  # HIGHER (was 4)
         "lr_scheduler_min_lr": {"values": [1e-7]},
         
         # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
@@ -181,9 +181,10 @@ def get_sweep_config():
         # ============== TFT ARCHITECTURE ==============
         # hidden_size: -0.2 importance → larger is better
         # lstm_layers: -0.2 importance → more layers help
+        # num_attention_heads: -0.2 → MORE attention heads help
         "hidden_size": {"values": [64, 96, 128]},
         "lstm_layers": {"values": [2, 3, 4]},  # More layers (was 2-3)
-        "num_attention_heads": {"values": [2, 4]},
+        "num_attention_heads": {"values": [4, 8]},  # MORE heads (was 2-4)
         
         # hidden_continuous_size: controls processing of continuous variables
         # Default 8 is too small for 50+ features - scale with hidden_size
@@ -213,38 +214,37 @@ def get_sweep_config():
         
         'zero_threshold': {
             'distribution': 'log_uniform_values',
-            'min': 0.01,
+            'min': 0.001,
             'max': 0.1,
         },
         
-        # delta: -0.2 importance → higher values help TFT
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.7,  # Higher range (was 0.1-0.4)
+        # delta: +0.4 importance → LOWER is better
+        'delta': {
+            'distribution': 'uniform',
+            'min': 0.02,
+            'max': 0.08,  # Much lower (was 0.1-0.4)
         },
         
-        # non_zero_weight: -0.4 importance → MUCH HIGHER
-        "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 8.0,   # Higher (was 5.0)
-            "max": 15.0,  # Higher (was 10.0)
+        # non_zero_weight: +0.4 importance → LOWER is better
+        'non_zero_weight': {
+            'distribution': 'uniform',
+            'min': 2.0,   # Lower (was 5.0)
+            'max': 22.0,   # Lower (was 10.0)
         },
         
-        # false_positive_weight: -0.009 → near zero importance, keep moderate
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 1.5,
-            "max": 3.0,
+        # false_positive_weight: +0.03 → near zero, keep low-moderate
+        'false_positive_weight': {
+            'distribution': 'uniform',
+            'min': 0.5,
+            'max': 5.5,
         },
         
-        # false_negative_weight: -0.2 → higher helps avoid underprediction
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,  # Higher to push predictions UP
+        # false_negative_weight: +0.124 → slightly lower is better
+        'false_negative_weight': {
+            'distribution': 'uniform',
+            'min': 1.0,   # Lower (was 5.0)
+            'max': 22.0,   # Lower (was 12.0)
         },
     }
-
     sweep_config["parameters"] = parameters
     return sweep_config
