@@ -48,7 +48,7 @@ def get_sweep_config():
         # early_stopping_patience: +0.2 → slightly lower is better
         "batch_size": {"values": [16, 32, 256, 512]},
         "n_epochs": {"values": [350]},
-        "early_stopping_patience": {"values": [4]},  # Reduced (was 18-25)
+        "early_stopping_patience": {"values": [5]},  # Reduced (was 18-25)
         "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         
@@ -71,7 +71,7 @@ def get_sweep_config():
             "min": 0.1,
             "max": 0.3,
         },
-        "lr_scheduler_patience": {"values": [2, 3]},  # Shorter (was 3-5)
+        "lr_scheduler_patience": {"values": [2, 3, 4]},  # Shorter (was 3-5)
         "lr_scheduler_min_lr": {"values": [1e-7]},
         
         # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
