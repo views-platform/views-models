@@ -28,13 +28,6 @@ def generate():
             )
             .with_column(
                 Column(
-                    "lr_ged_sb",
-                    from_loa="country_month",
-                    from_column="ged_sb_best_sum_nokgi",
-                ).transform.missing.fill()
-            )
-            .with_column(
-                Column(
                     "lr_ged_ns",
                     from_loa="country_month",
                     from_column="ged_ns_best_sum_nokgi",
