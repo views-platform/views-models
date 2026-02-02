@@ -47,7 +47,7 @@ def get_sweep_config():
         # Smaller batches work better with ~200 countries (more gradient noise = regularization)
         'batch_size': {'values': [16, 32, 64]},  # Smaller for country-month
         'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [20, 30]},  # More patience for stable convergence
+        'early_stopping_patience': {'values': [6]},  # More patience for stable convergence
         'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Tighter threshold
         'force_reset': {'values': [True]},
 
@@ -68,7 +68,7 @@ def get_sweep_config():
             'min': 0.3,
             'max': 0.5,
         },
-        'lr_scheduler_patience': {'values': [7, 10, 15]},  # More patience
+        'lr_scheduler_patience': {'values': [3]},  # More patience
         'lr_scheduler_min_lr': {'values': [1e-7]},
         # Can relax gradient clipping slightly for denser country data
         'gradient_clip_val': {
