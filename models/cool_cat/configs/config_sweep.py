@@ -9,14 +9,14 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_balanced_v3',
+        'name': 'cool_cat_tide_balanced_v3_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 10,
             'eta': 2
         },
         'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
+            'name': 'time_series_wise_mtd_mean_sb',
             'goal': 'minimize'
         },
     }

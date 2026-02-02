@@ -23,14 +23,14 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'good_life_transformer_cm_trial',
+        'name': 'good_life_transformer_cm_balanced_v1_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 15,  # Slightly higher - transformers need more warmup
             'eta': 2
         },
         'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
+            'name': 'time_series_wise_mtd_mean_sb',
             'goal': 'minimize'
         },
     }
