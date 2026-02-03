@@ -29,14 +29,14 @@ def get_sweep_config():
     """
     sweep_config = {
         'method': 'bayes',
-        'name': 'revolving_door_nhits_balanced_v1',
+        'name': 'revolving_door_nhits_balanced_v2_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 15,
+            'min_iter': 10,
             'eta': 2
         },
         'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
+            'name': 'time_series_wise_mtd_mean_sb',
             'goal': 'minimize'
         },
     }
@@ -74,24 +74,24 @@ def get_sweep_config():
         # max_pool_1d: MaxPool (True) vs AvgPool (False)
         # - MaxPool: captures peak values, good for sparse event detection
         # - AvgPool: smoother, may miss sparse spikes
-        'max_pool_1d': {'values': [True]},  # MaxPool better for conflict spikes
+        'max_pool_1d': {'values': [True, False]},  # MaxPool better for conflict spikes
         
         # activation: Non-linearity between layers
         # - ReLU: fast, good default
         # - GELU: smoother gradients, often better for time series
-        'activation': {'values': ['ReLU', 'GELU']},
+        'activation': {'values': ['ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU']},
         
         # dropout: Regularization to prevent overprediction
         'dropout': {
             'distribution': 'uniform',
-            'min': 0.25,
-            'max': 0.4,
+            'min': 0.01,
+            'max': 1.2,
         },
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [64, 128]},
-        'n_epochs': {'values': [350]},
-        'early_stopping_patience': {'values': [12, 15, 18]},  # Moderate patience
+        'batch_size': {'values': [8, 16, 32, 64, 128, 256, 512, 1024]},
+        'n_epochs': {'values': [100]},
+        'early_stopping_patience': {'values': [6]},  # Moderate patience
         'early_stopping_min_delta': {'values': [0.001]},
         'force_reset': {'values': [True]},
 
@@ -99,25 +99,25 @@ def get_sweep_config():
         # lr: +0.4 importance → keep LR LOW
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-6,
-            'max': 1e-4,  # Lower upper bound to avoid overprediction
+            'min': 5e-5,   # Higher (was 1e-5)
+            'max': 2e-3,   # Higher (was 2e-4)
         },
         'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 5e-4,
+            'distribution': 'uniform',
+            'min': 5e-4,   # MUCH HIGHER (was 1e-5)
+            'max': 5e-3,   # MUCH HIGHER (was 5e-4)
         },
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.15,
-            'max': 0.35,
+            'min': 0.1,
+            'max': 0.25,
         },
-        'lr_scheduler_patience': {'values': [4, 5, 6]},
+        'lr_scheduler_patience': {'values': [4]},
         'lr_scheduler_min_lr': {'values': [1e-7]},
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
+            'min': 0.01,
+            'max': 1.2,
         },
         
         # ============== INSTANCE NORMALIZATION ==============
@@ -130,34 +130,38 @@ def get_sweep_config():
         # BALANCED: Symmetric-ish weights to avoid over/under prediction
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        'zero_threshold': {'values': [0.01]},
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 0.001,
+            'max': 0.1,
+        },
         
         # Moderate delta for balanced L1/L2 behavior
         'delta': {
             'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.6,
+            'min': 0.01,
+            'max': 0.2,
         },
         
         # non_zero_weight: -0.3 importance → moderate values
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 6.0,  # Reduced (was 5-10)
+            'min': 1.0,
+            'max': 20.0,
         },
         
         # BALANCED: Similar FN/FP weights to avoid bias
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 2.5,
-            'max': 5.0,  # Reduced from 5-12 to stop overprediction
+            'min': 0.5,
+            'max': 15.0,
         },
         
         # Increase FP penalty to curb overprediction
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 2.0,
-            'max': 4.0,  # Increased from 1-2
+            'min': 0.5,
+            'max': 15.0,
         },
 
         # ============== SCALING ==============

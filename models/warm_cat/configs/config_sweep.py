@@ -29,14 +29,14 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'warm_cat_tide_pgm_balanced_v2',
+        'name': 'warm_cat_tide_pgm_balanced_v3_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 10,
             'eta': 2
         },
         'metric': {
-            'name': 'time_series_wise_mse_mean_sb',
+            'name': 'time_series_wise_mtd_mean_sb',
             'goal': 'minimize'
         },
     }
@@ -51,9 +51,9 @@ def get_sweep_config():
             # batch_size: +0.83 importance → CRITICAL: MUCH smaller batches!
             # early_stopping_patience: -0.34 → higher patience helps
             # early_stopping_min_delta: +0.24 → smaller threshold needed
-            'batch_size': {'values': [128, 256, 512, 1024]},
+            'batch_size': {'values': [64, 128, 256, 512, 1024]},
             'n_epochs': {'values': [100]},
-            'early_stopping_patience': {'values': [5]},  # HIGHER (was 18-25)
+            'early_stopping_patience': {'values': [6]},  # HIGHER (was 18-25)
             'early_stopping_min_delta': {'values': [0.001]},
             'force_reset': {'values': [True]},
 
@@ -75,7 +75,7 @@ def get_sweep_config():
                 'min': 0.1,
                 'max': 0.25,
             },
-            'lr_scheduler_patience': {'values': [3, 4]},
+            'lr_scheduler_patience': {'values': [4]},
             'lr_scheduler_min_lr': {'values': [1e-7]},
             # gradient_clip_val: -0.076 → slightly higher helps
             'gradient_clip_val': {
@@ -145,35 +145,35 @@ def get_sweep_config():
             
             'zero_threshold': {
                 'distribution': 'log_uniform_values',
-                'min': 0.01,   # Higher min (was 0.001) - need to detect 1 fatality
-                'max': 0.15,   # Higher max (was 0.1) - accounts for scaled threshold
+                'min': 0.001,   
+                'max': 0.15,   
             },
             
             # delta: +0.4 importance → LOWER is better
             'delta': {
                 'distribution': 'uniform',
                 'min': 0.01,   # Lower (was 0.02) - more sensitive
-                'max': 0.05,   # Lower (was 0.08) - correlation says lower is much better
+                'max': 0.15,   # Lower (was 0.08) - correlation says lower is much better
             },
             
             # non_zero_weight: +0.4 importance → LOWER is better
             'non_zero_weight': {
                 'distribution': 'uniform',
-                'min': 3.0,    # Slightly higher - non-zero is precious signal
-                'max': 15.0,   # Higher max - emphasize rare conflict events
+                'min': 1.0,    # Slightly higher - non-zero is precious signal
+                'max': 20.0,   # Higher max - emphasize rare conflict events
             },
             
             # false_positive_weight: +0.03 → near zero, keep low-moderate
             'false_positive_weight': {
                 'distribution': 'uniform',
                 'min': 0.5,
-                'max': 7.5,
+                'max': 20.0,
             },
             
             # false_negative_weight: +0.124 → slightly lower is better
             'false_negative_weight': {
                 'distribution': 'uniform',
-                'min': 3.0,   # Lower (was 5.0)
+                'min': 0.5,   # Lower (was 5.0)
                 'max': 20.0,   # Lower (was 12.0)
             },
         }
