@@ -47,6 +47,7 @@ def get_sweep_config():
         'steps': {'values': [[*range(1, 36 + 1)]]},
         'input_chunk_length': {'values': [36, 48]},  # Shorter context (was 48-72)
         'output_chunk_shift': {'values': [0]},
+        'random_state': {'values': [67]},
 
         # ============== N-HiTS ARCHITECTURE ==============
         # num_stacks: -0.6 importance → FEWER stacks = better MSLE
