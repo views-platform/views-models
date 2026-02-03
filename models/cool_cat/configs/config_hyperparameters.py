@@ -11,6 +11,7 @@ def get_hp_config():
         "steps": [*range(1, 36 + 1, 1)],
         "num_samples": 1,
         "mc_dropout": True,
+        "random_state": 67,
 
         "batch_size": 8,
         "decoder_output_dim": 32,

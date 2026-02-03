@@ -47,6 +47,7 @@ def get_sweep_config():
             'input_chunk_length': {'values': [36, 48, 72]},  # Slightly shorter
             'output_chunk_shift': {'values': [0]},
             'random_state': {'values': [67]},
+            'mc_dropout': {'values': [True]},
 
             # ============== TRAINING BASICS ==============
             # batch_size: +0.83 importance → CRITICAL: MUCH smaller batches!
