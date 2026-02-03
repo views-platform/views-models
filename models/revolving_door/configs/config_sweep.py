@@ -52,16 +52,16 @@ def get_sweep_config():
         # ============== N-HiTS ARCHITECTURE ==============
         # num_stacks: -0.6 importance → FEWER stacks = better MSLE
         # 2 stacks (trend + seasonality) is optimal - simpler model generalizes better
-        'num_stacks': {'values': [2]},  # FIXED to 2 (was 2-3)
+        'num_stacks': {'values': [1, 2, 3]},  # FIXED to 2 (was 2-3)
         
         # num_blocks: Blocks per stack (depth within each scale)
-        'num_blocks': {'values': [1, 2]},
+        'num_blocks': {'values': [1, 2, 3]},
         
         # num_layers: FC layers per block
-        'num_layers': {'values': [2, 3]},
+        'num_layers': {'values': [2, 3, 4]},
         
         # layer_width: Slightly smaller to avoid overprediction
-        'layer_width': {'values': [256, 384]},  # Reduced (was 256-512)
+        'layer_width': {'values': [8, 16, 32, 64, 128, 256, 384]},  # Reduced (was 256-512)
         
         # pooling_kernel_sizes: Controls multi-rate input sampling
         # - None = auto-configured based on input_chunk_length (recommended)
