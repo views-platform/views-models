@@ -32,7 +32,7 @@ def get_sweep_config():
         'name': 'good_life_transformer_cm_balanced_v1_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 15,  # Slightly higher - transformers need more warmup
+            'min_iter': 20,  # Higher for scarce signal - transformers need time to find patterns
             'eta': 2
         },
         'metric': {
@@ -52,9 +52,9 @@ def get_sweep_config():
         # ============== TRAINING BASICS ==============
         # Larger batches help stabilize gradients for zero-inflated data
         'batch_size': {'values': [32, 64, 128]},  # Larger for gradient stability
-        'n_epochs': {'values': [200]},  # Reduced since we have better hyperparams
-        'early_stopping_patience': {'values': [10, 15]},  # More patience
-        'early_stopping_min_delta': {'values': [0.0005, 0.001]},
+        'n_epochs': {'values': [100]},  # Reduced since we have better hyperparams
+        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
+        'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
@@ -67,11 +67,12 @@ def get_sweep_config():
         },
         # CRITICAL: Keep weight_decay LOW to prevent weight collapse!
         # High weight_decay caused TiDE weights to shrink to ~1e-34
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-7,   # Very low minimum
-            'max': 1e-5,   # REDUCED from 1e-3 to prevent weight collapse
-        },
+        # 'weight_decay': {
+        #     'distribution': 'log_uniform_values',
+        #     'min': 1e-8,
+        #     'max': 1e-6,  # Lower ceiling
+        # },
+        'weight_decay': {'values': [0]},
         'lr_scheduler_factor': {
             'distribution': 'uniform',
             'min': 0.3,
@@ -149,18 +150,18 @@ def get_sweep_config():
         # Country-month (~200 series) can handle larger models than priogrid
         # d_model/nhead >= 32 required for stable attention
         # Explore range: 128/4=32✓, 256/4=64✓, 256/8=32✓, 512/8=64✓
-        'd_model': {'values': [128, 256, 512]},  # Explore wider range for country-month
+        'd_model': {'values': [128, 256]},  # Moderate sizes for scarce signal
         'num_attention_heads': {'values': [4, 8]},  # Safe with all d_model values
         
-        # Deeper models OK for denser country data (2-4 layers)
-        'num_encoder_layers': {'values': [2, 3, 4]},  # Can go deeper with country-month
-        'num_decoder_layers': {'values': [2, 3]},  # Decoder can be shallower
+        # Simpler models for scarce signal - avoid overfitting
+        'num_encoder_layers': {'values': [1, 2, 3]},
+        'num_decoder_layers': {'values': [1, 2]},
         
         # FFN dimension: 2-4x d_model is standard, explore range
         'dim_feedforward': {'values': [512, 1024, 2048]},
         
-        # Dropout: slightly higher for regularization with small dataset
-        'dropout': {'values': [0.1, 0.15, 0.2]},
+        # Dropout: LOW for scarce signal - preserve neurons that learn rare patterns
+        'dropout': {'values': [0.05, 0.1, 0.15]},
         
         # GLU variants significantly outperform standard activations in Transformers
         # SwiGLU: Best overall (used in LLaMA, PaLM) - smooth gating
@@ -172,8 +173,8 @@ def get_sweep_config():
         # LayerNormNoBias: Slightly faster, can improve generalization
         'norm_type': {'values': ['RMSNorm', 'LayerNorm']},
         
-        # Critical for non-stationary conflict data
-        'use_reversible_instance_norm': {'values': [True]},
+        # Critical for non-stationary conflict data - keep True (already using AsinhTransform)
+        'use_reversible_instance_norm': {'values': [True, False]},
 
         # ============== LOSS FUNCTION ==============
         # For zero-inflated data, we need strong gradient flow

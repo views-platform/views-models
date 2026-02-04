@@ -18,7 +18,7 @@ def get_sweep_config():
         'name': 'cool_cat_tide_balanced_v4_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 15,  # Increased to give model time to learn
+            'min_iter': 20,  # Higher for scarce signal - need time to find patterns
             'eta': 2
         },
         'metric': {
@@ -38,9 +38,9 @@ def get_sweep_config():
         # ============== TRAINING BASICS ==============
         # Larger batch sizes help stabilize gradients for zero-inflated data
         'batch_size': {'values': [16, 32, 64]},  # Larger batches for gradient stability
-        'n_epochs': {'values': [150]},  # More epochs since we reduced regularization
-        'early_stopping_patience': {'values': [10, 15]},  # More patience
-        'early_stopping_min_delta': {'values': [0.0005, 0.001]},
+        'n_epochs': {'values': [100]},  # More epochs since we reduced regularization
+        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
+        'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
@@ -51,11 +51,12 @@ def get_sweep_config():
             'min': 1e-4,
             'max': 5e-3,  # Slightly higher max
         },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',  # Log scale for better exploration
-            'min': 1e-7,   # DRASTICALLY REDUCED (was 5e-4, caused weight collapse!)
-            'max': 1e-5,   # DRASTICALLY REDUCED (was 5e-3)
-        },
+        # 'weight_decay': {
+        #     'distribution': 'log_uniform_values',  # Log scale for better exploration
+        #     'min': 1e-7,   # DRASTICALLY REDUCED (was 5e-4, caused weight collapse!)
+        #     'max': 1e-5,   # DRASTICALLY REDUCED (was 5e-3)
+        # },
+        'weight_decay': {'values': [0]},
         'lr_scheduler_factor': {
             'distribution': 'uniform',
             'min': 0.3,   # Less aggressive reduction
@@ -127,24 +128,24 @@ def get_sweep_config():
         # ============== TiDE ARCHITECTURE ==============
         # Larger hidden sizes help prevent weight collapse
         # The skip connection will always learn, but we need the main network to also learn
-        'num_encoder_layers': {'values': [2, 3, 4]},  # At least 2 for expressiveness
-        'num_decoder_layers': {'values': [1, 2, 3]},
-        'decoder_output_dim': {'values': [32, 64, 128]},  # Larger to prevent collapse
-        'hidden_size': {'values': [64, 128, 256, 384]},  # LARGER minimum (was 8, too small!)
+        'num_encoder_layers': {'values': [1, 2, 3]},  # Simpler for scarce signal
+        'num_decoder_layers': {'values': [1, 2]},
+        'decoder_output_dim': {'values': [32, 64, 128]},
+        'hidden_size': {'values': [64, 128, 192]},  # Moderate sizes - avoid overfitting with scarce signal
         
         # Temporal processing for country-month data
         'temporal_width_past': {'values': [4, 6, 8]},
         'temporal_width_future': {'values': [6, 8, 12]},
-        'temporal_hidden_size_past': {'values': [64, 96, 128]},  # Larger
+        'temporal_hidden_size_past': {'values': [32, 48, 64, 96, 128]},  # Larger
         'temporal_hidden_size_future': {'values': [48, 64, 96]},
         'temporal_decoder_hidden': {'values': [64, 128, 192, 256]},
         
         # Regularization - REDUCED since we lowered weight decay
         # Too much regularization (dropout + weight_decay + layer_norm) caused collapse
         'use_layer_norm': {'values': [True]},  # Keep layer norm, it helps with zero-inflated
-        'dropout': {'values': [0.1, 0.15, 0.2, 0.25]},  # LOWER dropout (was 0.25-0.45)
+        'dropout': {'values': [0.05, 0.1, 0.15]},  # LOW dropout - preserve neurons that learn rare patterns
         'use_static_covariates': {'values': [False]},  # Simpler first
-        # Reversible instance norm can help with varying scales across countries
+        # Reversible instance norm - keep True (already using AsinhTransform for scaling)
         'use_reversible_instance_norm': {'values': [True, False]},
 
         # ============== LOSS FUNCTION ==============
