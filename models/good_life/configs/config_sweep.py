@@ -91,6 +91,7 @@ def get_sweep_config():
         # MinMaxScaler compresses gradients too much, contributing to weight collapse.
         # StandardScaler preserves gradient magnitude while centering/scaling.
         # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
+        'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
         'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
         'feature_scaler_map': {
@@ -103,7 +104,9 @@ def get_sweep_config():
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
                     # Large-scale economic data with extreme skew
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or"
+                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
+                    # Mortality rates (positive, skewed)
+                    "lr_wdi_sp_dyn_imrt_fe_in"
                 ],
                 # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "StandardScaler": [
@@ -135,11 +138,7 @@ def get_sweep_config():
                     # Growth rates (can be negative, roughly normal)
                     "lr_wdi_sp_pop_grow"
                 ],
-                # Mortality rates (positive, moderate skew)
-                "AsinhTransform->StandardScaler": [
-                    "lr_wdi_sp_dyn_imrt_fe_in"
-                ],
-                # Token counts (moderate skew)
+                # Token counts (moderate skew) - RobustScaler handles outliers
                 "RobustScaler": [
                     "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
                 ]

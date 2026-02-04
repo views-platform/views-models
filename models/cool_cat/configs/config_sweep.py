@@ -75,6 +75,7 @@ def get_sweep_config():
         # - AsinhTransform handles zeros naturally (unlike log)
         # - StandardScaler preserves gradient magnitude better than MinMaxScaler
         # - MinMaxScaler compresses gradients too much, contributing to weight collapse
+        'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
         'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
         'feature_scaler_map': {
@@ -87,7 +88,8 @@ def get_sweep_config():
                     "lr_ged_sb_tsum_24",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or"
+                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
+                    "lr_wdi_sp_dyn_imrt_fe_in"  # Mortality rates - skewed positive
                 ],
                 # Bounded features [0,1] or percentages - StandardScaler works fine
                 "StandardScaler": [
@@ -114,12 +116,10 @@ def get_sweep_config():
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
-                    # Growth rates
+                    # Growth rates (can be negative)
                     "lr_wdi_sp_pop_grow"
                 ],
-                # Mortality rates and skewed positive data
-                "AsinhTransform->StandardScaler": ["lr_wdi_sp_dyn_imrt_fe_in"],
-                # Token counts with outliers
+                # Token counts with outliers - RobustScaler handles outliers better
                 "RobustScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"]
             }]
         },
