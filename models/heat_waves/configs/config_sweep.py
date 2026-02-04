@@ -3,28 +3,18 @@ def get_sweep_config():
     Contains the configuration for hyperparameter sweeps using WandB.
     Optimized for TFT on zero-inflated, right-skewed conflict data at country-month level.
     
-    TFT Flat Line Prevention:
+    GRADIENT FLOW FIXES:
+    - Changed MinMaxScaler -> StandardScaler (preserves gradient magnitude)
+    - Increased delta (0.5-2.0) for stronger L2-like gradients
+    - Removed weight_decay (was suppressing learning of rare patterns)
+    - Reduced dropout for scarce signal
+    - Increased patience for early stopping and hyperband
+
+    TFT Architecture Notes:
     - hidden_size must be >= 32 (ideally 64-128) for meaningful attention
     - hidden_size must be divisible by num_attention_heads with quotient >= 16
     - Gradient clipping prevents attention collapse
-    - Temporal encodings (add_encoders) help capture seasonality
-    - Learning rate must be low enough for stable attention learning
-    
-    Parameter Importance Analysis (vs MSLE):
-    - weight_decay: +0.7 → MUCH LOWER weight decay needed
-    - lr_scheduler_patience: +0.7 → shorter patience (faster decay)
-    - input_chunk_length: +0.3 → shorter context is better
-    - non_zero_weight: -0.4 → HIGHER values improve MSLE
-    - lr_scheduler_factor: -0.3 → more aggressive decay helps
-    - hidden_size: -0.2 → larger hidden_size helps
-    - lstm_layers: -0.2 → more LSTM layers help
-    - false_negative_weight: -0.2 → higher FN weight helps (anti-underprediction)
-    - delta: -0.2 → slightly higher delta helps TFT
-    
-    Anti-Underprediction Strategy:
-    - HIGH false_negative_weight + HIGH non_zero_weight → pick up conflict patterns
-    - LOW weight_decay → less regularization, let model learn signal
-    - Larger hidden_size + more lstm_layers → more capacity for patterns
+    - add_relative_index helps capture temporal patterns
 
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
@@ -32,218 +22,155 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_balanced_v3",
-        "early_terminate": {"type": "hyperband", "min_iter": 12, "eta": 2},
+        "name": "tft_heat_waves_gradient_flow_v1",
+        "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},  # Higher for scarce signal
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
-        # input_chunk_length: +0.3 importance → shorter context is better
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [24, 36, 48]},  # MUCH SHORTER (was 48-72)
+        "input_chunk_length": {"values": [24, 36, 48]},
         "output_chunk_shift": {"values": [0]},
+        "output_chunk_length": {"values": [36]},
+        "random_state": {"values": [42]},
+        "mc_dropout": {"values": [True]},
         
         # ============== TRAINING BASICS ==============
-        # batch_size: -0.2 → LARGER batches help
-        "batch_size": {"values": [64, 128, 256, 512]},  # Larger (was 16-1024)
-        "n_epochs": {"values": [100]},
-        "early_stopping_patience": {"values": [6]},  # Reduced (was 18-25)
-        "early_stopping_min_delta": {"values": [0.001]},
+        "batch_size": {"values": [32, 64, 128]},  # Moderate sizes
+        "n_epochs": {"values": [150]},  # More epochs with better hyperparams
+        "early_stopping_patience": {"values": [15, 20, 25]},  # MORE patience for scarce signal
+        "early_stopping_min_delta": {"values": [0.0001, 0.0005]},  # Smaller delta
         "force_reset": {"values": [True]},
         
         # ============== OPTIMIZER / SCHEDULER ==============
-        # weight_decay: +0.7 importance → MUCH LOWER needed
-        # lr_scheduler_patience: +0.7 → shorter patience (faster decay)
-        # lr_scheduler_factor: -0.3 → more aggressive decay
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-6,   # LOWER (was 1e-5)
-            "max": 2e-4,   # LOWER (was 5e-4)
+            "min": 1e-5,
+            "max": 5e-4,
         },
-        "weight_decay": {
-            "distribution": "log_uniform_values",
-            "min": 1e-7,   # VERY LOW - don't regularize away sparse signal
-            "max": 1e-5,
-        },
+        # CRITICAL: No weight decay for scarce signal
+        "weight_decay": {"values": [0]},
         "lr_scheduler_factor": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 0.3,
+            "min": 0.3,
+            "max": 0.5,
         },
-        "lr_scheduler_patience": {"values": [4]},  # HIGHER (was 4)
-        "lr_scheduler_min_lr": {"values": [1e-7]},
+        "lr_scheduler_patience": {"values": [5, 8]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
         
-        # CRITICAL: Gradient clipping prevents attention explosion -> flat lines
+        # Gradient clipping - moderate for TFT attention stability
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 1.2,
+            "min": 0.5,
+            "max": 2.0,
         },
-        # Scaling and transformation
+        
+        # ============== SCALING ==============
+        # CRITICAL: StandardScaler instead of MinMaxScaler for gradient preservation
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},  # Fixed best option
+        "target_scaler": {"values": ["AsinhTransform->StandardScaler"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
-                    "AsinhTransform->MinMaxScaler": [
-                        "lr_ged_sb",
-                        "lr_ged_ns",
-                        "lr_ged_os",
-                        "lr_acled_sb",
-                        "lr_acled_sb_count",
-                        "lr_acled_os",
+                    # Zero-inflated conflict counts - Asinh + StandardScaler preserves gradients
+                    "AsinhTransform->StandardScaler": [
+                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
+                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                         "lr_ged_sb_tsum_24",
-                        "lr_splag_1_ged_sb",
-                        "lr_splag_1_ged_os",
-                        "lr_splag_1_ged_ns",
-                        # Large-scale economic data with extreme skew
-                        "lr_wdi_ny_gdp_mktp_kd",
-                        "lr_wdi_nv_agr_totl_kn",
-                        "lr_wdi_sm_pop_netm",
-                        "lr_wdi_sm_pop_refg_or",
+                        "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
+                        "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
+                        "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
+                        "lr_wdi_sp_dyn_imrt_fe_in",  # Mortality rates
                     ],
-                    # Bounded percentages and rates (0-100 scale)
-                    "MinMaxScaler": [
-                        "lr_wdi_sl_tlf_totl_fe_zs",
-                        "lr_wdi_se_enr_prim_fm_zs",
-                        "lr_wdi_sp_urb_totl_in_zs",
-                        "lr_wdi_sh_sta_maln_zs",
-                        "lr_wdi_sh_sta_stnt_zs",
-                        "lr_wdi_dt_oda_odat_pc_zs",
+                    # Bounded percentages, V-Dem indices - StandardScaler works fine
+                    "StandardScaler": [
+                        "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
+                        "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs",
+                        "lr_wdi_sh_sta_stnt_zs", "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_ms_mil_xpnd_gd_zs",
-                        # V-Dem indices (already 0-1 bounded)
-                        "lr_vdem_v2x_horacc",
-                        "lr_vdem_v2xnp_client",
-                        "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl",
-                        "lr_vdem_v2xpe_exlpol",
-                        "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo",
-                        "lr_vdem_v2xpe_exlgender",
-                        "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party",
-                        "lr_vdem_v2x_genpp",
-                        "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty",
-                        "lr_vdem_v2xeg_eqprotec",
-                        "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove",
-                        "lr_vdem_v2x_clphy",
-                        "lr_vdem_v2x_hosabort",
+                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
                         "lr_vdem_v2xnp_regcorr",
-                        # Topic model proportions (0-1 bounded)
-                        "lr_topic_ste_theta0",
-                        "lr_topic_ste_theta1",
-                        "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3",
-                        "lr_topic_ste_theta4",
-                        "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6",
-                        "lr_topic_ste_theta7",
-                        "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9",
-                        "lr_topic_ste_theta10",
-                        "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12",
-                        "lr_topic_ste_theta13",
-                        "lr_topic_ste_theta14",
-                        "lr_topic_ste_theta0_stock_t1_splag",
-                        "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag",
-                        "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag",
-                        "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag",
-                        "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag",
-                        "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag",
-                        "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag",
-                        "lr_topic_ste_theta13_stock_t1_splag",
+                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
+                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
+                        "lr_wdi_sp_pop_grow",  # Growth rates
                     ],
-                    # Growth rates (can be negative, roughly normal)
-                    "StandardScaler->MinMaxScaler": ["lr_wdi_sp_pop_grow"],
-                    # Mortality rates (positive, moderate skew)
-                    "SqrtTransform->MinMaxScaler": ["lr_wdi_sp_dyn_imrt_fe_in"],
-                    # Token counts (moderate skew)
-                    "RobustScaler->MinMaxScaler": [
-                        "lr_topic_tokens_t1",
-                        "lr_topic_tokens_t1_splag",
-                    ],
+                    # Token counts with outliers
+                    "RobustScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"],
                 }
             ]
         },
         
         # ============== TFT ARCHITECTURE ==============
-        # hidden_size: -0.2 importance → larger is better
-        # lstm_layers: -0.2 importance → more layers help
-        # num_attention_heads: -0.2 → MORE attention heads help
         "hidden_size": {"values": [64, 96, 128]},
-        "lstm_layers": {"values": [2, 3, 4]},  # More layers (was 2-3)
-        "num_attention_heads": {"values": [4, 8]},  # MORE heads (was 2-4)
+        "lstm_layers": {"values": [2, 3]},  # Simpler for scarce signal
+        "num_attention_heads": {"values": [4, 8]},
         
-        # hidden_continuous_size: controls processing of continuous variables
-        # Default 8 is too small for 50+ features - scale with hidden_size
-        "hidden_continuous_size": {"values": [8, 16, 24]},
+        # hidden_continuous_size: scale with number of features (50+)
+        "hidden_continuous_size": {"values": [16, 32, 48]},  # LARGER (was 8-24)
         
-        # Regularization
-        "dropout": {"values": [0.2, 0.3, 0.4]},  # Slightly lower dropout
+        # Regularization - LOW for scarce signal
+        "dropout": {"values": [0.05, 0.1, 0.15]},  # MUCH LOWER (was 0.2-0.4)
         
         # Attention configuration
-        "full_attention": {"values": [True]},  # Full attention for better patterns
-        # feed_forward: GLU variants from "GLU Variants Improve Transformer" paper
-        # SwiGLU/GEGLU often outperform GRN for learning sharp patterns
-        "feed_forward": {"values": ["GatedResidualNetwork", "GLU", "Bilinear", "ReGLU", "GEGLU", "SwiGLU", "ReLU", "GELU"]},
-        "add_relative_index": {"values": [True]},  # Helps with temporal patterns
-        # skip_interpolation: skips interpolation in VariableSelectionNetwork
-        # Can increase training speed without hurting accuracy
-        "skip_interpolation": {"values": [False, True]},
-        "use_static_covariates": {"values": [True, False]},  # Fixed for country-level
-        "norm_type": {"values": ["LayerNorm", "RMSNorm", None, "LayerNormNoBias"]},  # RMSNorm can be more stable
-        "use_reversible_instance_norm": {"values": [False]},
+        "full_attention": {"values": [True]},
+        "feed_forward": {"values": ["GatedResidualNetwork", "SwiGLU", "GEGLU"]},  # Best performers
+        "add_relative_index": {"values": [True]},
+        "skip_interpolation": {"values": [False]},  # Keep interpolation for better learning
+        "use_static_covariates": {"values": [False]},  # Simpler first
+        "norm_type": {"values": ["RMSNorm", "LayerNorm"]},
+        "use_reversible_instance_norm": {"values": [True]},  # Already using AsinhTransform
         
         # ============== LOSS FUNCTION ==============
-        # non_zero_weight: -0.4 importance → HIGHER values improve MSLE significantly
-        # false_negative_weight: -0.2 → higher helps avoid underprediction
-        # delta: -0.2 → slightly higher delta helps TFT (more L2-like)
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
-        'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 0.001,
-            'max': 0.1,
+        "zero_threshold": {
+            "distribution": "log_uniform_values",
+            "min": 0.01,
+            "max": 0.2,
         },
         
-        # delta: +0.4 importance → LOWER is better
-        'delta': {
-            'distribution': 'uniform',
-            'min': 0.02,
-            'max': 0.08,  # Much lower (was 0.1-0.4)
+        # CRITICAL: Higher delta for gradient flow (was 0.02-0.08, caused weight collapse!)
+        "delta": {
+            "distribution": "uniform",
+            "min": 0.5,   # MUCH HIGHER
+            "max": 2.0,   # MUCH HIGHER
         },
         
-        # non_zero_weight: +0.4 importance → LOWER is better
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 2.0,   # Lower (was 5.0)
-            'max': 22.0,   # Lower (was 10.0)
+        # Non-zero weight - emphasize rare events
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 3.0,
+            "max": 10.0,
         },
         
-        # false_positive_weight: +0.03 → near zero, keep low-moderate
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 5.5,
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 2.0,
         },
         
-        # false_negative_weight: +0.124 → slightly lower is better
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,   # Lower (was 5.0)
-            'max': 22.0,   # Lower (was 12.0)
+        # False negative weight - missing conflict is worse
+        "false_negative_weight": {
+            "distribution": "uniform",
+            "min": 2.0,
+            "max": 8.0,
         },
     }
     sweep_config["parameters"] = parameters

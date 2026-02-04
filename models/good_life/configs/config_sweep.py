@@ -48,6 +48,9 @@ def get_sweep_config():
         'steps': {'values': [[*range(1, 36 + 1)]]},
         'input_chunk_length': {'values': [48, 60, 72]},  # Longer windows for country-level patterns
         'output_chunk_length': {'values': [36]},
+        'output_chunk_shift': {'values': [0]},
+        'mc_dropout': {'values': [True]},
+        'random_state': {'values': [67]},
 
         # ============== TRAINING BASICS ==============
         # Larger batches help stabilize gradients for zero-inflated data
