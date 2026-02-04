@@ -24,7 +24,7 @@ def get_sweep_config():
         "method": "bayes",
         "name": "tft_heat_waves_gradient_flow_v1",
         "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},  # Higher for scarce signal
-        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -51,19 +51,15 @@ def get_sweep_config():
         },
         # CRITICAL: No weight decay for scarce signal
         "weight_decay": {"values": [0]},
-        "lr_scheduler_factor": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.5,
-        },
-        "lr_scheduler_patience": {"values": [5, 8]},
+        "lr_scheduler_factor": {"values": [0.5]},  # Fixed for stability
+        "lr_scheduler_patience": {"values": [8]},  # Fixed - consistent plateau detection
         "lr_scheduler_min_lr": {"values": [1e-6]},
         
-        # Gradient clipping - moderate for TFT attention stability
+        # Gradient clipping - tight range for consistent training
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "min": 0.8,
+            "max": 1.2,
         },
         
         # ============== SCALING ==============
@@ -146,31 +142,27 @@ def get_sweep_config():
             "max": 0.2,
         },
         
-        # CRITICAL: Higher delta for gradient flow (was 0.02-0.08, caused weight collapse!)
+        # CRITICAL: Delta - tight range for consistent gradient flow
         "delta": {
             "distribution": "uniform",
-            "min": 0.5,   # MUCH HIGHER
-            "max": 2.0,   # MUCH HIGHER
+            "min": 0.8,
+            "max": 1.5,
         },
         
-        # Non-zero weight - emphasize rare events
+        # Non-zero weight - narrower range for stability
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 3.0,
-            "max": 10.0,
+            "min": 4.0,
+            "max": 7.0,  # Narrower range prevents conflicting gradients
         },
         
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
-        },
+        "false_positive_weight": {"values": [1.0]},  # Fixed - variable weighting causes instability
         
-        # False negative weight - missing conflict is worse
+        # False negative weight - narrower range
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 5.0,  # Narrower - still emphasizes missing conflicts
         },
     }
     sweep_config["parameters"] = parameters

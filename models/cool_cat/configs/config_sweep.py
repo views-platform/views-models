@@ -37,7 +37,7 @@ def get_sweep_config():
 
         # ============== TRAINING BASICS ==============
         # Larger batch sizes help stabilize gradients for zero-inflated data
-        'batch_size': {'values': [16, 32, 64]},  # Larger batches for gradient stability
+        'batch_size': {'values': [32, 64, 128]},  # Larger batches for gradient stability
         'n_epochs': {'values': [100]},  # More epochs since we reduced regularization
         'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
         'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
@@ -48,8 +48,8 @@ def get_sweep_config():
         # Rule of thumb: weight_decay should be 10-100x smaller than lr
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-4,
-            'max': 5e-3,  # Slightly higher max
+            'min': 5e-5,
+            'max': 1e-3,  # Tighter range (20x) for stability
         },
         # 'weight_decay': {
         #     'distribution': 'log_uniform_values',  # Log scale for better exploration
@@ -57,18 +57,14 @@ def get_sweep_config():
         #     'max': 1e-5,   # DRASTICALLY REDUCED (was 5e-3)
         # },
         'weight_decay': {'values': [0]},
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.3,   # Less aggressive reduction
-            'max': 0.5,
-        },
-        'lr_scheduler_patience': {'values': [5, 8]},  # More patience before reducing LR
+        'lr_scheduler_factor': {'values': [0.5]},  # Fixed for stability
+        'lr_scheduler_patience': {'values': [8]},  # Fixed - consistent plateau detection
         'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor
-        # Gradient clipping helps prevent exploding gradients with zero-inflated data
+        # Gradient clipping - tight range for consistent training
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 2.0,  # Moderate clipping
+            'min': 0.8,
+            'max': 1.2,
         },
 
         # ============== SCALING ==============
@@ -145,8 +141,8 @@ def get_sweep_config():
         'use_layer_norm': {'values': [True]},  # Keep layer norm, it helps with zero-inflated
         'dropout': {'values': [0.05, 0.1, 0.15]},  # LOW dropout - preserve neurons that learn rare patterns
         'use_static_covariates': {'values': [False]},  # Simpler first
-        # Reversible instance norm - keep True (already using AsinhTransform for scaling)
-        'use_reversible_instance_norm': {'values': [True, False]},
+        # Reversible instance norm - True for non-stationary conflict data
+        'use_reversible_instance_norm': {'values': [True]},
 
         # ============== LOSS FUNCTION ==============
         # For zero-inflated data, we need a loss that:
@@ -162,35 +158,28 @@ def get_sweep_config():
             'max': 0.2,
         },
         
-        # Delta for Huber loss - controls transition from L2 to L1
-        # Higher delta = more L2-like = stronger gradients for small errors
+        # Delta for Huber loss - tighter range for consistent gradient flow
         'delta': {
             'distribution': 'uniform',
-            'min': 0.5,    # HIGHER (was 0.02-0.08, too low for gradient flow)
-            'max': 2.0,    # Much higher to encourage gradient flow
+            'min': 0.8,
+            'max': 1.5,
         },
         
-        # Non-zero weight - how much more to weight non-zero targets
-        # This is critical for zero-inflated data!
+        # Non-zero weight - narrower range for stability
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 10.0,  # Strong emphasis on learning non-zero cases
+            'min': 4.0,
+            'max': 7.0,  # Narrower range prevents conflicting gradients
         },
         
-        # False positive weight - penalize predicting conflict when none
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 0.5,    # Lower (don't over-penalize, let model explore)
-            'max': 2.0,
-        },
+        # False positive weight - fixed for stability
+        'false_positive_weight': {'values': [1.0]},  # Fixed - variable weighting causes instability
         
-        # False negative weight - penalize missing actual conflict
-        # This should be higher for conflict forecasting!
+        # False negative weight - narrower range
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 2.0,    # Higher - missing conflict is worse than false alarm
-            'max': 8.0,
+            'min': 2.0,
+            'max': 5.0,  # Narrower - still emphasizes missing conflicts
         },
     }
 

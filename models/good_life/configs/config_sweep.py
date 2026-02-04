@@ -77,18 +77,14 @@ def get_sweep_config():
         #     'max': 1e-6,  # Lower ceiling
         # },
         'weight_decay': {'values': [0]},
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.3,
-            'max': 0.6,   # Less aggressive LR reduction
-        },
-        'lr_scheduler_patience': {'values': [5, 8]},  # More patience before reducing LR
+        'lr_scheduler_factor': {'values': [0.5]},  # Fixed for stability
+        'lr_scheduler_patience': {'values': [8]},  # Fixed - consistent plateau detection
         'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor to prevent stalling
-        # Gradient clipping - important for Transformers
+        # Gradient clipping - tight range for consistent training
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 2.0,   # Moderate clipping
+            'min': 0.8,
+            'max': 1.2, 
         },
 
         # ============== SCALING ==============
@@ -177,8 +173,8 @@ def get_sweep_config():
         # LayerNormNoBias: Slightly faster, can improve generalization
         'norm_type': {'values': ['RMSNorm', 'LayerNorm']},
         
-        # Critical for non-stationary conflict data - keep True (already using AsinhTransform)
-        'use_reversible_instance_norm': {'values': [True, False]},
+        # Critical for non-stationary conflict data - True with AsinhTransform
+        'use_reversible_instance_norm': {'values': [True]},
 
         # ============== LOSS FUNCTION ==============
         # For zero-inflated data, we need strong gradient flow
@@ -189,29 +185,24 @@ def get_sweep_config():
             'min': 0.01,
             'max': 0.2,
         },
-        # Delta for Huber loss - HIGHER = more L2-like = stronger gradients
-        # Low delta was contributing to weak gradient signals
+        # Delta for Huber loss - tighter range for consistent gradient flow
         'delta': {
             'distribution': 'uniform',
-            'min': 0.5,   # INCREASED (was 0.1)
-            'max': 2.0,   # INCREASED (was 0.8) for stronger gradient flow
+            'min': 0.8,
+            'max': 1.5,
         },
-        # Country-month has more non-zero events - moderate weighting
+        # Non-zero weight - narrower range for stability
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,   # Strong emphasis on learning non-zero cases
+            'min': 4.0,
+            'max': 7.0,   # Narrower range prevents conflicting gradients
         },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 0.5,   # Lower - don't over-penalize exploration
-            'max': 2.0,
-        },
+        'false_positive_weight': {'values': [1.0]},  # Fixed - variable weighting causes instability
         # Missing conflict is worse than false alarm
         'false_negative_weight': {
             'distribution': 'uniform',
             'min': 2.0,
-            'max': 6.0,
+            'max': 5.0,  # Narrower - still emphasizes missing conflicts
         },
     }
 
