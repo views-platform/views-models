@@ -51,6 +51,7 @@ def get_sweep_config():
         'output_chunk_shift': {'values': [0]},
         'mc_dropout': {'values': [True]},
         'random_state': {'values': [67]},
+        'detect_anomaly': {'values': [False]},
 
         # ============== TRAINING BASICS ==============
         # Larger batches help stabilize gradients for zero-inflated data
