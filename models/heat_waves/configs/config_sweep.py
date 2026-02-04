@@ -22,7 +22,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_gradient_flow_v1",
+        "name": "tft_heat_waves_idek_anymore_v1_mtd",
         "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},  # Higher for scarce signal
         "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }
