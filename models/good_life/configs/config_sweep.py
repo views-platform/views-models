@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'good_life_transformer_cm_balanced_v1_mtd',
+        'name': 'good_life_transformer_cm_balanced_v2_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 20,  # Higher for scarce signal - transformers need time to find patterns
