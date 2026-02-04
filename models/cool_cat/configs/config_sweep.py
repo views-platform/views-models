@@ -3,16 +3,22 @@ def get_sweep_config():
     Contains the configuration for hyperparameter sweeps using WandB.
     Optimized for TiDEModel on zero-inflated conflict fatalities data at country-month level.
     
+    FIXES for weight collapse issue:
+    - Drastically reduced weight_decay (was causing weights to shrink to ~1e-34)
+    - Improved target scaling for zero-inflated data
+    - Better learning rate to weight_decay ratio
+    - Reduced overall regularization
+    
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_balanced_v3_mtd',
+        'name': 'cool_cat_tide_balanced_v4_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 10,
+            'min_iter': 15,  # Increased to give model time to learn
             'eta': 2
         },
         'metric': {
@@ -24,55 +30,62 @@ def get_sweep_config():
     parameters = {
         # ============== TEMPORAL CONFIGURATION ==============
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48]},  # Slightly shorter
+        'input_chunk_length': {'values': [36, 48]},
         'output_chunk_shift': {'values': [0]},
         'mc_dropout': {'values': [True]},
         'random_state': {'values': [67]},
 
         # ============== TRAINING BASICS ==============
-        # batch_size: +0.83 importance → CRITICAL: MUCH smaller batches!
-        # early_stopping_patience: -0.34 → higher patience helps
-        # early_stopping_min_delta: +0.24 → smaller threshold needed
-        'batch_size': {'values': [8, 16, 32, 24]},  # MUCH SMALLER (was 32-64)
-        'n_epochs': {'values': [100]},
-        'early_stopping_patience': {'values': [6]},  # HIGHER (was 18-25)
-        'early_stopping_min_delta': {'values': [0.001]},
+        # Larger batch sizes help stabilize gradients for zero-inflated data
+        'batch_size': {'values': [16, 32, 64]},  # Larger batches for gradient stability
+        'n_epochs': {'values': [150]},  # More epochs since we reduced regularization
+        'early_stopping_patience': {'values': [10, 15]},  # More patience
+        'early_stopping_min_delta': {'values': [0.0005, 0.001]},
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
-        # lr: -0.53 importance → HIGHER LR is better for TiDE!
-        # weight_decay: -0.4 → HIGHER weight_decay helps
+        # CRITICAL FIX: Weight decay was WAY too high, causing weight collapse!
+        # Rule of thumb: weight_decay should be 10-100x smaller than lr
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-5,   # Higher (was 1e-5)
-            'max': 2e-3,   # Higher (was 2e-4)
+            'min': 1e-4,
+            'max': 5e-3,  # Slightly higher max
         },
         'weight_decay': {
-            'distribution': 'uniform',
-            'min': 5e-4,   # MUCH HIGHER (was 1e-5)
-            'max': 5e-3,   # MUCH HIGHER (was 5e-4)
+            'distribution': 'log_uniform_values',  # Log scale for better exploration
+            'min': 1e-7,   # DRASTICALLY REDUCED (was 5e-4, caused weight collapse!)
+            'max': 1e-5,   # DRASTICALLY REDUCED (was 5e-3)
         },
         'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.25,
+            'min': 0.3,   # Less aggressive reduction
+            'max': 0.5,
         },
-        'lr_scheduler_patience': {'values': [3]},
-        'lr_scheduler_min_lr': {'values': [1e-7]},
-        # gradient_clip_val: -0.076 → slightly higher helps
+        'lr_scheduler_patience': {'values': [5, 8]},  # More patience before reducing LR
+        'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor
+        # Gradient clipping helps prevent exploding gradients with zero-inflated data
         'gradient_clip_val': {
             'distribution': 'uniform',
-            'min': 0.01,
-            'max': 1.2,  # Slightly higher range
+            'min': 0.5,
+            'max': 2.0,  # Moderate clipping
         },
 
         # ============== SCALING ==============
+        # For zero-inflated conflict data:
+        # - AsinhTransform handles zeros naturally (unlike log)
+        # - StandardScaler preserves gradient magnitude better than MinMaxScaler
+        # - MinMaxScaler compresses gradients too much, contributing to weight collapse
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},  # Fixed best option
+        # CHANGED: Use StandardScaler instead of MinMaxScaler to preserve gradients
+        'target_scaler': {'values': [
+            'AsinhTransform->StandardScaler',  # Best for zero-inflated: preserves gradient scale
+            'AsinhTransform',  # Pure transform, let model learn the scale
+        ]},
         'feature_scaler_map': {
             'values': [{
-                # Zero-inflated conflict counts
-                "AsinhTransform->MinMaxScaler": [
+                # Zero-inflated conflict counts - use Asinh + StandardScaler
+                # StandardScaler preserves more gradient information than MinMaxScaler
+                "AsinhTransform->StandardScaler": [
                     "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_ged_sb_tsum_24",
@@ -80,7 +93,8 @@ def get_sweep_config():
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or"
                 ],
-                "MinMaxScaler": [
+                # Bounded features [0,1] or percentages - StandardScaler works fine
+                "StandardScaler": [
                     "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs", "lr_wdi_sh_sta_stnt_zs",
                     "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
@@ -105,73 +119,78 @@ def get_sweep_config():
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag"
                 ],
-                "StandardScaler->MinMaxScaler": ["lr_wdi_sp_pop_grow"],
-                "SqrtTransform->MinMaxScaler": ["lr_wdi_sp_dyn_imrt_fe_in"],
-                "RobustScaler->MinMaxScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"]
+                "StandardScaler": ["lr_wdi_sp_pop_grow"],
+                "AsinhTransform->StandardScaler": ["lr_wdi_sp_dyn_imrt_fe_in"],
+                "RobustScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"]
             }]
         },
 
         # ============== TiDE ARCHITECTURE ==============
-        # num_encoder_layers: +0.06 → slightly fewer is fine
-        'num_encoder_layers': {'values': [1, 2, 4, 6]},  # Simplified
-        'num_decoder_layers': {'values': [1, 2, 3, 4]},
-        'decoder_output_dim': {'values': [16, 32, 48, 64]},
-        'hidden_size': {'values': [8, 16, 32, 64, 128, 192, 256]},
+        # Larger hidden sizes help prevent weight collapse
+        # The skip connection will always learn, but we need the main network to also learn
+        'num_encoder_layers': {'values': [2, 3, 4]},  # At least 2 for expressiveness
+        'num_decoder_layers': {'values': [1, 2, 3]},
+        'decoder_output_dim': {'values': [32, 64, 128]},  # Larger to prevent collapse
+        'hidden_size': {'values': [64, 128, 256, 384]},  # LARGER minimum (was 8, too small!)
         
-        # temporal_width_future: -0.2 → larger values help
-        # temporal_hidden_size_past: -0.09 → larger values help
+        # Temporal processing for country-month data
         'temporal_width_past': {'values': [4, 6, 8]},
-        'temporal_width_future': {'values': [6, 8, 10]},  # Larger (was 4-8)
-        'temporal_hidden_size_past': {'values': [48, 64, 80]},  # Larger (was 32-64)
-        'temporal_hidden_size_future': {'values': [32, 48, 64]},
-        'temporal_decoder_hidden': {'values': [32, 64, 96, 128, 256]},
+        'temporal_width_future': {'values': [6, 8, 12]},
+        'temporal_hidden_size_past': {'values': [64, 96, 128]},  # Larger
+        'temporal_hidden_size_future': {'values': [48, 64, 96]},
+        'temporal_decoder_hidden': {'values': [64, 128, 192, 256]},
         
-        # Regularization & normalization
-        # dropout: +0.01 → near zero importance, keep moderate
-        'use_layer_norm': {'values': [True, False]},
-        'dropout': {'values': [0.25, 0.3, 0.35, 0.45]},  # Moderate (was 0.35-0.45)
-        'use_static_covariates': {'values': [True, False]},
-        'use_reversible_instance_norm': {'values': [False]},
+        # Regularization - REDUCED since we lowered weight decay
+        # Too much regularization (dropout + weight_decay + layer_norm) caused collapse
+        'use_layer_norm': {'values': [True]},  # Keep layer norm, it helps with zero-inflated
+        'dropout': {'values': [0.1, 0.15, 0.2, 0.25]},  # LOWER dropout (was 0.25-0.45)
+        'use_static_covariates': {'values': [False]},  # Simpler first
+        # Reversible instance norm can help with varying scales across countries
+        'use_reversible_instance_norm': {'values': [True, False]},
 
         # ============== LOSS FUNCTION ==============
-        # non_zero_weight: +0.4 → LOWER values are better!
-        # delta: +0.4 → LOWER delta is better
-        # false_negative_weight: +0.124 → slightly lower is better
-        # false_positive_weight: +0.03 → near zero importance
+        # For zero-inflated data, we need a loss that:
+        # 1. Doesn't let the model just predict zeros everywhere
+        # 2. Provides strong gradients for non-zero cases
+        # 3. Doesn't overwhelm with the zero cases
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
+        # Zero threshold - what counts as "zero" after scaling
         'zero_threshold': {
             'distribution': 'log_uniform_values',
-            'min': 0.001,
-            'max': 0.1,
+            'min': 0.01,   # Slightly higher threshold
+            'max': 0.2,
         },
         
-        # delta: +0.4 importance → LOWER is better
+        # Delta for Huber loss - controls transition from L2 to L1
+        # Higher delta = more L2-like = stronger gradients for small errors
         'delta': {
             'distribution': 'uniform',
-            'min': 0.02,
-            'max': 0.08,  # Much lower (was 0.1-0.4)
+            'min': 0.5,    # HIGHER (was 0.02-0.08, too low for gradient flow)
+            'max': 2.0,    # Much higher to encourage gradient flow
         },
         
-        # non_zero_weight: +0.4 importance → LOWER is better
+        # Non-zero weight - how much more to weight non-zero targets
+        # This is critical for zero-inflated data!
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 2.0,   # Lower (was 5.0)
-            'max': 12.0,   # Lower (was 10.0)
+            'min': 3.0,
+            'max': 10.0,  # Strong emphasis on learning non-zero cases
         },
         
-        # false_positive_weight: +0.03 → near zero, keep low-moderate
+        # False positive weight - penalize predicting conflict when none
         'false_positive_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 5.5,
+            'min': 0.5,    # Lower (don't over-penalize, let model explore)
+            'max': 2.0,
         },
         
-        # false_negative_weight: +0.124 → slightly lower is better
+        # False negative weight - penalize missing actual conflict
+        # This should be higher for conflict forecasting!
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 1.0,   # Lower (was 5.0)
-            'max': 12.0,   # Lower (was 12.0)
+            'min': 2.0,    # Higher - missing conflict is worse than false alarm
+            'max': 8.0,
         },
     }
 
