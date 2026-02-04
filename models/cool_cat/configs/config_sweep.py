@@ -76,11 +76,8 @@ def get_sweep_config():
         # - StandardScaler preserves gradient magnitude better than MinMaxScaler
         # - MinMaxScaler compresses gradients too much, contributing to weight collapse
         'feature_scaler': {'values': [None]},
-        # CHANGED: Use StandardScaler instead of MinMaxScaler to preserve gradients
-        'target_scaler': {'values': [
-            'AsinhTransform->StandardScaler',  # Best for zero-inflated: preserves gradient scale
-            'AsinhTransform',  # Pure transform, let model learn the scale
-        ]},
+        # Target is lr_ged_sb - use same scaling as the feature for consistency
+        'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - use Asinh + StandardScaler
@@ -117,10 +114,13 @@ def get_sweep_config():
                     "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
-                    "lr_topic_ste_theta14_stock_t1_splag"
+                    "lr_topic_ste_theta14_stock_t1_splag",
+                    # Growth rates
+                    "lr_wdi_sp_pop_grow"
                 ],
-                "StandardScaler": ["lr_wdi_sp_pop_grow"],
+                # Mortality rates and skewed positive data
                 "AsinhTransform->StandardScaler": ["lr_wdi_sp_dyn_imrt_fe_in"],
+                # Token counts with outliers
                 "RobustScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"]
             }]
         },
