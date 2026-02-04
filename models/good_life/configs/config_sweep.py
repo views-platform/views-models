@@ -91,7 +91,6 @@ def get_sweep_config():
         # MinMaxScaler compresses gradients too much, contributing to weight collapse.
         # StandardScaler preserves gradient magnitude while centering/scaling.
         # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
-        'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
         'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
         'feature_scaler_map': {

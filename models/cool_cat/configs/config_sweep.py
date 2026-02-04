@@ -75,7 +75,6 @@ def get_sweep_config():
         # - AsinhTransform handles zeros naturally (unlike log)
         # - StandardScaler preserves gradient magnitude better than MinMaxScaler
         # - MinMaxScaler compresses gradients too much, contributing to weight collapse
-        'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
         'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
         'feature_scaler_map': {
