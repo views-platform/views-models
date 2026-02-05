@@ -139,9 +139,9 @@ def get_sweep_config():
         
         # Regularization - REDUCED since we lowered weight decay
         # Too much regularization (dropout + weight_decay + layer_norm) caused collapse
-        'use_layer_norm': {'values': [True]},  # Keep layer norm, it helps with zero-inflated
+        'use_layer_norm': {'values': [True, False]},  # Keep layer norm, it helps with zero-inflated
         'dropout': {'values': [0.05, 0.1, 0.15]},  # LOW dropout - preserve neurons that learn rare patterns
-        'use_static_covariates': {'values': [False]},  # Simpler first
+        'use_static_covariates': {'values': [False, True]},  # Simpler first
         # Reversible instance norm - True for non-stationary conflict data
         'use_reversible_instance_norm': {'values': [True, False]},
 
