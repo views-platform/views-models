@@ -178,15 +178,15 @@ def get_sweep_config():
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
         'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 0.02,
-            'max': 0.1,
+            'distribution': 'uniform',  # uniform is fine for this small range
+            'min': 0.05,   # Safely above 0 noise
+            'max': 0.18,   # Just above where 1 fatality lands (~0.11)
         },
         # Delta for Huber loss - tighter range for consistent gradient flow
         'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 0.3,
+            'distribution': 'uniform',
+            'min': 0.8,
+            'max': 1.0,  # Full L2
         },
         # Non-zero weight - narrower range for stability
         'non_zero_weight': {
@@ -194,7 +194,11 @@ def get_sweep_config():
             'min': 4.0,
             'max': 7.0,   # Narrower range prevents conflicting gradients
         },
-        'false_positive_weight': {'values': [1.0]},  # Fixed - variable weighting causes instability
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.0,
+        },
         # Missing conflict is worse than false alarm
         'false_negative_weight': {
             'distribution': 'uniform',
