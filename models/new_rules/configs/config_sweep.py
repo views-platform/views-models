@@ -285,7 +285,7 @@ def get_sweep_config():
         # - 128: Balanced for ~200 series
         # - 256: Higher capacity (monitor for overfitting)
         # - Avoid 512+ for ~200 series (overfitting risk)
-        "layer_widths": {"values": [64, 128, 256]},
+        "layer_width": {"values": [64, 128, 256]},
 
         # activation: Non-linearity between FC layers
         # - ReLU: Fast, sparse activations, standard choice
