@@ -37,7 +37,7 @@ def get_sweep_config():
         "mc_dropout": {"values": [True]},
         
         # ============== TRAINING BASICS ==============
-        "batch_size": {"values": [32, 64, 128, 256]},  # Moderate sizes
+        "batch_size": {"values": [256, 512, 1024, 2048]},
         "n_epochs": {"values": [150]},  # More epochs with better hyperparams
         "early_stopping_patience": {"values": [15, 20, 25]},  # MORE patience for scarce signal
         "early_stopping_min_delta": {"values": [0.00005, 0.0001]},  # Smaller for [0,1] loss scale
