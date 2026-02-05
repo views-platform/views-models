@@ -85,10 +85,6 @@ def get_sweep_config():
                     # Large-scale economic data with extreme skew
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
-                    # Mortality rates (positive, skewed)
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    # Growth rates (can be negative, roughly normal)
-                    "lr_wdi_sp_pop_grow",
                 ],
                 # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "MinMaxScaler": [
@@ -117,7 +113,11 @@ def get_sweep_config():
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
-                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
+                    # Mortality rates (positive, skewed)
+                    "lr_wdi_sp_dyn_imrt_fe_in",
                 ],
             }]
         },
