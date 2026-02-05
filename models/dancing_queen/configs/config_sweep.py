@@ -76,7 +76,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_balanced_v3_mtd",
+        "name": "dancing_queen_blockrnn_v3_mtd",
         "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},
         "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }

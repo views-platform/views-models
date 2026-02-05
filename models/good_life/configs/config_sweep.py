@@ -73,7 +73,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_cm_v4_mtd",
+        "name": "good_life_transformer_v4_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
