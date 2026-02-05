@@ -127,8 +127,8 @@ def get_sweep_config():
         # The skip connection will always learn, but we need the main network to also learn
         'num_encoder_layers': {'values': [1, 2, 3]},  # Simpler for scarce signal
         'num_decoder_layers': {'values': [1, 2]},
-        'decoder_output_dim': {'values': [32, 64, 128]},
-        'hidden_size': {'values': [64, 128, 192]},  # Moderate sizes - avoid overfitting with scarce signal
+        'decoder_output_dim': {'values': [16, 32, 64, 128]},
+        'hidden_size': {'values': [8, 16, 32, 64, 128]},  # Moderate sizes - avoid overfitting with scarce signal
         
         # Temporal processing for country-month data
         'temporal_width_past': {'values': [4, 6, 8]},
