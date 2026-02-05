@@ -15,7 +15,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'cool_cat_tide_balanced_v4_mtd',
+        'name': 'cool_cat_tide_balanced_v5_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 20,  # Higher for scarce signal - need time to find patterns
@@ -37,7 +37,7 @@ def get_sweep_config():
 
         # ============== TRAINING BASICS ==============
         # Larger batch sizes help stabilize gradients for zero-inflated data
-        'batch_size': {'values': [32, 64, 128]},  # Larger batches for gradient stability
+        'batch_size': {'values': [32, 64, 128, 256, 512]},  # Larger batches for gradient stability
         'n_epochs': {'values': [100]},  # More epochs since we reduced regularization
         'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
         'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
@@ -74,25 +74,27 @@ def get_sweep_config():
         # - MinMaxScaler compresses gradients too much, contributing to weight collapse
         'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
-        'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},
         'feature_scaler_map': {
             'values': [{
-                # Zero-inflated conflict counts - use Asinh + StandardScaler
-                # StandardScaler preserves more gradient information than MinMaxScaler
-                "AsinhTransform->StandardScaler": [
+                # Zero-inflated conflict counts - Asinh + StandardScaler preserves gradients
+                "AsinhTransform->MinMaxScaler": [
                     "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_ged_sb_tsum_24",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
+                    # Large-scale economic data with extreme skew
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
-                    "lr_wdi_sp_dyn_imrt_fe_in"  # Mortality rates - skewed positive
+                    # Mortality rates (positive, skewed)
+                    "lr_wdi_sp_dyn_imrt_fe_in"
                 ],
-                # Bounded features [0,1] or percentages - StandardScaler works fine
-                "StandardScaler": [
+                # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
+                "MinMaxScaler": [
                     "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs", "lr_wdi_sh_sta_stnt_zs",
                     "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
+                    # V-Dem indices (already 0-1 bounded)
                     "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
                     "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
                     "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
@@ -100,6 +102,7 @@ def get_sweep_config():
                     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
                     "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
                     "lr_vdem_v2xnp_regcorr",
+                    # Topic model proportions (0-1 bounded)
                     "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
                     "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
                     "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
@@ -113,11 +116,10 @@ def get_sweep_config():
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
-                    # Growth rates (can be negative)
-                    "lr_wdi_sp_pop_grow"
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
                 ],
-                # Token counts with outliers - RobustScaler handles outliers better
-                "RobustScaler": ["lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"]
             }]
         },
 
@@ -142,7 +144,7 @@ def get_sweep_config():
         'dropout': {'values': [0.05, 0.1, 0.15]},  # LOW dropout - preserve neurons that learn rare patterns
         'use_static_covariates': {'values': [False]},  # Simpler first
         # Reversible instance norm - True for non-stationary conflict data
-        'use_reversible_instance_norm': {'values': [True]},
+        'use_reversible_instance_norm': {'values': [True, False]},
 
         # ============== LOSS FUNCTION ==============
         # For zero-inflated data, we need a loss that:

@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'good_life_transformer_cm_balanced_v2_mtd',
+        'name': 'good_life_transformer_cm_balanced_v3_mtd',
         'early_terminate': {
             'type': 'hyperband',
             'min_iter': 20,  # Higher for scarce signal - transformers need time to find patterns
@@ -55,7 +55,7 @@ def get_sweep_config():
 
         # ============== TRAINING BASICS ==============
         # Larger batches help stabilize gradients for zero-inflated data
-        'batch_size': {'values': [32, 64, 128]},  # Larger for gradient stability
+        'batch_size': {'values': [32, 64, 128, 256, 512]},  # Larger for gradient stability
         'n_epochs': {'values': [100]},  # Reduced since we have better hyperparams
         'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
         'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
@@ -94,11 +94,11 @@ def get_sweep_config():
         # NOTE: Do NOT use log_targets=True with AsinhTransform - causes double transform and NaN loss!
         'feature_scaler': {'values': [None]},
         # Target is lr_ged_sb - use same scaling as the feature for consistency
-        'target_scaler': {'values': ['AsinhTransform->StandardScaler']},
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},
         'feature_scaler_map': {
             'values': [{
                 # Zero-inflated conflict counts - Asinh + StandardScaler preserves gradients
-                "AsinhTransform->StandardScaler": [
+                "AsinhTransform->MinMaxScaler": [
                     "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_ged_sb_tsum_24",
@@ -110,7 +110,7 @@ def get_sweep_config():
                     "lr_wdi_sp_dyn_imrt_fe_in"
                 ],
                 # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
-                "StandardScaler": [
+                "MinMaxScaler": [
                     "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs", "lr_wdi_sh_sta_stnt_zs",
                     "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
@@ -137,12 +137,9 @@ def get_sweep_config():
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
                     # Growth rates (can be negative, roughly normal)
-                    "lr_wdi_sp_pop_grow"
-                ],
-                # Token counts (moderate skew) - RobustScaler handles outliers
-                "RobustScaler": [
+                    "lr_wdi_sp_pop_grow",
                     "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
-                ]
+                ],
             }]
         },
 
@@ -174,7 +171,7 @@ def get_sweep_config():
         'norm_type': {'values': ['RMSNorm', 'LayerNorm']},
         
         # Critical for non-stationary conflict data - True with AsinhTransform
-        'use_reversible_instance_norm': {'values': [True]},
+        'use_reversible_instance_norm': {'values': [True, False]},
 
         # ============== LOSS FUNCTION ==============
         # For zero-inflated data, we need strong gradient flow
