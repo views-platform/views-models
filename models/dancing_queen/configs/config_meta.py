@@ -11,10 +11,10 @@ def get_meta_config():
         "name": "dancing_queen", 
         "algorithm": "BlockRNNModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb_dep"],
+        "targets": ["ged_sb_dep"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD"],
     }
     return meta_config

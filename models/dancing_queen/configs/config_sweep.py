@@ -8,36 +8,20 @@ def get_sweep_config():
     - GRU often faster and comparable performance to LSTM
     - Hidden state captures temporal dependencies in conflict escalation
     
-    Parameter Importance Analysis:
-    - delta: +0.5 → LOWER delta (more L1-like, anti-smoothing)
-    - dropout: +0.4 → LOWER dropout is better
-    - false_negative_weight: +0.4 → LOWER FN weight is better
-    - hidden_dim: +0.32 → SMALLER hidden_dim
-    - lr: -0.3 → HIGHER LR is better
-    - lr_scheduler_factor: -0.2 → more aggressive decay helps
-    - gradient_clip_val: -0.13 → HIGHER clipping helps
-    - input_chunk_length: -0.12 → LONGER context helps
-    
-    Anti-Smoothing Strategy:
-    - Very low delta (0.05-0.15) for L1-like loss
-    - Higher LR with aggressive decay
-    - Smaller hidden_dim to prevent over-capacity
-    - Lower dropout (model is regularized via loss function)
-    
     Returns:
     - sweep_config (dict): Configuration for hyperparameter sweeps.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'dancing_queen_blockrnn_balanced_cd_v1',
+        'name': 'dancing_queen_blockrnn_balanced_v2_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 12,
+            'min_iter': 20,
             'eta': 2
         },
         'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
+            'name': 'time_series_wise_mtd_mean_sb',
             'goal': 'minimize'
         },
     }
@@ -46,17 +30,17 @@ def get_sweep_config():
         # ============== TEMPORAL CONFIGURATION ==============
         # input_chunk_length: -0.12 → LONGER context helps
         'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60]},  # Longer (was 24-48)
+        'input_chunk_length': {'values': [36, 48]},
         'output_chunk_shift': {'values': [0]},
 
         # ============== TRAINING BASICS ==============
         # batch_size: +0.08 → slightly smaller helps
         # early_stopping_patience: +0.1 → slightly lower
         # early_stopping_min_delta: +0.04 → smaller threshold
-        'batch_size': {'values': [64, 128]},  # Slightly smaller (was 64-256)
-        'n_epochs': {'values': [350]},
-        'early_stopping_patience': {'values': [8, 10, 12]},  # Slightly lower
-        'early_stopping_min_delta': {'values': [0.0005, 0.001]},  # Smaller
+        'batch_size': {'values': [512, 1024, 2048, 4096]},
+        'n_epochs': {'values': [200]},
+        'early_stopping_patience': {'values': [15, 20, 25]},
+        "early_stopping_min_delta": {"values": [0.00005, 0.0001]},  # Smaller for [0,1] loss scale
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
@@ -66,25 +50,17 @@ def get_sweep_config():
         # weight_decay: +0.11 → LOWER is better
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 2e-4,   # Higher (was 5e-5)
-            'max': 1e-3,   # Higher (was 5e-4)
+            'min': 5e-5,
+            'max': 1e-3,
         },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,   # Lower (was 1e-5)
-            'max': 1e-4,   # Lower (was 1e-3)
-        },
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.05,   # More aggressive (was 0.1)
-            'max': 0.2,    # More aggressive (was 0.4)
-        },
-        'lr_scheduler_patience': {'values': [3, 4, 5]},
-        'lr_scheduler_min_lr': {'values': [1e-6]},
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,    # Higher (was 0.1)
-            'max': 1.5,    # Higher (was 1.0)
+        'weight_decay': {'values': [0]},
+        'lr_scheduler_factor': {'values': [0.5]},  # Fixed for stability
+        'lr_scheduler_patience': {'values': [8]},  # Fixed - consistent plateau detection
+        'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor
+        "gradient_clip_val": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.5,
         },
 
         # ============== SCALING ==============
@@ -95,10 +71,11 @@ def get_sweep_config():
         # - StandardScaler: Growth rates (normal-ish, can be negative)
         # - SqrtTransform: Mortality rates (positive, moderate skew)
         'feature_scaler': {'values': [None]},
-        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},  # Fixed best option
+        # Target is lr_ged_sb - use same scaling as the feature for consistency
+        'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},
         'feature_scaler_map': {
             'values': [{
-                # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
+                # Zero-inflated conflict counts - Asinh + StandardScaler preserves gradients
                 "AsinhTransform->MinMaxScaler": [
                     "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
@@ -106,9 +83,9 @@ def get_sweep_config():
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
                     # Large-scale economic data with extreme skew
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or"
+                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
                 ],
-                # Bounded percentages and rates (0-100 scale)
+                # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "MinMaxScaler": [
                     "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs", "lr_wdi_sh_sta_stnt_zs",
@@ -134,20 +111,13 @@ def get_sweep_config():
                     "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
-                    "lr_topic_ste_theta14_stock_t1_splag"
+                    "lr_topic_ste_theta14_stock_t1_splag",
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
+                    # Mortality rates (positive, skewed)
+                    "lr_wdi_sp_dyn_imrt_fe_in",
                 ],
-                # Growth rates (can be negative, roughly normal)
-                "StandardScaler->MinMaxScaler": [
-                    "lr_wdi_sp_pop_grow"
-                ],
-                # Mortality rates (positive, moderate skew)
-                "SqrtTransform->MinMaxScaler": [
-                    "lr_wdi_sp_dyn_imrt_fe_in"
-                ],
-                # Token counts (moderate skew)
-                "RobustScaler->MinMaxScaler": [
-                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
-                ]
             }]
         },
 
@@ -156,11 +126,11 @@ def get_sweep_config():
         # dropout: +0.4 → LOWER is better
         # n_rnn_layers: +0.02 → near zero importance
         'rnn_type': {'values': ['LSTM', 'GRU']},
-        'hidden_dim': {'values': [64, 128, 192]},  # SMALLER (was 128-512)
-        'n_rnn_layers': {'values': [2, 3]},  # Simplified (was 2-4)
+        'hidden_dim': {'values': [16, 32, 64, 128, 192]},  # SMALLER (was 128-512)
+        'n_rnn_layers': {'values': [1, 2, 3, 4]},  # Simplified (was 2-4)
         'activation': {'values': ['ReLU', 'GELU']},  # Removed Tanh
-        'dropout': {'values': [0.1, 0.15, 0.2]},  # LOWER (was 0.2-0.4)
-        'use_reversible_instance_norm': {'values': [False]},
+        'dropout': {'values': [0.05, 0.1, 0.15]},  # LOW dropout - preserve neurons that learn rare patterns
+        'use_reversible_instance_norm': {'values': [False, True]},
 
         # ============== LOSS FUNCTION ==============
         # delta: +0.5 → LOWER delta (more L1-like, anti-smoothing!)
@@ -169,35 +139,37 @@ def get_sweep_config():
         # zero_threshold: +0.2 → LOWER is better
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
-        # zero_threshold: +0.2 → LOWER is better
-        'zero_threshold': {'values': [0.005, 0.01]},  # Lower (was 0.01-0.1)
-        
-        # delta: +0.5 → MUCH LOWER (key for anti-smoothing!)
+        # Zero threshold - what counts as "zero" after scaling
+        'zero_threshold': {
+            'distribution': 'uniform',  # uniform is fine for this small range
+            'min': 0.05,   # Safely above 0 noise
+            'max': 0.18,   # Just above where 1 fatality lands (~0.11)
+        },
+        # Delta for Huber loss - tighter range for consistent gradient flow
         'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.05,
-            'max': 0.15,  # MUCH lower (was 0.1-0.8)
+            'distribution': 'uniform',
+            'min': 0.8,
+            'max': 1.0,  # Full L2
         },
         
-        # non_zero_weight: +0.2 → LOWER is better
+        # Non-zero weight - narrower range for stability
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 2.0,   # Lower (was 4.0)
-            'max': 5.0,   # Lower (was 8.0)
+            'min': 4.0,
+            'max': 7.0,  # Narrower range prevents conflicting gradients
         },
         
-        # false_positive_weight: near zero importance, keep moderate
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.5,
-            'max': 3.0,
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.0,
         },
         
-        # false_negative_weight: +0.4 → LOWER is better
+        # False negative weight - narrower range
         'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 1.5,   # Lower (was 2.5)
-            'max': 4.0,   # Lower (was 6.0)
+            'min': 2.0,
+            'max': 5.0,  # Narrower - still emphasizes missing conflicts
         },
     }
 
