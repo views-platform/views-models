@@ -110,7 +110,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - Transformers are memory-efficient (parallel attention)
         # - Range 256-2048 balances GPU memory with gradient quality
-        "batch_size": {"values": [256, 512, 1024, 2048]},
+        "batch_size": {"values": [512, 1024, 2048, 4096]},
 
         # n_epochs: Maximum training epochs
         # - Transformers often need more epochs than RNNs to converge
