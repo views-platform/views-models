@@ -58,7 +58,7 @@ def get_sweep_config():
         'batch_size': {'values': [32, 64, 128, 256, 512]},  # Larger for gradient stability
         'n_epochs': {'values': [100]},  # Reduced since we have better hyperparams
         'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
-        'early_stopping_min_delta': {'values': [0.0001, 0.0005]},  # Smaller delta - scarce signal = small improvements
+        "early_stopping_min_delta": {"values": [0.00005, 0.0001]},  # Smaller for [0,1] loss scale
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
@@ -66,8 +66,8 @@ def get_sweep_config():
         # Rule of thumb: weight_decay should be 10-100x smaller than lr
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 5e-4,  # Transformers are sensitive to high LR
+            'min': 5e-5,
+            'max': 1e-3,
         },
         # CRITICAL: Keep weight_decay LOW to prevent weight collapse!
         # High weight_decay caused TiDE weights to shrink to ~1e-34
@@ -80,11 +80,11 @@ def get_sweep_config():
         'lr_scheduler_factor': {'values': [0.5]},  # Fixed for stability
         'lr_scheduler_patience': {'values': [8]},  # Fixed - consistent plateau detection
         'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor to prevent stalling
-        # Gradient clipping - tight range for consistent training
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.8,
-            'max': 1.2, 
+
+        "gradient_clip_val": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.5,
         },
 
         # ============== SCALING ==============
@@ -107,7 +107,9 @@ def get_sweep_config():
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
                     # Mortality rates (positive, skewed)
-                    "lr_wdi_sp_dyn_imrt_fe_in"
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
                 ],
                 # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "MinMaxScaler": [
@@ -136,8 +138,6 @@ def get_sweep_config():
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
-                    # Growth rates (can be negative, roughly normal)
-                    "lr_wdi_sp_pop_grow",
                     "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
                 ],
             }]
@@ -179,14 +179,14 @@ def get_sweep_config():
         
         'zero_threshold': {
             'distribution': 'log_uniform_values',
-            'min': 0.01,
-            'max': 0.2,
+            'min': 0.02,
+            'max': 0.1,
         },
         # Delta for Huber loss - tighter range for consistent gradient flow
         'delta': {
-            'distribution': 'uniform',
-            'min': 0.8,
-            'max': 1.5,
+            'distribution': 'log_uniform_values',
+            'min': 0.1,
+            'max': 0.3,
         },
         # Non-zero weight - narrower range for stability
         'non_zero_weight': {

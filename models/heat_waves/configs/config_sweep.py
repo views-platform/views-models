@@ -40,14 +40,14 @@ def get_sweep_config():
         "batch_size": {"values": [32, 64, 128, 256]},  # Moderate sizes
         "n_epochs": {"values": [150]},  # More epochs with better hyperparams
         "early_stopping_patience": {"values": [15, 20, 25]},  # MORE patience for scarce signal
-        "early_stopping_min_delta": {"values": [0.0001, 0.0005]},  # Smaller delta
+        "early_stopping_min_delta": {"values": [0.00005, 0.0001]},  # Smaller for [0,1] loss scale
         "force_reset": {"values": [True]},
         
         # ============== OPTIMIZER / SCHEDULER ==============
-        "lr": {
-            "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 5e-4,
+        'lr': {
+            'distribution': 'log_uniform_values',
+            'min': 5e-5,
+            'max': 1e-3,
         },
         # CRITICAL: No weight decay for scarce signal
         "weight_decay": {"values": [0]},
@@ -55,11 +55,10 @@ def get_sweep_config():
         "lr_scheduler_patience": {"values": [8]},  # Fixed - consistent plateau detection
         "lr_scheduler_min_lr": {"values": [1e-6]},
         
-        # Gradient clipping - tight range for consistent training
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.2,
+            "min": 0.5,
+            "max": 1.5,
         },
         
         # ============== SCALING ==============
@@ -78,7 +77,9 @@ def get_sweep_config():
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
                     # Mortality rates (positive, skewed)
-                    "lr_wdi_sp_dyn_imrt_fe_in"
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
                 ],
                 # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "MinMaxScaler": [
@@ -107,8 +108,6 @@ def get_sweep_config():
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                     "lr_topic_ste_theta14_stock_t1_splag",
-                    # Growth rates (can be negative, roughly normal)
-                    "lr_wdi_sp_pop_grow",
                     "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
                 ],
             }]
@@ -126,28 +125,27 @@ def get_sweep_config():
         "dropout": {"values": [0.05, 0.1, 0.15]},  # MUCH LOWER (was 0.2-0.4)
         
         # Attention configuration
-        "full_attention": {"values": [True]},
+        "full_attention": {"values": [True, False]},
         "feed_forward": {"values": ["GatedResidualNetwork", "SwiGLU", "GEGLU"]},  # Best performers
         "add_relative_index": {"values": [True]},
-        "skip_interpolation": {"values": [False]},  # Keep interpolation for better learning
-        "use_static_covariates": {"values": [False]},  # Simpler first
+        "skip_interpolation": {"values": [False, True]},  # Keep interpolation for better learning
+        "use_static_covariates": {"values": [False, True]},  # Simpler first
         "norm_type": {"values": ["RMSNorm", "LayerNorm"]},
         "use_reversible_instance_norm": {"values": [True, False]},  # Already using AsinhTransform
         
         # ============== LOSS FUNCTION ==============
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         
-        "zero_threshold": {
-            "distribution": "log_uniform_values",
-            "min": 0.01,
-            "max": 0.2,
+        'zero_threshold': {
+            'distribution': 'log_uniform_values',
+            'min': 0.02,
+            'max': 0.1,
         },
-        
-        # CRITICAL: Delta - tight range for consistent gradient flow
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.5,
+        # Delta for Huber loss - tighter range for consistent gradient flow
+        'delta': {
+            'distribution': 'log_uniform_values',
+            'min': 0.1,
+            'max': 0.3,
         },
         
         # Non-zero weight - narrower range for stability
