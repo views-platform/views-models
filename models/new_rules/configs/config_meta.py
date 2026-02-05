@@ -10,10 +10,10 @@ def get_meta_config():
     meta_config = {
         "name": "new_rules", 
         "algorithm": "NBEATSModel",
-        "targets": ["lr_ged_sb_dep"],
+        "targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD"],
     }
     return meta_config

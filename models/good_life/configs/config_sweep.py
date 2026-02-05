@@ -334,11 +334,11 @@ def get_sweep_config():
 
         # zero_threshold: Scaled value below which predictions count as "zero"
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
-        # - Range 0.11-0.20 spans 1 fatality threshold and allows some margin for uncertainty
+        # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
         "zero_threshold": {
-            "distribution": "log_uniform_values",
-            "min": 0.11, # 2 fatalities threshold after scaling
+            "distribution": "uniform",
+            "min": 0.08, # 0 fatalities threshold after scaling
             "max": 0.23, # 5 fatalities threshold after scaling
         },
 
@@ -353,14 +353,10 @@ def get_sweep_config():
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
-        # - Range 4-7 means conflict events contribute 4-7x more to loss
-        # - Counteracts class imbalance (mostly zeros in training data)
-        # - Too high risks instability; too low fails to learn rare patterns
-        "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 4.0,
-            "max": 7.0,
-        },
+        # - Fixed at 5.0 to reduce search dimensions
+        # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
+        # - FP and FN weights are tuned relative to this baseline
+        "non_zero_weight": {"values": [5.0]},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
