@@ -8,31 +8,13 @@ def get_sweep_config():
     - Hierarchical interpolation for multi-scale temporal patterns
     - Stack-based architecture (like NBEATS) with blocks per stack
     - Each stack captures different frequency components
-    
-    Key differences from NBEATS:
-    - Uses pooling_kernel_sizes for input downsampling per block
-    - Uses n_freq_downsample for output interpolation scales
-    - Generally faster training with comparable accuracy
-    
-    Balanced Strategy (based on parameter importance analysis):
-    - num_stacks: -0.6 correlation → USE 2 STACKS ONLY (simpler = better)
-    - input_chunk_length: +0.4 correlation → shorter context is better
-    - lr: +0.4 correlation → keep LR low
-    - non_zero_weight: -0.3 → moderate values help
-    - BALANCED loss weights to avoid over/under prediction
-    
-    For conflict forecasting (zero-inflated, sparse events):
-    - 2 stacks (trend + seasonality) - avoid overfitting
-    - Low num_blocks (1-2) per stack
-    - Moderate layer_width (256-384)
-    - Higher dropout (0.25-0.4) for regularization
     """
     sweep_config = {
         'method': 'bayes',
-        'name': 'revolving_door_nhits_balanced_v2_mtd',
+        'name': 'revolving_door_nhits_balanced_v3_mtd',
         'early_terminate': {
             'type': 'hyperband',
-            'min_iter': 10,
+            'min_iter': 20,
             'eta': 2
         },
         'metric': {
@@ -62,7 +44,7 @@ def get_sweep_config():
         'num_layers': {'values': [2, 3, 4]},
         
         # layer_width: Slightly smaller to avoid overprediction
-        'layer_width': {'values': [8, 16, 32, 64, 128, 256, 384]},  # Reduced (was 256-512)
+        'layer_width': {'values': [64, 128, 256]},
         
         # pooling_kernel_sizes: Controls multi-rate input sampling
         # - None = auto-configured based on input_chunk_length (recommended)
@@ -81,89 +63,77 @@ def get_sweep_config():
         # activation: Non-linearity between layers
         # - ReLU: fast, good default
         # - GELU: smoother gradients, often better for time series
-        'activation': {'values': ['ReLU', 'RReLU', 'PReLU', 'ELU', 'Softplus', 'Tanh', 'SELU', 'LeakyReLU', 'Sigmoid', 'GELU']},
+        'activation': {'values': ['ReLU', 'ELU', 'GELU']},
         
         # dropout: Regularization to prevent overprediction
-        'dropout': {
-            'distribution': 'uniform',
-            'min': 0.01,
-            'max': 1.2,
-        },
+        'dropout': {'values': [0.05, 0.1, 0.15]},
 
         # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [8, 16, 32, 64, 128, 256, 512, 1024]},
-        'n_epochs': {'values': [100]},
-        'early_stopping_patience': {'values': [6]},  # Moderate patience
-        'early_stopping_min_delta': {'values': [0.001]},
+        "batch_size": {"values": [256, 512, 1024, 2048]},
+        'n_epochs': {'values': [100]},  # More epochs since we reduced regularization
+        'early_stopping_patience': {'values': [15, 20, 25]},  # More patience for scarce signal
+        "early_stopping_min_delta": {"values": [0.00005, 0.0001]},  # Smaller for [0,1] loss scale
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
         # lr: +0.4 importance → keep LR LOW
         'lr': {
             'distribution': 'log_uniform_values',
-            'min': 5e-5,   # Higher (was 1e-5)
-            'max': 2e-3,   # Higher (was 2e-4)
+            'min': 5e-5,
+            'max': 1e-3,
         },
-        'weight_decay': {
-            'distribution': 'uniform',
-            'min': 5e-4,   # MUCH HIGHER (was 1e-5)
-            'max': 5e-3,   # MUCH HIGHER (was 5e-4)
-        },
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.25,
-        },
-        'lr_scheduler_patience': {'values': [4]},
-        'lr_scheduler_min_lr': {'values': [1e-7]},
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.01,
-            'max': 1.2,
+        'weight_decay': {'values': [0]},
+        'lr_scheduler_factor': {'values': [0.5]},  # Fixed for stability
+        'lr_scheduler_patience': {'values': [8]},  # Fixed - consistent plateau detection
+        'lr_scheduler_min_lr': {'values': [1e-6]},  # Higher floor
+        "gradient_clip_val": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.5,
         },
         
         # ============== INSTANCE NORMALIZATION ==============
         # use_reversible_instance_norm: Handles distribution shift
         # - False: Recommended unless you specifically trained with it
         # - True: Can help with non-stationary data, but must match train/predict
-        'use_reversible_instance_norm': {'values': [False]},
+        'use_reversible_instance_norm': {'values': [False, True]},
 
         # ============== LOSS FUNCTION ==============
         # BALANCED: Symmetric-ish weights to avoid over/under prediction
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
         
         'zero_threshold': {
-            'distribution': 'log_uniform_values',
-            'min': 0.001,
-            'max': 0.1,
+            'distribution': 'uniform',  # uniform is fine for this small range
+            'min': 0.05,   # Safely above 0 noise
+            'max': 0.18,   # Just above where 1 fatality lands (~0.11)
         },
         
         # Moderate delta for balanced L1/L2 behavior
         'delta': {
             'distribution': 'uniform',
-            'min': 0.01,
-            'max': 0.2,
+            'min': 0.8,
+            'max': 1.0,  # Full L2
         },
         
         # non_zero_weight: -0.3 importance → moderate values
         'non_zero_weight': {
             'distribution': 'uniform',
-            'min': 1.0,
-            'max': 20.0,
+            'min': 4.0,
+            'max': 7.0,  # Narrower range prevents conflicting gradients
         },
         
         # BALANCED: Similar FN/FP weights to avoid bias
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 15.0,
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.0,
         },
         
         # Increase FP penalty to curb overprediction
-        'false_positive_weight': {
+        'false_negative_weight': {
             'distribution': 'uniform',
-            'min': 0.5,
-            'max': 15.0,
+            'min': 2.0,
+            'max': 5.0,  # Narrower - still emphasizes missing conflicts
         },
 
         # ============== SCALING ==============
@@ -173,7 +143,7 @@ def get_sweep_config():
         'target_scaler': {'values': ['AsinhTransform->MinMaxScaler']},
         'feature_scaler_map': {
             'values': [{
-                # Zero-inflated conflict counts - asinh handles zeros and extreme spikes
+                # Zero-inflated conflict counts - Asinh + StandardScaler preserves gradients
                 "AsinhTransform->MinMaxScaler": [
                     "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
@@ -181,9 +151,9 @@ def get_sweep_config():
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
                     # Large-scale economic data with extreme skew
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or"
+                    "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
                 ],
-                # Bounded percentages and rates (0-100 scale)
+                # Bounded percentages, V-Dem indices, and growth rates - StandardScaler works fine
                 "MinMaxScaler": [
                     "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs", "lr_wdi_sh_sta_stnt_zs",
@@ -209,20 +179,13 @@ def get_sweep_config():
                     "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
                     "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
                     "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
-                    "lr_topic_ste_theta14_stock_t1_splag"
+                    "lr_topic_ste_theta14_stock_t1_splag",
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                    # Growth rates (can be negative, roughly normal)
+                    "lr_wdi_sp_pop_grow",
+                    # Mortality rates (positive, skewed)
+                    "lr_wdi_sp_dyn_imrt_fe_in",
                 ],
-                # Growth rates (can be negative, roughly normal)
-                "StandardScaler->MinMaxScaler": [
-                    "lr_wdi_sp_pop_grow"
-                ],
-                # Mortality rates (positive, moderate skew)
-                "SqrtTransform->MinMaxScaler": [
-                    "lr_wdi_sp_dyn_imrt_fe_in"
-                ],
-                # Token counts (moderate skew)
-                "RobustScaler->MinMaxScaler": [
-                    "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag"
-                ]
             }]
         },
 
