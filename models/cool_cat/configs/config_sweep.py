@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v7_mtd",
+        "name": "cool_cat_tide_v8_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -355,7 +355,7 @@ def get_sweep_config():
         # 1. Learn strongly from actual conflict events (high non_zero_weight)
         # 2. Heavily penalize missing conflicts (high FN penalty)
         # 3. Be somewhat forgiving of false alarms (low FP weight encourages exploration)
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
+        "zero_threshold": {"values": [1e-4]},
 
         # zero_threshold: Scaled value below which predictions count as "zero"
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
@@ -373,15 +373,15 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
-            "max": 0.8,
+            "min": 0.3,
+            "max": 1.0,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [1.0]},
+        "non_zero_weight": {"distribution": "uniform", "min": 10.0, "max": 50.0},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
@@ -390,7 +390,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 5.0,
+            "max": 1.5,
         },
 
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -399,7 +399,7 @@ def get_sweep_config():
         # - Highest penalty because missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
+            "min": 3.0,
             "max": 10.0,
         },
     }
