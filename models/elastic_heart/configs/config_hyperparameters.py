@@ -44,7 +44,7 @@ def get_hp_config():
 
         # Prediction params
         "num_samples": 1,
-        "mc_dropout": True
+        # "mc_dropout": True
     }
     return hyperparameters
 

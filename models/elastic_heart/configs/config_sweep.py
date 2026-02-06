@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",  
-        "name": "elastic_heart_v2",
+        "name": "elastic_heart_v3",
         "early_terminate": {"type": "hyperband", "min_iter": 15, "eta": 2},
     }
 
