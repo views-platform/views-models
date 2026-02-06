@@ -396,7 +396,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "log_uniform_values",
             "min": 1.0,
-            "max": 5.0,
+            "max": 8.0,
         },
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
