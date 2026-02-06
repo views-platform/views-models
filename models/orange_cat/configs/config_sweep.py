@@ -394,7 +394,7 @@ def get_sweep_config():
         # - FP and FN weights are tuned relative to this baseline
         # "non_zero_weight": {"values": [5.0]},
         "non_zero_weight": {
-            "distribution": "log_uniform_values",
+            "distribution": "uniform",
             "min": 1.0,
             "max": 8.0,
         },
@@ -408,8 +408,8 @@ def get_sweep_config():
         #     "max": 1.0,
         # },
         "false_positive_weight": {
-            "distribution": "log_uniform_values",
-            "min": 1.0,
+            "distribution": "uniform",
+            "min": 0.5,
             "max": 3.0,
         },
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -422,7 +422,7 @@ def get_sweep_config():
         #     "max": 8.0,
         # },
         "false_negative_weight": {
-            "distribution": "log_uniform_values",
+            "distribution": "uniform",
             "min": 1.0,
             "max": 8.0,
         },
