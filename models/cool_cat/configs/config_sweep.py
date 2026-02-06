@@ -2,7 +2,6 @@ def get_sweep_config():
     """
     TiDE (Time-series Dense Encoder) Hyperparameter Sweep Configuration
     =====================================================================
-    Optimized for country-month level rare conflict fatality forecasting.
 
     Problem Characteristics:
     ------------------------
@@ -86,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v6_mtd",
+        "name": "cool_cat_tide_v7_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -107,7 +106,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - TiDE is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36, 48, 72]},
 
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
@@ -279,7 +278,7 @@ def get_sweep_config():
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [32, 64, 128]},
+        "hidden_size": {"values": [16, 32, 64]},
 
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
@@ -306,7 +305,7 @@ def get_sweep_config():
         # temporal_hidden_size_future: Hidden dim for future temporal processing
         # - Capacity for learning patterns in forecast horizon
         # - Generally similar or slightly smaller than past
-        "temporal_hidden_size_future": {"values": [48, 64, 96]},
+        "temporal_hidden_size_future": {"values": [32, 64, 128]},
 
         # temporal_decoder_hidden: Hidden dim of temporal decoder
         # - Final temporal processing before output
@@ -374,15 +373,15 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.0,
+            "min": 0.4,
+            "max": 0.8,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [5.0]},
+        "non_zero_weight": {"values": [1.0]},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
@@ -391,7 +390,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.0,
+            "max": 5.0,
         },
 
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -401,7 +400,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 

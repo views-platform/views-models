@@ -55,7 +55,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "tft_heat_waves_v3_mtd",
+        "name": "heat_waves_tft_v4_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -327,15 +327,15 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.0,
+            "min": 0.4,
+            "max": 0.8,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [5.0]},
+        "non_zero_weight": {"values": [1.0]},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
@@ -344,7 +344,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.0,
+            "max": 5.0,
         },
 
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -354,7 +354,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 

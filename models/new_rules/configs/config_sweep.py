@@ -82,7 +82,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_v1_mtd",
+        "name": "new_rules_nbeats_v2_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -169,7 +169,7 @@ def get_sweep_config():
         "gradient_clip_val": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.5,
+            "max": 1.0,
         },
 
         # ==============================================================================
@@ -264,7 +264,7 @@ def get_sweep_config():
         #   * Generic: 2 learnable pattern stacks
         # - 3 stacks: More capacity for complex patterns
         # - 4+ stacks: Diminishing returns, overfitting risk for ~200 series
-        "num_stacks": {"values": [2, 3]},
+        "num_stacks": {"values": [1, 2, 3]},
 
         # num_blocks: Blocks per stack
         # - Each block produces forecast and backcast
@@ -285,7 +285,7 @@ def get_sweep_config():
         # - 128: Balanced for ~200 series
         # - 256: Higher capacity (monitor for overfitting)
         # - Avoid 512+ for ~200 series (overfitting risk)
-        "layer_width": {"values": [64, 128, 256]},
+        "layer_width": {"values": [32, 64, 128]},
 
         # activation: Non-linearity between FC layers
         # - ReLU: Fast, sparse activations, standard choice
@@ -325,15 +325,15 @@ def get_sweep_config():
         # - Full L2 maximizes gradient signal from every error
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.0,
+            "min": 0.4,
+            "max": 0.8,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [5.0]},
+        "non_zero_weight": {"values": [1.0]},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
@@ -341,7 +341,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.0,
+            "max": 5.0,
         },
 
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -350,7 +350,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 

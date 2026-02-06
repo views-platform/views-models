@@ -69,7 +69,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_v4_mtd",
+        "name": "revolving_door_nhits_v5_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -130,7 +130,7 @@ def get_sweep_config():
         # - 128: Balanced capacity and regularization
         # - 256: Higher capacity, may help capture complex conflict dynamics
         # - For ~200 series, avoid very wide (512+) to prevent overfitting
-        "layer_width": {"values": [64, 128, 256]},
+        "layer_width": {"values": [32, 64, 128]},
 
         # pooling_kernel_sizes: Controls multi-rate input sampling per stack
         # - None: Auto-configured based on input_chunk_length (RECOMMENDED)
@@ -279,15 +279,14 @@ def get_sweep_config():
         # - Full L2 maximizes gradient signal from rare spikes
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.0,
+            "min": 0.4,
+            "max": 0.8,
         },
-
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [5.0]},
+        "non_zero_weight": {"values": [1.0]},
 
         # false_positive_weight: Penalty for predicting conflict when none occurred
         # - Range 0.5-1.0: At or below baseline
@@ -296,7 +295,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.0,
+            "max": 5.0,
         },
 
         # false_negative_weight: Additional penalty for missing actual conflicts
@@ -306,7 +305,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
 
         # ==============================================================================
