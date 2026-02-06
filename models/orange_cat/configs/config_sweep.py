@@ -392,12 +392,12 @@ def get_sweep_config():
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        # "non_zero_weight": {"values": [5.0]},
-        "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 1.0,
-            "max": 8.0,
-        },
+        "non_zero_weight": {"values": [5.0]},
+        # "non_zero_weight": {
+        #     "distribution": "uniform",
+        #     "min": 1.0,
+        #     "max": 8.0,
+        # },
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Range 0.5-1.0 (at or below baseline)
         # - Values <1.0 encourage model to "explore" non-zero predictions
