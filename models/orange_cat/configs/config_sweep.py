@@ -407,7 +407,11 @@ def get_sweep_config():
         #     "min": 0.5,
         #     "max": 1.0,
         # },
-        "false_positive_weight": {"values": [1.0]},
+        "false_positive_weight": {
+            "distribution": "log_uniform_values",
+            "min": 1.0,
+            "max": 3.0,
+        },
         # false_negative_weight: Additional multiplier for missing actual conflicts
         # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
         # - Range 2-8 gives total FN weight of 8-56x baseline
@@ -417,7 +421,11 @@ def get_sweep_config():
         #     "min": 2.0,
         #     "max": 8.0,
         # },
-        "false_negative_weight": {"values": [1.0]},
+        "false_negative_weight": {
+            "distribution": "log_uniform_values",
+            "min": 1.0,
+            "max": 8.0,
+        },
     }
 
     sweep_config["parameters"] = parameters
