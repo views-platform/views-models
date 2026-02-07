@@ -172,8 +172,8 @@ def get_sweep_config():
         # - Range 0.5-1.5 is conservative for [0,1] scaled data
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 5.0,
+            "min": 0.5,
+            "max": 1.5,
         },
 
         # ==============================================================================
