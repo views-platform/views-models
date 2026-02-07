@@ -162,8 +162,8 @@ def get_sweep_config():
         # - Too tight = starves early timesteps; too loose = instability
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "min": 1.0,
+            "max": 3.0,
         },
 
         # ==============================================================================
@@ -252,7 +252,7 @@ def get_sweep_config():
         #   * 3 gates: reset, update, new
         #   * Faster training, fewer parameters
         #   * Often comparable performance to LSTM
-        "rnn_type": {"values": ["LSTM", "GRU"]},
+        "rnn_type": {"values": ["LSTM"]},
 
         # hidden_dim: Hidden state dimension
         # - Controls capacity of temporal memory
@@ -261,14 +261,14 @@ def get_sweep_config():
         # - 128: Higher capacity for complex temporal dynamics
         # - For ~200 series, avoid large dims (256+) to prevent overfitting
         # - Memory scales as O(hidden_dim²) per layer
-        "hidden_dim": {"values": [32, 64, 128]},
+        "hidden_dim": {"values": [64, 128, 256]},
 
         # n_rnn_layers: Number of stacked RNN layers
         # - 1 layer: Simple, direct temporal processing
         # - 2 layers: Hierarchical pattern extraction
         # - 3 layers: Deeper abstractions (may have vanishing gradients)
         # - Deeper than 3 rarely helps for time series; increases training time
-        "n_rnn_layers": {"values": [1, 2, 3]},
+        "n_rnn_layers": {"values": [1, 2]},
 
         # activation: Output activation function
         # - ReLU: Fast, sparse activations, standard choice
@@ -288,7 +288,7 @@ def get_sweep_config():
         # - "Reversible" stores stats to invert normalization on output
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [False, True]},
+        "use_reversible_instance_norm": {"values": [False]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss

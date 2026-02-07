@@ -172,8 +172,8 @@ def get_sweep_config():
         # - Range 0.5-1.5 is conservative for [0,1] scaled data
         "gradient_clip_val": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
+            "min": 1.0,
+            "max": 5.0,
         },
 
         # ==============================================================================
@@ -270,7 +270,7 @@ def get_sweep_config():
         # - 16: Lightweight, fast
         # - 32: Balanced
         # - 64: Higher capacity for complex forecast patterns
-        "decoder_output_dim": {"values": [16, 32, 64]},
+        "decoder_output_dim": {"values": [64, 128]},
 
         # hidden_size: Hidden dimension of encoder MLP layers
         # - Controls main encoder capacity
@@ -278,7 +278,7 @@ def get_sweep_config():
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [16, 32, 64]},
+        "hidden_size": {"values": [32, 64, 128]},
 
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
@@ -288,12 +288,12 @@ def get_sweep_config():
         # - 4: ~1 quarter of local context
         # - 6: ~half year of local context
         # - 8: ~2/3 year of local context
-        "temporal_width_past": {"values": [4, 6, 8]},
+        "temporal_width_past": {"values": [4, 12, 24, 36]},
 
         # temporal_width_future: Local receptive field for future horizon
         # - How many adjacent future time steps to consider together
         # - Similar reasoning to temporal_width_past
-        "temporal_width_future": {"values": [4, 6, 8]},
+        "temporal_width_future": {"values": [4, 12, 24, 36]},
 
         # temporal_hidden_size_past: Hidden dim for past temporal processing
         # - Capacity for learning patterns in historical context
@@ -337,7 +337,7 @@ def get_sweep_config():
         # - "Reversible" stores stats to invert normalization on output
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
@@ -355,17 +355,13 @@ def get_sweep_config():
         # 1. Learn strongly from actual conflict events (high non_zero_weight)
         # 2. Heavily penalize missing conflicts (high FN penalty)
         # 3. Be somewhat forgiving of false alarms (low FP weight encourages exploration)
-        "zero_threshold": {"values": [1e-4]},
+        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
 
         # zero_threshold: Scaled value below which predictions count as "zero"
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
         # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.08, # 0 fatalities threshold after scaling
-            "max": 0.23, # 5 fatalities threshold after scaling
-        },
+        "zero_threshold": {"values": [1e-4]},
 
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
@@ -373,8 +369,8 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.0,
+            "min": 0.4,
+            "max": 0.8,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
@@ -390,7 +386,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.5,
+            "max": 1.0,
         },
 
         # false_negative_weight: Additional multiplier for missing actual conflicts
@@ -399,8 +395,8 @@ def get_sweep_config():
         # - Highest penalty because missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 3.0,
-            "max": 10.0,
+            "min": 1.0,
+            "max": 3.0,
         },
     }
 

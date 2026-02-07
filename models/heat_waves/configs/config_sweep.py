@@ -230,13 +230,13 @@ def get_sweep_config():
         # - Range 64-128 appropriate for ~200 series (avoids overfitting)
         # Compatibility check: hidden_size / nhead >= 16 for stable attention
         #   64/2=32✓, 64/4=16✓, 96/2=48✓, 96/4=24✓, 128/2=64✓, 128/4=32✓
-        "hidden_size": {"values": [64, 96, 128]},
+        "hidden_size": {"values": [96, 128, 160]},
 
         # lstm_layers: Number of LSTM layers in encoder/decoder
         # - TFT's attention mechanism does heavy temporal lifting
         # - LSTM provides local sequential processing
         # - 1-2 layers sufficient; deeper adds parameters without proportional benefit
-        "lstm_layers": {"values": [1, 2]},
+        "lstm_layers": {"values": [1]},
 
         # num_attention_heads: Multi-head attention parallelism
         # - More heads = more diverse temporal pattern learning
@@ -248,7 +248,7 @@ def get_sweep_config():
         # - Separate from hidden_size for the variable selection networks
         # - With 50+ features, 16-48 provides adequate representation
         # - Larger values help capture feature interactions
-        "hidden_continuous_size": {"values": [16, 32, 48]},
+        "hidden_continuous_size": {"values": [32, 64, 96]},
 
         # dropout: Dropout rate throughout TFT
         # - LOW values (0.05-0.15) for scarce signal
@@ -291,7 +291,7 @@ def get_sweep_config():
         # use_reversible_instance_norm: Normalize per-instance before processing
         # - Helps with non-stationary data (conflict patterns change over time)
         # - "Reversible" means normalization stats are stored for inverse transform
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss

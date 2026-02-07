@@ -95,7 +95,7 @@ def get_sweep_config():
         # - 60 months (5 years): Captures longer political/economic cycles
         # - 72 months (6 years): Maximum context for deep historical patterns
         # Attention mechanism can selectively focus on relevant past periods
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [48, 60, 72]},
 
         "output_chunk_length": {"values": [36]},  # Must match steps
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
@@ -252,7 +252,7 @@ def get_sweep_config():
         # - 128: Balanced capacity for moderate complexity
         # - 256: Higher capacity for complex temporal dependencies
         # For ~200 series, avoid very large (512+) to prevent overfitting
-        "d_model": {"values": [64, 128, 256]},
+        "d_model": {"values": [128, 256]},
 
         # num_attention_heads: Parallel attention mechanisms
         # - Each head learns different "what to attend to" patterns
@@ -312,7 +312,7 @@ def get_sweep_config():
         # - "Reversible" stores stats to invert normalization on output
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss

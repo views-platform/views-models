@@ -102,7 +102,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - N-BEATS is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [48, 60, 72]},
         "output_chunk_length": {"values": [36]},  # Must match steps
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
@@ -281,7 +281,7 @@ def get_sweep_config():
         #   * More constrained, potentially better generalization
         #   * Trend component may capture conflict escalation patterns
         # Worth exploring both for conflict forecasting
-        "generic_architecture": {"values": [True, False]},
+        "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks in the network
         # - Each stack processes residuals from previous stack
         # - 2 stacks: Simpler, less overfitting risk
@@ -289,13 +289,13 @@ def get_sweep_config():
         #   * Generic: 2 learnable pattern stacks
         # - 3 stacks: More capacity for complex patterns
         # - 4+ stacks: Diminishing returns, overfitting risk for ~200 series
-        "num_stacks": {"values": [2, 3, 4]},
+        "num_stacks": {"values": [2, 3]},
         # num_blocks: Blocks per stack
         # - Each block produces forecast and backcast
         # - More blocks = more residual refinement within each stack
         # - 1 block: Simplest, N-BEATS paper default
         # - 2-3 blocks: More capacity per stack
-        "num_blocks": {"values": [1, 2, 3]},
+        "num_blocks": {"values": [1, 2]},
         # num_layers: Fully connected layers per block
         # - Each block contains FC layers before basis expansion
         # - 2 layers: Simple, fast, less overfitting
@@ -336,7 +336,7 @@ def get_sweep_config():
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
         # - Full L2 maximizes gradient signal from every error
-       "delta": {
+        "delta": {
             "distribution": "uniform",
             "min": 0.3,
             "max": 1.0,
@@ -352,15 +352,15 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.5,
+            "max": 1.0,
         },
         # false_negative_weight: Additional multiplier for missing actual conflicts
         # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
         # - Range 2-8 gives total FN weight of 8-56x baseline
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 3.0,
-            "max": 10.0,
+            "min": 1.0,
+            "max": 3.0,
         },
     }
 
