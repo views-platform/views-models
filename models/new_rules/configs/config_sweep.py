@@ -332,7 +332,11 @@ def get_sweep_config():
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
         # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
-        "zero_threshold": {"values": [1e-4]},
+        "zero_threshold": {
+            "distribution": "uniform",
+            "min": 0.05,
+            "max": 0.23,
+        },
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
         # - Full L2 maximizes gradient signal from every error
@@ -352,7 +356,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.0,
+            "max": 1.2,
         },
         # false_negative_weight: Additional multiplier for missing actual conflicts
         # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
@@ -360,7 +364,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 3.0,
+            "max": 4.0,
         },
     }
 
