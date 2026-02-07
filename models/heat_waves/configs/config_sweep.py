@@ -55,7 +55,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_v5_mtd",
+        "name": "heat_waves_tft_v6_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -141,11 +141,7 @@ def get_sweep_config():
         # - Prevents exploding gradients (especially in attention layers)
         # - Range 0.5-1.5 is conservative; TFT has stable gradients
         # - Lower values = more stable but potentially slower learning
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
-        },
+        "gradient_clip_val": {"values": [1.5]},
 
         # ==============================================================================
         # FEATURE SCALING
@@ -291,7 +287,7 @@ def get_sweep_config():
         # use_reversible_instance_norm: Normalize per-instance before processing
         # - Helps with non-stationary data (conflict patterns change over time)
         # - "Reversible" means normalization stats are stored for inverse transform
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [False, True]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
@@ -327,7 +323,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
+            "min": 0.70,
             "max": 1.0,
         },
 
@@ -343,17 +339,17 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.2,
+            "max": 2,
         },
 
-        # false_negative_weight: Additional multiplier for missing actual conflicts
-        # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
-        # - Range 2-8 gives total FN weight of 8-56x baseline
-        # - Highest penalty because missing conflicts is operationally costly
+        # false_negative_weight: Additional penalty for missing actual conflicts
+        # - Applied on top of non_zero_weight: FN = non_zero × fn_weight
+        # - Range 2-8: Total FN penalty of 8-56x baseline
+        # - Highest penalty: missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 6.0,
         },
     }
 

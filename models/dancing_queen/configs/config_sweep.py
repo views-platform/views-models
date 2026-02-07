@@ -76,7 +76,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_v4_mtd",
+        "name": "dancing_queen_blockrnn_v5_mtd",
         "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},
         "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }
@@ -160,11 +160,7 @@ def get_sweep_config():
         # - Wider range (0.5-2.0) than transformers
         # - RNNs may need looser clipping to allow gradient flow through sequences
         # - Too tight = starves early timesteps; too loose = instability
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 1.0,
-            "max": 3.0,
-        },
+        "gradient_clip_val": {"values": [2.0]},
 
         # ==============================================================================
         # FEATURE SCALING
@@ -324,7 +320,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
+            "min": 0.70,
             "max": 1.0,
         },
 
@@ -341,18 +337,17 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.2,
+            "max": 2,
         },
 
-        # false_negative_weight: Additional multiplier for missing actual conflicts
-        # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
-        # - Range 2-8 gives total FN weight of 8-56x baseline
-        # - Penalizes missing conflicts (operationally costly)
-        # - Narrower range than other models for RNN stability
+        # false_negative_weight: Additional penalty for missing actual conflicts
+        # - Applied on top of non_zero_weight: FN = non_zero × fn_weight
+        # - Range 2-8: Total FN penalty of 8-56x baseline
+        # - Highest penalty: missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 6.0,
         },
     }
 

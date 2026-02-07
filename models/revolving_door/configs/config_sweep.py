@@ -69,7 +69,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_v6_mtd",
+        "name": "revolving_door_nhits_v7_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -231,11 +231,7 @@ def get_sweep_config():
         # - Prevents exploding gradients
         # - N-HiTS has stable gradients due to simple FC architecture
         # - Range 0.5-1.5 is conservative
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
-        },
+        "gradient_clip_val": {"values": [1.5]},
 
         # ==============================================================================
         # INSTANCE NORMALIZATION
@@ -279,7 +275,7 @@ def get_sweep_config():
         # - Full L2 maximizes gradient signal from rare spikes
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
+            "min": 0.70,
             "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
@@ -295,7 +291,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.2,
+            "max": 2,
         },
 
         # false_negative_weight: Additional penalty for missing actual conflicts
@@ -305,7 +301,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 6.0,
         },
 
         # ==============================================================================

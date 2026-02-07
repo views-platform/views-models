@@ -82,7 +82,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_v3_mtd",
+        "name": "new_rules_nbeats_v4_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -155,11 +155,7 @@ def get_sweep_config():
         # - Prevents exploding gradients in deep stacks
         # - N-BEATS has residual connections which help stability
         # - Range 0.5-1.5 is conservative for [0,1] scaled data
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.0,
-        },
+        "gradient_clip_val": {"values": [1.5]},
         # ==============================================================================
         # FEATURE SCALING
         # ==============================================================================
@@ -281,7 +277,7 @@ def get_sweep_config():
         #   * More constrained, potentially better generalization
         #   * Trend component may capture conflict escalation patterns
         # Worth exploring both for conflict forecasting
-        "generic_architecture": {"values": [True]},
+        "generic_architecture": {"values": [True, False]},
         # num_stacks: Number of stacks in the network
         # - Each stack processes residuals from previous stack
         # - 2 stacks: Simpler, less overfitting risk
@@ -342,7 +338,7 @@ def get_sweep_config():
         # - Full L2 maximizes gradient signal from every error
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
+            "min": 0.70,
             "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
@@ -356,15 +352,17 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.2,
+            "max": 2,
         },
-        # false_negative_weight: Additional multiplier for missing actual conflicts
-        # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
-        # - Range 2-8 gives total FN weight of 8-56x baseline
+
+        # false_negative_weight: Additional penalty for missing actual conflicts
+        # - Applied on top of non_zero_weight: FN = non_zero × fn_weight
+        # - Range 2-8: Total FN penalty of 8-56x baseline
+        # - Highest penalty: missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 6.0,
         },
     }
 

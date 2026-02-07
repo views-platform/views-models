@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v8_mtd",
+        "name": "cool_cat_tide_v9_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -170,11 +170,7 @@ def get_sweep_config():
         # - Prevents exploding gradients
         # - TiDE has stable gradients due to residual connections
         # - Range 0.5-1.5 is conservative for [0,1] scaled data
-        "gradient_clip_val": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
-        },
+        "gradient_clip_val": {"values": [1.5]},
 
         # ==============================================================================
         # FEATURE SCALING
@@ -372,8 +368,8 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.8,
+            "min": 0.70,
+            "max": 1.0,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
@@ -389,17 +385,17 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 1.2,
+            "max": 2,
         },
 
-        # false_negative_weight: Additional multiplier for missing actual conflicts
-        # - Applied ON TOP of non_zero_weight: total FN penalty = non_zero × fn_weight
-        # - Range 2-8 gives total FN weight of 8-56x baseline
-        # - Highest penalty because missing conflicts is operationally costly
+        # false_negative_weight: Additional penalty for missing actual conflicts
+        # - Applied on top of non_zero_weight: FN = non_zero × fn_weight
+        # - Range 2-8: Total FN penalty of 8-56x baseline
+        # - Highest penalty: missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 6.0,
         },
     }
 
