@@ -69,7 +69,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_v5_mtd",
+        "name": "revolving_door_nhits_v6_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -130,7 +130,7 @@ def get_sweep_config():
         # - 128: Balanced capacity and regularization
         # - 256: Higher capacity, may help capture complex conflict dynamics
         # - For ~200 series, avoid very wide (512+) to prevent overfitting
-        "layer_width": {"values": [32, 64, 128]},
+        "layer_width": {"values": [64, 128, 256]},
 
         # pooling_kernel_sizes: Controls multi-rate input sampling per stack
         # - None: Auto-configured based on input_chunk_length (RECOMMENDED)
@@ -158,7 +158,7 @@ def get_sweep_config():
         #   * Smoother, may miss isolated spikes in sparse data
         #   * Better for dense, continuous patterns
         # For zero-inflated conflict data, MaxPool likely better
-        "max_pool_1d": {"values": [True, False]},
+        "max_pool_1d": {"values": [True]},
 
         # activation: Non-linearity between FC layers
         # - ReLU: Fast, sparse activations, good default
@@ -246,7 +246,7 @@ def get_sweep_config():
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
         # Worth exploring both for conflict data
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
 
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
@@ -269,24 +269,20 @@ def get_sweep_config():
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
         # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.08, # 0 fatalities threshold after scaling
-            "max": 0.23, # 5 fatalities threshold after scaling
-        },
+        "zero_threshold": {"values": [1e-4]},
         # delta: Huber loss transition point
         # - Range 0.8-1.0: Nearly pure L2 for [0,1] scaled data
         # - Full L2 maximizes gradient signal from rare spikes
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
-            "max": 0.8,
+            "min": 0.3,
+            "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
         # - Fixed at 5.0 to reduce search dimensions
         # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"values": [1.0]},
+        "non_zero_weight": {"distribution": "uniform", "min": 10.0, "max": 50.0},
 
         # false_positive_weight: Penalty for predicting conflict when none occurred
         # - Range 0.5-1.0: At or below baseline
@@ -295,7 +291,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 5.0,
+            "max": 1.0,
         },
 
         # false_negative_weight: Additional penalty for missing actual conflicts
@@ -304,8 +300,8 @@ def get_sweep_config():
         # - Highest penalty: missing conflicts is operationally costly
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
+            "min": 1.0,
+            "max": 3.0,
         },
 
         # ==============================================================================
