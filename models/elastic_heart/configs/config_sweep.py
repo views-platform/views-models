@@ -40,9 +40,9 @@ def get_sweep_config():
 
         # ============== TRAINING BASICS ==============
         'batch_size': {'values': [1024, 2048, 4096]},
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10, 12]},
-        'early_stopping_min_delta': {'values': [0.001, 0.005]},
+        'n_epochs': {'values': [150]},
+        'early_stopping_patience': {'values': [20]},
+        'early_stopping_min_delta': {'values': [0.0001]},
         'force_reset': {'values': [True]},
 
         # ============== OPTIMIZER / SCHEDULER ==============
