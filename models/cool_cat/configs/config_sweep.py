@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v10_mtd",
+        "name": "cool_cat_tide_v11_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -106,7 +106,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - TiDE is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [36, 48, 72]},
+        "input_chunk_length": {"values": [24, 36, 48]},
 
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
@@ -119,7 +119,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - TiDE is memory-efficient (no attention matrices)
         # - Range 512-4096 provides good coverage
-        "batch_size": {"values": [1024, 2048, 4096]},
+        "batch_size": {"values": [1024, 2048]},
 
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
@@ -259,14 +259,14 @@ def get_sweep_config():
         # - Decoder projects encoded representations to forecasts
         # - Generally shallower than encoder (forecasting is "simpler")
         # - 1-2 layers sufficient for most time series tasks
-        "num_decoder_layers": {"values": [1, 2]},
+        "num_decoder_layers": {"values": [1, 2, 3]},
 
         # decoder_output_dim: Output dimension of decoder before final projection
         # - Controls capacity of forecast generation
         # - 16: Lightweight, fast
         # - 32: Balanced
         # - 64: Higher capacity for complex forecast patterns
-        "decoder_output_dim": {"values": [64, 128]},
+        "decoder_output_dim": {"values": [32, 64, 128]},
 
         # hidden_size: Hidden dimension of encoder MLP layers
         # - Controls main encoder capacity
@@ -274,7 +274,7 @@ def get_sweep_config():
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [32, 64, 128]},
+        "hidden_size": {"values": [16, 32, 64, 128]},
 
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
@@ -321,12 +321,12 @@ def get_sweep_config():
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
         # - Combined with weight_decay=0, this is the main regularization
-        "dropout": {"values": [0.05, 0.15]},
+        "dropout": {"values": [0.15]},
 
         # use_static_covariates: Whether to use static (time-invariant) features
         # - True: Leverages country-level constants (geography, etc.)
         # - False: Simpler model, may generalize better if static features noisy
-        "use_static_covariates": {"values": [False, True]},
+        "use_static_covariates": {"values": [True]},
 
         # use_reversible_instance_norm: Per-instance normalization
         # - Normalizes each time series independently before processing
@@ -359,8 +359,8 @@ def get_sweep_config():
         # - Lower threshold = stricter zero classification
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.23,
+            "min": 0.01,
+            "max": 0.30,
         },
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
@@ -385,8 +385,8 @@ def get_sweep_config():
         # - Helps escape local minimum of predicting all zeros
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.3,
+            "distribution": "log_uniform_values",
+            "min": 0.4,
             "max": 1.5,
         },
 
@@ -398,7 +398,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 
