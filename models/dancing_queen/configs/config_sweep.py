@@ -76,7 +76,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_v5_mtd",
+        "name": "dancing_queen_blockrnn_v6_mtd",
         "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},
         "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }
@@ -320,34 +320,37 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.70,
+            "min": 0.4,
             "max": 1.0,
         },
 
         # non_zero_weight: Multiplier for non-zero actual values
-        # - Fixed at 5.0 to reduce search dimensions
-        # - Conflicts contribute 5x more to loss than zeros (counteracts class imbalance)
-        # - FP and FN weights are tuned relative to this baseline
-        "non_zero_weight": {"distribution": "uniform", "min": 10.0, "max": 50.0},
+        # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
+        # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
+        # - FP and FN weights are tuned relative to this fixed baseline
+        # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
+        "non_zero_weight": {"values": [10.0]},
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
-        # - Range 0.5-1.0 (at or below baseline)
+        # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
         # - Values <1.0 encourage model to "explore" non-zero predictions
         # - Helps escape local minimum of predicting all zeros
+        # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 2,
+            "min": 0.3,
+            "max": 1.5,
         },
 
         # false_negative_weight: Additional penalty for missing actual conflicts
-        # - Applied on top of non_zero_weight: FN = non_zero × fn_weight
-        # - Range 2-8: Total FN penalty of 8-56x baseline
-        # - Highest penalty: missing conflicts is operationally costly
+        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
+        # - Range 2-8: Strong asymmetric penalty for missing conflicts
+        # - Highest penalty case: missing conflicts is operationally costly
+        # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 6.0,
+            "min": 2.0,
+            "max": 8.0,
         },
     }
 

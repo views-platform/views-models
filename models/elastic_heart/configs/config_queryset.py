@@ -729,5 +729,5 @@ def generate():
 
     queryset = Queryset(f"{model_name}", "country_month")
 
-    # return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
-    return _add_conflict_history(queryset=queryset)
+    return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
+    # return _add_topics(_add_conflict_history(queryset=queryset))
