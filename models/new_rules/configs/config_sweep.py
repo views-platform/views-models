@@ -291,7 +291,7 @@ def get_sweep_config():
         # - More blocks = more residual refinement within each stack
         # - 1 block: Simplest, N-BEATS paper default
         # - 2-3 blocks: More capacity per stack
-        "num_blocks": {"values": [1, 2]},
+        "num_blocks": {"values": [1, 2, 3]},
         # num_layers: Fully connected layers per block
         # - Each block contains FC layers before basis expansion
         # - 2 layers: Simple, fast, less overfitting
@@ -303,7 +303,7 @@ def get_sweep_config():
         # - 128: Balanced for ~200 series
         # - 256: Higher capacity (monitor for overfitting)
         # - Avoid 512+ for ~200 series (overfitting risk)
-        "layer_width": {"values": [64, 128, 256]},
+        "layer_width": {"values": [32, 64, 128]},
         # activation: Non-linearity between FC layers
         # - ReLU: Fast, sparse activations, standard choice
         # - GELU: Smoother gradients, often slightly better for time series
@@ -312,7 +312,7 @@ def get_sweep_config():
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
         # - N-BEATS is prone to overfitting, but signal preservation is priority
-        "dropout": {"values": [0.05, 0.15]},
+        "dropout": {"values": [0.15]},
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
         # ==============================================================================
