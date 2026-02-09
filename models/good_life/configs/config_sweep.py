@@ -73,7 +73,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_v8_mtd",
+        "name": "good_life_transformer_v9_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -95,7 +95,7 @@ def get_sweep_config():
         # - 60 months (5 years): Captures longer political/economic cycles
         # - 72 months (6 years): Maximum context for deep historical patterns
         # Attention mechanism can selectively focus on relevant past periods
-        "input_chunk_length": {"values": [48, 60, 72]},
+        "input_chunk_length": {"values": [24, 36, 48]},
 
         "output_chunk_length": {"values": [36]},  # Must match steps
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
@@ -110,7 +110,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - Transformers are memory-efficient (parallel attention)
         # - Range 256-2048 balances GPU memory with gradient quality
-        "batch_size": {"values": [512, 1024, 2048, 4096]},
+        "batch_size": {"values": [1024, 2048]},
 
         # n_epochs: Maximum training epochs
         # - Transformers often need more epochs than RNNs to converge
@@ -247,7 +247,7 @@ def get_sweep_config():
         # - 128: Balanced capacity for moderate complexity
         # - 256: Higher capacity for complex temporal dependencies
         # For ~200 series, avoid very large (512+) to prevent overfitting
-        "d_model": {"values": [128, 256]},
+        "d_model": {"values": [64, 128, 256]},
 
         # num_attention_heads: Parallel attention mechanisms
         # - Each head learns different "what to attend to" patterns
@@ -333,8 +333,8 @@ def get_sweep_config():
         # - Lower threshold = stricter zero classification
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.23,
+            "min": 0.01,
+            "max": 0.30,
         },
 
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
@@ -352,7 +352,11 @@ def get_sweep_config():
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this fixed baseline
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
-        "non_zero_weight": {"values": [10.0]},
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 20.0,
+        },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
@@ -360,8 +364,8 @@ def get_sweep_config():
         # - Helps escape local minimum of predicting all zeros
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.3,
+            "distribution": "log_uniform_values",
+            "min": 0.4,
             "max": 1.5,
         },
 
@@ -373,7 +377,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 

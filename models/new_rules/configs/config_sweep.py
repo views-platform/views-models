@@ -330,8 +330,8 @@ def get_sweep_config():
         # - Lower threshold = stricter zero classification
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.23,
+            "min": 0.01,
+            "max": 0.30,
         },
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
