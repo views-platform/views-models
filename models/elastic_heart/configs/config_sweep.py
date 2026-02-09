@@ -139,7 +139,7 @@ def get_sweep_config():
         'num_blocks': {'values': [2, 3, 4]},  # Number of mixer blocks
         "dropout": {"values": [0.05, 0.15]},
         'norm_type': {'values': ['LayerNorm']},
-        'normalize_before': {'values': [True]},  # Pre-normalization typically better
+        'normalize_before': {'values': [True, False]},  # Pre-normalization typically better
         'activation': {'values': ['ReLU', 'GELU']},
         'use_static_covariates': {'values': [True]},
         'use_reversible_instance_norm': {'values': [True, False]},  # Helps with distribution shift
@@ -191,7 +191,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 4.0,
+            "max": 8.0,
         },
     }
 
