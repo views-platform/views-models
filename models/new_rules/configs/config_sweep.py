@@ -82,7 +82,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_v5_mtd",
+        "name": "new_rules_nbeats_v6_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -102,7 +102,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - N-BEATS is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [48, 60, 72]},
+        "input_chunk_length": {"values": [12, 36, 48]},
         "output_chunk_length": {"values": [36]},  # Must match steps
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
@@ -114,7 +114,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - N-BEATS is computationally efficient (just FC layers)
         # - Range 1024-4096 for stable gradients with sparse signal
-        "batch_size": {"values": [1024, 2048, 4096]},
+        "batch_size": {"values": [1024, 2048]},
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         "n_epochs": {"values": [150]},
@@ -346,7 +346,11 @@ def get_sweep_config():
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this fixed baseline
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
-        "non_zero_weight": {"values": [10.0]},
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 20.0,
+        },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
@@ -354,8 +358,8 @@ def get_sweep_config():
         # - Helps escape local minimum of predicting all zeros
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.3,
+            "distribution": "log_uniform_values",
+            "min": 0.4,
             "max": 1.5,
         },
 
@@ -367,7 +371,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 10.0,
         },
     }
 
