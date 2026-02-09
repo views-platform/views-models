@@ -38,7 +38,7 @@ def get_sweep_config():
         'false_negative_weight': {'values': [10.0]},
 
         # --- Trainer & Optimizer ---
-        'n_epochs': {'values': [300]},
+        'n_epochs': {'values': [1]},
         'lr': {'values': [0.0003]},
         'optimizer_cls': {'values': ['Adam']},
         'weight_decay': {'values': [0.0003]},
@@ -47,7 +47,7 @@ def get_sweep_config():
         'lr_scheduler_patience': {'values': [7]},
         'lr_scheduler_factor': {'values': [0.46]},
         'lr_scheduler_min_lr': {'values': [0.00001]},
-        'early_stopping_patience': {'values': [40]},
+        'early_stopping_patience': {'values': [1]},
         'early_stopping_min_delta': {'values': [0.01]},
         
         # --- Data Handling & Input/Output ---

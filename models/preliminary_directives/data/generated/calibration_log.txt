@@ -1,0 +1,6 @@
+Single Model Name: preliminary_directives
+Single Model Timestamp: 20260128_135025
+Data Generation Timestamp: 20260128_135049
+Data Fetch Timestamp: 20260128_134919
+Deployment Status: shadow
+
