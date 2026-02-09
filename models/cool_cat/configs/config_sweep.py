@@ -377,7 +377,11 @@ def get_sweep_config():
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this fixed baseline
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
-        "non_zero_weight": {"values": [10.0]},
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 20.0,
+        },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
