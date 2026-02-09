@@ -1,0 +1,6 @@
+Single Model Name: plastic_beach
+Single Model Timestamp: 20250218_234421
+Data Generation Timestamp: None
+Data Fetch Timestamp: 20250218_233215
+Deployment Status: shadow
+

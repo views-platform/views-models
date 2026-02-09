@@ -1,0 +1,11 @@
+/home/simon/anaconda3/envs/views_pipeline/lib/python3.11/site-packages/fs/__init__.py:4: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__("pkg_resources").declare_namespace(__name__)  # type: ignore
+Traceback (most recent call last):
+  File "/home/simon/Documents/scripts/views_platform/views-models/models/preliminary_directives/main.py", line 8, in <module>
+    print(f"Loaded DartsForecastingModelManager from file: {DartsForecastingModelManager.__file__}")
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'DartsForecastingModelManager' has no attribute '__file__'. Did you mean: '__le__'?
+
+ERROR conda.cli.main_run:execute(47): `conda run python models/preliminary_directives/main.py -r calibration -t -e` failed. (See above for error)
+Loaded DartsForecastingModelManager from module: views_r2darts2.manager.model
+
