@@ -85,13 +85,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v12_msle",
+        "name": "cool_cat_tide_v13_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -100,18 +100,15 @@ def get_sweep_config():
         # ==============================================================================
         # steps: 36-month forecast horizon (standard for conflict forecasting)
         "steps": {"values": [[*range(1, 36 + 1)]]},
-
         # input_chunk_length: Historical context window
         # - TiDE uses dense encoding of the full input sequence
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - TiDE is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [24, 36, 48]},
-
+        "input_chunk_length": {"values": [24, 36]},
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
         "random_state": {"values": [67]},  # Reproducibility
-
         # ==============================================================================
         # TRAINING BASICS
         # ==============================================================================
@@ -120,23 +117,18 @@ def get_sweep_config():
         # - TiDE is memory-efficient (no attention matrices)
         # - Range 512-4096 provides good coverage
         "batch_size": {"values": [1024, 2048]},
-
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         # - Increased from 100 since we reduced regularization
-        "n_epochs": {"values": [150]},
-
+        "n_epochs": {"values": [200]},
         # early_stopping_patience: Epochs without improvement before stopping
         # - Higher patience (15-25) for scarce signal
         # - Rare conflict patterns may take time to emerge in validation
         "early_stopping_patience": {"values": [20]},
-
         # early_stopping_min_delta: Minimum improvement to count as progress
         # - Small values (5e-5 to 1e-4) appropriate for [0,1] scaled loss
         "early_stopping_min_delta": {"values": [0.0001]},
-
         "force_reset": {"values": [True]},  # Clean model state each sweep run
-
         # ==============================================================================
         # OPTIMIZER / LEARNING RATE SCHEDULE
         # ==============================================================================
@@ -149,7 +141,6 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-
         # weight_decay: L2 regularization on weights
         # DISABLED (set to 0) because:
         # - CRITICAL: High weight_decay caused weight collapse (weights → 1e-34)
@@ -157,27 +148,23 @@ def get_sweep_config():
         # - Combined with dropout + layer_norm, weight_decay was too much
         # - Rule of thumb violated: weight_decay was 100x+ larger than lr
         "weight_decay": {"values": [0]},
-
         # lr_scheduler: ReduceLROnPlateau configuration
         # - factor=0.5: Halve LR when stuck (standard, well-tested)
         # - patience=8: Wait 8 epochs before reducing
         # - min_lr=1e-6: Floor prevents LR from becoming negligible
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
+        "lr_scheduler_patience": {"values": [10]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
-
         # gradient_clip_val: Maximum gradient norm
         # - Prevents exploding gradients
         # - TiDE has stable gradients due to residual connections
         # - Range 0.5-1.5 is conservative for [0,1] scaled data
         "gradient_clip_val": {"values": [1.5]},
-
         # ==============================================================================
         # FEATURE SCALING
         # ==============================================================================
         # feature_scaler: Global default (None = use feature_scaler_map)
         "feature_scaler": {"values": [None]},
-
         # target_scaler: AsinhTransform->MinMaxScaler
         # - AsinhTransform: asinh(x) = ln(x + sqrt(x² + 1))
         #   * Handles zeros naturally (asinh(0) = 0)
@@ -187,7 +174,6 @@ def get_sweep_config():
         #   * Makes loss values interpretable
         #   * Calibration: asinh(1)≈0.88 → after MinMax ≈0.11
         "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
-
         # feature_scaler_map: Per-feature scaling based on distribution characteristics
         "feature_scaler_map": {
             "values": [
@@ -196,47 +182,88 @@ def get_sweep_config():
                     # These have many zeros and occasional extreme values
                     "AsinhTransform->MinMaxScaler": [
                         # Conflict fatality counts (zero-inflated, extreme outliers)
-                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
-                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                        "lr_ged_sb",
+                        "lr_ged_ns",
+                        "lr_ged_os",
+                        "lr_acled_sb",
+                        "lr_acled_sb_count",
+                        "lr_acled_os",
                         "lr_ged_sb_tsum_24",  # 24-month cumulative
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",  # Spatial lags
+                        "lr_splag_1_ged_sb",
+                        "lr_splag_1_ged_os",
+                        "lr_splag_1_ged_ns",  # Spatial lags
                         # Economic indicators with extreme skew (GDP spans orders of magnitude)
-                        "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                        "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
+                        "lr_wdi_ny_gdp_mktp_kd",
+                        "lr_wdi_nv_agr_totl_kn",
+                        "lr_wdi_sm_pop_netm",
+                        "lr_wdi_sm_pop_refg_or",
                         # Mortality rates (positive, skewed)
                         "lr_wdi_sp_dyn_imrt_fe_in",
                         # Token counts from text analysis (zero-inflated)
-                        "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                        "lr_topic_tokens_t1",
+                        "lr_topic_tokens_t1_splag",
                     ],
                     # MinMaxScaler: For bounded or roughly symmetric features
                     # These are already in reasonable ranges, just need [0,1] normalization
                     "MinMaxScaler": [
                         # WDI percentages (0-100 scale)
-                        "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
-                        "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs",
-                        "lr_wdi_sh_sta_stnt_zs", "lr_wdi_dt_oda_odat_pc_zs",
+                        "lr_wdi_sl_tlf_totl_fe_zs",
+                        "lr_wdi_se_enr_prim_fm_zs",
+                        "lr_wdi_sp_urb_totl_in_zs",
+                        "lr_wdi_sh_sta_maln_zs",
+                        "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_ms_mil_xpnd_gd_zs",
                         # V-Dem indices (already 0-1 normalized)
-                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
+                        "lr_vdem_v2x_horacc",
+                        "lr_vdem_v2xnp_client",
+                        "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl",
+                        "lr_vdem_v2xpe_exlpol",
+                        "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo",
+                        "lr_vdem_v2xpe_exlgender",
+                        "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party",
+                        "lr_vdem_v2x_genpp",
+                        "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty",
+                        "lr_vdem_v2xeg_eqprotec",
+                        "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove",
+                        "lr_vdem_v2x_clphy",
+                        "lr_vdem_v2x_hosabort",
                         "lr_vdem_v2xnp_regcorr",
                         # Topic model theta values (probability distributions, sum to 1)
-                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
-                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
+                        "lr_topic_ste_theta0",
+                        "lr_topic_ste_theta1",
+                        "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3",
+                        "lr_topic_ste_theta4",
+                        "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6",
+                        "lr_topic_ste_theta7",
+                        "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9",
+                        "lr_topic_ste_theta10",
+                        "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12",
+                        "lr_topic_ste_theta13",
+                        "lr_topic_ste_theta14",
+                        "lr_topic_ste_theta0_stock_t1_splag",
+                        "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag",
+                        "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag",
+                        "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag",
+                        "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag",
+                        "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag",
+                        "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag",
+                        "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
                         # Population growth rate (small range, can be negative)
                         "lr_wdi_sp_pop_grow",
@@ -244,7 +271,6 @@ def get_sweep_config():
                 }
             ]
         },
-
         # ==============================================================================
         # TiDE ENCODER ARCHITECTURE
         # ==============================================================================
@@ -253,29 +279,25 @@ def get_sweep_config():
         # - 1 layer: Simple, fast, less overfitting
         # - 2 layers: Moderate capacity for pattern extraction
         # - 3 layers: Deeper features (may overfit with scarce signal)
-        "num_encoder_layers": {"values": [1, 2, 3]},
-
+        "num_encoder_layers": {"values": [1, 2]},
         # num_decoder_layers: Depth of the decoder
         # - Decoder projects encoded representations to forecasts
         # - Generally shallower than encoder (forecasting is "simpler")
         # - 1-2 layers sufficient for most time series tasks
-        "num_decoder_layers": {"values": [1, 2, 3]},
-
+        "num_decoder_layers": {"values": [1, 2]},
         # decoder_output_dim: Output dimension of decoder before final projection
         # - Controls capacity of forecast generation
         # - 16: Lightweight, fast
         # - 32: Balanced
         # - 64: Higher capacity for complex forecast patterns
-        "decoder_output_dim": {"values": [32, 64, 128]},
-
+        "decoder_output_dim": {"values": [64, 128]},
         # hidden_size: Hidden dimension of encoder MLP layers
         # - Controls main encoder capacity
         # - 16: Very lightweight
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [16, 32, 64, 128]},
-
+        "hidden_size": {"values": [64, 128]},
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
         # ==============================================================================
@@ -284,30 +306,25 @@ def get_sweep_config():
         # - 4: ~1 quarter of local context
         # - 6: ~half year of local context
         # - 8: ~2/3 year of local context
-        "temporal_width_past": {"values": [4, 12, 24, 36]},
-
+        "temporal_width_past": {"values": [4, 12]},
         # temporal_width_future: Local receptive field for future horizon
         # - How many adjacent future time steps to consider together
         # - Similar reasoning to temporal_width_past
-        "temporal_width_future": {"values": [4, 12, 24, 36]},
-
+        "temporal_width_future": {"values": [4, 12]},
         # temporal_hidden_size_past: Hidden dim for past temporal processing
         # - Capacity for learning patterns in historical context
         # - 32: Conservative
         # - 64: Balanced
         # - 128: Higher capacity for complex temporal patterns
-        "temporal_hidden_size_past": {"values": [32, 64, 128]},
-
+        "temporal_hidden_size_past": {"values": [64, 128]},
         # temporal_hidden_size_future: Hidden dim for future temporal processing
         # - Capacity for learning patterns in forecast horizon
         # - Generally similar or slightly smaller than past
-        "temporal_hidden_size_future": {"values": [32, 64, 128]},
-
+        "temporal_hidden_size_future": {"values": [64, 128]},
         # temporal_decoder_hidden: Hidden dim of temporal decoder
         # - Final temporal processing before output
         # - 64-256 range covers lightweight to high capacity
-        "temporal_decoder_hidden": {"values": [64, 128, 256]},
-
+        "temporal_decoder_hidden": {"values": [128, 256]},
         # ==============================================================================
         # TiDE REGULARIZATION
         # ==============================================================================
@@ -315,26 +332,22 @@ def get_sweep_config():
         # - True: Stabilizes training, helps with varying input scales
         # - False: Simpler, may prevent over-normalization
         # - Worth exploring both for zero-inflated data
-        "use_layer_norm": {"values": [True, False]},
-
+        "use_layer_norm": {"values": [False]},
         # dropout: Dropout rate throughout TiDE
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
         # - Combined with weight_decay=0, this is the main regularization
-        "dropout": {"values": [0.15]},
-
+        "dropout": {"values": [0.2, 0.3]},
         # use_static_covariates: Whether to use static (time-invariant) features
         # - True: Leverages country-level constants (geography, etc.)
         # - False: Simpler model, may generalize better if static features noisy
-        "use_static_covariates": {"values": [True]},
-
+        "use_static_covariates": {"values": [False, True]},
         # use_reversible_instance_norm: Per-instance normalization
         # - Normalizes each time series independently before processing
         # - "Reversible" stores stats to invert normalization on output
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [False, True]},
-
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
         # ==============================================================================
@@ -352,16 +365,11 @@ def get_sweep_config():
         # 2. Heavily penalize missing conflicts (high FN penalty)
         # 3. Be somewhat forgiving of false alarms (low FP weight encourages exploration)
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-
         # zero_threshold: Scaled value below which predictions count as "zero"
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
         # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.30,
-        },
+        "zero_threshold": {"values": [1e-4]},
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
         # - Full L2 maximizes gradient signal from every error
@@ -371,7 +379,6 @@ def get_sweep_config():
             "min": 0.8,
             "max": 1.0,
         },
-
         # non_zero_weight: Multiplier for non-zero actual values
         # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
@@ -382,7 +389,6 @@ def get_sweep_config():
             "min": 5.0,
             "max": 50.0,
         },
-
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
         # - Values <1.0 encourage model to "explore" non-zero predictions
@@ -391,9 +397,8 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "log_uniform_values",
             "min": 0.4,
-            "max": 1.5,
+            "max": 1.0,
         },
-
         # false_negative_weight: Additional penalty for missing actual conflicts
         # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
         # - Range 2-8: Strong asymmetric penalty for missing conflicts

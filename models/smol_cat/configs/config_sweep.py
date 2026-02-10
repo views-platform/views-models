@@ -394,7 +394,11 @@ def get_sweep_config():
         # 3. false_positive_weight: Keep at 1.0 (false alarms acceptable)
         #
         # zero_threshold: ~1 fatality boundary after AsinhTransform->MinMaxScaler
-        "zero_threshold": {"values": [0.085]},
+        "zero_threshold": {
+            "distribution": "log_uniform_values",
+            "min": 0.085,
+            "max": 0.3,
+        },
         # Class rebalancing: force model to attend to rare conflict events
         "non_zero_weight": {
             "distribution": "log_uniform_values",
