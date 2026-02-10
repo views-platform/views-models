@@ -347,7 +347,7 @@ def get_sweep_config():
         # - "Reversible" stores stats to invert normalization on output
         # - True: Helps with non-stationary data (conflict patterns evolve)
         # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
         # LOSS FUNCTION: WeightedPenaltyHuberLoss
         # ==============================================================================
