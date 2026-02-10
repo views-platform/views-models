@@ -73,13 +73,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_v9_mtd",
+        "name": "good_life_transformer_v10_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -343,7 +343,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
+            "min": 0.8,
             "max": 1.0,
         },
 
@@ -355,7 +355,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 5.0,
-            "max": 20.0,
+            "max": 50.0,
         },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
@@ -364,7 +364,7 @@ def get_sweep_config():
         # - Helps escape local minimum of predicting all zeros
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
-            "distribution": "log_uniform_values",
+            "distribution": "uniform",
             "min": 0.4,
             "max": 1.5,
         },

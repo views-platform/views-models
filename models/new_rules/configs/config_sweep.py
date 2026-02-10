@@ -82,13 +82,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_v6_mtd",
+        "name": "new_rules_nbeats_v7_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -338,7 +338,7 @@ def get_sweep_config():
         # - Full L2 maximizes gradient signal from every error
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
+            "min": 0.8,
             "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
@@ -349,7 +349,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 5.0,
-            "max": 20.0,
+            "max": 50.0,
         },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
