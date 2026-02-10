@@ -1,21 +1,21 @@
-# Dark Paradise 
+# Thrift Shop 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | HurdleModel (Classifier: LGBMClassifier, Regressor: LGBMRegressor)                  |
-| **Level of Analysis** | pgm            |
-| **Targets**         | lr_ged_sb |
-| **Features**       |  dark_paradise   |
-| **Feature Description**       |  fatalities longer conflict history, pgm level Predicting lr_ged_sb using conflict predictors, longer version    |
+| **Model Algorithm** | TFTModel                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | ln_ged_sb_dep |
+| **Features**       |  thrift_shop   |
+| **Feature Description**       |  Base features for neural network models    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-Dark Paradise
+Thrift Shop
 ├── README.md
 ├── main.py
 ├── requirements.txt
@@ -34,6 +34,7 @@ Dark Paradise
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

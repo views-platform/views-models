@@ -1,6 +1,0 @@
-Single Model Name: novel_heuristics
-Single Model Timestamp: 20260116_140308
-Data Generation Timestamp: 20260116_143316
-Data Fetch Timestamp: 20260116_140316
-Deployment Status: shadow
-

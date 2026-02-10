@@ -1,3 +1,0 @@
-Single Model Name: novel_heuristics
-Data Fetch Timestamp: 20260116_140316
-

@@ -8,7 +8,7 @@
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
 | **Features**       |  little_lies   |
-| **Feature Description**       |  Predicting lr_ged_sb_dep, cm level Queryset with features from various sources, 'joint narrow'    |
+| **Feature Description**       |  Predicting lr_ged_sb, cm level Queryset with features from various sources, 'joint narrow'    |
 | **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 

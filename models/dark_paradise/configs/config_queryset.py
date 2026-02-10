@@ -156,7 +156,7 @@ def generate():
         .with_theme('fatalities')
         .describe("""fatalities longer conflict history, pgm level
 
-                                Predicting lr_ged_sb_dep using conflict predictors, longer version
+                                Predicting lr_ged_sb using conflict predictors, longer version
 
                                 """)
     )

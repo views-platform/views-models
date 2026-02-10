@@ -26,10 +26,9 @@ def get_hp_config():
         "num_stacks": 2,
         "num_blocks": 3,
         "num_layers": 3,
-        "layer_widths": 64,
+        "layer_width": 64, # widths 
         "dropout": 0.3,
         "batch_norm": False,          # not part of sweep; unchanged default
-        "mc_dropout": True,
 
         # --- Input / output structure ---
         "input_chunk_length": 24,
@@ -39,7 +38,7 @@ def get_hp_config():
         # --- Training ---
         "batch_size": 8,
         "n_epochs": 300,
-        "early_stopping_patience": 40,
+        "early_stopping_patience": 4, #40
         "early_stopping_min_delta": 0.01,
         "gradient_clip_val": 1.0,
         "force_reset": True,
@@ -61,6 +60,7 @@ def get_hp_config():
         "target_scaler": "MinMaxScaler",
         "log_targets": True,
         "log_features": None,
+        "use_reversible_instance_norm": False, # darts native
 
         # --- Loss & penalties ---
         "loss_function": "WeightedPenaltyHuberLoss",
@@ -72,6 +72,10 @@ def get_hp_config():
 
         # --- Probabilistic / sampling ---
         "num_samples": 1,
+        "mc_dropout": True,
+
+        # --- other ---
+        "n_jobs": -1
     }
 
     return hyperparameters
