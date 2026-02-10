@@ -386,8 +386,8 @@ def get_sweep_config():
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 50.0,
+            "min": 2.0,
+            "max": 10.0,
         },
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
@@ -396,8 +396,8 @@ def get_sweep_config():
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
             "distribution": "log_uniform_values",
-            "min": 0.4,
-            "max": 1.0,
+            "min": 0.5,
+            "max": 1.5,
         },
         # false_negative_weight: Additional penalty for missing actual conflicts
         # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
@@ -406,8 +406,8 @@ def get_sweep_config():
         # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
+            "min": 5.0,
+            "max": 50.0,
         },
     }
 
