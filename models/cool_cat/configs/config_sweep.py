@@ -332,7 +332,7 @@ def get_sweep_config():
         # - True: Stabilizes training, helps with varying input scales
         # - False: Simpler, may prevent over-normalization
         # - Worth exploring both for zero-inflated data
-        "use_layer_norm": {"values": [False]},
+        "use_layer_norm": {"values": [False, True]},
         # dropout: Dropout rate throughout TiDE
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
