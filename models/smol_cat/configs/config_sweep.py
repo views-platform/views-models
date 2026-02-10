@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_v1_mtd_tweedie",
+        "name": "smol_cat_tide_v2_mtd_tweedie",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -124,7 +124,7 @@ def get_sweep_config():
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         # - Increased from 100 since we reduced regularization
-        "n_epochs": {"values": [150]},
+        "n_epochs": {"values": [300]},
 
         # early_stopping_patience: Epochs without improvement before stopping
         # - Higher patience (15-25) for scarce signal
@@ -366,7 +366,7 @@ def get_sweep_config():
         # - Higher p: More Gamma-like, assumes fewer but larger events
         "p": {
             "distribution": "uniform",
-            "min": 1.2,
+            "min": 1.4,
             "max": 1.8,
         },
 
@@ -377,19 +377,27 @@ def get_sweep_config():
         # Tweedie's mathematical structure already handles zero-inflation through
         # the compound Poisson-Gamma distribution - no threshold-based weighting needed.
         #
-        # Optional: If you want asymmetric operational costs (e.g., "missing conflict
-        # is worse than false alarm"), you can tune these. But start with pure Tweedie.
+        # Maximize learning from rare conflict signal:
+        # 1. non_zero_weight: Upweight non-zero samples (class imbalance correction)
+        # 2. false_negative_weight: Penalize missing real conflicts heavily
+        # 3. false_positive_weight: Keep at 1.0 (false alarms acceptable)
         #
-        # zero_threshold: Only used if weights != 1.0 to classify predictions
-        # With AsinhTransform->MinMaxScaler (max ~15K fatalities):
-        #   * 0.085 scaled ≈ 1 fatality
-        #   * 0.22 scaled ≈ 5 fatalities
-        "zero_threshold": {"values": [0.085]},  # ~1 fatality boundary
+        # zero_threshold: ~1 fatality boundary after AsinhTransform->MinMaxScaler
+        "zero_threshold": {"values": [0.085]},
         
-        # Pure Tweedie: all weights = 1.0 (let the math do the work)
-        "non_zero_weight": {"values": [1.0]},
+        # Class rebalancing: force model to attend to rare conflict events
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 3.0,
+            "max": 10.0,
+        },
+        # FN >> FP: missing real conflict is catastrophic
         "false_positive_weight": {"values": [1.0]},
-        "false_negative_weight": {"values": [1.0]},
+        "false_negative_weight": {
+            "distribution": "uniform",
+            "min": 2.0,
+            "max": 5.0,
+        },
     }
 
     sweep_config["parameters"] = parameters
