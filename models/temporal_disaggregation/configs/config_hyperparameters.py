@@ -46,6 +46,17 @@ def get_hp_config():
         "early_stopping_min_delta": 0.01,
         "gradient_clip_val": 0.1, 
 
+        "loss_function": "WeightedPenaltyHuberLoss",
+        "zero_threshold": 0.01,
+        "non_zero_weight": 5.0,
+        "false_positive_weight": 15.0,
+        "false_negative_weight": 10.0,
+        "delta": 0.5,
+
+        "lr_scheduler_factor": 0.1,
+        "lr_scheduler_patience": 3,
+        "lr_scheduler_min_lr": 1e-6,
+
 
     }
     return hyperparameters

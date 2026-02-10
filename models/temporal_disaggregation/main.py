@@ -3,8 +3,8 @@ os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1' # The operator 'aten::_standard_
 
 import warnings
 from pathlib import Path
-from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
+from views_impact.cli import ImpactModelArgs
 from views_impact.manager.model import ImpactModelManager
 
 warnings.filterwarnings("ignore")
@@ -15,7 +15,7 @@ except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
 
 if __name__ == "__main__":
-    args = ForecastingModelArgs.parse_args()
+    args = ImpactModelArgs.parse_args()
     if args.sweep:
         ImpactModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
     else:
