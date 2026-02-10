@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v13_msle",
+        "name": "cool_cat_tide_v13_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
