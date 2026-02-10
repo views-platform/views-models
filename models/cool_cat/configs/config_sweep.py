@@ -85,13 +85,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v11_mtd",
+        "name": "cool_cat_tide_v12_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -368,7 +368,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
+            "min": 0.8,
             "max": 1.0,
         },
 
@@ -380,7 +380,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 5.0,
-            "max": 20.0,
+            "max": 50.0,
         },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
