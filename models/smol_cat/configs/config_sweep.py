@@ -85,10 +85,10 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_v2_mtd_tweedie",
+        "name": "smol_cat_tide_v3_mtd",
         "early_terminate": {
             "type": "hyperband",
-            "min_iter": 20,
+            "min_iter": 30,
             "eta": 2,
         },
         "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
@@ -105,10 +105,14 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - TiDE is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [24, 36, 48]},
+        "input_chunk_length": {"values": [24, 36, 48, 72]},
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
         "random_state": {"values": [67]},  # Reproducibility
+        "output_chunk_length": {"values": [36]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [2]},
         # ==============================================================================
         # TRAINING BASICS
         # ==============================================================================
@@ -120,7 +124,7 @@ def get_sweep_config():
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         # - Increased from 100 since we reduced regularization
-        "n_epochs": {"values": [300]},
+        "n_epochs": {"values": [200]},
         # early_stopping_patience: Epochs without improvement before stopping
         # - Higher patience (15-25) for scarce signal
         # - Rare conflict patterns may take time to emerge in validation
@@ -147,13 +151,13 @@ def get_sweep_config():
         # - Scarce signal means neurons learning rare patterns are precious
         # - Combined with dropout + layer_norm, weight_decay was too much
         # - Rule of thumb violated: weight_decay was 100x+ larger than lr
-        "weight_decay": {"values": [0]},
+        "weight_decay": {"values": [0, 1e-6, 1e-5]},
         # lr_scheduler: ReduceLROnPlateau configuration
         # - factor=0.5: Halve LR when stuck (standard, well-tested)
         # - patience=8: Wait 8 epochs before reducing
         # - min_lr=1e-6: Floor prevents LR from becoming negligible
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
+        "lr_scheduler_patience": {"values": [10]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         # gradient_clip_val: Maximum gradient norm
         # - Prevents exploding gradients
@@ -297,7 +301,7 @@ def get_sweep_config():
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [16, 32, 64, 128]},
+        "hidden_size": {"values": [32, 64, 128]},
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
         # ==============================================================================
@@ -306,11 +310,11 @@ def get_sweep_config():
         # - 4: ~1 quarter of local context
         # - 6: ~half year of local context
         # - 8: ~2/3 year of local context
-        "temporal_width_past": {"values": [4, 12, 24, 36]},
+        "temporal_width_past": {"values": [4, 6, 8, 12]},
         # temporal_width_future: Local receptive field for future horizon
         # - How many adjacent future time steps to consider together
         # - Similar reasoning to temporal_width_past
-        "temporal_width_future": {"values": [4, 12, 24, 36]},
+        "temporal_width_future": {"values": [4, 6, 8, 12]},
         # temporal_hidden_size_past: Hidden dim for past temporal processing
         # - Capacity for learning patterns in historical context
         # - 32: Conservative
@@ -332,16 +336,16 @@ def get_sweep_config():
         # - True: Stabilizes training, helps with varying input scales
         # - False: Simpler, may prevent over-normalization
         # - Worth exploring both for zero-inflated data
-        "use_layer_norm": {"values": [True, False]},
+        "use_layer_norm": {"values": [False, True]},
         # dropout: Dropout rate throughout TiDE
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
         # - Combined with weight_decay=0, this is the main regularization
-        "dropout": {"values": [0.15]},
+        "dropout": {"values": [0.2, 0.3]},
         # use_static_covariates: Whether to use static (time-invariant) features
         # - True: Leverages country-level constants (geography, etc.)
         # - False: Simpler model, may generalize better if static features noisy
-        "use_static_covariates": {"values": [True]},
+        "use_static_covariates": {"values": [False, True]},
         # use_reversible_instance_norm: Per-instance normalization
         # - Normalizes each time series independently before processing
         # - "Reversible" stores stats to invert normalization on output
@@ -349,68 +353,68 @@ def get_sweep_config():
         # - False: Simpler, may generalize better if series are comparable
         "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
-        # LOSS FUNCTION: TweedieLoss
+        # LOSS FUNCTION: WeightedPenaltyHuberLoss
         # ==============================================================================
-        # Tweedie loss is ideal for zero-inflated, right-skewed count data like
-        # conflict fatalities. The Tweedie distribution is a compound Poisson-Gamma
-        # that naturally models:
-        # - Point mass at zero (many peaceful periods)
-        # - Heavy right tail (occasional extreme violence)
+        # Custom loss designed for zero-inflated rare event forecasting.
+        # Combines Huber loss with asymmetric weighting based on prediction type.
         #
-        # Tweedie deviance: D(y,μ) = μ^(2-p)/(2-p) - y*μ^(1-p)/(1-p)
-        # where p ∈ (1,2) interpolates between Poisson (p=1) and Gamma (p=2)
-        #
-        # Key advantage: Training loss matches MTD evaluation metric, ensuring
-        # optimization directly improves the metric we care about.
-        #
-        # Weight multiplication logic (same as before):
+        # Weight multiplication logic:
         # - True Negative (zero→zero): weight = 1.0 (baseline)
-        # - False Positive (zero→non-zero): weight = false_positive_weight
-        # - True Positive (non-zero→non-zero): weight = non_zero_weight
-        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight
-        "loss_function": {"values": ["TweedieLoss"]},
-        # p (power): Tweedie power parameter, controls distribution shape
-        # - p=1.0: Pure Poisson (variance = mean)
-        # - p=1.5: Compound Poisson-Gamma (variance ∝ mean^1.5)
-        # - p=2.0: Pure Gamma (variance ∝ mean^2)
-        # - For conflict data: p ∈ [1.3, 1.7] typically works well
-        # - Lower p: More Poisson-like, assumes many small events
-        # - Higher p: More Gamma-like, assumes fewer but larger events
-        "p": {
-            "distribution": "uniform",
-            "min": 1.4,
-            "max": 1.8,
-        },
-        # ==============================================================================
-        # TWEEDIE WEIGHT PARAMETERS
-        # ==============================================================================
-        # For pure Tweedie loss (matching MTD evaluation exactly), use all 1.0 weights.
-        # Tweedie's mathematical structure already handles zero-inflation through
-        # the compound Poisson-Gamma distribution - no threshold-based weighting needed.
+        # - False Positive (zero→non-zero): weight = false_positive_weight (0.5-1.0)
+        # - True Positive (non-zero→non-zero): weight = non_zero_weight (4-7)
+        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight (8-56)
         #
-        # Maximize learning from rare conflict signal:
-        # 1. non_zero_weight: Upweight non-zero samples (class imbalance correction)
-        # 2. false_negative_weight: Penalize missing real conflicts heavily
-        # 3. false_positive_weight: Keep at 1.0 (false alarms acceptable)
-        #
-        # zero_threshold: ~1 fatality boundary after AsinhTransform->MinMaxScaler
+        # This encourages the model to:
+        # 1. Learn strongly from actual conflict events (high non_zero_weight)
+        # 2. Heavily penalize missing conflicts (high FN penalty)
+        # 3. Be somewhat forgiving of false alarms (low FP weight encourages exploration)
+        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
+        # zero_threshold: Scaled value below which predictions count as "zero"
+        # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
+        # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
+        # - Lower threshold = stricter zero classification
         "zero_threshold": {
-            "distribution": "log_uniform_values",
-            "min": 0.085,
-            "max": 0.3,
+            "distribution": "uniform",
+            "min": 0.04,
+            "max": 0.20,
         },
-        # Class rebalancing: force model to attend to rare conflict events
+        # delta: Huber loss transition point (L2 inside delta, L1 outside)
+        # - Range 0.7-1.0 gives nearly pure L2 behavior for [0,1] scaled data
+        # - Full L2 maximizes gradient signal from every error
+        # - Important for learning from rare spikes where every gradient counts
+        "delta": {
+            "distribution": "uniform",
+            "min": 0.7,
+            "max": 1.0,
+        },
+        # non_zero_weight: Multiplier for non-zero actual values
+        # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
+        # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
+        # - FP and FN weights are tuned relative to this fixed baseline
+        # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
         "non_zero_weight": {
-            "distribution": "log_uniform_values",
-            "min": 1.0,
-            "max": 10.0,
+            "values": [10.0],
         },
+        # false_positive_weight: Multiplier when predicting non-zero for actual zero
+        # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
+        # - Values <1.0 encourage model to "explore" non-zero predictions
+        # - Helps escape local minimum of predicting all zeros
+        # - Low end (0.3) = minimal penalty for guessing conflict
+        "false_positive_weight": {
+            "distribution": "log_uniform_values",
+            "min": 0.3,
+            "max": 1.5,
+        },
+        # false_negative_weight: Additional penalty for missing actual conflicts
+        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
+        # - Range 2-8: Strong asymmetric penalty for missing conflicts
+        # - Highest penalty case: missing conflicts is operationally costly
+        # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
         "false_negative_weight": {
             "distribution": "log_uniform_values",
-            "min": 1.0,
-            "max": 5.0,
+            "min": 1.0,    # Light: FN = 10x baseline
+            "max": 100.0,  # Extreme: FN = 1000x baseline
         },
-        "false_positive_weight": {"values": [0.5, 0.9, 1.0]},
     }
 
     sweep_config["parameters"] = parameters
