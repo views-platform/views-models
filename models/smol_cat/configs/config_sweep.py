@@ -192,7 +192,7 @@ def get_sweep_config():
                         "lr_acled_sb",
                         "lr_acled_sb_count",
                         "lr_acled_os",
-                        "lr_ged_sb_tsum_24",  # 24-month cumulative
+                        # "lr_ged_sb_tsum_24",  # 24-month cumulative
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_os",
                         "lr_splag_1_ged_ns",  # Spatial lags
@@ -384,7 +384,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.7,
+            "min": 0.4,
             "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
@@ -403,7 +403,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "log_uniform_values",
             "min": 0.3,
-            "max": 1.5,
+            "max": 5.0,
         },
         # false_negative_weight: Additional penalty for missing actual conflicts
         # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline

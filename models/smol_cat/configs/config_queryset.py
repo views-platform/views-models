@@ -64,16 +64,16 @@ def generate():
                     "lr_acled_os", from_loa="country_month", from_column="acled_os_fat"
                 ).transform.missing.fill()
             )
-            .with_column(
-                Column(
-                    "lr_ged_sb_tsum_24",
-                    from_loa="country_month",
-                    from_column="ged_sb_best_sum_nokgi",
-                )
-                .transform.missing.replace_na()
-                .transform.temporal.moving_sum(24)
-                .transform.missing.replace_na()
-            )
+            # .with_column(
+            #     Column(
+            #         "lr_ged_sb_tsum_24",
+            #         from_loa="country_month",
+            #         from_column="ged_sb_best_sum_nokgi",
+            #     )
+            #     .transform.missing.replace_na()
+            #     .transform.temporal.moving_sum(24)
+            #     .transform.missing.replace_na()
+            # )
             .with_column(
                 Column(
                     "lr_splag_1_ged_sb",
