@@ -25,6 +25,7 @@ def get_sweep_config():
         'num_layers': {'values': [3]},
         'activation': {'values': ['LeakyReLU']},
         'generic_architecture': {'values': [True]},
+        'batch_norm': {'values': [False]},
 
         # --- Loss Function ---
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
@@ -44,7 +45,7 @@ def get_sweep_config():
         'lr_scheduler_patience': {'values': [7]},
         'lr_scheduler_factor': {'values': [0.46]},
         'lr_scheduler_min_lr': {'values': [0.00001]},
-        'early_stopping_patience': {'values': [40]}, # 40 
+        'early_stopping_patience': {'values': [4]}, # 40 
         'early_stopping_min_delta': {'values': [0.01]},
         
         # --- Data Handling & Input/Output ---
@@ -59,7 +60,7 @@ def get_sweep_config():
             "use_reversible_instance_norm": {'values': [False]}, # darts native
 
         # --- uncertainty ---
-        'mc_dropout': {'values': [True]},
+        'mc_dropout': {'values': [False]},
         'num_samples': {'values': [1]},
 
         # --- Other ---

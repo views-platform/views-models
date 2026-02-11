@@ -44,6 +44,7 @@ def get_hp_config():
         "gradient_clip_val": 1.0,
         "force_reset": True,
         "random_state": 1,
+        "n_jobs": -1,
 
         # --- Optimizer ---
         "lr": 0.0003,
@@ -61,6 +62,7 @@ def get_hp_config():
         "target_scaler": "MinMaxScaler",
         "log_targets": True,
         "log_features": None,
+        "use_reversible_instance_norm": False,
 
         # --- Loss & penalties ---
         "loss_function": "WeightedPenaltyHuberLoss",

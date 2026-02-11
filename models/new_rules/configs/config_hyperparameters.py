@@ -40,6 +40,7 @@ def get_hp_config():
             "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
             "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
         ],
+
         "loss_function": "WeightedPenaltyHuberLoss",
         "delta": 0.129050050430042,
         "zero_threshold": 0.12953171739852642,
@@ -79,6 +80,7 @@ def get_hp_config():
         "trend_polynomial_degree": 2,
         "expansion_coefficient_dim": 5,
         "use_reversible_instance_norm": False,
+        "n_jobs": -1,
     }
 
     return hyperparameters

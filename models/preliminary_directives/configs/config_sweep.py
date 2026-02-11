@@ -59,12 +59,14 @@ def get_sweep_config():
         'feature_scaler': {'values': ['MinMaxScaler']},
         'log_targets': {'values': [True]},
         'log_features': {'values': [None]},
+        'use_reversible_instance_norm': {'values': [False]}, # darts native
         
         # --- Other ---
         'steps': {'values': [[*range(1, 37)]]},
         'mc_dropout': {'values': [True]},
         'force_reset': {'values': [True]},
         'random_state': {'values': [1]},
+        'n_jobs': {'values': [-1]},
     }
 
     sweep_config['parameters'] = parameters

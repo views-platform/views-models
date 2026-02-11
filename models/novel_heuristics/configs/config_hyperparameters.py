@@ -26,7 +26,7 @@ def get_hp_config():
         "num_stacks": 2,
         "num_blocks": 3,
         "num_layers": 3,
-        "layer_width": 64, # widths 
+        "layer_widths": 64, # widths 
         "dropout": 0.3,
         "batch_norm": False,          # not part of sweep; unchanged default
 
@@ -60,7 +60,7 @@ def get_hp_config():
         "target_scaler": "MinMaxScaler",
         "log_targets": True,
         "log_features": None,
-        "use_reversible_instance_norm": False, # darts native
+        "use_reversible_instance_norm": False, # True, # False, # darts native
 
         # --- Loss & penalties ---
         "loss_function": "WeightedPenaltyHuberLoss",
@@ -72,7 +72,7 @@ def get_hp_config():
 
         # --- Probabilistic / sampling ---
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": False, #True,
 
         # --- other ---
         "n_jobs": -1
