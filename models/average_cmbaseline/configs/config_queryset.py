@@ -20,11 +20,11 @@ def generate():
         # .with_column(Column("raw_sb_best", from_loa="country_month", from_column="ged_sb_best_sum_nokgi"))
         .with_column(
             Column(
-                "ln_ged_sb_dep",
+                "lr_ged_sb",
                 from_loa="country_month",
                 from_column="ged_sb_best_sum_nokgi",
             )
-            .transform.ops.ln()
+            # .transform.ops.ln()
             .transform.missing.replace_na()
         )
         # Create a new column 'lr_ns_best' using data from 'priogrid_month' and 'ged_ns_best_count_nokgi' column
