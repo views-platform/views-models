@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_v3_mtd",
+        "name": "smol_cat_tide_v4_mtd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -403,7 +403,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "log_uniform_values",
             "min": 0.3,
-            "max": 5.0,
+            "max": 7.0,
         },
         # false_negative_weight: Additional penalty for missing actual conflicts
         # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
