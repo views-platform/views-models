@@ -6,15 +6,15 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
+
     meta_config = {
-        "name": "locf_cmbaseline", 
+        "name": "locf_cmbaseline",
         "algorithm": "LocfModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb"],
+        "targets": ["ln_ged_sb_dep"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Sonja",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "MTD", "y_hat_bar"],
     }
     return meta_config
