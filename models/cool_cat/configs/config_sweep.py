@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v13_msle",
+        "name": "cool_cat_tide_v14_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -105,7 +105,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - TiDE is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [24, 36]},
+        "input_chunk_length": {"values": [24, 36, 48, 72]},
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
         "random_state": {"values": [67]},  # Reproducibility
@@ -120,7 +120,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - TiDE is memory-efficient (no attention matrices)
         # - Range 512-4096 provides good coverage
-        "batch_size": {"values": [1024, 2048]},
+        "batch_size": {"values": [512, 1024, 2048]},
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         # - Increased from 100 since we reduced regularization
@@ -151,7 +151,7 @@ def get_sweep_config():
         # - Scarce signal means neurons learning rare patterns are precious
         # - Combined with dropout + layer_norm, weight_decay was too much
         # - Rule of thumb violated: weight_decay was 100x+ larger than lr
-        "weight_decay": {"values": [0]},
+        "weight_decay": {"values": [0, 1e-6]},
         # lr_scheduler: ReduceLROnPlateau configuration
         # - factor=0.5: Halve LR when stuck (standard, well-tested)
         # - patience=8: Wait 8 epochs before reducing
@@ -283,25 +283,25 @@ def get_sweep_config():
         # - 1 layer: Simple, fast, less overfitting
         # - 2 layers: Moderate capacity for pattern extraction
         # - 3 layers: Deeper features (may overfit with scarce signal)
-        "num_encoder_layers": {"values": [1, 2]},
+        "num_encoder_layers": {"values": [1, 2, 3]},
         # num_decoder_layers: Depth of the decoder
         # - Decoder projects encoded representations to forecasts
         # - Generally shallower than encoder (forecasting is "simpler")
         # - 1-2 layers sufficient for most time series tasks
-        "num_decoder_layers": {"values": [1, 2]},
+        "num_decoder_layers": {"values": [1, 2, 3]},
         # decoder_output_dim: Output dimension of decoder before final projection
         # - Controls capacity of forecast generation
         # - 16: Lightweight, fast
         # - 32: Balanced
         # - 64: Higher capacity for complex forecast patterns
-        "decoder_output_dim": {"values": [64, 128]},
+        "decoder_output_dim": {"values": [32, 64, 128]},
         # hidden_size: Hidden dimension of encoder MLP layers
         # - Controls main encoder capacity
         # - 16: Very lightweight
         # - 32-64: Balanced for ~200 series
         # - 128: Higher capacity (monitor for overfitting)
         # - Avoid larger sizes to prevent overfitting with scarce signal
-        "hidden_size": {"values": [64, 128]},
+        "hidden_size": {"values": [32, 64, 128]},
         # ==============================================================================
         # TiDE TEMPORAL PROCESSING
         # ==============================================================================
@@ -310,25 +310,25 @@ def get_sweep_config():
         # - 4: ~1 quarter of local context
         # - 6: ~half year of local context
         # - 8: ~2/3 year of local context
-        "temporal_width_past": {"values": [4, 12]},
+        "temporal_width_past": {"values": [4, 6, 8, 12]},
         # temporal_width_future: Local receptive field for future horizon
         # - How many adjacent future time steps to consider together
         # - Similar reasoning to temporal_width_past
-        "temporal_width_future": {"values": [4, 12]},
+        "temporal_width_future": {"values": [4, 6, 8, 12]},
         # temporal_hidden_size_past: Hidden dim for past temporal processing
         # - Capacity for learning patterns in historical context
         # - 32: Conservative
         # - 64: Balanced
         # - 128: Higher capacity for complex temporal patterns
-        "temporal_hidden_size_past": {"values": [64, 128]},
+        "temporal_hidden_size_past": {"values": [32, 64, 128]},
         # temporal_hidden_size_future: Hidden dim for future temporal processing
         # - Capacity for learning patterns in forecast horizon
         # - Generally similar or slightly smaller than past
-        "temporal_hidden_size_future": {"values": [64, 128]},
+        "temporal_hidden_size_future": {"values": [32, 64, 128]},
         # temporal_decoder_hidden: Hidden dim of temporal decoder
         # - Final temporal processing before output
         # - 64-256 range covers lightweight to high capacity
-        "temporal_decoder_hidden": {"values": [128, 256]},
+        "temporal_decoder_hidden": {"values": [64, 128, 256]},
         # ==============================================================================
         # TiDE REGULARIZATION
         # ==============================================================================
@@ -373,7 +373,11 @@ def get_sweep_config():
         # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
         # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
         # - Lower threshold = stricter zero classification
-        "zero_threshold": {"values": [0.04, 0.08, 0.12, 0.16, 0.20]},
+        "zero_threshold": {
+            "distribution": "uniform",
+            "min": 0.04,
+            "max": 0.20,
+        },
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
         # - Range 0.7-1.0 gives nearly pure L2 behavior for [0,1] scaled data
         # - Full L2 maximizes gradient signal from every error
@@ -400,7 +404,7 @@ def get_sweep_config():
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
             "distribution": "log_uniform_values",
-            "min": 0.5,
+            "min": 0.3,
             "max": 1.5,
         },
         # false_negative_weight: Additional penalty for missing actual conflicts
