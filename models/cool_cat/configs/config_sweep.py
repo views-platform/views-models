@@ -85,13 +85,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v13_mtd",
+        "name": "cool_cat_tide_v13_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -371,12 +371,12 @@ def get_sweep_config():
         # - Lower threshold = stricter zero classification
         "zero_threshold": {"values": [0.04, 0.08, 0.12, 0.16, 0.20]},
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
-        # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
+        # - Range 0.7-1.0 gives nearly pure L2 behavior for [0,1] scaled data
         # - Full L2 maximizes gradient signal from every error
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
+            "min": 0.7,
             "max": 1.0,
         },
         # non_zero_weight: Multiplier for non-zero actual values
