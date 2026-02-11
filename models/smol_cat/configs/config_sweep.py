@@ -85,13 +85,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_v4_mtd",
+        "name": "smol_cat_tide_v5_bcd",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -341,7 +341,7 @@ def get_sweep_config():
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
         # - Combined with weight_decay=0, this is the main regularization
-        "dropout": {"values": [0.2, 0.3]},
+        "dropout": {"values": [0.15, 0.2, 0.3]},
         # use_static_covariates: Whether to use static (time-invariant) features
         # - True: Leverages country-level constants (geography, etc.)
         # - False: Simpler model, may generalize better if static features noisy
@@ -392,6 +392,9 @@ def get_sweep_config():
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this fixed baseline
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
+        # "non_zero_weight": {
+        #     "values": [1.0, 5.0, 10.0, 50.0, 100.0],
+        # },
         "non_zero_weight": {
             "values": [10.0],
         },

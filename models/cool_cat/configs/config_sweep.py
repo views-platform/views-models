@@ -85,7 +85,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_v14_msle",
+        "name": "cool_cat_tide_v15_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
@@ -151,7 +151,7 @@ def get_sweep_config():
         # - Scarce signal means neurons learning rare patterns are precious
         # - Combined with dropout + layer_norm, weight_decay was too much
         # - Rule of thumb violated: weight_decay was 100x+ larger than lr
-        "weight_decay": {"values": [0, 1e-6]},
+        "weight_decay": {"values": [0, 1e-6, 1e-5]},
         # lr_scheduler: ReduceLROnPlateau configuration
         # - factor=0.5: Halve LR when stuck (standard, well-tested)
         # - patience=8: Wait 8 epochs before reducing
@@ -392,10 +392,11 @@ def get_sweep_config():
         # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
         # - FP and FN weights are tuned relative to this fixed baseline
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
+        # "non_zero_weight": {
+        #     "values": [1.0, 5.0, 10.0, 50.0, 100.0],
+        # },
         "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
+            "values": [10.0],
         },
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
         # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
@@ -405,7 +406,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "log_uniform_values",
             "min": 0.3,
-            "max": 1.5,
+            "max": 7.0,
         },
         # false_negative_weight: Additional penalty for missing actual conflicts
         # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
@@ -414,8 +415,8 @@ def get_sweep_config():
         # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 50.0,
+            "min": 1.0,
+            "max": 100.0,
         },
     }
 
