@@ -109,6 +109,10 @@ def get_sweep_config():
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
         "random_state": {"values": [67]},  # Reproducibility
+        "output_chunk_length": {"values": [36]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [2]},
         # ==============================================================================
         # TRAINING BASICS
         # ==============================================================================
