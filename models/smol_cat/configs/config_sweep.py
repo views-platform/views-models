@@ -120,7 +120,7 @@ def get_sweep_config():
         # - Larger batches help zero-inflated data see more non-zero events
         # - TiDE is memory-efficient (no attention matrices)
         # - Range 512-4096 provides good coverage
-        "batch_size": {"values": [1024, 2048]},
+        "batch_size": {"values": [8, 64, 256, 1024, 2048]},
         # n_epochs: Maximum training epochs
         # - 150 epochs provides headroom; early stopping triggers before max
         # - Increased from 100 since we reduced regularization
