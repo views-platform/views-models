@@ -216,11 +216,11 @@ def get_sweep_config():
         # TN=1x, FP=fp_weight, TP=nz_weight, FN=nz_weight×fn_weight
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         # zero_threshold calibrated to scaled target space [0,1]
-        # 0.03-0.08 corresponds to ~1-3 fatalities after AsinhTransform->MinMax
+        # 0.03-0.08 corresponds to ~1-3 fatalities after AsinhTransform->MinMax. Alternative: 0.019 - 0.133 
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.03,
-            "max": 0.08,
+            "min": 0.019,
+            "max": 0.133,
         },
         # High delta gives near-L2 behavior (maximizes gradient signal)
         "delta": {
