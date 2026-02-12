@@ -11,10 +11,10 @@ def get_meta_config():
         "name": "good_life", 
         "algorithm": "TransformerModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb"],
+        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD"],
     }
     return meta_config

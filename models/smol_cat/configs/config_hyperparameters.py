@@ -8,12 +8,12 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        # Sweep best run hyperparameters (smol_cat_tide_v3_mtd)
+        # Sweep best run hyperparameters (additive WPHL sweep v2)
         "steps": [*range(1, 36 + 1, 1)],
         "num_samples": 1,
         "mc_dropout": True,
         "random_state": 67,
-        "n_jobs": -1,
+        "n_jobs": 2,
         "n_epochs": 200,
         "optimizer_cls": "Adam",
         "output_chunk_length": 36,
@@ -21,27 +21,28 @@ def get_hp_config():
         "force_reset": True,
         
         # Architecture
-        "batch_size": 1024,
+        "batch_size": 2048,
         "input_chunk_length": 24,
-        "hidden_size": 32,
-        "num_encoder_layers": 2,
-        "num_decoder_layers": 2,
-        "decoder_output_dim": 64,
-        "temporal_width_past": 4,
-        "temporal_width_future": 12,
+        "hidden_size": 128,
+        "num_encoder_layers": 3,
+        "num_decoder_layers": 1,
+        "decoder_output_dim": 32,
+        "temporal_width_past": 6,
+        "temporal_width_future": 6,
         "temporal_hidden_size_past": 64,
-        "temporal_hidden_size_future": 64,
+        "temporal_hidden_size_future": 32,
         "temporal_decoder_hidden": 256,
         
         # Regularization
-        "dropout": 0.15,
+        "dropout": 0.3,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "use_static_covariates": True,
+        "use_static_covariates": False,
         "weight_decay": 1e-5,
         
         # Learning rate schedule
-        "lr": 0.00008292387485646309,
+        "lr": 0.00038849906037035183,
+        "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
@@ -51,13 +52,13 @@ def get_hp_config():
         "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.0001,
         
-        # Loss function: WeightedPenaltyHuberLoss
+        # Loss function: WeightedPenaltyHuberLoss (ADDITIVE structure)
         "loss_function": "WeightedPenaltyHuberLoss",
-        "delta": 0.9595721846790456,
-        "zero_threshold": 0.0883088468236434,
-        "non_zero_weight": 10.0,
-        "false_positive_weight": 2.0621337209758197,
-        "false_negative_weight": 36.56106010462274,
+        "delta": 0.7460259807456511,
+        "zero_threshold": 0.10438161586950452,
+        "non_zero_weight": 11.34470257578398,
+        "false_positive_weight": 8.446054340342034,
+        "false_negative_weight": 34.69836259865377,
         
         # Scaling
         "target_scaler": "AsinhTransform->MinMaxScaler",

@@ -73,13 +73,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_v10_msle",
+        "name": "good_life_transformer_v11_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 20,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -102,6 +102,9 @@ def get_sweep_config():
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
         "random_state": {"values": [67]},  # Reproducibility
         "detect_anomaly": {"values": [False]},  # Only for debugging (slows training)
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [2]},
 
         # ==============================================================================
         # TRAINING BASICS
@@ -115,7 +118,7 @@ def get_sweep_config():
         # n_epochs: Maximum training epochs
         # - Transformers often need more epochs than RNNs to converge
         # - 150 epochs provides headroom; early stopping triggers before max
-        "n_epochs": {"values": [150]},
+        "n_epochs": {"values": [200]},
 
         # early_stopping_patience: Epochs without improvement before stopping
         # - Higher patience (15-25) for scarce signal
@@ -148,9 +151,32 @@ def get_sweep_config():
         # - Weight decay penalizes large weights that may encode important patterns
         # - Previous experiments showed weight collapse with weight_decay > 0
         # - Dropout provides sufficient regularization for transformers
-        "weight_decay": {"values": [0]},
+        "weight_decay": {"values": [0, 1e-6, 1e-4, 1e-3]},
 
-        # lr_scheduler: ReduceLROnPlateau configuration
+        # lr_scheduler_cls: Learning rate scheduler type
+        # - CosineAnnealingWarmRestarts: Recommended for avoiding mode collapse
+        #   * Periodically "restarts" learning to escape local minima
+        #   * T_0: Initial restart period (epochs)
+        #   * T_mult: Multiplier for restart period after each restart
+        # - ReduceLROnPlateau: Reduces LR when metric stops improving
+        #   * factor: LR reduction factor
+        #   * patience: Epochs to wait before reducing
+        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts", "ReduceLROnPlateau"]},
+        
+        # CosineAnnealingWarmRestarts parameters
+        # T_0: Initial number of epochs before first restart
+        # - 20-30 epochs allows initial convergence before restart
+        "lr_scheduler_T_0": {"values": [20, 30, 50]},
+        
+        # T_mult: Multiplier for restart period
+        # - 1: Fixed restart period (every T_0 epochs)
+        # - 2: Double restart period each time (more exploration early, stability later)
+        "lr_scheduler_T_mult": {"values": [1, 2]},
+        
+        # eta_min: Minimum learning rate
+        "lr_scheduler_eta_min": {"values": [1e-6]},
+        
+        # ReduceLROnPlateau parameters (used when lr_scheduler_cls="ReduceLROnPlateau")
         # - factor=0.5: Halve LR when stuck (standard, well-tested)
         # - patience=8: Wait 8 epochs before reducing (allows temporary plateaus)
         # - min_lr=1e-6: Floor prevents LR from becoming negligible
@@ -162,7 +188,7 @@ def get_sweep_config():
         # - Prevents exploding gradients in attention layers
         # - Transformers generally have stable gradients but clipping helps
         # - Range 0.5-1.5 is conservative for scaled [0,1] data
-        "gradient_clip_val": {"values": [1.5]},
+        "gradient_clip_val": {"values": [1.0]},
         # ==============================================================================
         # FEATURE SCALING
         # ==============================================================================
@@ -256,14 +282,14 @@ def get_sweep_config():
         # - 2 heads: Simple, interpretable attention
         # - 4 heads: Good balance of diversity and stability
         # - 8 heads: Maximum diversity (only valid with d_model >= 256)
-        "num_attention_heads": {"values": [2, 4, 8]},
+        "num_attention_heads": {"values": [2, 4]},
 
         # num_encoder_layers: Depth of pattern extraction
         # - Encoder processes input sequence to extract representations
         # - 1 layer: Simple patterns, fast, less overfitting
         # - 2 layers: Moderate depth for hierarchical patterns
         # - 3 layers: Deeper feature extraction (may overfit with scarce signal)
-        "num_encoder_layers": {"values": [1, 2, 3]},
+        "num_encoder_layers": {"values": [2, 3]},
 
         # num_decoder_layers: Depth of forecast generation
         # - Decoder generates output sequence from encoder representations
@@ -277,13 +303,13 @@ def get_sweep_config():
         # - 256: Conservative (2x of d_model=128)
         # - 512: Balanced (4x of d_model=128, 2x of d_model=256)
         # - 1024: Higher capacity (4x of d_model=256)
-        "dim_feedforward": {"values": [256, 512, 1024]},
+        "dim_feedforward": {"values": [256, 512]},
 
         # dropout: Regularization throughout transformer
         # - Applied in attention, feedforward, and embeddings
         # - LOW values (0.05-0.15) for scarce signal
         # - High dropout would suppress neurons learning rare conflict patterns
-        "dropout": {"values": [0.05, 0.15]},
+        "dropout": {"values": [0.1, 0.2, 0.3]},
 
         # activation: Feedforward network activation function
         # - SwiGLU: Gated activation used in LLaMA, PaLM (best empirical results)
@@ -292,7 +318,7 @@ def get_sweep_config():
         #   * GELU(xW) ⊙ (xV)
         # - gelu: Standard GELU without gating (simpler, fewer parameters)
         # GLU variants add ~50% parameters but typically improve performance
-        "activation": {"values": ["SwiGLU", "GEGLU", "gelu"]},
+        "activation": {"values": ["SwiGLU", "GEGLU"]},
 
         # norm_type: Normalization layer type
         # - RMSNorm: Root Mean Square normalization (used in LLaMA)
@@ -333,8 +359,8 @@ def get_sweep_config():
         # - Lower threshold = stricter zero classification
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.30,
+            "min": 0.04,
+            "max": 0.20,
         },
 
         # delta: Huber loss transition point (L2 inside delta, L1 outside)
@@ -343,7 +369,7 @@ def get_sweep_config():
         # - Important for learning from rare spikes where every gradient counts
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
+            "min": 0.4,
             "max": 1.0,
         },
 
@@ -354,8 +380,8 @@ def get_sweep_config():
         # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 50.0,
+            "min": 1.0,
+            "max": 25.0,
         },
 
         # false_positive_weight: Multiplier when predicting non-zero for actual zero
@@ -364,9 +390,9 @@ def get_sweep_config():
         # - Helps escape local minimum of predicting all zeros
         # - Low end (0.3) = minimal penalty for guessing conflict
         "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.4,
-            "max": 1.5,
+            "distribution": "log_uniform_values",
+            "min": 0.3,
+            "max": 10.0,
         },
 
         # false_negative_weight: Additional penalty for missing actual conflicts
@@ -376,8 +402,8 @@ def get_sweep_config():
         # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
+            "min": 1.0,
+            "max": 100.0,
         },
     }
 
