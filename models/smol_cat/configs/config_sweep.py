@@ -242,7 +242,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 5.0,
+            "max": 10.0,
         },
     }
 
