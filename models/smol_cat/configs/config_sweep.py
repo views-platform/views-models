@@ -101,9 +101,9 @@ def get_sweep_config():
         # ==============================================================================
         # Periodic restarts help escape local minima
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [15, 20, 30]},  # Epochs until first restart
-        "lr_scheduler_T_mult": {"values": [1, 2]},  # 1=fixed period, 2=double each restart
-        "lr_scheduler_eta_min": {"values": [1e-6]},
+        "lr_scheduler_T_0": {"values": [20, 30, 40]},  # T_0 ≥ patience/2. 
+        "lr_scheduler_T_mult": {"values": [1, 2]},  # 1=fixed period, 2=double each restart, can cause early stopping to trigger prematurely right after a restart
+        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
         "gradient_clip_val": {"values": [1.5]},
         # ==============================================================================
         # FEATURE SCALING (all bounded to [0,1])
