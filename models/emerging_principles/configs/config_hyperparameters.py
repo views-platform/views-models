@@ -38,8 +38,8 @@ def get_hp_config():
 
         # --- Training ---
         "batch_size": 8,
-        "n_epochs": 300,
-        "early_stopping_patience": 40,
+        "n_epochs": 100,
+        "early_stopping_patience": 1,
         "early_stopping_min_delta": 0.01,
         "gradient_clip_val": 1.0,
         "force_reset": True,
@@ -63,6 +63,7 @@ def get_hp_config():
         "log_targets": True,
         "log_features": None,
         "use_reversible_instance_norm": False,
+        # "use_static_covariates": True,
 
         # --- Loss & penalties ---
         "loss_function": "WeightedPenaltyHuberLoss",
