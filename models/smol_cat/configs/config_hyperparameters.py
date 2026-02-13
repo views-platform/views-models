@@ -4,11 +4,13 @@ def get_hp_config():
     This configuration is "operational" so modifying these settings will impact the model's behavior during the training.
 
     Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
+    - hyperparameters (dict): A dictionary containing hyperparameters for training the model.
     """
     
     hyperparameters = {
-        # Sweep best run hyperparameters (additive WPHL sweep v2)
+        # ==============================================================================
+        # CORE SETTINGS
+        # ==============================================================================
         "steps": [*range(1, 36 + 1, 1)],
         "num_samples": 1,
         "mc_dropout": True,
@@ -20,47 +22,67 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "force_reset": True,
         
-        # Architecture
-        "batch_size": 2048,
-        "input_chunk_length": 24,
-        "hidden_size": 128,
+        # ==============================================================================
+        # ARCHITECTURE (Best Run Configuration)
+        # ==============================================================================
+        "batch_size": 1024,
+        "input_chunk_length": 72,           # Long context (6 years)
+        "hidden_size": 256,                 # Wide layers
         "num_encoder_layers": 3,
-        "num_decoder_layers": 1,
-        "decoder_output_dim": 32,
+        "num_decoder_layers": 2,
+        "decoder_output_dim": 64,
         "temporal_width_past": 6,
         "temporal_width_future": 6,
         "temporal_hidden_size_past": 64,
-        "temporal_hidden_size_future": 32,
-        "temporal_decoder_hidden": 256,
+        "temporal_hidden_size_future": 128,
+        "temporal_decoder_hidden": 128,
         
-        # Regularization
-        "dropout": 0.3,
+        # ==============================================================================
+        # REGULARIZATION
+        # ==============================================================================
+        "dropout": 0.05,                    # Low dropout to preserve rare signals
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
         "use_static_covariates": False,
-        "weight_decay": 1e-5,
+        "weight_decay": 0,                  # No weight decay
         
-        # Learning rate schedule
-        "lr": 0.00038849906037035183,
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
-        "lr_scheduler_min_lr": 1e-6,
+        # ==============================================================================
+        # OPTIMIZATION (CosineAnnealingWarmRestarts Strategy)
+        # ==============================================================================
+        "lr": 0.0009461214582864406,        # Swept learning rate
+        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
+        "lr_scheduler_T_0": 20,             # Initial restart cycle
+        "lr_scheduler_T_mult": 2,           # Double cycle length after restart
+        "lr_scheduler_eta_min": 1e-6,       # Minimum LR floor
         "gradient_clip_val": 1.5,
         
         # Early stopping
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 35,      # High patience to survive LR restarts
         "early_stopping_min_delta": 0.0001,
         
-        # Loss function: WeightedPenaltyHuberLoss (ADDITIVE structure)
+        # ==============================================================================
+        # LOSS FUNCTION: WeightedPenaltyHuberLoss (Swept Weights)
+        # ==============================================================================
         "loss_function": "WeightedPenaltyHuberLoss",
-        "delta": 0.7460259807456511,
-        "zero_threshold": 0.10438161586950452,
-        "non_zero_weight": 11.34470257578398,
-        "false_positive_weight": 8.446054340342034,
-        "false_negative_weight": 34.69836259865377,
         
-        # Scaling
+        # Huber delta (close to 1.0 = MSE-like behavior for most scaled data)
+        "delta": 0.9658338566551232,
+        
+        # Zero threshold (scaled space ~0.037 corresponds to low fatality counts)
+        "zero_threshold": 0.036517407890917314,
+        
+        # ADDITIVE WEIGHTS:
+        # TN = 1.0 (base)
+        # TP = 1.0 + 10.0 = 11.0
+        # FP = 0.72 (Absolute - cheap to explore)
+        # FN = 1.0 + 10.0 + 6.35 = 17.35
+        "non_zero_weight": 10.0,
+        "false_positive_weight": 0.7220071760903927,
+        "false_negative_weight": 6.34931734289296,
+        
+        # ==============================================================================
+        # SCALING MAPS
+        # ==============================================================================
         "target_scaler": "AsinhTransform->MinMaxScaler",
         "feature_scaler": None,
         "feature_scaler_map": {
@@ -68,10 +90,6 @@ def get_hp_config():
                 "lr_wdi_sl_tlf_totl_fe_zs",
                 "lr_wdi_se_enr_prim_fm_zs",
                 "lr_wdi_sp_urb_totl_in_zs",
-                "lr_wdi_sh_sta_maln_zs",
-                "lr_wdi_sh_sta_stnt_zs",
-                "lr_wdi_dt_oda_odat_pc_zs",
-                "lr_wdi_ms_mil_xpnd_gd_zs",
                 "lr_vdem_v2x_horacc",
                 "lr_vdem_v2xnp_client",
                 "lr_vdem_v2x_veracc",
@@ -89,7 +107,6 @@ def get_hp_config():
                 "lr_vdem_v2x_ex_military",
                 "lr_vdem_v2xcl_dmove",
                 "lr_vdem_v2x_clphy",
-                "lr_vdem_v2x_hosabort",
                 "lr_vdem_v2xnp_regcorr",
                 "lr_topic_ste_theta0",
                 "lr_topic_ste_theta1",
@@ -121,25 +138,30 @@ def get_hp_config():
                 "lr_topic_ste_theta12_stock_t1_splag",
                 "lr_topic_ste_theta13_stock_t1_splag",
                 "lr_topic_ste_theta14_stock_t1_splag",
-                "lr_wdi_sp_pop_grow",
+            ],
+            "RobustScaler->MinMaxScaler": [
+                "lr_splag_1_ged_sb",
+                "lr_splag_1_ged_ns",
+                "lr_splag_1_ged_os",
             ],
             "AsinhTransform->MinMaxScaler": [
                 "lr_ged_sb",
                 "lr_ged_ns",
                 "lr_ged_os",
                 "lr_acled_sb",
-                "lr_acled_sb_count",
                 "lr_acled_os",
-                "lr_splag_1_ged_sb",
-                "lr_splag_1_ged_os",
-                "lr_splag_1_ged_ns",
+                "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
                 "lr_wdi_nv_agr_totl_kn",
+            ],
+            "StandardScaler->MinMaxScaler": [
                 "lr_wdi_sm_pop_netm",
-                "lr_wdi_sm_pop_refg_or",
+                "lr_wdi_dt_oda_odat_pc_zs",
+                "lr_wdi_sp_pop_grow",
+                "lr_wdi_ms_mil_xpnd_gd_zs",
                 "lr_wdi_sp_dyn_imrt_fe_in",
-                "lr_topic_tokens_t1",
-                "lr_topic_tokens_t1_splag",
+                "lr_wdi_sh_sta_stnt_zs",
+                "lr_wdi_sh_sta_maln_zs",
             ],
         },
     }
