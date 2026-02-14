@@ -101,7 +101,7 @@ def get_sweep_config():
             "max": 1e-3,
         },
         # Low/zero weight_decay: 1e-4 too aggressive for sparse data
-        "weight_decay": {"values": [0, 1e-6]},
+        "weight_decay": {"values": [0, 1e-6, 1e-5]},
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts
         # ==============================================================================
@@ -115,23 +115,23 @@ def get_sweep_config():
         # FEATURE SCALING (all bounded to [0,1])
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
+        "target_scaler": {"values": ["AsinhTransform"]}, # Removed MinMaxScaler to preserve zero-structure and variance
         "feature_scaler_map": {
             "values": [
                 {
-                    # Zero-inflated counts and multiplicative data
-                    "AsinhTransform->MinMaxScaler": [
+                    # Zero-inflated counts: Log-like
+                    "AsinhTransform": [
                         "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                         "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     ],
-                    # Spatial lags with extreme outliers
-                    "RobustScaler->MinMaxScaler": [
+                    # Spatial lags: Maintain outlier info with RobustScaler, remove squashing
+                    "RobustScaler": [
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # WDI indicators with moderate skew or negatives
-                    "StandardScaler->MinMaxScaler": [
+                    # Continuous rates/indices: Center around 0 with unit variance
+                    "StandardScaler": [
                         "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
                         "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
@@ -212,19 +212,20 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
-        "dropout": {"values": [0.05, 0.1]},
+        "dropout": {"values": [0.05, 0.1, 0.2]},  # Added 0.2: Stronger regularization for uncompressed signal
         "use_static_covariates": {"values": [False]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: AsymmetricQuantileLoss
         # ==============================================================================
         "loss_function": {"values": ["AsymmetricQuantileLoss"]},
-        # zero_threshold calibrated to scaled target space [0,1]
-        # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
+        # zero_threshold: Defines what counts as "zero" vs "event"
+        # Converted from linear [1, 25] fatalities to asinh space [0.88, 3.9]
+        # Note: Setting this high treats small conflicts (e.g. < 25 deaths) as background noise/zeros
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.03,
+            "min": 0.88,  # asinh(1)
+            "max": 3.91,  # asinh(25)
         },
         # tau: quantile level controlling asymmetry
         # tau > 0.5: penalizes underestimation (missing conflicts) more

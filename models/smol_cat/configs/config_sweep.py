@@ -56,7 +56,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_end_me_2_bcd2",
+        "name": "smol_cat_tide_20260214_v3_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -81,7 +81,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [8]},
+        # Batch size 64+ ensures nearly 100% probability of seeing non-zero events in every batch
+        # preventing "dead updates" where model just reinforces zero-prediction
+        "batch_size": {"values": [64, 128, 1024]},
         "n_epochs": {"values": [200]},
         # patience = 1.3×T_0 to allow full cycle after restart
         "early_stopping_patience": {"values": [40]},
@@ -92,17 +94,17 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
-            "max": 1e-3,
+            "min": 1e-4,  # Scaled up for larger batches
+            "max": 5e-3,  # Scaled up for larger batches
         },
         # Low/zero weight_decay: 1e-4 too aggressive for sparse data
         "weight_decay": {"values": [0, 1e-6]},
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts
         # ==============================================================================
-        # Fixed per Loshchilov & Hutter (2017): T_0=n_epochs/6.7, T_mult=1 for stable convergence
+        # Periodic restarts help escape local minima
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [30]},  # Optimal for 200 epochs with patience=40
+        "lr_scheduler_T_0": {"values": [50]},  # Increased T_0 to 50 for larger batches
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
         "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
@@ -110,23 +112,23 @@ def get_sweep_config():
         # FEATURE SCALING (all bounded to [0,1])
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
+        "target_scaler": {"values": ["AsinhTransform"]}, # Removed MinMaxScaler to preserve zero-structure and variance
         "feature_scaler_map": {
             "values": [
                 {
-                    # Zero-inflated counts and multiplicative data
-                    "AsinhTransform->MinMaxScaler": [
+                    # Zero-inflated counts: Log-like
+                    "AsinhTransform": [
                         "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                         "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     ],
-                    # Spatial lags with extreme outliers
-                    "RobustScaler->MinMaxScaler": [
+                    # Spatial lags: Maintain outlier info with RobustScaler, remove squashing
+                    "RobustScaler": [
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # WDI indicators with moderate skew or negatives
-                    "StandardScaler->MinMaxScaler": [
+                    # Continuous rates/indices: Center around 0 with unit variance
+                    "StandardScaler": [
                         "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
                         "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
@@ -220,28 +222,31 @@ def get_sweep_config():
         # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.03,
+            "min": 0.88,  # asinh(1)
+            "max": 3.91,  # asinh(25)
         },
-        # Low delta for L1-like behavior
+        # Delta > 1.0 (e.g. 2.0-5.0) focuses on large errors (Quadratic/MSE) while being robust to extreme outliers (Linear)
+        # Low delta (0.1) treats everything as outliers (L1), which is bad for noisy data
         "delta": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.15,
+            "min": 1.0,
+            "max": 3.0,
         },
         # ==============================================================================
         # LOSS WEIGHTS
         # ==============================================================================
-        # Narrowed ranges to avoid extreme weight ratios (>100:1 causes instability)
-        "non_zero_weight": {"values": [10.0, 25.0, 50.0]},  # Removed 5, 15 for efficiency
+        # non_zero_weight: Strong bias to focus on the 20% signal
+        "non_zero_weight": {"values": [1.0, 10.0, 25.0, 50.0]}, 
+        # false_positive_weight: Reduced to 0.1-0.5 to tolerate noise (ignore false alarms)
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.3,  # Raised from 0.1 to avoid numerical instability
-            "max": 0.8,  # Lowered from 1.0 to maintain exploration incentive
+            "min": 0.1, 
+            "max": 0.5,
         },
+        # false_negative_weight: Aggressive penalty for missing conflict
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 10.0,
+            "min": 2.0,
             "max": 50.0,
         },
     }
