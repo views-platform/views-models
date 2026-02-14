@@ -123,10 +123,10 @@ def get_sweep_config():
         # - Periodic LR spikes help escape zero-prediction basin
         # - T_0=25: 8 restart cycles in 200 epochs
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [25, 30]},
+        "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
         "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
-        "gradient_clip_val": {"values": [1.5, 2.0]},  # Allow strong FN gradients
+        "gradient_clip_val": {"values": [ 2.0]},  # Allow strong FN gradients
         
         # ==============================================================================
         # SCALING
@@ -215,7 +215,7 @@ def get_sweep_config():
         # ==============================================================================
         # kernel_size: Small kernels (3) work better for sparse signals
         # - Each kernel "sees" fewer timesteps, reducing zero-dilution
-        # - Bai et al. (2018): kernel_size=3 sufficient for most sequence tasks
+        # - kernel_size=3 sufficient for most sequence tasks
         "kernel_size": {"values": [3]},  # Fixed: 3 is optimal for sparse data
         
         # num_filters: Moderate capacity to avoid overfitting to zeros
