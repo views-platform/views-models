@@ -97,7 +97,7 @@ def get_sweep_config():
         # (was 1024-4096: caused "all-zero batches" → mode collapse)
         "batch_size": {"values": [32, 64]},
         "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
-        "early_stopping_patience": {"values": [20]},  # 40% of T_0 cycle
+        "early_stopping_patience": {"values": [30]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
 
