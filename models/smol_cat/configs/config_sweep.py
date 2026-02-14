@@ -222,11 +222,7 @@ def get_sweep_config():
         "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
         # zero_threshold calibrated to scaled target space [0,1]
         # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 2.7,  # asinh(8)
-            "max": 3.4,  # asinh(15)
-        },
+        "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
         # Delta > 1.0 (e.g. 2.0-5.0) focuses on large errors (Quadratic/MSE) while being robust to extreme outliers (Linear)
         # Low delta (0.1) treats everything as outliers (L1), which is bad for noisy data
         "delta": {

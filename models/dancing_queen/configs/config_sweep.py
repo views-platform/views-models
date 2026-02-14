@@ -221,12 +221,8 @@ def get_sweep_config():
 
         # zero_threshold in ASINH scale (no MinMaxScaler)
         # asinh(1) = 0.88, asinh(25) = 3.91
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.88,  # ~1 fatality in original scale
-            "max": 3.91,  # ~25 fatalities in original scale
-        },
-
+        "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
+        
         # delta: Huber loss transition (L2 inside, L1 outside)
         # For asinh scale [0, ~9], delta 1-3 is meaningful
         "delta": {

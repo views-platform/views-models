@@ -248,11 +248,7 @@ def get_sweep_config():
         
         # zero_threshold: In ASINH scale (not raw counts)
         # asinh(1) ≈ 0.88, asinh(25) ≈ 3.91
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.88,
-            "max": 3.91,
-        },
+        "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
         
         # delta: Huber L2→L1 transition point
         # For asinh data in [0, ~9], delta 1-3 gives balanced behavior
