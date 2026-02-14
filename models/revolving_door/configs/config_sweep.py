@@ -216,9 +216,9 @@ def get_sweep_config():
         # num_layers=2: Standard MLP depth, 3 adds parameters with minimal gain
         "num_layers": {"values": [2]},  # FIXED (was [2, 3])
 
-        # layer_width: N-HiTS handles wider layers due to simple FC architecture
+        # layer_widths: N-HiTS handles wider layers due to simple FC architecture
         # Paper uses 512 as default; [256, 512] for reasonable sweep
-        "layer_width": {"values": [256, 512]},  # CHANGED (was [64, 128, 256])
+        "layer_widths": {"values": [256, 512]},  # CHANGED (was [64, 128, 256])
 
         # pooling_kernel_sizes: Auto-configured (paper recommendation)
         # Darts creates geometric progression based on input_chunk_length

@@ -85,6 +85,8 @@ def get_sweep_config():
         "output_chunk_length": {"values": [36]},
         "random_state": {"values": [67]},
         "n_jobs": {"values": [-1]},
+        "mc_dropout": {"values": [True]},
+        "num_samples": {"values": [1]},
         
         # ==============================================================================
         # TRAINING BASICS
