@@ -56,7 +56,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_20260214_v4_bcd2",
+        "name": "smol_cat_tide_20260214_v5_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -249,7 +249,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 100.0,
+            "max": 50.0,
         },
     }
 
