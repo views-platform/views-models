@@ -241,7 +241,7 @@ def get_sweep_config():
 
         # Lower base weights - magnitude scaling handles large events automatically
         # mult ranges from 2× (small events) to 40× (large events)
-        "non_zero_weight": {"values": [10.0, 20.0, 30.0]},
+        "non_zero_weight": {"values": [30.0, 40.0, 50.0]},
         
         # false_positive_weight: Balanced range for exploration
         "false_positive_weight": {

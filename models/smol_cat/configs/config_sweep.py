@@ -100,7 +100,7 @@ def get_sweep_config():
             "max": 8e-3,  # Higher max LR for aggressive restarts
         },
         # Low/zero weight_decay: 1e-4 too aggressive for sparse data
-        "weight_decay": {"values": [0, 1e-6]},
+        "weight_decay": {"values": [1e-6]},
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts (AGGRESSIVE)
         # ==============================================================================
@@ -223,19 +223,20 @@ def get_sweep_config():
         # zero_threshold calibrated to scaled target space [0,1]
         # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
-        # Delta > 1.0 (e.g. 2.0-5.0) focuses on large errors (Quadratic/MSE) while being robust to extreme outliers (Linear)
-        # Low delta (0.1) treats everything as outliers (L1), which is bad for noisy data
+        # Delta: Huber L2→L1 transition point
+        # Lower delta (1.0-2.0) showed better stability in sweeps
+        # delta=1.5 performed best - tighter L2 region more robust to outliers
         "delta": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 3.0,
+            "max": 2.0,
         },
         # ==============================================================================
         # LOSS WEIGHTS (Magnitude-aware: mult = 1 + (target/threshold)²)
         # ==============================================================================
-        # Lower base weights - magnitude scaling handles large events automatically
-        # mult ranges from 2× (small events) to 40× (large events)
-        "non_zero_weight": {"values": [10.0, 20.0, 30.0]},
+        # non_zero_weight < 25 causes gradient collapse/oscillation
+        # Sweep evidence: 10→explosion, 20→oscillation, 30→stable
+        "non_zero_weight": {"values": [30.0, 40.0, 50.0]},
         
         # false_positive_weight: Balanced range for exploration
         "false_positive_weight": {
