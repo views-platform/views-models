@@ -44,10 +44,11 @@ def get_sweep_config():
 
     Architecture (TiDE):
     --------------------
-    - Encoder: 2-3 layers, hidden_size 64-256
-    - Decoder: 1-2 layers, output_dim 64-128
-    - Temporal width: 6-18 months (12 captures annual cycles)
-    - Layer norm enabled, reversible instance norm explored
+    - Encoder: 2 layers (fixed per TiDE paper)
+    - Decoder: 2 layers (fixed per TiDE paper)
+    - Hidden size: 128-256 (reduced search space)
+    - Temporal width: 12 months (annual cycle - fixed)
+    - Layer norm enabled, reversible instance norm always on
 
     Hyperband Early Termination:
     ----------------------------
@@ -60,7 +61,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_aql_v1_bcd2",
+        "name": "cool_cat_tide_aql_v2_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -74,7 +75,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},  # 36-month forecast horizon
-        "input_chunk_length": {"values": [24, 36, 48, 72]},  # 2-6 years of context
+        "input_chunk_length": {"values": [36, 48]},  # 3-4 years optimal for 36-month horizon
         "output_chunk_shift": {"values": [0]},
         "mc_dropout": {"values": [True]},
         "random_state": {"values": [67]},
@@ -85,10 +86,10 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [8, 16, 32, 64]},
+        "batch_size": {"values": [8, 16, 32]},  # Reduced: 64 dilutes spike signal too much
         "n_epochs": {"values": [200]},
-        # patience > max(T_0) to allow recovery after LR restart
-        "early_stopping_patience": {"values": [35]},
+        # patience = 1.3×T_0 to allow full cycle after restart
+        "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -99,16 +100,16 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        # Low/zero weight_decay: high values caused weight collapse in prior runs
-        "weight_decay": {"values": [0, 1e-6, 1e-4]},
+        # Low/zero weight_decay: 1e-4 too aggressive for sparse data
+        "weight_decay": {"values": [0, 1e-6]},
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts
         # ==============================================================================
         # Periodic restarts help escape local minima
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [20, 30, 40]},  # T_0 ≥ patience/2. 
-        "lr_scheduler_T_mult": {"values": [1, 2]},  # 1=fixed period, 2=double each restart, can cause early stopping to trigger prematurely right after a restart
-        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
+        "lr_scheduler_T_0": {"values": [30]},  # Optimal for 200 epochs with patience=40
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
+        "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
         # ==============================================================================
         # FEATURE SCALING (all bounded to [0,1])
@@ -197,21 +198,21 @@ def get_sweep_config():
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
-        "num_encoder_layers": {"values": [2, 3]},
-        "num_decoder_layers": {"values": [1, 2]},
-        "decoder_output_dim": {"values": [64, 128]},
-        "hidden_size": {"values": [64, 128, 256]},
-        # Temporal widths include 12 for annual cycle detection
-        "temporal_width_past": {"values": [6, 12, 18]},
-        "temporal_width_future": {"values": [6, 12, 18]},
-        "temporal_hidden_size_past": {"values": [64, 128, 256]},
-        "temporal_hidden_size_future": {"values": [64, 128, 256]},
-        "temporal_decoder_hidden": {"values": [128, 256]},
+        "num_encoder_layers": {"values": [2]},  # Fixed: optimal per TiDE paper ablations
+        "num_decoder_layers": {"values": [2]},  # Fixed: optimal per TiDE paper ablations
+        "decoder_output_dim": {"values": [128]},  # Fixed: medium capacity sufficient
+        "hidden_size": {"values": [128, 256]},  # Reduced: 64 too small, focus on key values
+        # Temporal width=12 matches annual cycle in conflict data
+        "temporal_width_past": {"values": [12]},  # Fixed: annual periodicity
+        "temporal_width_future": {"values": [12]},  # Fixed: match past
+        "temporal_hidden_size_past": {"values": [128, 256]},  # Reduced search space
+        "temporal_hidden_size_future": {"values": [128, 256]},  # Reduced search space
+        "temporal_decoder_hidden": {"values": [256]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True]},
-        "dropout": {"values": [0.05, 0.1, 0.15]},  # Low to preserve rare patterns
+        "use_layer_norm": {"values": [True, False]},
+        "dropout": {"values": [0.05, 0.1]},
         "use_static_covariates": {"values": [False]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
@@ -219,23 +220,23 @@ def get_sweep_config():
         # ==============================================================================
         "loss_function": {"values": ["AsymmetricQuantileLoss"]},
         # zero_threshold calibrated to scaled target space [0,1]
-        # 0.01-0.05 corresponds to small fatality counts after AsinhTransform->MinMax
+        # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {
             "distribution": "uniform",
             "min": 0.01,
-            "max": 0.05,
+            "max": 0.03,
         },
         # tau: quantile level controlling asymmetry
-        # tau > 0.5: penalizes underestimation (missing conflicts) more than overestimation
-        # tau = 0.75: 3x asymmetry, tau = 0.9: 9x asymmetry, tau = 0.95: 19x asymmetry
+        # tau > 0.5: penalizes underestimation (missing conflicts) more
+        # Narrowed to 0.7-0.95 to focus on strong asymmetry for conflict detection
         "tau": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 0.95,  # Strong asymmetry (19x) - heavily penalize missing conflicts
+            "min": 0.7,   # Moderate asymmetry (2.33x)
+            "max": 0.95,  # Strong asymmetry (19x)
         },
         # non_zero_weight: additional multiplicative weight for conflict events
-        # Higher values force model to pay more attention to rare conflict samples
-        "non_zero_weight": {"values": [1.0, 5.0, 10.0, 15.0, 25.0, 50.0]},
+        # Reduced to key values for efficiency
+        "non_zero_weight": {"values": [1.0, 10.0, 25.0, 50.0]},
     }
 
     sweep_config["parameters"] = parameters
