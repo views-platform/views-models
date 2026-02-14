@@ -72,10 +72,10 @@ def get_sweep_config():
         "steps": {"values": [[*range(1, 36 + 1)]]},  # 36-month forecast horizon
         "input_chunk_length": {"values": [36, 48]},  # 3-4 years optimal for 36-month horizon
         "output_chunk_shift": {"values": [0]},
-        "mc_dropout": {"values": [True]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
         "optimizer_cls": {"values": ["Adam"]},
+        "mc_dropout": {"values": [True]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -231,17 +231,17 @@ def get_sweep_config():
             "max": 3.0,
         },
         # ==============================================================================
-        # LOSS WEIGHTS
+        # LOSS WEIGHTS (Magnitude-aware: mult = 1 + (target/threshold)²)
         # ==============================================================================
-        # Values ≥30 keep model engaged with conflict events
-        "non_zero_weight": {"values": [30.0, 50.0, 75.0]},
+        # Lower base weights - magnitude scaling handles large events automatically
+        # mult ranges from 2× (small events) to 40× (large events)
+        "non_zero_weight": {"values": [10.0, 20.0, 30.0]},
         
-        # false_positive_weight: Low values encourage exploration
-        # < 0.5 means FP is cheaper than TN, pushing model to predict conflicts
+        # false_positive_weight: Balanced range for exploration
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.0,
+            "min": 0.3,
+            "max": 0.7,
         },
         
         # false_negative_weight: Additional penalty for missing conflicts
@@ -249,7 +249,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 5.0,
-            "max": 30.0,
+            "max": 20.0,
         },
     }
 

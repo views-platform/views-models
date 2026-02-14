@@ -75,11 +75,11 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size 64-128: ~98% probability of non-zero events per batch
+        # Batch size 32-64: ~98% probability of non-zero events per batch
         # (was 256-2048: caused "all-zero batches" → mode collapse)
         "batch_size": {"values": [32, 64]},
-        "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
-        "early_stopping_patience": {"values": [20]},  # 40% of T_0 cycle
+        "n_epochs": {"values": [200]},
+        "early_stopping_patience": {"values": [30]},  # Must be > T_0 for restart to help
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
 
@@ -87,18 +87,18 @@ def get_sweep_config():
         # OPTIMIZER: CosineAnnealingWarmRestarts (replaces ReduceLROnPlateau)
         # ==============================================================================
         # CosineAnnealing restarts help escape local minima (mode collapse prevention)
-        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
+        # T_0=25 → 8 cycles in 200 epochs
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,  # Raised floor (was 5e-5)
-            "max": 2e-3,  # Raised ceiling for smaller batches
+            "min": 1e-4,
+            "max": 2e-3,  # TFT is complex (attention+LSTM), lower max LR
         },
-        "weight_decay": {"values": [1e-6]},  # Minimal (was 0)
+        "weight_decay": {"values": [1e-6]},
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [30]},  # Faster restarts
+        "lr_scheduler_T_0": {"values": [25]},  # 8 cycles in 200 epochs
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
-        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},  # Higher min maintains gradients
-        "gradient_clip_val": {"values": [2.0]},  # Higher clip for larger LR spikes
+        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
+        "gradient_clip_val": {"values": [2.0]},
 
         # ==============================================================================
         # FEATURE SCALING
@@ -243,22 +243,22 @@ def get_sweep_config():
         },
 
         # ==============================================================================
-        # LOSS WEIGHTS (Additive structure)
+        # LOSS WEIGHTS (Magnitude-aware: mult = 1 + (target/threshold)²)
         # ==============================================================================
         # TN = 1.0 (baseline)
-        # TP = 1.0 + non_zero_weight
+        # TP = (1.0 + non_zero_weight) × magnitude_mult
         # FP = false_positive_weight (absolute)
-        # FN = 1.0 + non_zero_weight + false_negative_weight
+        # FN = (1.0 + non_zero_weight + false_negative_weight) × magnitude_mult
 
-        # Values ≥30 keep model engaged with conflict events
-        "non_zero_weight": {"values": [30.0, 50.0, 75.0]},
+        # Lower base weights - magnitude scaling handles large events automatically
+        # mult ranges from 2× (small events) to 40× (large events)
+        "non_zero_weight": {"values": [10.0, 20.0, 30.0]},
         
-        # false_positive_weight: Low values encourage exploration
-        # < 0.5 means FP is cheaper than TN, pushing model to predict conflicts
+        # false_positive_weight: Balanced range for exploration
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.0,
+            "min": 0.3,
+            "max": 0.7,
         },
 
         # false_negative_weight: Additional penalty for missing conflicts
@@ -266,7 +266,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 5.0,
-            "max": 30.0,
+            "max": 20.0,
         },
     }
 
