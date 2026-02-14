@@ -254,21 +254,23 @@ def get_sweep_config():
         # FP = false_positive_weight (absolute)
         # FN = 1.0 + non_zero_weight + false_negative_weight
 
-        # non_zero_weight: Focus on the 6-14% signal
-        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
-
-        # false_positive_weight: LOW (<0.5) to encourage exploration
+        # Values ≥30 keep model engaged with conflict events
+        "non_zero_weight": {"values": [30.0, 50.0, 75.0]},
+        
+        # false_positive_weight: Low values encourage exploration
+        # < 0.5 means FP is cheaper than TN, pushing model to predict conflicts
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 0.5,
+            "min": 0.5,
+            "max": 1.0,
         },
 
-        # false_negative_weight: Aggressive penalty for missing conflict
+        # false_negative_weight: Additional penalty for missing conflicts
+        # Combined with non_zero_weight for total FN weight
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 50.0,
+            "min": 5.0,
+            "max": 30.0,
         },
     }
 

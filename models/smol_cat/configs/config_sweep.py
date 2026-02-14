@@ -224,8 +224,8 @@ def get_sweep_config():
         # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.88,  # asinh(1)
-            "max": 3.91,  # asinh(25)
+            "min": 2.7,  # asinh(8)
+            "max": 3.4,  # asinh(15)
         },
         # Delta > 1.0 (e.g. 2.0-5.0) focuses on large errors (Quadratic/MSE) while being robust to extreme outliers (Linear)
         # Low delta (0.1) treats everything as outliers (L1), which is bad for noisy data
@@ -237,19 +237,23 @@ def get_sweep_config():
         # ==============================================================================
         # LOSS WEIGHTS
         # ==============================================================================
-        # non_zero_weight: Strong bias to focus on the 20% signal
-        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
-        # false_positive_weight: Reduced to 0.1-0.5 to tolerate noise (ignore false alarms)
+        # Values ≥30 keep model engaged with conflict events
+        "non_zero_weight": {"values": [30.0, 50.0, 75.0]},
+        
+        # false_positive_weight: Low values encourage exploration
+        # < 0.5 means FP is cheaper than TN, pushing model to predict conflicts
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.1, 
-            "max": 0.5,
+            "min": 0.5,
+            "max": 1.0,
         },
-        # false_negative_weight: Aggressive penalty for missing conflict
+        
+        # false_negative_weight: Additional penalty for missing conflicts
+        # Combined with non_zero_weight for total FN weight
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 50.0,
+            "min": 5.0,
+            "max": 30.0,
         },
     }
 
