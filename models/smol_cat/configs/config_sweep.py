@@ -39,10 +39,11 @@ def get_sweep_config():
 
     Architecture (TiDE):
     --------------------
-    - Encoder: 2-3 layers, hidden_size 64-256
-    - Decoder: 1-2 layers, output_dim 64-128
-    - Temporal width: 6-18 months (12 captures annual cycles)
-    - Layer norm enabled, reversible instance norm explored
+    - Encoder: 2 layers (fixed per TiDE paper)
+    - Decoder: 2 layers (fixed per TiDE paper)
+    - Hidden size: 128-256 (reduced search space)
+    - Temporal width: 12 months (annual cycle - fixed)
+    - Layer norm enabled, reversible instance norm always on
 
     Hyperband Early Termination:
     ----------------------------
@@ -55,7 +56,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_low_delta_bcd2",
+        "name": "smol_cat_tide_end_me_2_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -69,21 +70,21 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},  # 36-month forecast horizon
-        "input_chunk_length": {"values": [24, 36, 48, 72]},  # 2-6 years of context
+        "input_chunk_length": {"values": [36, 48]},  # 3-4 years optimal for 36-month horizon
         "output_chunk_shift": {"values": [0]},
         "mc_dropout": {"values": [True]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
         "optimizer_cls": {"values": ["Adam"]},
         "num_samples": {"values": [1]},
-        "n_jobs": {"values": [2]},
+        "n_jobs": {"values": [-1]},
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [8, 16, 32, 64]},
+        "batch_size": {"values": [8]},
         "n_epochs": {"values": [200]},
-        # patience > max(T_0) to allow recovery after LR restart
-        "early_stopping_patience": {"values": [35]},
+        # patience = 1.3×T_0 to allow full cycle after restart
+        "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -94,16 +95,16 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        # Low/zero weight_decay: high values caused weight collapse in prior runs
-        "weight_decay": {"values": [0, 1e-6, 1e-4]},
+        # Low/zero weight_decay: 1e-4 too aggressive for sparse data
+        "weight_decay": {"values": [0, 1e-6]},
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts
         # ==============================================================================
-        # Periodic restarts help escape local minima
+        # Fixed per Loshchilov & Hutter (2017): T_0=n_epochs/6.7, T_mult=1 for stable convergence
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [20, 30, 40]},  # T_0 ≥ patience/2. 
-        "lr_scheduler_T_mult": {"values": [1, 2]},  # 1=fixed period, 2=double each restart, can cause early stopping to trigger prematurely right after a restart
-        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
+        "lr_scheduler_T_0": {"values": [30]},  # Optimal for 200 epochs with patience=40
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
+        "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
         # ==============================================================================
         # FEATURE SCALING (all bounded to [0,1])
@@ -192,21 +193,21 @@ def get_sweep_config():
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
-        "num_encoder_layers": {"values": [2, 3]},
-        "num_decoder_layers": {"values": [1, 2]},
-        "decoder_output_dim": {"values": [64, 128]},
-        "hidden_size": {"values": [64, 128, 256]},
-        # Temporal widths include 12 for annual cycle detection
-        "temporal_width_past": {"values": [6, 12, 18]},
-        "temporal_width_future": {"values": [6, 12, 18]},
-        "temporal_hidden_size_past": {"values": [64, 128, 256]},
-        "temporal_hidden_size_future": {"values": [64, 128, 256]},
-        "temporal_decoder_hidden": {"values": [128, 256]},
+        "num_encoder_layers": {"values": [2]},
+        "num_decoder_layers": {"values": [2]},
+        "decoder_output_dim": {"values": [128]},
+        "hidden_size": {"values": [128, 256]},
+        # Temporal width=12 matches annual cycle in conflict data
+        "temporal_width_past": {"values": [12]},  # annual periodicity
+        "temporal_width_future": {"values": [12]},  # match past
+        "temporal_hidden_size_past": {"values": [128, 256]},  # Reduced search space
+        "temporal_hidden_size_future": {"values": [128, 256]},  # Reduced search space
+        "temporal_decoder_hidden": {"values": [256]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True]},
-        "dropout": {"values": [0.05, 0.1, 0.15]},  # Low to preserve rare patterns
+        "use_layer_norm": {"values": [True, False]},
+        "dropout": {"values": [0.05, 0.1]},
         "use_static_covariates": {"values": [False]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
@@ -216,33 +217,32 @@ def get_sweep_config():
         # TN=1x, FP=fp_weight, TP=nz_weight, FN=nz_weight×fn_weight
         "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
         # zero_threshold calibrated to scaled target space [0,1]
-        # 0.03-0.08 corresponds to ~1-3 fatalities after AsinhTransform->MinMax. Alternative: 0.019 - 0.133 
+        # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {
             "distribution": "uniform",
             "min": 0.01,
-            "max": 0.05,
+            "max": 0.03,
         },
-        # High delta gives near-L2 behavior (maximizes gradient signal)
+        # Low delta for L1-like behavior
         "delta": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.2,
+            "max": 0.15,
         },
         # ==============================================================================
-        # LOSS WEIGHTS (Mode Collapse Prevention)
+        # LOSS WEIGHTS
         # ==============================================================================
-        # Key ratios: FN:FP should be 40-100x to discourage missing conflicts
-        # fp_weight < 1.0 encourages model to explore non-zero predictions
-        "non_zero_weight": {"values": [5.0, 10.0, 15.0, 25.0, 50.0]},
+        # Narrowed ranges to avoid extreme weight ratios (>100:1 causes instability)
+        "non_zero_weight": {"values": [10.0, 25.0, 50.0]},  # Removed 5, 15 for efficiency
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 1.0,
+            "min": 0.3,  # Raised from 0.1 to avoid numerical instability
+            "max": 0.8,  # Lowered from 1.0 to maintain exploration incentive
         },
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 100.0,
+            "min": 10.0,
+            "max": 50.0,
         },
     }
 
