@@ -3,72 +3,49 @@ def get_sweep_config():
     BlockRNN (LSTM/GRU) Hyperparameter Sweep Configuration
     ========================================================
 
-    Problem Characteristics:
-    ------------------------
-    - ~200 time series (countries)
-    - Zero-inflated target: Most country-months have zero fatalities
-    - Heavy right skew: When conflicts occur, fatality counts vary enormously
-    - Rare signal: Model must learn maximally from scarce non-zero events
-    - 36-month forecast horizon with monthly resolution
-
-    BlockRNN Architecture Overview:
-    -------------------------------
-    BlockRNN wraps PyTorch's LSTM/GRU into a block-based forecasting model:
-
-    1. RECURRENT PROCESSING:
-       - Sequential processing of input time steps
-       - Hidden state accumulates temporal information
-       - Cell state (LSTM only) provides long-term memory
-
-    2. LSTM vs GRU:
-       - LSTM: Separate cell state and hidden state
-         * Better long-term memory retention
-         * More parameters (4 gates vs 3)
-         * May help with conflict escalation patterns over years
-       - GRU: Combined cell/hidden state
-         * Faster training, fewer parameters
-         * Often comparable performance to LSTM
-         * Better for shorter-term patterns
-
-    3. STACKED LAYERS:
-       - Multiple RNN layers process hierarchically
-       - Lower layers: Local patterns
-       - Higher layers: Abstract representations
-       - Dropout between layers for regularization
-
-    Key Design Decisions:
+    Data Characteristics:
     ---------------------
-    1. SCALING: AsinhTransform->MinMaxScaler for target
-       - Asinh handles zeros naturally (unlike log)
-       - MinMax bounds output to [0,1] for stable gradients
-       - 1 fatality → ~0.11 after transform
+    - ~200 time series (countries), ~82,512 observations
+    - Zero-inflated targets: sb=86%, ns=93%, os=94% zeros
+    - Heavy right skew: fatality counts span 0 to ~4,000+
+    - 69 features (WDI, V-Dem, topic models, conflict history)
+    - 36-month forecast horizon
 
-    2. LOSS: WeightedPenaltyHuberLoss with high delta (0.8-1.0)
-       - Full L2 behavior maximizes gradient signal from rare spikes
-       - Asymmetric weights prioritize learning from actual conflicts
 
-    3. REGULARIZATION: Minimal (weight_decay=0, low dropout)
-       - Scarce signal means preserving neurons that learn rare patterns
-       - RNNs already have implicit regularization through recurrence
+    BlockRNN Architecture (Fixed based on literature):
+    --------------------------------------------------
+    - LSTM (not GRU): Separate cell state for long-term memory
+      * Better for 36-month horizon (conflict escalation patterns)
+      * Hochreiter & Schmidhuber (1997): cell state preserves gradients
+    - n_rnn_layers=2: Hierarchical pattern extraction
+      * 1 layer too shallow, 3+ has vanishing gradient issues
+    - hidden_dim: 128-256 (moderate size for ~200 series)
+    - activation=GELU: Smoother gradients than ReLU
+    - use_reversible_instance_norm=True: Critical for distribution shift
 
-    4. ARCHITECTURE: Small hidden dims, shallow depth
-       - ~200 series cannot support large hidden states (overfitting risk)
-       - 1-3 layers sufficient; deeper RNNs have vanishing gradient issues
-       - GRU often matches LSTM with fewer parameters
+    Loss Function: AsinhWeightedPenaltyHuberLoss (Additive Structure)
+    -------------------------------------------------------------
+    - TN (zero→zero): 1.0x baseline
+    - TP (conflict→conflict): 1.0 + non_zero_weight
+    - FP (zero→conflict): false_positive_weight (absolute, <0.5 encourages exploration)
+    - FN (conflict→zero): 1.0 + non_zero_weight + false_negative_weight
+
+    Mode Collapse Prevention:
+    -------------------------
+    - CosineAnnealingWarmRestarts: periodic LR restarts escape local minima
+    - Low false_positive_weight (<0.5): encourages non-zero predictions
+    - Batch size 64-128: ensures non-zero events in every batch
+    - Low dropout (0.05-0.1): preserves neurons learning rare patterns
 
     RNN-Specific Considerations:
     ----------------------------
-    - Gradient clipping: Critical for RNNs (exploding gradients through time)
-    - Wider clipping range (0.5-2.0) than transformers to allow gradient flow
-    - Hidden dim scales memory requirements quadratically
+    - Gradient clipping: Critical for RNNs (exploding gradients through BPTT)
+    - gradient_clip_val=1.5: Conservative (was 2.0)
 
     Hyperband Early Termination:
     ----------------------------
-    - min_iter=20: Gives RNNs time to learn temporal patterns
-    - eta=2: Moderately aggressive pruning (keeps top 50% each round)
-
-    Search Space Size: ~15,500 discrete combinations + continuous parameters
-    Estimated sweep runs needed: 150-250 for good Bayesian coverage
+    - min_iter=30: More time for sparse signal (was 20)
+    - eta=2: Keeps top 50% each round
 
     Returns:
         sweep_config (dict): WandB sweep configuration dictionary
@@ -76,159 +53,140 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_v6_mtd",
-        "early_terminate": {"type": "hyperband", "min_iter": 20, "eta": 2},
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "name": "dancing_queen_blockrnn_20260214_v1_bcd",
+        "early_terminate": {
+            "type": "hyperband",
+            "min_iter": 30,  # Increased from 20 for sparse signal
+            "eta": 2,
+        },
+        "metric": {
+            "name": "time_series_wise_bcd_mean_sb", 
+            "goal": "minimize",
+        },
     }
 
     parameters = {
         # ==============================================================================
         # TEMPORAL CONFIGURATION
         # ==============================================================================
-        # steps: 36-month forecast horizon (standard for conflict forecasting)
         "steps": {"values": [[*range(1, 36 + 1)]]},
-
-        # input_chunk_length: Historical context window
-        # - RNNs process sequences step-by-step, accumulating in hidden state
-        # - 36 months (3 years): Captures annual cycles, recent escalation
-        # - 48 months (4 years): Captures electoral cycles, medium-term patterns
-        # - Longer sequences increase vanishing gradient risk but provide more context
-        # - RNNs handle moderate lengths well; hidden state compresses history
         "input_chunk_length": {"values": [36, 48]},
-
-        "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
-        "random_state": {"values": [67]},  # Reproducibility
-        "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
+        "output_chunk_length": {"values": [36]},
+        "output_chunk_shift": {"values": [0]},
+        "random_state": {"values": [67]},
+        "mc_dropout": {"values": [True]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [-1]},
 
         # ==============================================================================
-        # TRAINING BASICS
+        # TRAINING
         # ==============================================================================
-        # batch_size: Samples per gradient update
-        # - Larger batches help zero-inflated data see more non-zero events
-        # - RNNs are memory-intensive (hidden states stored for BPTT)
-        # - Range 512-2048 balances GPU memory with gradient quality
-        # - Removed 4096 to avoid OOM with long sequences
-        "batch_size": {"values": [512, 1024, 2048]},
-
-        # n_epochs: Maximum training epochs
-        # - RNNs may need more epochs than feedforward models
-        # - 200 epochs provides headroom; early stopping triggers before max
+        # Batch size 64-128: ~98% probability of non-zero events per batch
+        # (was 512-2048: caused "all-zero batches" → mode collapse)
+        "batch_size": {"values": [32, 64]},
         "n_epochs": {"values": [200]},
-
-        # early_stopping_patience: Epochs without improvement before stopping
-        # - Higher patience (15-25) for scarce signal
-        # - RNN loss can be noisy; patience prevents premature stopping
-        "early_stopping_patience": {"values": [20]},
-
-        # early_stopping_min_delta: Minimum improvement to count as progress
-        # - Small values (5e-5 to 1e-4) appropriate for [0,1] scaled loss
+        "early_stopping_patience": {"values": [20]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
-
-        "force_reset": {"values": [True]},  # Clean model state each sweep run
+        "force_reset": {"values": [True]},
 
         # ==============================================================================
-        # OPTIMIZER / LEARNING RATE SCHEDULE
+        # OPTIMIZER: CosineAnnealingWarmRestarts (replaces ReduceLROnPlateau)
         # ==============================================================================
-        # lr: Learning rate (log-uniform distribution for proper exploration)
-        # - RNNs can be sensitive to LR (gradient explosion/vanishing)
-        # - 5e-5: Conservative, stable learning
-        # - 1e-3: Aggressive upper bound
-        # - Optimal typically in 1e-4 to 5e-4 range
+        # CosineAnnealing restarts help escape local minima (mode collapse prevention)
+        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
-            "max": 1e-3,
+            "min": 1e-4,  # Raised floor (was 5e-5)
+            "max": 5e-3,  # Raised ceiling for smaller batches
         },
-
-        # weight_decay: L2 regularization on weights
-        # DISABLED (set to 0) because:
-        # - Scarce signal means neurons learning rare patterns are precious
-        # - RNNs already have implicit regularization through recurrence
-        # - Weight decay can interfere with long-term memory in LSTM/GRU
-        "weight_decay": {"values": [0]},
-
-        # lr_scheduler: ReduceLROnPlateau configuration
-        # - factor=0.5: Halve LR when stuck (standard, well-tested)
-        # - patience=8: Wait 8 epochs before reducing
-        # - min_lr=1e-6: Floor prevents LR from becoming negligible
-        "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
-        "lr_scheduler_min_lr": {"values": [1e-6]},
-
-        # gradient_clip_val: Maximum gradient norm
-        # CRITICAL for RNNs: Gradients can explode through time (BPTT)
-        # - Wider range (0.5-2.0) than transformers
-        # - RNNs may need looser clipping to allow gradient flow through sequences
-        # - Too tight = starves early timesteps; too loose = instability
-        "gradient_clip_val": {"values": [2.0]},
+        "weight_decay": {"values": [1e-6]},  # Minimal (was 0)
+        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
+        "lr_scheduler_T_0": {"values": [50]},  # 200 epochs / 4 cycles
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
+        "lr_scheduler_eta_min": {"values": [1e-6]},
+        # RNNs need slightly looser clipping than Transformers for gradient flow through time
+        "gradient_clip_val": {"values": [1.5]},  # Reduced from 2.0
 
         # ==============================================================================
         # FEATURE SCALING
         # ==============================================================================
-        # feature_scaler: Global default (None = use feature_scaler_map)
         "feature_scaler": {"values": [None]},
-
-        # target_scaler: AsinhTransform->MinMaxScaler
-        # - AsinhTransform: asinh(x) = ln(x + sqrt(x² + 1))
-        #   * Handles zeros naturally (asinh(0) = 0)
-        #   * Linear near zero, logarithmic for large values
-        # - MinMaxScaler: Bounds to [0,1] after Asinh
-        #   * Stabilizes RNN training (bounded activations)
-        #   * Calibration: asinh(1)≈0.88 → after MinMax ≈0.11
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
-
-        # feature_scaler_map: Per-feature scaling based on distribution characteristics
+        # AsinhTransform ONLY: preserves zero structure + variance
+        # (was AsinhTransform->MinMaxScaler: compressed signal → flat predictions)
+        "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # AsinhTransform->MinMaxScaler: For zero-inflated and right-skewed features
-                    # These have many zeros and occasional extreme values
-                    "AsinhTransform->MinMaxScaler": [
-                        # Conflict fatality counts (zero-inflated, extreme outliers)
-                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
-                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                        "lr_ged_sb_tsum_24",  # 24-month cumulative
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",  # Spatial lags
-                        # Economic indicators with extreme skew (GDP spans orders of magnitude)
+                    # Zero-inflated counts: Log-like
+                    "AsinhTransform": [
+                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
+                        "lr_acled_sb", "lr_acled_os",
+                        "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                        "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
-                        # Mortality rates (positive, skewed)
-                        "lr_wdi_sp_dyn_imrt_fe_in",
-                        # Token counts from text analysis (zero-inflated)
-                        "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                        "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # MinMaxScaler: For bounded or roughly symmetric features
-                    # These are already in reasonable ranges, just need [0,1] normalization
+                    # Continuous rates/indices: Center around 0 with unit variance
+                    "StandardScaler": [
+                        "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
+                        "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
+                        "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_sh_sta_maln_zs",
+                    ],
+                    # V-Dem indices (0-1), WDI %, topic theta
                     "MinMaxScaler": [
-                        # WDI percentages (0-100 scale)
                         "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
-                        "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs",
-                        "lr_wdi_sh_sta_stnt_zs", "lr_wdi_dt_oda_odat_pc_zs",
-                        "lr_wdi_ms_mil_xpnd_gd_zs",
-                        # V-Dem indices (already 0-1 normalized)
-                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
+                        "lr_wdi_sp_urb_totl_in_zs",
+                        "lr_vdem_v2x_horacc",
+                        "lr_vdem_v2xnp_client",
+                        "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl",
+                        "lr_vdem_v2xpe_exlpol",
+                        "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo",
+                        "lr_vdem_v2xpe_exlgender",
+                        "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party",
+                        "lr_vdem_v2x_genpp",
+                        "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty",
+                        "lr_vdem_v2xeg_eqprotec",
+                        "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove",
+                        "lr_vdem_v2x_clphy",
                         "lr_vdem_v2xnp_regcorr",
-                        # Topic model theta values (probability distributions, sum to 1)
-                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
-                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
+                        # Topic model theta values (probability distributions, already 0-1)
+                        "lr_topic_ste_theta0",
+                        "lr_topic_ste_theta1",
+                        "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3",
+                        "lr_topic_ste_theta4",
+                        "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6",
+                        "lr_topic_ste_theta7",
+                        "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9",
+                        "lr_topic_ste_theta10",
+                        "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12",
+                        "lr_topic_ste_theta13",
+                        "lr_topic_ste_theta14",
+                        # Topic spatial lags (neighborhood averages, still bounded)
+                        "lr_topic_ste_theta0_stock_t1_splag",
+                        "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag",
+                        "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag",
+                        "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag",
+                        "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag",
+                        "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag",
+                        "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag",
+                        "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
-                        # Population growth rate (small range, can be negative)
-                        "lr_wdi_sp_pop_grow",
                     ],
                 }
             ]
@@ -237,120 +195,70 @@ def get_sweep_config():
         # ==============================================================================
         # BLOCKRNN ARCHITECTURE
         # ==============================================================================
-        # rnn_type: Choice of recurrent cell
-        # - LSTM (Long Short-Term Memory):
-        #   * Separate cell state for long-term memory
-        #   * 4 gates: input, forget, cell, output
-        #   * Better at retaining information over long sequences
-        #   * May help with conflict patterns spanning years
-        # - GRU (Gated Recurrent Unit):
-        #   * Combined hidden/cell state (simpler)
-        #   * 3 gates: reset, update, new
-        #   * Faster training, fewer parameters
-        #   * Often comparable performance to LSTM
-        "rnn_type": {"values": ["LSTM"]},
+        # LSTM: Separate cell state better for 36-month horizon
+        # (GRU faster but LSTM better for long-range patterns)
+        "rnn_type": {"values": ["LSTM"]},  # FIXED
 
-        # hidden_dim: Hidden state dimension
-        # - Controls capacity of temporal memory
-        # - 32: Lightweight, fast, less overfitting risk
-        # - 64: Balanced capacity for moderate patterns
-        # - 128: Higher capacity for complex temporal dynamics
-        # - For ~200 series, avoid large dims (256+) to prevent overfitting
-        # - Memory scales as O(hidden_dim²) per layer
-        "hidden_dim": {"values": [64, 128, 256]},
+        # hidden_dim: 128-256 for ~200 series
+        "hidden_dim": {"values": [128, 256]},  # Removed 64
 
-        # n_rnn_layers: Number of stacked RNN layers
-        # - 1 layer: Simple, direct temporal processing
-        # - 2 layers: Hierarchical pattern extraction
-        # - 3 layers: Deeper abstractions (may have vanishing gradients)
-        # - Deeper than 3 rarely helps for time series; increases training time
-        "n_rnn_layers": {"values": [1, 2]},
+        # n_rnn_layers=2: Hierarchical pattern extraction
+        # 1 too shallow, 3+ has vanishing gradient issues
+        "n_rnn_layers": {"values": [2]},  # FIXED (was [1, 2])
 
-        # activation: Output activation function
-        # - ReLU: Fast, sparse activations, standard choice
-        # - GELU: Smoother gradients, often slightly better
-        # - Tanh removed: Can cause saturation issues in RNNs
-        "activation": {"values": ["ReLU", "GELU"]},
+        # activation=GELU: Smoother gradients
+        "activation": {"values": ["GELU"]},  # FIXED (was [ReLU, GELU])
 
-        # dropout: Regularization between RNN layers
-        # - Applied between stacked layers (not within cells)
-        # - LOW values (0.05-0.15) for scarce signal
-        # - High dropout would suppress neurons learning rare conflict patterns
-        # - RNNs already have implicit regularization through recurrence
-        "dropout": {"values": [0.05, 0.15]},
+        # dropout: Low to preserve rare pattern learning
+        "dropout": {"values": [0.05, 0.1]},  # Reduced from [0.05, 0.15]
 
-        # use_reversible_instance_norm: Per-instance normalization
-        # - Normalizes each time series independently before processing
-        # - "Reversible" stores stats to invert normalization on output
-        # - True: Helps with non-stationary data (conflict patterns evolve)
-        # - False: Simpler, may generalize better if series are comparable
-        "use_reversible_instance_norm": {"values": [False, True]},
+        # RevIN: Critical for distribution shift
+        "use_reversible_instance_norm": {"values": [True, False]},
 
         # ==============================================================================
-        # LOSS FUNCTION: WeightedPenaltyHuberLoss
+        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss
         # ==============================================================================
-        # Custom loss designed for zero-inflated rare event forecasting.
-        # Combines Huber loss with asymmetric weighting based on prediction type.
-        #
-        # Weight multiplication logic:
-        # - True Negative (zero→zero): weight = 1.0 (baseline)
-        # - False Positive (zero→non-zero): weight = false_positive_weight (0.5-1.0)
-        # - True Positive (non-zero→non-zero): weight = non_zero_weight (4-7)
-        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight (8-35)
-        #
-        # This encourages the model to:
-        # 1. Learn strongly from actual conflict events (high non_zero_weight)
-        # 2. Penalize missing conflicts (FN penalty)
-        # 3. Be forgiving of false alarms (low FP weight encourages exploration)
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
+        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
 
-        # zero_threshold: Scaled value below which predictions count as "zero"
-        # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
-        # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
-        # - Lower threshold = stricter zero classification
+        # zero_threshold in ASINH scale (no MinMaxScaler)
+        # asinh(1) = 0.88, asinh(25) = 3.91
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.23,
+            "min": 0.88,  # ~1 fatality in original scale
+            "max": 3.91,  # ~25 fatalities in original scale
         },
 
-        # delta: Huber loss transition point (L2 inside delta, L1 outside)
-        # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
-        # - Full L2 maximizes gradient signal from every error
-        # - Important for learning from rare spikes where every gradient counts
+        # delta: Huber loss transition (L2 inside, L1 outside)
+        # For asinh scale [0, ~9], delta 1-3 is meaningful
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
-            "max": 1.0,
+            "min": 1.0,
+            "max": 3.0,
         },
 
-        # non_zero_weight: Multiplier for non-zero actual values
-        # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
-        # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
-        # - FP and FN weights are tuned relative to this fixed baseline
-        # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
-        "non_zero_weight": {"values": [10.0]},
+        # ==============================================================================
+        # LOSS WEIGHTS (Additive structure)
+        # ==============================================================================
+        # TN = 1.0 (baseline)
+        # TP = 1.0 + non_zero_weight
+        # FP = false_positive_weight (absolute)
+        # FN = 1.0 + non_zero_weight + false_negative_weight
 
-        # false_positive_weight: Multiplier when predicting non-zero for actual zero
-        # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
-        # - Values <1.0 encourage model to "explore" non-zero predictions
-        # - Helps escape local minimum of predicting all zeros
-        # - Low end (0.3) = minimal penalty for guessing conflict
+        # non_zero_weight: Focus on the 6-14% signal
+        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
+
+        # false_positive_weight: LOW (<0.5) to encourage exploration
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.5,
+            "min": 0.1,
+            "max": 0.5,
         },
 
-        # false_negative_weight: Additional penalty for missing actual conflicts
-        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
-        # - Range 2-8: Strong asymmetric penalty for missing conflicts
-        # - Highest penalty case: missing conflicts is operationally costly
-        # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
+        # false_negative_weight: Aggressive penalty for missing conflict
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 100.0,
         },
     }
 

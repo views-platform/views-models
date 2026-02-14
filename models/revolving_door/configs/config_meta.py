@@ -11,9 +11,9 @@ def get_meta_config():
         "name": "revolving_door", 
         "algorithm": "NHiTSModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb"],
+        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson"],
     }
     return meta_config

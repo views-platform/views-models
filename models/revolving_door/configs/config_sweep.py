@@ -3,65 +3,60 @@ def get_sweep_config():
     N-HiTS (Neural Hierarchical Interpolation for Time Series) Sweep Configuration
     ================================================================================
 
-    Problem Characteristics:
-    ------------------------
-    - ~200 time series (countries)
-    - Zero-inflated target: Most country-months have zero fatalities
-    - Heavy right skew: When conflicts occur, fatality counts vary enormously
-    - Rare signal: Model must learn maximally from scarce non-zero events
-    - 36-month forecast horizon with monthly resolution
+    Data Characteristics:
+    ---------------------
+    - ~200 time series (countries), ~82,512 observations
+    - Zero-inflated targets: sb=86%, ns=93%, os=94% zeros
+    - Heavy right skew: fatality counts span 0 to ~4,000+
+    - 69 features (WDI, V-Dem, topic models, conflict history)
+    - 36-month forecast horizon
 
-    N-HiTS Architecture Overview:
-    -----------------------------
-    N-HiTS is designed for efficient long-horizon forecasting through:
-
+    N-HiTS Architecture Overview (Challu et al. 2022):
+    ---------------------------------------------------
     1. MULTI-RATE INPUT SAMPLING (Pooling):
-       - Each stack applies different pooling kernel sizes to the input
-       - Creates multi-resolution views of the time series
+       - Each stack applies different pooling kernel sizes
        - Stack 1: Large kernels → captures slow trends
-       - Stack 2: Small kernels → captures fast dynamics/seasonality
-       - Reduces computational cost vs processing full resolution everywhere
+       - Stack 2: Small kernels → captures fast dynamics
+       - MaxPool preserves spike magnitudes (critical for sparse events)
 
     2. HIERARCHICAL INTERPOLATION:
        - Each stack produces forecasts at different temporal resolutions
-       - Lower resolution forecasts capture trends
-       - Higher resolution forecasts add fine details
-       - Interpolation combines them into final forecast
-       - n_freq_downsample controls the resolution hierarchy
+       - Interpolation combines coarse trends + fine details
+       - n_freq_downsample controls resolution hierarchy (auto-configured)
 
-    3. STACK-BASED ARCHITECTURE (like N-BEATS):
-       - Multiple stacks, each with multiple blocks
+    3. STACK-BASED ARCHITECTURE:
+       - Multiple stacks with FC blocks
        - Each block: FC layers → basis expansion → forecast + backcast
        - Residual connections between blocks
-       - Stacks specialize in different frequency components
 
-    Key Design Decisions:
-    ---------------------
-    1. SCALING: AsinhTransform->MinMaxScaler for target
-       - Asinh handles zeros naturally (unlike log)
-       - MinMax bounds output to [0,1] for stable gradients
-       - 1 fatality → ~0.11 after transform
+    Architecture (Fixed based on N-HiTS paper):
+    --------------------------------------------
+    - num_stacks=2: Trend + seasonality decomposition (paper default)
+    - num_blocks=1: Paper default, additional blocks add parameters without benefit
+    - num_layers=2: Standard MLP depth
+    - layer_width=[256, 512]: Paper uses 512 default, N-HiTS handles wider layers
+    - max_pool_1d=True: Preserves spike magnitudes for sparse events
+    - activation=ReLU: Paper default, fast and effective
+    - use_reversible_instance_norm=True: Critical for distribution shift
 
-    2. LOSS: WeightedPenaltyHuberLoss with high delta (0.8-1.0)
-       - Full L2 behavior maximizes gradient signal from rare spikes
-       - Asymmetric weights prioritize learning from actual conflicts
+    Loss Function: AsinhWeightedPenaltyHuberLoss (Additive Structure)
+    -------------------------------------------------------------
+    - TN (zero→zero): 1.0x baseline
+    - TP (conflict→conflict): 1.0 + non_zero_weight
+    - FP (zero→conflict): false_positive_weight (absolute, <0.5 encourages exploration)
+    - FN (conflict→zero): 1.0 + non_zero_weight + false_negative_weight
 
-    3. POOLING: MaxPool vs AvgPool exploration
-       - MaxPool preserves spike magnitudes (good for conflict detection)
-       - AvgPool smoother but may dilute sparse events
-
-    4. ARCHITECTURE: 2-3 stacks, moderate width
-       - 2 stacks: Trend + seasonality decomposition
-       - 3 stacks: Additional intermediate frequency component
-       - Width 64-256 appropriate for ~200 series
+    Mode Collapse Prevention:
+    -------------------------
+    - CosineAnnealingWarmRestarts: periodic LR restarts escape local minima
+    - Low false_positive_weight (<0.5): encourages non-zero predictions
+    - Batch size 64-128: ensures non-zero events in every batch
+    - Low dropout (0.05-0.1): preserves neurons learning rare patterns
 
     Hyperband Early Termination:
     ----------------------------
-    - min_iter=20: Gives models time to find patterns in scarce signal
-    - eta=2: Moderately aggressive pruning (keeps top 50% each round)
-
-    Search Space Size: ~27,000 discrete combinations + continuous parameters
-    Estimated sweep runs needed: 150-300 for good Bayesian coverage
+    - min_iter=30: More time for sparse signal (was 20)
+    - eta=2: Keeps top 50% each round
 
     Returns:
         sweep_config (dict): WandB sweep configuration dictionary
@@ -69,312 +64,229 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_v8_mtd",
+        "name": "revolving_door_nhits_20260214_v1_bcd",
         "early_terminate": {
             "type": "hyperband",
-            "min_iter": 20,
+            "min_iter": 30,  # Increased from 20 for sparse signal
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_mtd_mean_sb", "goal": "minimize"},
+        "metric": {
+            "name": "time_series_wise_bcd_mean_sb",  # BCD better for zero-inflated (was MTD)
+            "goal": "minimize",
+        },
     }
 
     parameters = {
         # ==============================================================================
         # TEMPORAL CONFIGURATION
         # ==============================================================================
-        # steps: 36-month forecast horizon (standard for conflict forecasting)
         "steps": {"values": [[*range(1, 36 + 1)]]},
-
-        # input_chunk_length: Historical context window
-        # - N-HiTS handles shorter contexts efficiently due to pooling
-        # - 36 months (3 years): Captures annual cycles, recent trends
-        # - 48 months (4 years): Captures electoral cycles, medium-term patterns
-        # Unlike attention-based models, N-HiTS doesn't need very long context
-        # because pooling already extracts multi-scale patterns efficiently
         "input_chunk_length": {"values": [36, 48]},
-
-        "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
-        "random_state": {"values": [67]},  # Reproducibility
-        "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
+        "output_chunk_shift": {"values": [0]},
+        "output_chunk_length": {"values": [36]},
+        "random_state": {"values": [67]},
+        "mc_dropout": {"values": [True]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [-1]},
 
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
-        # num_stacks: Number of stacks (each captures different frequency range)
-        # - 2 stacks: Classic trend + seasonality decomposition
-        #   * Stack 1: Low frequency (trends, slow changes)
-        #   * Stack 2: High frequency (seasonality, rapid dynamics)
-        # - 3 stacks: Adds intermediate frequency component
-        #   * May help capture conflict escalation patterns
-        # - 1 stack: Loses multi-scale benefit (not recommended)
-        # - 4+ stacks: Diminishing returns, overfitting risk for ~200 series
-        "num_stacks": {"values": [2, 3]},
-
-        # num_blocks: Blocks per stack (depth within each frequency scale)
-        # - Each block processes residuals from previous block
-        # - More blocks = more capacity to model complex patterns
-        # - 1-3 blocks typically sufficient; more risks overfitting
-        # - N-HiTS paper uses 1 block per stack as default
-        "num_blocks": {"values": [1, 2, 3]},
-
-        # num_layers: Fully connected layers per block
-        # - Each block contains FC layers before basis expansion
-        # - 2 layers: Simple, fast, less overfitting risk
-        # - 3 layers: More capacity for complex nonlinear patterns
-        # - 4+ layers: Rarely helps for time series; adds parameters
-        "num_layers": {"values": [2, 3]},
-
-        # layer_width: Hidden dimension of FC layers
-        # - Controls capacity of each block's transformation
-        # - 64: Conservative, fast, good for simple patterns
-        # - 128: Balanced capacity and regularization
-        # - 256: Higher capacity, may help capture complex conflict dynamics
-        # - For ~200 series, avoid very wide (512+) to prevent overfitting
-        "layer_width": {"values": [64, 128, 256]},
-
-        # pooling_kernel_sizes: Controls multi-rate input sampling per stack
-        # - None: Auto-configured based on input_chunk_length (RECOMMENDED)
-        #   * Darts automatically creates geometric progression
-        #   * Stack 1 gets largest kernels (captures slow trends)
-        #   * Stack N gets smallest kernels (captures fast dynamics)
-        # - Custom: tuple of tuples, shape (num_stacks, num_blocks)
-        #   * Requires careful tuning; auto usually works well
-        "pooling_kernel_sizes": {"values": [None]},
-
-        # n_freq_downsample: Controls hierarchical interpolation resolution
-        # - None: Auto-configured based on output_chunk_length (RECOMMENDED)
-        #   * Creates geometric progression of downsampling factors
-        #   * Stack 1 outputs lowest resolution (coarse trends)
-        #   * Stack N outputs highest resolution (fine details)
-        # - Custom: tuple matching num_stacks
-        #   * Requires careful tuning; auto usually works well
-        "n_freq_downsample": {"values": [None]},
-
-        # max_pool_1d: Pooling type for multi-rate sampling
-        # - True (MaxPool): Preserves peak values in each pooling window
-        #   * Better for sparse event detection (conflict spikes)
-        #   * Retains maximum signal even when most timesteps are zero
-        # - False (AvgPool): Averages values in pooling window
-        #   * Smoother, may miss isolated spikes in sparse data
-        #   * Better for dense, continuous patterns
-        # For zero-inflated conflict data, MaxPool likely better
-        "max_pool_1d": {"values": [True]},
-
-        # activation: Non-linearity between FC layers
-        # - ReLU: Fast, sparse activations, good default
-        #   * May cause "dead neurons" but rarely an issue
-        # - GELU: Smooth approximation to ReLU, used in transformers
-        #   * Often slightly better for time series
-        #   * Marginally slower than ReLU
-        # - ELU/SiLU: Alternatives with minimal practical difference
-        "activation": {"values": ["ReLU", "GELU"]},
-
-        # dropout: Regularization within FC blocks
-        # - Applied between FC layers
-        # - LOW values (0.05-0.15) for scarce signal
-        # - High dropout would suppress neurons learning rare conflict patterns
-        # - N-HiTS already has implicit regularization from pooling
-        "dropout": {"values": [0.05, 0.15]},
-
-        # ==============================================================================
-        # TRAINING BASICS
-        # ==============================================================================
-        # batch_size: Samples per gradient update
-        # - Larger batches help zero-inflated data see more non-zero events
-        # - N-HiTS is computationally lighter than attention models
-        # - Range 256-2048 balances GPU utilization with gradient quality
-        "batch_size": {"values": [1024, 2048, 4096]},
-
-        # n_epochs: Maximum training epochs
-        # - N-HiTS typically converges faster than attention models
-        # - 150 epochs provides headroom for scarce signal learning
-        # - Early stopping will trigger before max in most cases
-        "n_epochs": {"values": [150]},
-
-        # early_stopping_patience: Epochs without improvement before stopping
-        # - Higher patience (15-25) for scarce signal
-        # - Rare conflict patterns may take time to emerge in validation
-        "early_stopping_patience": {"values": [20]},
-
-        # early_stopping_min_delta: Minimum improvement to count as progress
-        # - Small values appropriate for [0,1] scaled loss
+        # Batch size 64-128: ~98% probability of non-zero events per batch
+        # (was 1024-4096: caused "all-zero batches" → mode collapse)
+        "batch_size": {"values": [32, 64]},
+        "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
+        "early_stopping_patience": {"values": [20]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
-
-        "force_reset": {"values": [True]},  # Clean model state each sweep run
+        "force_reset": {"values": [True]},
 
         # ==============================================================================
-        # OPTIMIZER / LEARNING RATE SCHEDULE
+        # OPTIMIZER: CosineAnnealingWarmRestarts (replaces ReduceLROnPlateau)
         # ==============================================================================
-        # lr: Learning rate (log-uniform for proper exploration)
-        # - 5e-5: Conservative, stable learning
-        # - 1e-3: Aggressive, faster but risk of instability
-        # - N-HiTS typically works well in 1e-4 to 5e-4 range
+        # CosineAnnealing restarts help escape local minima (mode collapse prevention)
+        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
-            "max": 1e-3,
+            "min": 1e-4,  # Raised floor (was 5e-5)
+            "max": 5e-3,  # Raised ceiling for smaller batches
         },
-
-        # weight_decay: L2 regularization
-        # DISABLED because:
-        # - Scarce signal means every neuron learning rare patterns is precious
-        # - N-HiTS already regularized by pooling structure
-        # - Previous experiments showed weight decay hurts rare event learning
-        "weight_decay": {"values": [0]},
-
-        # lr_scheduler: ReduceLROnPlateau configuration
-        "lr_scheduler_factor": {"values": [0.5]},  # Halve LR when stuck
-        "lr_scheduler_patience": {"values": [8]},  # Wait 8 epochs before reducing
-        "lr_scheduler_min_lr": {"values": [1e-6]},  # Floor prevents negligible LR
-
-        # gradient_clip_val: Maximum gradient norm
-        # - Prevents exploding gradients
-        # - N-HiTS has stable gradients due to simple FC architecture
-        # - Range 0.5-1.5 is conservative
+        "weight_decay": {"values": [1e-6]},  # Minimal (was 0)
+        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
+        "lr_scheduler_T_0": {"values": [50]},  # 200 epochs / 4 cycles
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
+        "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
 
         # ==============================================================================
-        # INSTANCE NORMALIZATION
+        # SCALING (No MinMaxScaler chains - preserves variance)
         # ==============================================================================
-        # use_reversible_instance_norm: Per-instance normalization
-        # - Normalizes each time series independently before processing
-        # - "Reversible" stores stats to invert normalization on output
-        # - True: Helps with non-stationary data (conflict patterns evolve)
-        # - False: Simpler, may generalize better if series are comparable
-        # Worth exploring both for conflict data
-        "use_reversible_instance_norm": {"values": [False, True]},
-
-        # ==============================================================================
-        # LOSS FUNCTION: WeightedPenaltyHuberLoss
-        # ==============================================================================
-        # Custom loss for zero-inflated rare event forecasting.
-        #
-        # Weight multiplication logic:
-        # - True Negative (zero→zero): weight = 1.0 (baseline)
-        # - False Positive (zero→non-zero): weight = false_positive_weight (0.5-1.0)
-        # - True Positive (non-zero→non-zero): weight = non_zero_weight (4-7)
-        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight (8-56)
-        #
-        # This encourages:
-        # 1. Strong learning from actual conflict events (high non_zero_weight)
-        # 2. Heavy penalty for missing conflicts (high FN penalty)
-        # 3. Tolerance for false alarms (low FP weight encourages exploration)
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-
-        # zero_threshold: Scaled value below which predictions count as "zero"
-        # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
-        # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
-        # - Lower threshold = stricter zero classification
-        "zero_threshold": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.23,
-        },
-        # delta: Huber loss transition point
-        # - Range 0.8-1.0: Nearly pure L2 for [0,1] scaled data
-        # - Full L2 maximizes gradient signal from rare spikes
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.4,
-            "max": 1.0,
-        },
-        # non_zero_weight: Multiplier for non-zero actual values
-        # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
-        # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
-        # - FP and FN weights are tuned relative to this fixed baseline
-        # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
-        "non_zero_weight": {"values": [10.0]},
-
-        # false_positive_weight: Multiplier when predicting non-zero for actual zero
-        # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
-        # - Values <1.0 encourage model to "explore" non-zero predictions
-        # - Helps escape local minimum of predicting all zeros
-        # - Low end (0.3) = minimal penalty for guessing conflict
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.5,
-        },
-
-        # false_negative_weight: Additional penalty for missing actual conflicts
-        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
-        # - Range 2-8: Strong asymmetric penalty for missing conflicts
-        # - Highest penalty case: missing conflicts is operationally costly
-        # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 2.0,
-            "max": 8.0,
-        },
-
-        # ==============================================================================
-        # FEATURE SCALING
-        # ==============================================================================
-        # feature_scaler: Global default (None = use feature_scaler_map)
         "feature_scaler": {"values": [None]},
-
-        # target_scaler: AsinhTransform->MinMaxScaler
-        # - Asinh: Handles zeros, compresses extremes
-        #   * asinh(0) = 0 (no log(0) issues)
-        #   * Linear near 0, logarithmic for large values
-        # - MinMax: Bounds to [0,1] for stable gradients
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
-
-        # feature_scaler_map: Per-feature scaling based on distribution
+        # AsinhTransform ONLY: preserves zero structure + variance
+        # (was AsinhTransform->MinMaxScaler: compressed signal → flat predictions)
+        "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # AsinhTransform->MinMaxScaler: Zero-inflated and right-skewed
-                    # Features with many zeros and occasional extreme values
-                    "AsinhTransform->MinMaxScaler": [
-                        # Conflict fatality counts (zero-inflated, extreme outliers)
-                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
-                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                        "lr_ged_sb_tsum_24",  # 24-month cumulative
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
-                        # Economic indicators (GDP spans orders of magnitude)
+                    # Zero-inflated counts: Log-like
+                    "AsinhTransform": [
+                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
+                        "lr_acled_sb", "lr_acled_os",
+                        "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                        "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
-                        # Mortality rates (positive, skewed)
-                        "lr_wdi_sp_dyn_imrt_fe_in",
-                        # Token counts from text (zero-inflated)
-                        "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                        "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # MinMaxScaler: Bounded or roughly symmetric features
-                    # Already in reasonable ranges, just need [0,1] normalization
+                    # Continuous rates/indices: Center around 0 with unit variance
+                    "StandardScaler": [
+                        "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
+                        "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
+                        "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_sh_sta_maln_zs",
+                    ],
+                    # V-Dem indices (0-1), WDI %, topic theta
                     "MinMaxScaler": [
-                        # WDI percentages (0-100 scale)
                         "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
-                        "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs",
-                        "lr_wdi_sh_sta_stnt_zs", "lr_wdi_dt_oda_odat_pc_zs",
-                        "lr_wdi_ms_mil_xpnd_gd_zs",
-                        # V-Dem indices (already 0-1)
-                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
+                        "lr_wdi_sp_urb_totl_in_zs",
+                        "lr_vdem_v2x_horacc",
+                        "lr_vdem_v2xnp_client",
+                        "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl",
+                        "lr_vdem_v2xpe_exlpol",
+                        "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo",
+                        "lr_vdem_v2xpe_exlgender",
+                        "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party",
+                        "lr_vdem_v2x_genpp",
+                        "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty",
+                        "lr_vdem_v2xeg_eqprotec",
+                        "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove",
+                        "lr_vdem_v2x_clphy",
                         "lr_vdem_v2xnp_regcorr",
-                        # Topic thetas (probability proportions, sum to ~1)
-                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
-                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
+                        # Topic model theta values (probability distributions, already 0-1)
+                        "lr_topic_ste_theta0",
+                        "lr_topic_ste_theta1",
+                        "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3",
+                        "lr_topic_ste_theta4",
+                        "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6",
+                        "lr_topic_ste_theta7",
+                        "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9",
+                        "lr_topic_ste_theta10",
+                        "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12",
+                        "lr_topic_ste_theta13",
+                        "lr_topic_ste_theta14",
+                        # Topic spatial lags (neighborhood averages, still bounded)
+                        "lr_topic_ste_theta0_stock_t1_splag",
+                        "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag",
+                        "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag",
+                        "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag",
+                        "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag",
+                        "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag",
+                        "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag",
+                        "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
-                        # Population growth (small range, can be negative)
-                        "lr_wdi_sp_pop_grow",
                     ],
                 }
             ]
+        },
+
+        # ==============================================================================
+        # N-HiTS ARCHITECTURE (Fixed based on Challu et al. 2022)
+        # ==============================================================================
+        # num_stacks=2: Paper default - trend + seasonality decomposition
+        # 3 stacks adds complexity without clear benefit for ~200 series
+        "num_stacks": {"values": [2]},  # FIXED (was [2, 3])
+
+        # num_blocks=1: Paper default - additional blocks add parameters without benefit
+        # N-HiTS's multi-scale comes from stacks, not block depth
+        "num_blocks": {"values": [1]},  # FIXED (was [1, 2, 3])
+
+        # num_layers=2: Standard MLP depth, 3 adds parameters with minimal gain
+        "num_layers": {"values": [2]},  # FIXED (was [2, 3])
+
+        # layer_width: N-HiTS handles wider layers due to simple FC architecture
+        # Paper uses 512 as default; [256, 512] for reasonable sweep
+        "layer_width": {"values": [256, 512]},  # CHANGED (was [64, 128, 256])
+
+        # pooling_kernel_sizes: Auto-configured (paper recommendation)
+        # Darts creates geometric progression based on input_chunk_length
+        "pooling_kernel_sizes": {"values": [None]},  # FIXED
+
+        # n_freq_downsample: Auto-configured (paper recommendation)
+        # Creates geometric progression based on output_chunk_length
+        "n_freq_downsample": {"values": [None]},  # FIXED
+
+        # max_pool_1d=True: Preserves spike magnitudes for sparse conflict events
+        # AvgPool dilutes isolated spikes in zero-inflated data
+        "max_pool_1d": {"values": [True]},  # FIXED (was [True])
+
+        # activation=ReLU: Paper default, fast and effective
+        # GELU adds minimal benefit for MLP-based architecture
+        "activation": {"values": ["ReLU"]},  # FIXED (was ["ReLU", "GELU"])
+
+        # dropout: Low to preserve rare pattern learning
+        # N-HiTS already has implicit regularization from pooling structure
+        "dropout": {"values": [0.05, 0.1]},  # Reduced (was [0.05, 0.15])
+
+        # RevIN: Critical for distribution shift in conflict data
+        "use_reversible_instance_norm": {"values": [True, False]},  # FIXED (was [False, True])
+
+        # ==============================================================================
+        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss (Additive structure)
+        # ==============================================================================
+        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
+
+        # zero_threshold in ASINH scale (no MinMaxScaler)
+        # asinh(1) = 0.88, asinh(25) = 3.91
+        "zero_threshold": {
+            "distribution": "uniform",
+            "min": 0.88,  # ~1 fatality in original scale
+            "max": 3.91,  # ~25 fatalities in original scale
+        },
+
+        # delta: Huber loss transition (L2 inside, L1 outside)
+        # For asinh scale [0, ~9], delta 1-3 is meaningful
+        "delta": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 3.0,
+        },
+
+        # ==============================================================================
+        # LOSS WEIGHTS (Additive structure)
+        # ==============================================================================
+        # TN = 1.0 (baseline)
+        # TP = 1.0 + non_zero_weight
+        # FP = false_positive_weight (absolute)
+        # FN = 1.0 + non_zero_weight + false_negative_weight
+
+        # non_zero_weight: Focus on the 6-14% signal
+        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
+
+        # false_positive_weight: LOW (<0.5) to encourage exploration
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.1,
+            "max": 0.5,
+        },
+
+        # false_negative_weight: Aggressive penalty for missing conflict
+        "false_negative_weight": {
+            "distribution": "uniform",
+            "min": 2.0,
+            "max": 100.0,
         },
     }
 

@@ -1,199 +1,269 @@
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    Optimized for TSMixerModel on zero-inflated conflict fatalities data.
+    TSMixer Hyperparameter Sweep Configuration for Zero-Inflated Conflict Forecasting
+    ==================================================================================
     
-    TSMixer Architecture Notes:
-    - MLP-based mixer alternates time-mixing and feature-mixing layers
-    - Efficient alternative to attention-based models
-    - Feed-forward size controls model capacity
-    - Normalization type crucial for zero-inflated distributions
-    - Fewer parameters than Transformers, faster training
-    
+    Data Characteristics:
+    ---------------------
+    - ~200 time series (countries), ~82,512 observations
+    - Zero-inflated targets: sb=86%, ns=93%, os=94% zeros
+    - Heavy right skew: fatality counts span 0 to ~4,000+
+    - 69 features after preprocessing (WDI, V-Dem, topic models, conflict history)
+    - 36-month forecast horizon
+
+    TSMixer Architecture (Google 2023):
+    -----------------------------------
+    - MLP-based mixer: alternates time-mixing and feature-mixing layers
+    - Simpler than Transformers, fewer parameters, faster training
+    - num_blocks=2: Sufficient for ~200 series (prevents overfitting)
+    - ff_size = 2×hidden_size: Standard expansion ratio
+    - normalize_before=True: Pre-norm more stable (Transformer literature)
+    - activation=GELU: Smoother than ReLU (TSMixer paper default)
+    - use_reversible_instance_norm=True: Critical for distribution shift
+
+    Loss Function: AsinhWeightedPenaltyHuberLoss (Additive Structure)
+    -------------------------------------------------------------
+    - TN (zero→zero): 1.0x baseline
+    - TP (conflict→conflict): 1.0 + non_zero_weight
+    - FP (zero→conflict): false_positive_weight (absolute, <1.0 encourages exploration)
+    - FN (conflict→zero): 1.0 + non_zero_weight + false_negative_weight
+
+    Mode Collapse Prevention:
+    -------------------------
+    - CosineAnnealingWarmRestarts: periodic LR restarts escape local minima
+    - Low false_positive_weight (<0.5): encourages non-zero predictions
+    - Batch size 64-128: ensures non-zero events in every batch
+    - Low dropout (0.05-0.1): preserves neurons learning rare patterns
+
+    Hyperband Early Termination:
+    ----------------------------
+    - min_iter=30: time for model to learn from scarce signal
+    - eta=2: keeps top 50% each round
+
     Returns:
-    - sweep_config (dict): Configuration for hyperparameter sweeps.
+        sweep_config (dict): WandB sweep configuration dictionary
     """
 
     sweep_config = {
-        'method': 'bayes',
-        'name': 'elastic_heart_tsmixer_v1_mtd',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 20,
-            'eta': 2
+        "method": "bayes",
+        "name": "elastic_heart_tsmixer_20260214_v1_bcd",
+        "early_terminate": {
+            "type": "hyperband",
+            "min_iter": 30,  # More time for sparse signal (was 20)
+            "eta": 2,
         },
-        'metric': {
-            'name': 'time_series_wise_mtd_mean_sb',
-            'goal': 'minimize'
+        "metric": {
+            "name": "time_series_wise_bcd_mean_sb",
+            "goal": "minimize",
         },
     }
 
     parameters = {
-        # ============== TEMPORAL CONFIGURATION ==============
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60]},
-        'output_chunk_length': {'values': [36]},
+        # ==============================================================================
+        # TEMPORAL CONFIGURATION
+        # ==============================================================================
+        "steps": {"values": [[*range(1, 36 + 1)]]},
+        "input_chunk_length": {"values": [36, 48]},  # Reduced from [36,48,60] - 48 sufficient
+        "output_chunk_length": {"values": [36]},
+        "output_chunk_shift": {"values": [0]},
+        "random_state": {"values": [67]},
+        "mc_dropout": {"values": [True]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [-1]},
 
-        "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
-        "random_state": {"values": [67]},  # Reproducibility
-        "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
+        # ==============================================================================
+        # TRAINING 
+        # ==============================================================================
+        "batch_size": {"values": [32, 64]},
+        "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
+        "early_stopping_patience": {"values": [20]},  # 40% of T_0 cycle
+        "early_stopping_min_delta": {"values": [0.0001]},
+        "force_reset": {"values": [True]},
 
-        # ============== TRAINING BASICS ==============
-        'batch_size': {'values': [1024, 2048, 4096]},
-        'n_epochs': {'values': [150]},
-        'early_stopping_patience': {'values': [20]},
-        'early_stopping_min_delta': {'values': [0.0001]},
-        'force_reset': {'values': [True]},
-
-        # ============== OPTIMIZER / SCHEDULER ==============
+        # ==============================================================================
+        # OPTIMIZER: CosineAnnealingWarmRestarts (replaces ReduceLROnPlateau)
+        # ==============================================================================
+        # CosineAnnealing restarts help escape local minima (mode collapse prevention)
+        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
-            "max": 1e-3,
+            "min": 1e-4,  # Raised floor (was 5e-5)
+            "max": 5e-3,  # Raised ceiling for larger batches
         },
-        "weight_decay": {"values": [0]},
-        # lr_scheduler: ReduceLROnPlateau configuration
-        # - factor=0.5: Halve LR when stuck (standard, well-tested)
-        # - patience=8: Wait 8 epochs before reducing
-        # - min_lr=1e-6: Floor prevents LR from becoming negligible
-        "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
-        "lr_scheduler_min_lr": {"values": [1e-6]},
-
-        # gradient_clip_val: Maximum gradient norm
-        # - Prevents exploding gradients
-        # - TSMixer has stable gradients due to simple MLP architecture
-        # - Value 1.5 is conservative for [0,1] scaled data
+        "weight_decay": {"values": [1e-6]},  # Minimal (was 0 - can cause instability)
+        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
+        "lr_scheduler_T_0": {"values": [50]},  # 200 epochs / 4 cycles
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
+        "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
 
-        # ============== SCALING ==============
+        # ==============================================================================
+        # SCALING (No MinMaxScaler chains - preserves variance)
+        # ==============================================================================
         "feature_scaler": {"values": [None]},
-
-        # target_scaler: AsinhTransform->MinMaxScaler
-        # - Asinh: Handles zeros, compresses extremes
-        #   * asinh(0) = 0 (no log(0) issues)
-        #   * Linear near 0, logarithmic for large values
-        # - MinMax: Bounds to [0,1] for stable gradients
-        "target_scaler": {"values": ["AsinhTransform->MinMaxScaler"]},
-
-        # feature_scaler_map: Per-feature scaling based on distribution
+        # AsinhTransform ONLY: preserves zero structure + variance
+        # (was AsinhTransform->MinMaxScaler: compressed signal → flat predictions)
+        "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # AsinhTransform->MinMaxScaler: Zero-inflated and right-skewed
-                    # Features with many zeros and occasional extreme values
-                    "AsinhTransform->MinMaxScaler": [
-                        # Conflict fatality counts (zero-inflated, extreme outliers)
-                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
-                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                        "lr_ged_sb_tsum_24",  # 24-month cumulative
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns",
-                        # Economic indicators (GDP spans orders of magnitude)
+                    # Zero-inflated counts: Log-like
+                    "AsinhTransform": [
+                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
+                        "lr_acled_sb", "lr_acled_os",
+                        "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                        "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or",
-                        # Mortality rates (positive, skewed)
-                        "lr_wdi_sp_dyn_imrt_fe_in",
-                        # Token counts from text (zero-inflated)
-                        "lr_topic_tokens_t1", "lr_topic_tokens_t1_splag",
+                        "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # MinMaxScaler: Bounded or roughly symmetric features
-                    # Already in reasonable ranges, just need [0,1] normalization
+                    # Continuous rates/indices: Center around 0 with unit variance
+                    "StandardScaler": [
+                        "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
+                        "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
+                        "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_sh_sta_maln_zs",
+                    ],
+                    # V-Dem indices (0-1), WDI %, topic theta
                     "MinMaxScaler": [
-                        # WDI percentages (0-100 scale)
                         "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
-                        "lr_wdi_sp_urb_totl_in_zs", "lr_wdi_sh_sta_maln_zs",
-                        "lr_wdi_sh_sta_stnt_zs", "lr_wdi_dt_oda_odat_pc_zs",
-                        "lr_wdi_ms_mil_xpnd_gd_zs",
-                        # V-Dem indices (already 0-1)
-                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2x_hosabort",
+                        "lr_wdi_sp_urb_totl_in_zs",
+                        "lr_vdem_v2x_horacc",
+                        "lr_vdem_v2xnp_client",
+                        "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl",
+                        "lr_vdem_v2xpe_exlpol",
+                        "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo",
+                        "lr_vdem_v2xpe_exlgender",
+                        "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party",
+                        "lr_vdem_v2x_genpp",
+                        "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty",
+                        "lr_vdem_v2xeg_eqprotec",
+                        "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove",
+                        "lr_vdem_v2x_clphy",
                         "lr_vdem_v2xnp_regcorr",
-                        # Topic thetas (probability proportions, sum to ~1)
-                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
-                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
+                        # Topic model theta values (probability distributions, already 0-1)
+                        "lr_topic_ste_theta0",
+                        "lr_topic_ste_theta1",
+                        "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3",
+                        "lr_topic_ste_theta4",
+                        "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6",
+                        "lr_topic_ste_theta7",
+                        "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9",
+                        "lr_topic_ste_theta10",
+                        "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12",
+                        "lr_topic_ste_theta13",
+                        "lr_topic_ste_theta14",
+                        # Topic spatial lags (neighborhood averages, still bounded)
+                        "lr_topic_ste_theta0_stock_t1_splag",
+                        "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag",
+                        "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag",
+                        "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag",
+                        "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag",
+                        "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag",
+                        "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag",
+                        "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
-                        # Population growth (small range, can be negative)
-                        "lr_wdi_sp_pop_grow",
                     ],
                 }
             ]
         },
 
-        # ============== TSMIXER ARCHITECTURE ==============
-        'hidden_size': {'values': [256, 512]},  # Main hidden dimension
-        'ff_size': {'values': [512, 1024]},  # Feed-forward expansion size
-        'num_blocks': {'values': [2, 3, 4]},  # Number of mixer blocks
-        "dropout": {"values": [0.05, 0.15]},
-        'norm_type': {'values': ['LayerNorm']},
-        'normalize_before': {'values': [True, False]},  # Pre-normalization typically better
-        'activation': {'values': ['ReLU', 'GELU']},
-        'use_static_covariates': {'values': [True]},
-        'use_reversible_instance_norm': {'values': [True, False]},  # Helps with distribution shift
+        # ==============================================================================
+        # TSMIXER ARCHITECTURE (Fixed based on literature)
+        # ==============================================================================
+        # Google TSMixer (2023): 2 blocks sufficient for small datasets
+        # More blocks → overfitting on ~200 time series
+        "num_blocks": {"values": [2]},  # FIXED (was [2,3,4])
 
-        # ============== LOSS FUNCTION ==============
-        # WeightedPenaltyHuberLoss: Custom loss for zero-inflated rare event forecasting
-        # Weight multiplication logic:
-        # - True Negative (zero→zero): weight = 1.0 (baseline)
-        # - False Positive (zero→non-zero): weight = false_positive_weight
-        # - True Positive (non-zero→non-zero): weight = non_zero_weight
-        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-        
-        # zero_threshold: Scaled value below which predictions count as "zero"
-        # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
-        # - Range 0.08-0.15 spans ~0.5-2 fatalities threshold
+        # hidden_size: Main representation dimension
+        # 128-256 reasonable for 69 features
+        "hidden_size": {"values": [128, 256]},
+
+        # ff_size: Feed-forward expansion = 2×hidden_size (TSMixer paper default)
+        # FIXED relationship reduces search space
+        "ff_size": {"values": [256, 512]},  # Matches 2×[128, 256]
+
+        # normalize_before=True: Pre-normalization more stable (Transformer literature)
+        "normalize_before": {"values": [True, False]},  # FIXED (was [True, False])
+
+        # activation=GELU: Smoother gradients than ReLU (TSMixer paper default)
+        "activation": {"values": ["GELU"]},  # FIXED (was [ReLU, GELU])
+
+        # LayerNorm: Standard for MLP-mixers
+        "norm_type": {"values": ["LayerNorm"]},
+
+        # Dropout: Low to preserve rare pattern learning
+        "dropout": {"values": [0.05, 0.1]},
+
+        # RevIN: Critical for distribution shift in conflict data
+        "use_reversible_instance_norm": {"values": [True, False]},  # FIXED (was [True, False])
+
+        # No static covariates in this dataset
+        "use_static_covariates": {"values": [False, True]},  # FIXED (was True)
+
+        # ==============================================================================
+        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss (Additive structure)
+        # ==============================================================================
+        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
+
+        # zero_threshold in ASINH scale (no MinMaxScaler)
+        # asinh(1) = 0.88, asinh(25) = 3.91
+        # Threshold for "is this conflict or peace?"
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.08,
-            "max": 0.15,
+            "min": 0.88,  # ~1 fatality in original scale
+            "max": 3.91,  # ~25 fatalities in original scale
         },
 
-        # delta: Huber loss transition point (L2 inside delta, L1 outside)
-        # - Range 0.7-1.0 gives nearly pure L2 behavior for [0,1] scaled data
-        # - Full L2 maximizes gradient signal from every error
+        # delta: Huber loss transition (L2 inside, L1 outside)
+        # For asinh scale [0, ~9], delta 1-3 is meaningful
+        # delta=1.2: L2 for small conflicts, L1 for large wars
         "delta": {
             "distribution": "uniform",
-            "min": 0.7,
-            "max": 1.0,
+            "min": 1.0,
+            "max": 3.0,
         },
 
-        # non_zero_weight: Multiplier for non-zero actual values
-        # - PINNED at 10.0 to reduce search dimensions
-        # - Conflicts contribute 10x more to loss than zeros
-        "non_zero_weight": {"values": [10.0]},
+        # ==============================================================================
+        # LOSS WEIGHTS (Additive structure)
+        # ==============================================================================
+        # TN = 1.0 (baseline)
+        # TP = 1.0 + non_zero_weight
+        # FP = false_positive_weight (absolute)
+        # FN = 1.0 + non_zero_weight + false_negative_weight
 
-        # false_positive_weight: Multiplier when predicting non-zero for actual zero
-        # - Range 1.0-1.5: Neutral to slight penalty for false alarms
-        # - Prevents peaceful countries from spiking
+        # non_zero_weight: Focus on the 6-14% signal
+        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
+
+        # false_positive_weight: LOW (<0.5) to encourage exploration
+        # Tolerates false alarms to prevent mode collapse
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 1.5,
+            "min": 0.1,
+            "max": 0.5,
         },
 
-        # false_negative_weight: Additional penalty for missing actual conflicts
-        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-40x baseline
-        # - Penalizes missing conflicts without causing over-hedging
+        # false_negative_weight: AGGRESSIVE penalty for missing conflict
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 8.0,
+            "max": 100.0,
         },
     }
 
-    sweep_config['parameters'] = parameters
+    sweep_config["parameters"] = parameters
     return sweep_config

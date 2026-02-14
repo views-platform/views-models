@@ -22,7 +22,7 @@ def get_sweep_config():
     - V-Dem indices: MinMaxScaler (already 0-1 normalized)
     - Topic theta: MinMaxScaler (probability distributions)
 
-    Loss Function: WeightedPenaltyHuberLoss
+    Loss Function: AsinhWeightedPenaltyHuberLoss
     ----------------------------------------
     Asymmetric weighting to handle class imbalance:
     - TN (zero→zero): 1.0x baseline
@@ -56,7 +56,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_20260214_v3_bcd2",
+        "name": "smol_cat_tide_20260214_v4_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -83,7 +83,7 @@ def get_sweep_config():
         # ==============================================================================
         # Batch size 64+ ensures nearly 100% probability of seeing non-zero events in every batch
         # preventing "dead updates" where model just reinforces zero-prediction
-        "batch_size": {"values": [64, 128, 1024]},
+        "batch_size": {"values": [32, 64]},
         "n_epochs": {"values": [200]},
         # patience = 1.3×T_0 to allow full cycle after restart
         # Lowered patience to 20 to kill non-learning models faster
@@ -126,9 +126,6 @@ def get_sweep_config():
                         "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    ],
-                    # Spatial lags: Maintain outlier info with RobustScaler, remove squashing
-                    "RobustScaler": [
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
                     # Continuous rates/indices: Center around 0 with unit variance
@@ -214,14 +211,14 @@ def get_sweep_config():
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
         "dropout": {"values": [0.05, 0.1]},
-        "use_static_covariates": {"values": [False]},
+        "use_static_covariates": {"values": [False, True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
-        # LOSS FUNCTION: WeightedPenaltyHuberLoss
+        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss
         # ==============================================================================
         # Asymmetric weighting for zero-inflated data:
         # TN=1x, FP=fp_weight, TP=nz_weight, FN=nz_weight×fn_weight
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
+        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
         # zero_threshold calibrated to scaled target space [0,1]
         # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
         "zero_threshold": {
@@ -240,7 +237,7 @@ def get_sweep_config():
         # LOSS WEIGHTS
         # ==============================================================================
         # non_zero_weight: Strong bias to focus on the 20% signal
-        "non_zero_weight": {"values": [1.0, 10.0, 25.0, 50.0]}, 
+        "non_zero_weight": {"values": [5.0, 15.0, 30.0, 50.0]},
         # false_positive_weight: Reduced to 0.1-0.5 to tolerate noise (ignore false alarms)
         "false_positive_weight": {
             "distribution": "uniform",
@@ -251,7 +248,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 50.0,
+            "max": 100.0,
         },
     }
 

@@ -15,7 +15,7 @@ def get_hp_config():
         "num_samples": 1,
         "mc_dropout": True,
         "random_state": 67,
-        "n_jobs": 2,
+        "n_jobs": -1,
         "n_epochs": 200,
         "optimizer_cls": "Adam",
         "output_chunk_length": 36,
@@ -25,39 +25,39 @@ def get_hp_config():
         # ==============================================================================
         # ARCHITECTURE (Best Run Configuration)
         # ==============================================================================
-        "batch_size": 1024,
-        "input_chunk_length": 72,           # Long context (6 years)
-        "hidden_size": 256,                 # Wide layers
-        "num_encoder_layers": 3,
+        "batch_size": 64,
+        "input_chunk_length": 48,
+        "hidden_size": 256,
+        "num_encoder_layers": 2,
         "num_decoder_layers": 2,
-        "decoder_output_dim": 64,
-        "temporal_width_past": 6,
-        "temporal_width_future": 6,
-        "temporal_hidden_size_past": 64,
+        "decoder_output_dim": 128,
+        "temporal_width_past": 12,
+        "temporal_width_future": 12,
+        "temporal_hidden_size_past": 128,
         "temporal_hidden_size_future": 128,
-        "temporal_decoder_hidden": 128,
+        "temporal_decoder_hidden": 256,
         
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": 0.05,                    # Low dropout to preserve rare signals
+        "dropout": 0.05,
         "use_layer_norm": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "use_static_covariates": False,
-        "weight_decay": 0,                  # No weight decay
+        "weight_decay": 1e-6,
         
         # ==============================================================================
         # OPTIMIZATION (CosineAnnealingWarmRestarts Strategy)
         # ==============================================================================
-        "lr": 0.0009461214582864406,        # Swept learning rate
+        "lr": 0.001358054181340207,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 20,             # Initial restart cycle
-        "lr_scheduler_T_mult": 2,           # Double cycle length after restart
-        "lr_scheduler_eta_min": 1e-6,       # Minimum LR floor
+        "lr_scheduler_T_0": 50,
+        "lr_scheduler_T_mult": 1,
+        "lr_scheduler_eta_min": 1e-6,
         "gradient_clip_val": 1.5,
         
         # Early stopping
-        "early_stopping_patience": 35,      # High patience to survive LR restarts
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.0001,
         
         # ==============================================================================
@@ -65,25 +65,25 @@ def get_hp_config():
         # ==============================================================================
         "loss_function": "WeightedPenaltyHuberLoss",
         
-        # Huber delta (close to 1.0 = MSE-like behavior for most scaled data)
-        "delta": 0.9658338566551232,
+        # Huber delta (asinh scale: ~1.2 means L2 for small conflicts, L1 for large)
+        "delta": 1.1961636786267764,
         
-        # Zero threshold (scaled space ~0.037 corresponds to low fatality counts)
-        "zero_threshold": 0.036517407890917314,
+        # Zero threshold (asinh scale: ~1.16 ≈ asinh(1.4) fatalities)
+        "zero_threshold": 1.159666712548936,
         
         # ADDITIVE WEIGHTS:
         # TN = 1.0 (base)
-        # TP = 1.0 + 10.0 = 11.0
-        # FP = 0.72 (Absolute - cheap to explore)
-        # FN = 1.0 + 10.0 + 6.35 = 17.35
-        "non_zero_weight": 10.0,
-        "false_positive_weight": 0.7220071760903927,
-        "false_negative_weight": 6.34931734289296,
+        # TP = 1.0 + 25.0 = 26.0
+        # FP = 0.456 (Absolute - cheap to explore)
+        # FN = 1.0 + 25.0 + 16.3 = 42.3
+        "non_zero_weight": 25,
+        "false_positive_weight": 0.456053758405519,
+        "false_negative_weight": 16.30133196931405,
         
         # ==============================================================================
         # SCALING MAPS
         # ==============================================================================
-        "target_scaler": "AsinhTransform->MinMaxScaler",
+        "target_scaler": "AsinhTransform",
         "feature_scaler": None,
         "feature_scaler_map": {
             "MinMaxScaler": [
@@ -139,22 +139,19 @@ def get_hp_config():
                 "lr_topic_ste_theta13_stock_t1_splag",
                 "lr_topic_ste_theta14_stock_t1_splag",
             ],
-            "RobustScaler->MinMaxScaler": [
+            "RobustScaler": [
                 "lr_splag_1_ged_sb",
                 "lr_splag_1_ged_ns",
                 "lr_splag_1_ged_os",
             ],
-            "AsinhTransform->MinMaxScaler": [
-                "lr_ged_sb",
-                "lr_ged_ns",
-                "lr_ged_os",
+            "AsinhTransform": [
                 "lr_acled_sb",
                 "lr_acled_os",
                 "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
                 "lr_wdi_nv_agr_totl_kn",
             ],
-            "StandardScaler->MinMaxScaler": [
+            "StandardScaler": [
                 "lr_wdi_sm_pop_netm",
                 "lr_wdi_dt_oda_odat_pc_zs",
                 "lr_wdi_sp_pop_grow",
