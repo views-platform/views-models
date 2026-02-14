@@ -86,7 +86,9 @@ def get_sweep_config():
         "batch_size": {"values": [64, 128, 1024]},
         "n_epochs": {"values": [200]},
         # patience = 1.3×T_0 to allow full cycle after restart
-        "early_stopping_patience": {"values": [40]},
+        # Lowered patience to 20 to kill non-learning models faster
+        # (If it doesn't improve in 40% of a restart cycle, it's dead)
+        "early_stopping_patience": {"values": [20]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -94,8 +96,8 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,  # Scaled up for larger batches
-            "max": 5e-3,  # Scaled up for larger batches
+            "min": 1e-4, 
+            "max": 5e-3, 
         },
         # Low/zero weight_decay: 1e-4 too aggressive for sparse data
         "weight_decay": {"values": [0, 1e-6]},
@@ -103,8 +105,10 @@ def get_sweep_config():
         # LR SCHEDULER: CosineAnnealingWarmRestarts
         # ==============================================================================
         # Periodic restarts help escape local minima
+        # T_0 set to 50 so 200 epochs = exactly 4 cycles (50, 50, 50, 50)
+        # Compatible with patience=20 (allows restart before killing)
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [50]},  # Increased T_0 to 50 for larger batches
+        "lr_scheduler_T_0": {"values": [50]}, 
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
         "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [1.5]},
@@ -118,7 +122,7 @@ def get_sweep_config():
                 {
                     # Zero-inflated counts: Log-like
                     "AsinhTransform": [
-                        "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
+                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                         "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
