@@ -55,7 +55,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_end_me_bcd2",
+        "name": "smol_cat_tide_low_delta_bcd2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -80,7 +80,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [1024, 2048]},  # Large batches for zero-inflated data
+        "batch_size": {"values": [8, 16, 32, 64]},
         "n_epochs": {"values": [200]},
         # patience > max(T_0) to allow recovery after LR restart
         "early_stopping_patience": {"values": [35]},
@@ -219,21 +219,21 @@ def get_sweep_config():
         # 0.03-0.08 corresponds to ~1-3 fatalities after AsinhTransform->MinMax. Alternative: 0.019 - 0.133 
         "zero_threshold": {
             "distribution": "uniform",
-            "min": 0.019,
-            "max": 0.133,
+            "min": 0.01,
+            "max": 0.05,
         },
         # High delta gives near-L2 behavior (maximizes gradient signal)
         "delta": {
             "distribution": "uniform",
-            "min": 0.4,
-            "max": 1.0,
+            "min": 0.05,
+            "max": 0.2,
         },
         # ==============================================================================
         # LOSS WEIGHTS (Mode Collapse Prevention)
         # ==============================================================================
         # Key ratios: FN:FP should be 40-100x to discourage missing conflicts
         # fp_weight < 1.0 encourages model to explore non-zero predictions
-        "non_zero_weight": {"values": [5.0, 10.0, 15.0]},
+        "non_zero_weight": {"values": [5.0, 10.0, 15.0, 25.0, 50.0]},
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.1,
@@ -242,7 +242,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 2.0,
-            "max": 10.0,
+            "max": 100.0,
         },
     }
 
