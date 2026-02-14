@@ -85,10 +85,10 @@ def get_sweep_config():
         # preventing "dead updates" where model just reinforces zero-prediction
         "batch_size": {"values": [32, 64]},
         "n_epochs": {"values": [200]},
-        # patience = 1.3×T_0 to allow full cycle after restart
-        # Lowered patience to 20 to kill non-learning models faster
-        # (If it doesn't improve in 40% of a restart cycle, it's dead)
-        "early_stopping_patience": {"values": [20]},
+        # patience = 1.2×T_0 to allow one full cycle + buffer after restart
+        # With T_0=25, patience=30 ensures model survives at least one restart
+        # before early stopping triggers (avoids killing during exploration phase)
+        "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -97,21 +97,22 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-4, 
-            "max": 5e-3, 
+            "max": 8e-3,  # Higher max LR for aggressive restarts
         },
         # Low/zero weight_decay: 1e-4 too aggressive for sparse data
         "weight_decay": {"values": [0, 1e-6]},
         # ==============================================================================
-        # LR SCHEDULER: CosineAnnealingWarmRestarts
+        # LR SCHEDULER: CosineAnnealingWarmRestarts (AGGRESSIVE)
         # ==============================================================================
-        # Periodic restarts help escape local minima
-        # T_0 set to 50 so 200 epochs = exactly 4 cycles (50, 50, 50, 50)
-        # Compatible with patience=20 (allows restart before killing)
+        # More frequent restarts = more escape attempts from zero-prediction basin
+        # T_0=25: 8 cycles in 200 epochs (vs 4 with T_0=50)
+        # T_mult=1: constant period for sustained exploration pressure
+        # Higher eta_min: maintains gradient flow even at cycle minima
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [50]}, 
-        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
-        "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.5]},
+        "lr_scheduler_T_0": {"values": [25]},  # Faster restarts
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
+        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},  # Higher min maintains gradients
+        "gradient_clip_val": {"values": [2.0]},  # Higher clip for larger LR spikes
         # ==============================================================================
         # FEATURE SCALING (all bounded to [0,1])
         # ==============================================================================

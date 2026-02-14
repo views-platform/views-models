@@ -93,10 +93,10 @@ def get_sweep_config():
         },
         "weight_decay": {"values": [1e-6]},  # Minimal (was 0 - can cause instability)
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [50]},  # 200 epochs / 4 cycles
-        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sparse data
-        "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.5]},
+        "lr_scheduler_T_0": {"values": [25]},  # Faster restarts
+        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
+        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},  # Higher min maintains gradients
+        "gradient_clip_val": {"values": [2.0]},  # Higher clip for larger LR spikes
 
         # ==============================================================================
         # SCALING (No MinMaxScaler chains - preserves variance)
