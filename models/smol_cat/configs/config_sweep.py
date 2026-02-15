@@ -178,7 +178,7 @@ def get_sweep_config():
         # Lower = more tolerant of false alarms (encourages non-zero predictions)
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.8,
+            "min": 0.9,
             "max": 1.0,
         },
         
@@ -187,7 +187,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 2.0,
+            "max": 1.5,
         },
         
         # Whether to estimate α from batch variance (experimental)
