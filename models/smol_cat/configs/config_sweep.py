@@ -1,31 +1,38 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - NegativeBinomialLoss with AsinhTransform
-    ====================================================================================
+    TiDE Hyperparameter Sweep Configuration - AsymmetricQuantileLoss
+    =================================================================
     
-    Strategy: NB Loss in Asinh-Transformed Space
-    ---------------------------------------------
-    - target_scaler: "AsinhTransform" compresses heavy-tailed counts
-    - inverse_transform: True to convert predictions back to count space
-    - This prevents runaway overprediction while preserving NB's distributional benefits
+    Strategy: Quantile Regression with Asymmetric Error Penalties
+    --------------------------------------------------------------
+    Quantile regression naturally handles asymmetric error costs without
+    distributional assumptions. This avoids NB loss instability (Inf overflow)
+    while achieving similar asymmetry through the tau parameter.
     
-    Why AsinhTransform + NB:
-    - Raw counts with NB are theoretically ideal but empirically unstable
-    - Asinh compresses large values: asinh(1000) ≈ 7.6
-    - Predictions stay bounded in transformed space
-    - alpha controls dispersion in transformed space (reinterpret accordingly)
+    Why AsymmetricQuantileLoss:
+    - No distributional assumptions → no overflow risk
+    - Linear loss in tails → robust to outliers and extreme events
+    - tau controls asymmetry directly: tau=0.75 → 3× penalty for underestimation
+    - Simpler to tune: only 3 hyperparameters (tau, non_zero_weight, threshold)
+    
+    Asymmetry Mechanics:
+    - tau = 0.5: Symmetric (equivalent to MAE)
+    - tau = 0.7: 2.3× penalty for underestimation vs overestimation
+    - tau = 0.75: 3× penalty (3:1 FN:FP ratio)
+    - tau = 0.8: 4× penalty
     
     BCD Optimization:
     - BCD = ∛(MTD × MSLE × log(1+MSE))
-    - High FN_weight drives down MTD (catches events)
-    - Low FP_weight controls magnitude (prevents runaway)
-    - Asinh scaling prevents MSE explosion
+    - Higher tau → catches more events → lower MTD
+    - non_zero_weight → focuses on conflict periods → improves MSLE
+    - AsinhTransform → bounded predictions → controls MSE explosion
     
-    Note: Features still use mixed scaling (asinh for counts, standard for rates, etc.)
+    Note: AsinhTransform still used for bounded training space.
+    Loss computed in asinh-space, predictions inverse-transformed for evaluation.
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_nbin_v4_bcd",
+        "name": "smol_cat_tide_quantile_v1_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -47,8 +54,8 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # With AsinhTransform, smaller batches are more stable than with raw counts
-        # Explore full range: smaller batches = noisier but may find events better
+        # Quantile loss is more stable than NB - can use smaller batches safely
+        # Smaller batches = more gradient noise but better event detection
         "batch_size": {"values": [64, 128, 256, 512]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
@@ -81,8 +88,8 @@ def get_sweep_config():
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        # AsinhTransform compresses heavy-tailed counts, preventing runaway
-        # inverse_transform=True converts predictions back to count space for evaluation
+        # AsinhTransform compresses heavy-tailed counts into bounded range
+        # Loss computed in asinh space (stable), predictions inverse-transformed for metrics
         "feature_scaler": {"values": [None]},
         "target_scaler": {"values": ["AsinhTransform"]},
         
@@ -155,50 +162,38 @@ def get_sweep_config():
         "use_reversible_instance_norm": {"values": [True, False]},
         
         # ==============================================================================
-        # LOSS FUNCTION: NegativeBinomialLoss
+        # LOSS FUNCTION: AsymmetricQuantileLoss
         # ==============================================================================
-        # NB is designed for overdispersed count data - ideal for conflict fatalities
-        # Naturally handles zero-inflation through its distributional properties
-        "loss_function": {"values": ["NegativeBinomialLoss"]},
+        # Quantile regression with asymmetric error penalties
+        # No distributional assumptions → stable, no overflow risk
+        # tau controls FN/FP asymmetry directly
+        "loss_function": {"values": ["AsymmetricQuantileLoss"]},
         
-        # Dispersion parameter α: controls Var = μ + αμ² in transformed space
-        # In asinh space, values are compressed so alpha has different semantics
-        # Wider range since transformed predictions are bounded
-        "alpha": {
+        # tau (quantile level): Controls asymmetry between under/overestimation
+        # - tau = 0.5: Symmetric MAE
+        # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
+        # - tau = 0.75: 3× penalty (FN:FP = 3:1)
+        # - tau = 0.8: 4× penalty (FN:FP = 4:1)
+        # Range 0.65-0.80: Favors catching events without excessive overprediction
+        # Formula: underestimate penalty = tau, overestimate penalty = 1-tau
+        "tau": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
+            "min": 0.65,
+            "max": 0.85,
         },
         
-        # Threshold for zero classification
-        # asinh(1) ≈ 0.88, asinh(3) ≈ 1.82, asinh(6) ≈ 2.49
-        "zero_threshold": {"values": [1.0, 3.0, 6.0]},
-        
-        # FP weight: false alarm penalty (predicting conflict when none exists)
-        # LOWER values penalize overprediction MORE - key for controlling runaway
-        # Range 0.7-0.9 discourages false positives while allowing event detection
-        "false_positive_weight": {
+        # non_zero_weight: Extra weight for samples where target > threshold
+        # With ~95% zeros in conflict data, non-zero targets need amplification
+        # Range 2-10: Strong emphasis on conflict periods for MSLE optimization
+        # Higher values help model focus on rare events but may cause overprediction
+        "non_zero_weight": {
             "distribution": "uniform",
-            "min": 0.7,
-            "max": 0.9,
+            "min": 2.0,
+            "max": 10.0,
         },
         
-        # FN weight: missed conflict penalty
-        # HIGHER values help detect events (lower MTD component of BCD)
-        # But combined with low FP creates tension that prevents runaway
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 1.3,
-            "max": 1.6,
-        },
-        
-        # Whether to estimate α from batch variance (experimental)
-        # False = use fixed α from sweep
-        "learn_alpha": {"values": [False]},
-        
-        # MUST be True when using AsinhTransform target_scaler
-        # Converts predictions back to count space for evaluation
-        "inverse_transform": {"values": [True]},
+        # Conversion: asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
+        "zero_threshold": {"values": [0.88, 1.82, 2.49]},
     }
 
     sweep_config["parameters"] = parameters
