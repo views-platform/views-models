@@ -170,10 +170,9 @@ def get_sweep_config():
             "max": 0.7,
         },
         
-        # Threshold for zero classification (in TRANSFORMED space)
+        # Threshold for zero classification
         # asinh(1) ≈ 0.88, asinh(3) ≈ 1.82, asinh(6) ≈ 2.49
-        # Using transformed equivalents
-        "zero_threshold": {"values": [0.88, 1.82, 2.49]},
+        "zero_threshold": {"values": [1.0, 3.0, 6.0]},
         
         # FP weight: false alarm penalty (predicting conflict when none exists)
         # LOWER values penalize overprediction MORE - key for controlling runaway
