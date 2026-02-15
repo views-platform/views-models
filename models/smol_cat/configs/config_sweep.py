@@ -33,7 +33,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_nbin_v3",
+        "name": "smol_cat_tide_nbin_v4_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -55,8 +55,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # batch=128 + high LR consistently explodes; batch>=512 is stable
-        "batch_size": {"values": [64, 128, 256]}, 
+        "batch_size": {"values": [256, 512]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -69,8 +68,8 @@ def get_sweep_config():
         # Higher LR (>5e-5) with NB loss causes runaway overprediction
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5, 
-            "max": 2e-4,
+            "min": 2e-5, 
+            "max": 1e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -86,9 +85,11 @@ def get_sweep_config():
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        # RAW COUNTS for target - NB is designed for this
+        # Testing both raw counts and asinh-scaled targets
+        # Asinh scaling compresses large values, helping control overprediction
+        # With inverse_transform=True, predictions are transformed back to count space
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": [None]},  # Raw counts!
+        "target_scaler": {"values": [None, "AsinhTransform"]},  # Compare raw vs scaled
         
         "feature_scaler_map": {
             "values": [
@@ -166,9 +167,11 @@ def get_sweep_config():
         "loss_function": {"values": ["NegativeBinomialLoss"]},
         
         # Dispersion parameter α: controls Var = μ + αμ²
+        # For BCD: moderate alpha (0.35-0.55) balances event detection vs runaway
+        # Lower alpha constrains variance, reducing overprediction
         "alpha": {
             "distribution": "uniform",
-            "min": 0.20,
+            "min": 0.35,
             "max": 0.55,
         },
         
@@ -177,27 +180,30 @@ def get_sweep_config():
         "zero_threshold": {"values": [1.0, 3.0, 6.0]},  # Testing around 1 fatality threshold
         
         # FP weight: false alarm penalty (predicting conflict when none exists)
-        # Lower = more tolerant of false alarms (encourages non-zero predictions)
+        # LOWER values penalize overprediction MORE - key for controlling runaway
+        # Range 0.7-0.9 discourages false positives while allowing event detection
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.9,
-            "max": 1.0,
+            "min": 0.7,
+            "max": 0.9,
         },
         
         # FN weight: missed conflict penalty
-        # Higher = penalize missing actual conflicts more
+        # HIGHER values help detect events (lower MTD component of BCD)
+        # But combined with low FP creates tension that prevents runaway
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 1.5,
+            "min": 1.3,
+            "max": 1.6,
         },
         
         # Whether to estimate α from batch variance (experimental)
         # False = use fixed α from sweep
         "learn_alpha": {"values": [False]},
         
-        # No inverse transform needed - using raw counts directly
-        "inverse_transform": {"values": [False]},
+        # inverse_transform=True when using AsinhTransform target_scaler
+        # This transforms predictions back to count space for evaluation
+        "inverse_transform": {"values": [False, True]},
     }
 
     sweep_config["parameters"] = parameters
