@@ -33,7 +33,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_nbin_v1",
+        "name": "smol_cat_tide_nbin_v2",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -55,7 +55,8 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [128, 512, 1024]}, 
+        # batch=128 + high LR consistently explodes; batch>=512 is stable
+        "batch_size": {"values": [512, 1024]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -64,11 +65,12 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Conservative LR for raw count space
+        # Conservative LR for raw count space - proven stable at 2e-5
+        # Higher LR (>5e-5) with NB loss causes runaway overprediction
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5, 
-            "max": 5e-4,
+            "max": 5e-5,
         },
         "weight_decay": {"values": [1e-6]},
         
