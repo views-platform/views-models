@@ -1,35 +1,27 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - With NegativeBinomialLoss Option
-    ===========================================================================
+    TiDE Hyperparameter Sweep Configuration - NegativeBinomialLoss with AsinhTransform
+    ====================================================================================
     
-    Loss Function Options:
-    ----------------------
-    1. AsinhWeightedPenaltyHuberLoss (proven stable with non_zero_weight=30)
-       - target_scaler: "AsinhTransform"
-       - Works in asinh-transformed space with magnitude-aware weighting
-       
-    2. NegativeBinomialLoss (NEW - for overdispersed count data)
-       - target_scaler: null (raw counts) OR "AsinhTransform" with inverse_transform=True
-       - Theoretically suited for zero-inflated count data
-       - NB variance formula: Var = μ + αμ² (handles overdispersion naturally)
-       - alpha parameter controls dispersion (higher = more variance)
+    Strategy: NB Loss in Asinh-Transformed Space
+    ---------------------------------------------
+    - target_scaler: "AsinhTransform" compresses heavy-tailed counts
+    - inverse_transform: True to convert predictions back to count space
+    - This prevents runaway overprediction while preserving NB's distributional benefits
     
-    Scaling Strategy for NB:
-    ------------------------
-    Using RAW COUNTS (target_scaler: null):
-    - NB is mathematically designed for count data
-    - softplus(prediction) ensures μ > 0
-    - Log-likelihood formulation naturally handles large counts via log terms
-    - No inverse transform complexity
+    Why AsinhTransform + NB:
+    - Raw counts with NB are theoretically ideal but empirically unstable
+    - Asinh compresses large values: asinh(1000) ≈ 7.6
+    - Predictions stay bounded in transformed space
+    - alpha controls dispersion in transformed space (reinterpret accordingly)
+    
+    BCD Optimization:
+    - BCD = ∛(MTD × MSLE × log(1+MSE))
+    - High FN_weight drives down MTD (catches events)
+    - Low FP_weight controls magnitude (prevents runaway)
+    - Asinh scaling prevents MSE explosion
     
     Note: Features still use mixed scaling (asinh for counts, standard for rates, etc.)
-    Only the TARGET is raw counts.
-    
-    If training is unstable with raw counts, fallback options:
-    A) Lower learning rate (1e-5 to 1e-4)
-    B) Stricter gradient clipping (0.5 - 1.0)
-    C) Use AsinhTransform with inverse_transform=True as backup
     """
     sweep_config = {
         "method": "bayes",
@@ -55,7 +47,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [256, 512]}, 
+        # With AsinhTransform, smaller batches are more stable than with raw counts
+        # Explore full range: smaller batches = noisier but may find events better
+        "batch_size": {"values": [64, 128, 256, 512]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -64,12 +58,14 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Conservative LR for raw count space - proven stable at 2e-5
-        # Higher LR (>5e-5) with NB loss causes runaway overprediction
+        # LR range compatible with all batch sizes in transformed space:
+        # - Small batch (64): lower end of range (2e-5) prevents instability
+        # - Large batch (512): can use higher end (1.5e-4) for faster convergence
+        # Asinh transform makes this range safer than with raw counts
         "lr": {
             "distribution": "log_uniform_values",
             "min": 2e-5, 
-            "max": 1e-4,
+            "max": 1.5e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -80,16 +76,15 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [0.5, 1.0]},  # Stricter for raw counts
+        "gradient_clip_val": {"values": [0.5, 1.0]},
         
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        # Testing both raw counts and asinh-scaled targets
-        # Asinh scaling compresses large values, helping control overprediction
-        # With inverse_transform=True, predictions are transformed back to count space
+        # AsinhTransform compresses heavy-tailed counts, preventing runaway
+        # inverse_transform=True converts predictions back to count space for evaluation
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": [None, "AsinhTransform"]},  # Compare raw vs scaled
+        "target_scaler": {"values": ["AsinhTransform"]},
         
         "feature_scaler_map": {
             "values": [
@@ -166,18 +161,19 @@ def get_sweep_config():
         # Naturally handles zero-inflation through its distributional properties
         "loss_function": {"values": ["NegativeBinomialLoss"]},
         
-        # Dispersion parameter α: controls Var = μ + αμ²
-        # For BCD: moderate alpha (0.35-0.55) balances event detection vs runaway
-        # Lower alpha constrains variance, reducing overprediction
+        # Dispersion parameter α: controls Var = μ + αμ² in transformed space
+        # In asinh space, values are compressed so alpha has different semantics
+        # Wider range since transformed predictions are bounded
         "alpha": {
             "distribution": "uniform",
-            "min": 0.35,
-            "max": 0.55,
+            "min": 0.3,
+            "max": 0.7,
         },
         
-        # Threshold for zero classification (in RAW COUNT space)
-        # <1 fatality = essentially zero
-        "zero_threshold": {"values": [1.0, 3.0, 6.0]},  # Testing around 1 fatality threshold
+        # Threshold for zero classification (in TRANSFORMED space)
+        # asinh(1) ≈ 0.88, asinh(3) ≈ 1.82, asinh(6) ≈ 2.49
+        # Using transformed equivalents
+        "zero_threshold": {"values": [0.88, 1.82, 2.49]},
         
         # FP weight: false alarm penalty (predicting conflict when none exists)
         # LOWER values penalize overprediction MORE - key for controlling runaway
@@ -201,9 +197,9 @@ def get_sweep_config():
         # False = use fixed α from sweep
         "learn_alpha": {"values": [False]},
         
-        # inverse_transform=True when using AsinhTransform target_scaler
-        # This transforms predictions back to count space for evaluation
-        "inverse_transform": {"values": [False, True]},
+        # MUST be True when using AsinhTransform target_scaler
+        # Converts predictions back to count space for evaluation
+        "inverse_transform": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters
