@@ -174,22 +174,22 @@ def get_sweep_config():
         
         # Threshold for zero classification (in RAW COUNT space)
         # <1 fatality = essentially zero
-        "zero_threshold": {"values": [0.5, 1.0]},
+        "zero_threshold": {"values": [1.0, 3.0, 6.0]},  # Testing around 1 fatality threshold
         
         # FP weight: false alarm penalty (predicting conflict when none exists)
         # Lower = more tolerant of false alarms (encourages non-zero predictions)
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.8,
+            "min": 0.6,
+            "max": 1.0,
         },
         
         # FN weight: missed conflict penalty
         # Higher = penalize missing actual conflicts more
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 1.5,
-            "max": 5.0,
+            "min": 1.0,
+            "max": 3.0,
         },
         
         # Whether to estimate α from batch variance (experimental)
