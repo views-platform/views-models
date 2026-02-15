@@ -167,7 +167,7 @@ def get_sweep_config():
         "alpha": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.9,
+            "max": 0.8,
         },
         
         # Threshold for zero classification (in RAW COUNT space)
