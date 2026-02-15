@@ -33,7 +33,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_nbin_v2",
+        "name": "smol_cat_tide_nbin_v3",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -56,7 +56,7 @@ def get_sweep_config():
         # TRAINING
         # ==============================================================================
         # batch=128 + high LR consistently explodes; batch>=512 is stable
-        "batch_size": {"values": [512, 1024]}, 
+        "batch_size": {"values": [64, 128, 256]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -69,8 +69,8 @@ def get_sweep_config():
         # Higher LR (>5e-5) with NB loss causes runaway overprediction
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5, 
-            "max": 5e-5,
+            "min": 5e-5, 
+            "max": 2e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -168,8 +168,8 @@ def get_sweep_config():
         # Dispersion parameter α: controls Var = μ + αμ²
         "alpha": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.8,
+            "min": 0.20,
+            "max": 0.55,
         },
         
         # Threshold for zero classification (in RAW COUNT space)
