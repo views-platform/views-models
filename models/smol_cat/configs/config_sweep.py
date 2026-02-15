@@ -1,67 +1,40 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration for Zero-Inflated Conflict Forecasting
-    ================================================================================
-
-    Data Characteristics:
-    ---------------------
-    - ~200 time series (countries), ~82,512 observations
-    - Zero-inflated targets: sb=86%, ns=93%, os=94% zeros
-    - Heavy right skew: fatality counts span 0 to ~4,000+
-    - 63 features after preprocessing (WDI, V-Dem, topic models, conflict history)
-    - 36-month forecast horizon
-
-    Scaling Strategy:
-    -----------------
-    All features scaled to [0,1] for loss function compatibility:
-    - Target: AsinhTransform->MinMaxScaler (handles zeros, bounds output)
-    - Conflict counts: AsinhTransform->MinMaxScaler (zero-inflated, extreme skew)
-    - Spatial lags: RobustScaler->MinMaxScaler (extreme outliers from aggregation)
-    - WDI economics: AsinhTransform->MinMaxScaler (spans orders of magnitude)
-    - WDI percentages: StandardScaler->MinMaxScaler (moderate skew, bounded)
-    - V-Dem indices: MinMaxScaler (already 0-1 normalized)
-    - Topic theta: MinMaxScaler (probability distributions)
-
-    Loss Function: AsinhWeightedPenaltyHuberLoss
-    ----------------------------------------
-    Asymmetric weighting to handle class imbalance:
-    - TN (zero→zero): 1.0x baseline
-    - FP (zero→conflict): ~0.1-1.0x (low penalty encourages exploration)
-    - TP (conflict→conflict): ~5-15x (high weight for rare events)
-    - FN (conflict→zero): ~10-75x (strongest penalty for missing conflicts)
-
-    Mode Collapse Prevention:
-    -------------------------
-    - CosineAnnealingWarmRestarts: periodic LR restarts escape local minima
-    - Low false_positive_weight (<1.0): encourages non-zero predictions
-    - Low dropout (0.05-0.15): preserves neurons learning rare patterns
-    - Minimal weight_decay (0 or 1e-6): prevents weight collapse
-
-    Architecture (TiDE):
-    --------------------
-    - Encoder: 2 layers (fixed per TiDE paper)
-    - Decoder: 2 layers (fixed per TiDE paper)
-    - Hidden size: 128-256 (reduced search space)
-    - Temporal width: 12 months (annual cycle - fixed)
-    - Layer norm enabled, reversible instance norm always on
-
-    Hyperband Early Termination:
-    ----------------------------
-    - min_iter=30: time for model to learn from scarce signal
-    - eta=2: keeps top 50% each round
-
-    Returns:
-        sweep_config (dict): WandB sweep configuration dictionary
+    TiDE Hyperparameter Sweep Configuration - With NegativeBinomialLoss Option
+    ===========================================================================
+    
+    Loss Function Options:
+    ----------------------
+    1. AsinhWeightedPenaltyHuberLoss (proven stable with non_zero_weight=30)
+       - target_scaler: "AsinhTransform"
+       - Works in asinh-transformed space with magnitude-aware weighting
+       
+    2. NegativeBinomialLoss (NEW - for overdispersed count data)
+       - target_scaler: null (raw counts) OR "AsinhTransform" with inverse_transform=True
+       - Theoretically suited for zero-inflated count data
+       - NB variance formula: Var = μ + αμ² (handles overdispersion naturally)
+       - alpha parameter controls dispersion (higher = more variance)
+    
+    Scaling Strategy for NB:
+    ------------------------
+    Using RAW COUNTS (target_scaler: null):
+    - NB is mathematically designed for count data
+    - softplus(prediction) ensures μ > 0
+    - Log-likelihood formulation naturally handles large counts via log terms
+    - No inverse transform complexity
+    
+    Note: Features still use mixed scaling (asinh for counts, standard for rates, etc.)
+    Only the TARGET is raw counts.
+    
+    If training is unstable with raw counts, fallback options:
+    A) Lower learning rate (1e-5 to 1e-4)
+    B) Stricter gradient clipping (0.5 - 1.0)
+    C) Use AsinhTransform with inverse_transform=True as backup
     """
-
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_20260214_v5_bcd2",
-        "early_terminate": {
-            "type": "hyperband",
-            "min_iter": 30,
-            "eta": 2,
-        },
+        "name": "smol_cat_tide_nbin_v1",
+        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
 
@@ -69,8 +42,8 @@ def get_sweep_config():
         # ==============================================================================
         # TEMPORAL CONFIGURATION
         # ==============================================================================
-        "steps": {"values": [[*range(1, 36 + 1)]]},  # 36-month forecast horizon
-        "input_chunk_length": {"values": [36, 48]},  # 3-4 years optimal for 36-month horizon
+        "steps": {"values": [[*range(1, 36 + 1)]]},
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -78,122 +51,90 @@ def get_sweep_config():
         "mc_dropout": {"values": [True]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
+        
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size 64+ ensures nearly 100% probability of seeing non-zero events in every batch
-        # preventing "dead updates" where model just reinforces zero-prediction
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [64, 128]}, 
         "n_epochs": {"values": [200]},
-        # patience = 1.2×T_0 to allow one full cycle + buffer after restart
-        # With T_0=25, patience=30 ensures model survives at least one restart
-        # before early stopping triggers (avoids killing during exploration phase)
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
+        
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
+        # Conservative LR for raw count space
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4, 
-            "max": 8e-3,  # Higher max LR for aggressive restarts
+            "min": 1e-5, 
+            "max": 3e-4,
         },
-        # Low/zero weight_decay: 1e-4 too aggressive for sparse data
         "weight_decay": {"values": [1e-6]},
+        
         # ==============================================================================
-        # LR SCHEDULER: CosineAnnealingWarmRestarts (AGGRESSIVE)
+        # LR SCHEDULER
         # ==============================================================================
-        # More frequent restarts = more escape attempts from zero-prediction basin
-        # T_0=25: 8 cycles in 200 epochs (vs 4 with T_0=50)
-        # T_mult=1: constant period for sustained exploration pressure
-        # Higher eta_min: maintains gradient flow even at cycle minima
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [25]},  # Faster restarts
-        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
-        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},  # Higher min maintains gradients
-        "gradient_clip_val": {"values": [2.0]},  # Higher clip for larger LR spikes
+        "lr_scheduler_T_0": {"values": [25]},
+        "lr_scheduler_T_mult": {"values": [1]},
+        "lr_scheduler_eta_min": {"values": [1e-6]},
+        "gradient_clip_val": {"values": [0.5, 1.0]},  # Stricter for raw counts
+        
         # ==============================================================================
-        # FEATURE SCALING (all bounded to [0,1])
+        # SCALING
         # ==============================================================================
+        # RAW COUNTS for target - NB is designed for this
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]}, # Removed MinMaxScaler to preserve zero-structure and variance
+        "target_scaler": {"values": [None]},  # Raw counts!
+        
         "feature_scaler_map": {
             "values": [
                 {
-                    # Zero-inflated counts: Log-like
+                    # Conflict history: Asinh transform for heavy tails
                     "AsinhTransform": [
-                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
                         "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     ],
-                    # Continuous rates/indices: Center around 0 with unit variance
+                    # Indices/Rates: Standard scaling
                     "StandardScaler": [
                         "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
                         "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
                         "lr_wdi_sh_sta_maln_zs",
                     ],
-                    # V-Dem indices (0-1), WDI %, topic theta
+                    # Bounded [0,1] features
                     "MinMaxScaler": [
                         "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
-                        "lr_vdem_v2x_horacc",
-                        "lr_vdem_v2xnp_client",
-                        "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl",
-                        "lr_vdem_v2xpe_exlpol",
-                        "lr_vdem_v2x_diagacc",
-                        "lr_vdem_v2xpe_exlgeo",
-                        "lr_vdem_v2xpe_exlgender",
-                        "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party",
-                        "lr_vdem_v2x_genpp",
-                        "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty",
-                        "lr_vdem_v2xeg_eqprotec",
-                        "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xcl_dmove",
-                        "lr_vdem_v2x_clphy",
-                        "lr_vdem_v2xnp_regcorr",
-                        # Topic model theta values (probability distributions, already 0-1)
-                        "lr_topic_ste_theta0",
-                        "lr_topic_ste_theta1",
-                        "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3",
-                        "lr_topic_ste_theta4",
-                        "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6",
-                        "lr_topic_ste_theta7",
-                        "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9",
-                        "lr_topic_ste_theta10",
-                        "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12",
-                        "lr_topic_ste_theta13",
-                        "lr_topic_ste_theta14",
-                        # Topic spatial lags (neighborhood averages, still bounded)
-                        "lr_topic_ste_theta0_stock_t1_splag",
-                        "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag",
-                        "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag",
-                        "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag",
-                        "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag",
-                        "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag",
-                        "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag",
-                        "lr_topic_ste_theta13_stock_t1_splag",
+                        "lr_vdem_v2x_horacc", "lr_vdem_v2xnp_client", "lr_vdem_v2x_veracc",
+                        "lr_vdem_v2x_divparctrl", "lr_vdem_v2xpe_exlpol", "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_genpp", "lr_vdem_v2xeg_eqdr",
+                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2x_ex_military",
+                        "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy", "lr_vdem_v2xnp_regcorr",
+                        # Topics
+                        "lr_topic_ste_theta0", "lr_topic_ste_theta1", "lr_topic_ste_theta2",
+                        "lr_topic_ste_theta3", "lr_topic_ste_theta4", "lr_topic_ste_theta5",
+                        "lr_topic_ste_theta6", "lr_topic_ste_theta7", "lr_topic_ste_theta8",
+                        "lr_topic_ste_theta9", "lr_topic_ste_theta10", "lr_topic_ste_theta11",
+                        "lr_topic_ste_theta12", "lr_topic_ste_theta13", "lr_topic_ste_theta14",
+                        # Topic Lags
+                        "lr_topic_ste_theta0_stock_t1_splag", "lr_topic_ste_theta1_stock_t1_splag",
+                        "lr_topic_ste_theta2_stock_t1_splag", "lr_topic_ste_theta3_stock_t1_splag",
+                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta5_stock_t1_splag",
+                        "lr_topic_ste_theta6_stock_t1_splag", "lr_topic_ste_theta7_stock_t1_splag",
+                        "lr_topic_ste_theta8_stock_t1_splag", "lr_topic_ste_theta9_stock_t1_splag",
+                        "lr_topic_ste_theta10_stock_t1_splag", "lr_topic_ste_theta11_stock_t1_splag",
+                        "lr_topic_ste_theta12_stock_t1_splag", "lr_topic_ste_theta13_stock_t1_splag",
                         "lr_topic_ste_theta14_stock_t1_splag",
                     ],
                 }
             ]
         },
+        
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
@@ -201,57 +142,62 @@ def get_sweep_config():
         "num_decoder_layers": {"values": [2]},
         "decoder_output_dim": {"values": [128]},
         "hidden_size": {"values": [128, 256]},
-        # Temporal width=12 matches annual cycle in conflict data
-        "temporal_width_past": {"values": [12]},  # annual periodicity
-        "temporal_width_future": {"values": [12]},  # match past
-        "temporal_hidden_size_past": {"values": [128, 256]},  # Reduced search space
-        "temporal_hidden_size_future": {"values": [128, 256]},  # Reduced search space
+        "temporal_width_past": {"values": [12]},
+        "temporal_width_future": {"values": [12]},
+        "temporal_hidden_size_past": {"values": [128, 256]},
+        "temporal_hidden_size_future": {"values": [128, 256]},
         "temporal_decoder_hidden": {"values": [256]},
+        
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
-        "dropout": {"values": [0.05, 0.1]},
+        "dropout": {"values": [0.1, 0.15]},
         "use_static_covariates": {"values": [False, True]},
         "use_reversible_instance_norm": {"values": [True, False]},
+        
         # ==============================================================================
-        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss
+        # LOSS FUNCTION: NegativeBinomialLoss
         # ==============================================================================
-        # Asymmetric weighting for zero-inflated data:
-        # TN=1x, FP=fp_weight, TP=nz_weight, FN=nz_weight×fn_weight
-        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
-        # zero_threshold calibrated to scaled target space [0,1]
-        # Narrowed to 0.01-0.03 to avoid misclassifying small conflicts as zero
-        "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
-        # Delta: Huber L2→L1 transition point
-        # Lower delta (1.0-2.0) showed better stability in sweeps
-        # delta=1.5 performed best - tighter L2 region more robust to outliers
-        "delta": {
+        # NB is designed for overdispersed count data - ideal for conflict fatalities
+        # Naturally handles zero-inflation through its distributional properties
+        "loss_function": {"values": ["NegativeBinomialLoss"]},
+        
+        # Dispersion parameter α: controls Var = μ + αμ²
+        # Higher α = more variance tolerance (good for conflict data)
+        # α=1.0-2.0 typical for conflict data with 85%+ zeros
+        "alpha": {
             "distribution": "uniform",
-            "min": 1.0,
+            "min": 0.5,
             "max": 2.0,
         },
-        # ==============================================================================
-        # LOSS WEIGHTS (Magnitude-aware: mult = 1 + (target/threshold)²)
-        # ==============================================================================
-        # non_zero_weight < 25 causes gradient collapse/oscillation
-        # Sweep evidence: 10→explosion, 20→oscillation, 30→stable
-        "non_zero_weight": {"values": [30.0, 40.0, 50.0]},
         
-        # false_positive_weight: Balanced range for exploration
+        # Threshold for zero classification (in RAW COUNT space)
+        # <1 fatality = essentially zero
+        "zero_threshold": {"values": [0.5, 1.0]},
+        
+        # FP weight: false alarm penalty (predicting conflict when none exists)
+        # Lower = more tolerant of false alarms (encourages non-zero predictions)
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.7,
+            "max": 0.8,
         },
         
-        # false_negative_weight: Additional penalty for missing conflicts
-        # Combined with non_zero_weight for total FN weight
+        # FN weight: missed conflict penalty
+        # Higher = penalize missing actual conflicts more
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 20.0,
+            "min": 1.5,
+            "max": 5.0,
         },
+        
+        # Whether to estimate α from batch variance (experimental)
+        # False = use fixed α from sweep
+        "learn_alpha": {"values": [False]},
+        
+        # No inverse transform needed - using raw counts directly
+        "inverse_transform": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters
