@@ -164,11 +164,10 @@ def get_sweep_config():
         "loss_function": {"values": ["NegativeBinomialLoss"]},
         
         # Dispersion parameter α: controls Var = μ + αμ²
-        # Higher α = more variance tolerance (good for conflict data)
         "alpha": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 1.2,
+            "max": 0.9,
         },
         
         # Threshold for zero classification (in RAW COUNT space)
