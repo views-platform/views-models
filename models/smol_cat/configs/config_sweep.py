@@ -55,7 +55,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [64, 128]}, 
+        "batch_size": {"values": [128, 512, 1024]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -68,7 +68,7 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5, 
-            "max": 3e-4,
+            "max": 5e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -165,11 +165,10 @@ def get_sweep_config():
         
         # Dispersion parameter α: controls Var = μ + αμ²
         # Higher α = more variance tolerance (good for conflict data)
-        # α=1.0-2.0 typical for conflict data with 85%+ zeros
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "min": 0.3,
+            "max": 1.2,
         },
         
         # Threshold for zero classification (in RAW COUNT space)
@@ -180,7 +179,7 @@ def get_sweep_config():
         # Lower = more tolerant of false alarms (encourages non-zero predictions)
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.6,
+            "min": 0.8,
             "max": 1.0,
         },
         
@@ -189,7 +188,7 @@ def get_sweep_config():
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 3.0,
+            "max": 2.0,
         },
         
         # Whether to estimate α from batch variance (experimental)
