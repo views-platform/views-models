@@ -196,13 +196,9 @@ def get_sweep_config():
         },
         
         # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
-        # Also used as reference for magnitude scaling: mult = 1 + |target|/threshold
         # asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
         # Higher threshold = more conservative event detection
         "zero_threshold": {"values": [0.88, 1.82]},
-        
-        # magnitude_cap defaults to None (uncapped) - no need to specify
-        # With asinh data bounded at ~9, max mult is ~10x which is stable
     }
 
     sweep_config["parameters"] = parameters
