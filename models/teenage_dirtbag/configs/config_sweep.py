@@ -112,7 +112,7 @@ def get_sweep_config():
             "max": 5e-3,  # TCNs can handle moderate LR
         },
         # Zero/minimal weight_decay - prevents weight collapse on sparse data
-        "weight_decay": {"values": [0, 1e-6]},
+        "weight_decay": {"values": [1e-6]},
         
         # ==============================================================================
         # LR SCHEDULER: CosineAnnealingWarmRestarts (NOT ReduceLROnPlateau!)
@@ -127,8 +127,8 @@ def get_sweep_config():
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
-        "lr_scheduler_eta_min": {"values": [1e-6, 1e-5]},
-        "gradient_clip_val": {"values": [ 2.0]},  # Allow strong FN gradients
+        "lr_scheduler_eta_min": {"values": [1e-6]},
+        "gradient_clip_val": {"values": [1.0, 1.5]},  # Allow strong FN gradients
         
         # ==============================================================================
         # SCALING
@@ -244,41 +244,33 @@ def get_sweep_config():
         "use_reversible_instance_norm": {"values": [True]},
         
         # ==============================================================================
-        # LOSS FUNCTION: AsinhWeightedPenaltyHuberLoss
+        # LOSS FUNCTION: MagnitudeAwareQuantileLoss
         # ==============================================================================
-        "loss_function": {"values": ["AsinhWeightedPenaltyHuberLoss"]},
+        # Quantile regression with magnitude-aware weighting
+        # Combines: tau asymmetry + non_zero_weight + magnitude scaling
+        # Total weight = tau × non_zero_weight × (1 + max(|target|, |pred|))
+        "loss_function": {"values": ["MagnitudeAwareQuantileLoss"]},
         
-        # zero_threshold: In ASINH scale (not raw counts)
-        # asinh(1) ≈ 0.88, asinh(25) ≈ 3.91
-        "zero_threshold": {"values": [1.44]},  # ≈2 fatalities
+        # tau (quantile level): Controls asymmetry between under/overestimation
+        # - tau = 0.5: Symmetric MAE
+        # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
+        "tau": {
+            "distribution": "uniform",
+            "min": 0.40,
+            "max": 0.80,
+        },
         
-        # delta: Huber L2→L1 transition point
-        # For asinh data in [0, ~9], delta 1-3 gives balanced behavior
-        "delta": {
+        # non_zero_weight: Extra weight for samples where target > threshold
+        # With ~95% zeros in conflict data, non-zero targets need amplification
+        "non_zero_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 3.0,
-        },
-        
-        # non_zero_weight: prevents gradient collapse
-        # Lower base weights - magnitude scaling (mult = 1 + (target/threshold)²) handles large events
-        # mult ranges from 2× (small events) to 40× (large events)
-        "non_zero_weight": {"values": [30.0, 40.0, 50.0]},
-        
-        # false_positive_weight: Balanced range for exploration
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
-        },
-        
-        # false_negative_weight: Additional penalty for missing conflicts
-        # Combined with non_zero_weight for total FN weight
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 5.0,
             "max": 20.0,
         },
+        
+        # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
+        # asinh(3)≈1.82, asinh(4)≈2.09
+        "zero_threshold": {"values": [1.82, 2.09]},
     }
 
     sweep_config["parameters"] = parameters

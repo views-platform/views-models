@@ -75,8 +75,8 @@ def get_sweep_config():
         # Linear scaling rule: halve batch → halve lr
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5, 
-            "max": 7e-5,
+            "min": 2e-5,
+            "max": 1.5e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -87,7 +87,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 1.5, 2.0]},
+        "gradient_clip_val": {"values": [1.0, 1.5]},
         
         # ==============================================================================
         # SCALING

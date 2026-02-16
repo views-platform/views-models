@@ -50,28 +50,21 @@ def get_sweep_config():
             'mc_dropout': {'values': [True]},
 
             # ============== TRAINING BASICS ==============
-            # batch_size: +0.83 importance → CRITICAL: MUCH smaller batches!
-            # early_stopping_patience: -0.34 → higher patience helps
-            # early_stopping_min_delta: +0.24 → smaller threshold needed
-            'batch_size': {'values': [64, 128, 256, 512, 1024]},
-            'n_epochs': {'values': [100]},
-            'early_stopping_patience': {'values': [6]},  # HIGHER (was 18-25)
-            'early_stopping_min_delta': {'values': [0.001]},
+            # Smaller batches for rare event detection with MagnitudeAwareQuantileLoss
+            'batch_size': {'values': [32, 64, 128]},
+            'n_epochs': {'values': [200]},
+            'early_stopping_patience': {'values': [30]},
+            'early_stopping_min_delta': {'values': [0.0001]},
             'force_reset': {'values': [True]},
 
             # ============== OPTIMIZER / SCHEDULER ==============
-            # lr: -0.53 importance → HIGHER LR is better for TiDE!
-            # weight_decay: -0.4 → HIGHER weight_decay helps
+            # Lower LR for TiDE with MagnitudeAwareQuantileLoss (magnitude scaling amplifies gradients)
             'lr': {
                 'distribution': 'log_uniform_values',
-                'min': 5e-5,   # Higher (was 1e-5)
-                'max': 2e-3,   # Higher (was 2e-4)
+                'min': 1e-5,
+                'max': 1e-4,
             },
-            'weight_decay': {
-                'distribution': 'uniform',
-                'min': 5e-4,   # MUCH HIGHER (was 1e-5)
-                'max': 5e-3,   # MUCH HIGHER (was 5e-4)
-            },
+            'weight_decay': {'values': [1e-6]},
             'lr_scheduler_factor': {
                 'distribution': 'uniform',
                 'min': 0.1,
@@ -79,12 +72,8 @@ def get_sweep_config():
             },
             'lr_scheduler_patience': {'values': [4]},
             'lr_scheduler_min_lr': {'values': [1e-7]},
-            # gradient_clip_val: -0.076 → slightly higher helps
-            'gradient_clip_val': {
-                'distribution': 'uniform',
-                'min': 0.01,
-                'max': 1.2,  # Slightly higher range
-            },
+            # gradient_clip_val: Tighter clipping for stability with magnitude-scaled loss
+            'gradient_clip_val': {'values': [1.0, 1.5]},
 
             # ============== SCALING ==============
             'feature_scaler': {'values': [None]},
@@ -142,42 +131,32 @@ def get_sweep_config():
             # non_zero_weight: +0.4 → LOWER values are better!
             # delta: +0.4 → LOWER delta is better
             # false_negative_weight: +0.124 → slightly lower is better
-            # false_positive_weight: +0.03 → near zero importance
-            'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+            # ============== LOSS FUNCTION: MagnitudeAwareQuantileLoss ==============
+            # Quantile regression with magnitude-aware weighting
+            # Combines: tau asymmetry + non_zero_weight + magnitude scaling
+            # Total weight = tau × non_zero_weight × (1 + max(|target|, |pred|))
+            'loss_function': {'values': ['MagnitudeAwareQuantileLoss']},
             
-            'zero_threshold': {
-                'distribution': 'log_uniform_values',
-                'min': 0.001,   
-                'max': 0.15,   
-            },
-            
-            # delta: +0.4 importance → LOWER is better
-            'delta': {
+            # tau (quantile level): Controls asymmetry between under/overestimation
+            # - tau = 0.5: Symmetric MAE
+            # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
+            'tau': {
                 'distribution': 'uniform',
-                'min': 0.01,   # Lower (was 0.02) - more sensitive
-                'max': 0.15,   # Lower (was 0.08) - correlation says lower is much better
+                'min': 0.40,
+                'max': 0.80,
             },
             
-            # non_zero_weight: +0.4 importance → LOWER is better
+            # non_zero_weight: Extra weight for samples where target > threshold
+            # With ~95% zeros in conflict data, non-zero targets need amplification
             'non_zero_weight': {
                 'distribution': 'uniform',
-                'min': 1.0,    # Slightly higher - non-zero is precious signal
-                'max': 20.0,   # Higher max - emphasize rare conflict events
-            },
-            
-            # false_positive_weight: +0.03 → near zero, keep low-moderate
-            'false_positive_weight': {
-                'distribution': 'uniform',
-                'min': 0.5,
+                'min': 1.0,
                 'max': 20.0,
             },
             
-            # false_negative_weight: +0.124 → slightly lower is better
-            'false_negative_weight': {
-                'distribution': 'uniform',
-                'min': 0.5,   # Lower (was 5.0)
-                'max': 20.0,   # Lower (was 12.0)
-            },
+            # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
+            # asinh(3)≈1.82, asinh(4)≈2.09
+            'zero_threshold': {'values': [1.82, 2.09]},
         }
 
     sweep_config['parameters'] = parameters

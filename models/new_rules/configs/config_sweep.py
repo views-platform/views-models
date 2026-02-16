@@ -102,7 +102,7 @@ def get_sweep_config():
         # - 36 months (3 years): Captures annual cycles, recent trends
         # - 48 months (4 years): Captures electoral cycles, medium-term patterns
         # - N-BEATS is efficient with moderate sequence lengths
-        "input_chunk_length": {"values": [12, 36, 48]},
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},  # Must match steps
         "output_chunk_shift": {"values": [0]},  # No gap between input and forecast
         "mc_dropout": {"values": [True]},  # Monte Carlo dropout for uncertainty
@@ -111,16 +111,13 @@ def get_sweep_config():
         # TRAINING BASICS
         # ==============================================================================
         # batch_size: Samples per gradient update
-        # - Larger batches help zero-inflated data see more non-zero events
-        # - N-BEATS is computationally efficient (just FC layers)
-        # - Range 1024-4096 for stable gradients with sparse signal
-        "batch_size": {"values": [1024, 2048]},
+        # - Smaller batches for rare event detection with MagnitudeAwareQuantileLoss
+        # - Ensures conflict events appear in most batches
+        "batch_size": {"values": [64, 128, 256]},
         # n_epochs: Maximum training epochs
-        # - 150 epochs provides headroom; early stopping triggers before max
-        "n_epochs": {"values": [150]},
+        "n_epochs": {"values": [200]},
         # early_stopping_patience: Epochs without improvement before stopping
-        # - Fixed to 20 for scarce signal (need time to find patterns)
-        "early_stopping_patience": {"values": [20]},
+        "early_stopping_patience": {"values": [30]},
         # early_stopping_min_delta: Minimum improvement to count as progress
         # - Small value appropriate for [0,1] scaled loss
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -130,20 +127,15 @@ def get_sweep_config():
         # ==============================================================================
         # lr: Learning rate (log-uniform distribution for proper exploration)
         # - N-BEATS can be sensitive to LR due to deep stacking
-        # - 5e-5: Conservative, stable learning
-        # - 1e-3: Aggressive upper bound
+        # - Lower max LR for stability with MagnitudeAwareQuantileLoss
         # - Optimal typically in 1e-4 to 5e-4 range
         "lr": {
             "distribution": "log_uniform_values",
             "min": 5e-5,
-            "max": 1e-3,
+            "max": 5e-4,
         },
-        # weight_decay: L2 regularization on weights
-        # DISABLED (set to 0) because:
-        # - Scarce signal means neurons learning rare patterns are precious
-        # - Previous experiments showed weight collapse with weight_decay > 0
-        # - Dropout provides regularization; weight_decay would be excessive
-        "weight_decay": {"values": [0]},
+        # weight_decay: L2 regularization
+        "weight_decay": {"values": [1e-6]},
         # lr_scheduler: ReduceLROnPlateau configuration
         # - factor=0.5: Halve LR when stuck
         # - patience=8: Wait 8 epochs before reducing
@@ -152,10 +144,7 @@ def get_sweep_config():
         "lr_scheduler_patience": {"values": [8]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         # gradient_clip_val: Maximum gradient norm
-        # - Prevents exploding gradients in deep stacks
-        # - N-BEATS has residual connections which help stability
-        # - Range 0.5-1.5 is conservative for [0,1] scaled data
-        "gradient_clip_val": {"values": [1.5]},
+        "gradient_clip_val": {"values": [1.0, 1.5]},
         # ==============================================================================
         # FEATURE SCALING
         # ==============================================================================
@@ -314,65 +303,33 @@ def get_sweep_config():
         # - N-BEATS is prone to overfitting, but signal preservation is priority
         "dropout": {"values": [0.15]},
         # ==============================================================================
-        # LOSS FUNCTION: WeightedPenaltyHuberLoss
+        # LOSS FUNCTION: MagnitudeAwareQuantileLoss
         # ==============================================================================
-        # Custom loss designed for zero-inflated rare event forecasting.
-        #
-        # Weight multiplication logic:
-        # - True Negative (zero→zero): weight = 1.0 (baseline)
-        # - False Positive (zero→non-zero): weight = false_positive_weight (0.5-1.0)
-        # - True Positive (non-zero→non-zero): weight = non_zero_weight (4-7)
-        # - False Negative (non-zero→zero): weight = non_zero_weight × fn_weight (8-56)
-        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
-        # zero_threshold: Scaled value below which predictions count as "zero"
-        # - After AsinhTransform->MinMaxScaler, 1 fatality ≈ 0.11
-        # - Range 0.08-0.23 spans 0-5 fatalities threshold and allows some margin for uncertainty
-        # - Lower threshold = stricter zero classification
-        "zero_threshold": {
+        # Quantile regression with magnitude-aware weighting
+        # Combines: tau asymmetry + non_zero_weight + magnitude scaling
+        # Total weight = tau × non_zero_weight × (1 + max(|target|, |pred|))
+        "loss_function": {"values": ["MagnitudeAwareQuantileLoss"]},
+        
+        # tau (quantile level): Controls asymmetry between under/overestimation
+        # - tau = 0.5: Symmetric MAE
+        # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
+        "tau": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.30,
+            "min": 0.40,
+            "max": 0.80,
         },
-        # delta: Huber loss transition point (L2 inside delta, L1 outside)
-        # - Range 0.8-1.0 gives nearly pure L2 behavior for [0,1] scaled data
-        # - Full L2 maximizes gradient signal from every error
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.8,
-            "max": 1.0,
-        },
-        # non_zero_weight: Multiplier for non-zero actual values
-        # - PINNED at 10.0 to reduce search dimensions and avoid redundant combinations
-        # - Conflicts contribute 10x more to loss than zeros (counteracts class imbalance)
-        # - FP and FN weights are tuned relative to this fixed baseline
-        # - With non_zero_weight=10: TP=10x, FN=10×fn_weight, FP=1×fp_weight
+        
+        # non_zero_weight: Extra weight for samples where target > threshold
+        # With ~95% zeros in conflict data, non-zero targets need amplification
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 50.0,
+            "min": 1.0,
+            "max": 20.0,
         },
-
-        # false_positive_weight: Multiplier when predicting non-zero for actual zero
-        # - Applied to base weight 1.0: FP = 1.0 × fp_weight = 0.3-1.5x
-        # - Values <1.0 encourage model to "explore" non-zero predictions
-        # - Helps escape local minimum of predicting all zeros
-        # - Low end (0.3) = minimal penalty for guessing conflict
-        "false_positive_weight": {
-            "distribution": "log_uniform_values",
-            "min": 0.4,
-            "max": 1.5,
-        },
-
-        # false_negative_weight: Additional penalty for missing actual conflicts
-        # - Applied on top of non_zero_weight: FN = 10 × fn_weight = 20-80x baseline
-        # - Range 2-8: Strong asymmetric penalty for missing conflicts
-        # - Highest penalty case: missing conflicts is operationally costly
-        # - FN:FP ratio ranges from 13x to 267x depending on sweep samples
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
-        },
+        
+        # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
+        # asinh(3)≈1.82, asinh(4)≈2.09
+        "zero_threshold": {"values": [1.82, 2.09]},
     }
 
     sweep_config["parameters"] = parameters
