@@ -1,4 +1,3 @@
-
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -13,16 +12,22 @@ def get_hp_config():
         'steps': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
 
         # --- Input / output structure ---
-        'input_chunk_length': 48,
+        'input_chunk_length': 24,
         'output_chunk_length': 36,
         'output_chunk_shift': 0,
 
-        # --- Architecture (TCN) ---
-        'kernel_size': 5,
-        'num_filters': 64,
-        'dilation_base': 3,
-        'weight_norm': False,
-        'num_layers': None,
+        # --- Architecture (TFT) ---
+        'hidden_size': 256,
+        'lstm_layers': 1,
+        'num_attention_heads': 2,
+        'full_attention': False,
+        'feed_forward': 'GELU',
+        'hidden_continuous_size': 8,
+        'add_relative_index': True,
+        'norm_type': 'LayerNorm',
+        'use_static_covariates': True,
+        'output_dim': [1, 1],
+        'num_static_components': 1,
 
         # --- Regularization ---
         'dropout': 0.3,
@@ -32,10 +37,10 @@ def get_hp_config():
         # --- Optimization ---
         'optimizer_cls': 'Adam',
         'optimizer_kwargs': {
-            'lr': 0.0003952169009532478,
+            'lr': 0.0004295014201718642,
             'weight_decay': 0.0001,
         },
-        'lr': 0.0003952169009532478,
+        'lr': 0.0004295014201718642,
 
         # --- LR Scheduler ---
         'lr_scheduler_cls': 'ReduceLROnPlateau',
@@ -58,9 +63,9 @@ def get_hp_config():
         'loss_function': 'WeightedPenaltyHuberLoss',
         'delta': 0.025,
         'zero_threshold': 0.01,
-        'non_zero_weight': 5,
+        'non_zero_weight': 10,
         'false_positive_weight': 1,
-        'false_negative_weight': 10,
+        'false_negative_weight': 5,
         'likelihood': None,
 
         # --- Scaling & transforms ---
@@ -82,7 +87,8 @@ def get_hp_config():
             'lr_wdi_sp_dyn_imrt_fe_in',
             'lr_wdi_ny_gdp_mktp_kd'
         ],
-        'use_reversible_instance_norm': True,
+        'use_reversible_instance_norm': False,
+        'skip_interpolation': False,
 
         # --- Training ---
         'batch_size': 16,

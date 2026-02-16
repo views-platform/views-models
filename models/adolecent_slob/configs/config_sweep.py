@@ -1,20 +1,13 @@
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
-
-    Returns:
-    - sweep_config (dict): A dictionary containing the configuration for hyperparameter sweeps, defining the methods and parameter ranges used to search for optimal hyperparameters.
+    Harmonized sweep configuration for adolecent_slob (TCN).
+    Adapted from novel_heuristics general configuration principles.
+    Targeting ~20 trials with Bayesian optimization.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'adolecent_slob',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 10,
-            'eta': 2
-        },
+        'name': 'adolecent_slob_harmonized',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -22,93 +15,62 @@ def get_sweep_config():
     }
 
     parameters = {
-        # Temporal horizon & context
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60, 72]},
-        'output_chunk_shift': {'values': [0, 1, 2]},
-
-        # Training basics - FIXED: more epochs
-        'batch_size': {'values': [32, 64, 96]},
-        'n_epochs': {'values': [300]},  # Increased from 2
-        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
-        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
-
-        # Optimizer / scheduler - FIXED: lower learning rates
+        # --- Harmonized Training Basics (from novel_heuristics) ---
+        'batch_size': {'values': [16]},
+        'n_epochs': {'values': [150]},
+        'early_stopping_patience': {'values': [15]},
+        'early_stopping_min_delta': {'values': [0.01]},
         'lr': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-4,
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
-        },
-        'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
+            'min': 0.0001,
+            'max': 0.0005,
         },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
-
-        # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
+        'weight_decay': {'values': [0.0001]},
+        'optimizer_cls': {'values': ['Adam']},
+        'gradient_clip_val': {'values': [1.0]},
+        'lr_scheduler_cls': {'values': ['ReduceLROnPlateau']},
+        'lr_scheduler_factor': {'values': [0.46]},
+        'lr_scheduler_patience': {'values': [7]},
+        'lr_scheduler_min_lr': {'values': [0.00001]},
+        
+        # --- Harmonized Scaling & Data ---
+        'feature_scaler': {'values': ['MinMaxScaler']},
+        'target_scaler': {'values': ['MinMaxScaler']},
         'log_targets': {'values': [True]},
         'log_features': {
-            'values': ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
+            'values': [
+                ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
                  "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns", 
                  "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or", "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
                  ]
+            ]
         },
 
-        # TCN specific architecture - FIXED: added weight norm
-        'kernel_size': {'values': [3, 5, 7]},
-        'num_filters': {'values': [32, 64, 128]},
-        'dilation_base': {'values': [2, 3, 4]},
-        'dropout': {'values': [0.1, 0.2, 0.3]},
-        'use_reversible_instance_norm': {'values': [True, False]},
-        'weight_norm': {'values': [True, False]},  # FIXED: added back
-        'force_reset': {'values': [True]},
-        'save_checkpoints': {'values': [True]},
-
-        # Loss function
+        # --- Harmonized Loss Function ---
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        'delta': {'values': [0.025]},
+        'zero_threshold': {'values': [0.01]},
+        'false_positive_weight': {'values': [1.0]},
+        'false_negative_weight': {'values': [5.0, 10.0]},
+        'non_zero_weight': {'values': [5.0, 10.0]},
 
-        # Loss function parameters
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
-        },
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
-        },
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
-        },
-        'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 1.0,
-        },
-        
-        # Gradient clipping - added to prevent explosion
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
-        },
+        # --- TCN Specific Architecture (Focused Search) ---
+        'kernel_size': {'values': [3, 5]},
+        'num_filters': {'values': [32, 64, 128]},
+        'dilation_base': {'values': [2, 3]},
+        'dropout': {'values': [0.2, 0.3]},
+        'weight_norm': {'values': [True, False]},
+
+        # --- Operational Fixed Keys ---
+        'steps': {'values': [[*range(1, 37)]]},
+        'input_chunk_length': {'values': [48, 60]},
+        'output_chunk_length': {'values': [36]},
+        'output_chunk_shift': {'values': [0]},
+        'num_samples': {'values': [1]},
+        'mc_dropout': {'values': [False]},
+        'random_state': {'values': [1]},
+        'force_reset': {'values': [True]},
+        'use_reversible_instance_norm': {'values': [True]},
     }
 
     sweep_config['parameters'] = parameters

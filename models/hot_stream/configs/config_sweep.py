@@ -1,13 +1,13 @@
 def get_sweep_config():
     """
-    Harmonized sweep configuration for fancy_feline (TiDE).
+    Harmonized sweep configuration for hot_stream (TFT).
     Adapted from novel_heuristics general configuration principles.
     Targeting ~20 trials with Bayesian optimization.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'fancy_feline_harmonized',
+        'name': 'hot_stream_harmonized',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -16,7 +16,7 @@ def get_sweep_config():
 
     parameters = {
         # --- Harmonized Training Basics (from novel_heuristics) ---
-        'batch_size': {'values': [16]},
+        'batch_size': {'values': [8, 16]},
         'n_epochs': {'values': [150]},
         'early_stopping_patience': {'values': [15]},
         'early_stopping_min_delta': {'values': [0.01]},
@@ -54,19 +54,18 @@ def get_sweep_config():
         'false_negative_weight': {'values': [5.0, 10.0]},
         'non_zero_weight': {'values': [5.0, 10.0]},
 
-        # --- TiDE Specific Architecture (Focused Search) ---
-        'num_encoder_layers': {'values': [1, 2]},
-        'num_decoder_layers': {'values': [1, 2]},
-        'decoder_output_dim': {'values': [16, 32]},
-        'hidden_size': {'values': [128, 256]},
-        'temporal_width_past': {'values': [4, 8]},
-        'temporal_width_future': {'values': [4, 8]},
-        'temporal_hidden_size_past': {'values': [16, 32]},
-        'temporal_hidden_size_future': {'values': [16, 32]},
-        'temporal_decoder_hidden': {'values': [32, 64]},
+        # --- TFT Specific Architecture (Focused Search) ---
+        'hidden_size': {'values': [64, 128, 256]},
+        'lstm_layers': {'values': [1, 2]},
+        'num_attention_heads': {'values': [2, 4]},
         'dropout': {'values': [0.2, 0.3]},
-        'use_layer_norm': {'values': [True]},
+        'full_attention': {'values': [False]},
+        'feed_forward': {'values': ['GELU', 'GatedResidualNetwork']},
+        'add_relative_index': {'values': [True]},
         'use_static_covariates': {'values': [True]},
+        'norm_type': {'values': ['LayerNorm']},
+        'skip_interpolation': {'values': [False]},
+        'hidden_continuous_size': {'values': [8]},
 
         # --- Operational Fixed Keys ---
         'steps': {'values': [[*range(1, 37)]]},
@@ -74,8 +73,8 @@ def get_sweep_config():
         'output_chunk_length': {'values': [36]},
         'output_chunk_shift': {'values': [0]},
         'num_samples': {'values': [1]},
-        'mc_dropout': {'values': [False]},
-        'random_state': {'values': [2023]},
+        'mc_dropout': {'values': [True, False]},
+        'random_state': {'values': [1]},
         'force_reset': {'values': [True]},
         'use_reversible_instance_norm': {'values': [False]},
     }

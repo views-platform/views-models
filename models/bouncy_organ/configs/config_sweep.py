@@ -1,20 +1,13 @@
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
-
-    Returns:
-    - sweep_config (dict): A dictionary containing the configuration for hyperparameter sweeps, defining the methods and parameter ranges used to search for optimal hyperparameters.
+    Harmonized sweep configuration for bouncy_organ (TSMixer).
+    Adapted from novel_heuristics general configuration principles.
+    Targeting ~20 trials with Bayesian optimization.
     """
 
     sweep_config = {
         'method': 'bayes',
-        'name': 'bouncy_organ',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 10,
-            'eta': 2
-        },
+        'name': 'bouncy_organ_harmonized',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -22,39 +15,27 @@ def get_sweep_config():
     }
 
     parameters = {
-        # Temporal horizon & context
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [24, 36, 48, 60]},
-        'output_chunk_shift': {'values': [0, 1, 2]},
-
-        # Training basics - FIXED: more epochs, smaller batches
-        'batch_size': {'values': [16, 32, 64]},  # Smaller for better gradient variety
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [10]},  # Increased from 5
-        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
-
-        # Optimizer / scheduler - FIXED: higher learning rates
+        # --- Harmonized Training Basics (from novel_heuristics) ---
+        'batch_size': {'values': [16]},
+        'n_epochs': {'values': [150]},
+        'early_stopping_patience': {'values': [15]},
+        'early_stopping_min_delta': {'values': [0.01]},
         'lr': {
-            'distribution': 'log_uniform_values',
-            'min': 5e-6,  # Slightly higher for better convergence
-            'max': 2e-4,  # Increased max for more flexibility
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
-        },
-        'lr_scheduler_factor': {
             'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
+            'min': 0.0001,
+            'max': 0.0005,
         },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
-
-        # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
+        'weight_decay': {'values': [0.0001]},
+        'optimizer_cls': {'values': ['Adam']},
+        'gradient_clip_val': {'values': [1.0]},
+        'lr_scheduler_cls': {'values': ['ReduceLROnPlateau']},
+        'lr_scheduler_factor': {'values': [0.46]},
+        'lr_scheduler_patience': {'values': [7]},
+        'lr_scheduler_min_lr': {'values': [0.00001]},
+        
+        # --- Harmonized Scaling & Data ---
+        'feature_scaler': {'values': ['MinMaxScaler']},
+        'target_scaler': {'values': ['MinMaxScaler']},
         'log_targets': {'values': [True]},
         'log_features': {
             'values': [
@@ -65,53 +46,34 @@ def get_sweep_config():
             ]
         },
 
-        # TSMixer specific architecture - FIXED: increased capacity
-        'num_blocks': {'values': [3, 4, 5, 6]},  # Increased from 2-4
-        'ff_size': {'values': [64, 128, 256]},  # Increased from 32-128
-        'hidden_size': {'values': [64, 128, 256]},  # Increased from 32-128
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU', 'SELU', 'Swish']},  # More options
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Moderate dropout
-        'norm_type': {'values': ['LayerNorm']},  # Fixed to LayerNorm
-        'normalize_before': {'values': [True, False]},  # Test both
-        'use_static_covariates': {'values': [True, False]}, 
-        'force_reset': {'values': [True]},
-
-        # Loss function - FIXED: balanced weights
+        # --- Harmonized Loss Function ---
         'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
+        'delta': {'values': [0.025]},
+        'zero_threshold': {'values': [0.01]},
+        'false_positive_weight': {'values': [1.0]},
+        'false_negative_weight': {'values': [5.0, 10.0]},
+        'non_zero_weight': {'values': [5.0, 10.0]},
 
-        # Loss function parameters - FIXED: more balanced
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
-        },
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 2.0,  # Reduced from 3.0
-            'max': 5.0,  # Reduced from 8.0
-        },
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
-        },
-        'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 1.0,
-        },
-        
-        # Gradient clipping - CRITICAL: added to prevent explosion
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
-        },
+        # --- TSMixer Specific Architecture (Focused Search) ---
+        'num_blocks': {'values': [2, 3, 4]},
+        'ff_size': {'values': [64, 128]},
+        'hidden_size': {'values': [64, 128]},
+        'activation': {'values': ['ReLU', 'GELU']},
+        'dropout': {'values': [0.2, 0.3]},
+        'norm_type': {'values': ['LayerNorm']},
+        'normalize_before': {'values': [True, False]},
+        'use_static_covariates': {'values': [True]},
+
+        # --- Operational Fixed Keys ---
+        'steps': {'values': [[*range(1, 37)]]},
+        'input_chunk_length': {'values': [24, 36]},
+        'output_chunk_length': {'values': [36]},
+        'output_chunk_shift': {'values': [0]},
+        'num_samples': {'values': [1]},
+        'mc_dropout': {'values': [False]},
+        'random_state': {'values': [1]},
+        'force_reset': {'values': [True]},
+        'use_reversible_instance_norm': {'values': [False]},
     }
 
     sweep_config['parameters'] = parameters
