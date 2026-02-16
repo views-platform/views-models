@@ -58,9 +58,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Magnitude-aware quantile loss is stable - moderate batch sizes work well
         # Smaller batches = more gradient noise but better rare event detection
-        "batch_size": {"values": [64, 128, 256]}, 
+        # Batch 32 sees rare events more often per update
+        "batch_size": {"values": [32, 64, 128]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -69,14 +69,14 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # LR range for batch sizes 64-256 in asinh-transformed space:
-        # - Batch 64: use lower end (~2e-5) for stability
-        # - Batch 256: can use up to ~1e-4 safely
-        # Lower max LR than with batch 512 to prevent instability
+        # LR range for batch sizes 32-128 in asinh-transformed space:
+        # - Batch 32: use lower end (~1e-5) for stability with noisy gradients
+        # - Batch 128: can use up to ~7e-5 safely
+        # Linear scaling rule: halve batch → halve lr
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 2e-5, 
-            "max": 1e-4,
+            "min": 1e-5, 
+            "max": 7e-5,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -87,7 +87,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.5, 2.0]},
+        "gradient_clip_val": {"values": [1.0, 1.5, 2.0]},
         
         # ==============================================================================
         # SCALING
