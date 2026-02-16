@@ -201,10 +201,8 @@ def get_sweep_config():
         # Higher threshold = more conservative event detection
         "zero_threshold": {"values": [0.88, 1.82]},
         
-        # magnitude_cap: Maximum magnitude multiplier (None = uncapped)
+        # magnitude_cap defaults to None (uncapped) - no need to specify
         # With asinh data bounded at ~9, max mult is ~10x which is stable
-        # None is recommended for this data
-        "magnitude_cap": {"values": [None]},
     }
 
     sweep_config["parameters"] = parameters
