@@ -181,7 +181,7 @@ def get_sweep_config():
         # Range 0.60-0.80: Favors catching events without excessive overprediction
         "tau": {
             "distribution": "uniform",
-            "min": 0.55,
+            "min": 0.30,
             "max": 0.80,
         },
         
