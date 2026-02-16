@@ -42,7 +42,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_magnitude_v1_bcd",
+        "name": "cool_cat_tide_magnitude_v2_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -201,8 +201,8 @@ def get_sweep_config():
         # Range 0.3-0.9: Encourages exploration without excessive false alarms
         "false_positive_weight": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.9,
+            "min": 0.7,
+            "max": 2.0,
         },
         
         # false_negative_weight: Weight ADDED on top of (1 + non_zero_weight) for FN
