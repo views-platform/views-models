@@ -1,40 +1,44 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - AsymmetricQuantileLoss
-    =================================================================
+    TiDE Hyperparameter Sweep Configuration - MagnitudeAwareQuantileLoss
+    =====================================================================
     
-    Strategy: Quantile Regression with Asymmetric Error Penalties
-    --------------------------------------------------------------
-    Quantile regression naturally handles asymmetric error costs without
-    distributional assumptions. This avoids NB loss instability (Inf overflow)
-    while achieving similar asymmetry through the tau parameter.
+    Strategy: Quantile Regression with Magnitude-Aware Weighting
+    -------------------------------------------------------------
+    Combines asymmetric quantile loss with magnitude-aware weighting to properly
+    penalize errors on high-magnitude events in asinh-space.
     
-    Why AsymmetricQuantileLoss:
-    - No distributional assumptions → no overflow risk
-    - Linear loss in tails → robust to outliers and extreme events
-    - tau controls asymmetry directly: tau=0.75 → 3× penalty for underestimation
-    - Simpler to tune: only 3 hyperparameters (tau, non_zero_weight, threshold)
+    Why MagnitudeAwareQuantileLoss:
+    - Quantile loss: No distributional assumptions → no overflow risk
+    - Magnitude scaling: Higher asinh values get proportionally higher weight
+    - tau controls asymmetry: tau=0.7 → 2.3× penalty for underestimation
+    - Linear magnitude scaling: 1 + |target| → stable gradients
     
-    Asymmetry Mechanics:
-    - tau = 0.5: Symmetric (equivalent to MAE)
-    - tau = 0.7: 2.3× penalty for underestimation vs overestimation
-    - tau = 0.75: 3× penalty (3:1 FN:FP ratio)
-    - tau = 0.8: 4× penalty
+    Three-Layer Weighting:
+    1. tau (asymmetry): Under-prediction costs tau, over-prediction costs (1-tau)
+    2. non_zero_weight: Conflict periods weighted more than zeros
+    3. magnitude_mult: 1 + |target| → large events weighted more
+    
+    Total weight for under-prediction = tau × non_zero_weight × (1 + |target|)
+    
+    Example (tau=0.7, non_zero_weight=5, target=5.0):
+    - weight = 0.7 × 5 × 6 = 21.0
+    
+    Magnitude Scaling in asinh-space:
+    - target = 2.0 (asinh): mult = 3.0x
+    - target = 5.0 (asinh): mult = 6.0x  
+    - target = 8.0 (asinh): mult = 9.0x
     
     BCD Optimization:
-    - BCD = ∛(MTD × MSLE × log(1+MSE))
     - Higher tau → catches more events → lower MTD
     - non_zero_weight → focuses on conflict periods → improves MSLE
-    - AsinhTransform → bounded predictions → controls MSE explosion
-    
-    Note: AsinhTransform still used for bounded training space.
-    Loss computed in asinh-space, predictions inverse-transformed for evaluation.
+    - magnitude_mult → large events prioritized → better overall BCD
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_quantile_v1_bcd",
+        "name": "smol_cat_tide_mag_quantile_v1_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -54,9 +58,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Quantile loss is more stable than NB - can use smaller batches safely
-        # Smaller batches = more gradient noise but better event detection
-        "batch_size": {"values": [64, 128, 256, 512]}, 
+        # Magnitude-aware quantile loss is stable - moderate batch sizes work well
+        # Smaller batches = more gradient noise but better rare event detection
+        "batch_size": {"values": [64, 128, 256]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -65,14 +69,14 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # LR range compatible with all batch sizes in transformed space:
-        # - Small batch (64): lower end of range (2e-5) prevents instability
-        # - Large batch (512): can use higher end (1.5e-4) for faster convergence
-        # Asinh transform makes this range safer than with raw counts
+        # LR range for batch sizes 64-256 in asinh-transformed space:
+        # - Batch 64: use lower end (~2e-5) for stability
+        # - Batch 256: can use up to ~1e-4 safely
+        # Lower max LR than with batch 512 to prevent instability
         "lr": {
             "distribution": "log_uniform_values",
             "min": 2e-5, 
-            "max": 1.5e-4,
+            "max": 1e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -83,7 +87,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [0.5, 1.0]},
+        "gradient_clip_val": {"values": [1.0, 1.5]},
         
         # ==============================================================================
         # SCALING
@@ -157,43 +161,50 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
-        "dropout": {"values": [0.1, 0.15]},
+        "dropout": {"values": [0.1, 0.15, 0.25]},
         "use_static_covariates": {"values": [False, True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         
         # ==============================================================================
-        # LOSS FUNCTION: AsymmetricQuantileLoss
+        # LOSS FUNCTION: MagnitudeAwareQuantileLoss
         # ==============================================================================
-        # Quantile regression with asymmetric error penalties
-        # No distributional assumptions → stable, no overflow risk
-        # tau controls FN/FP asymmetry directly
-        "loss_function": {"values": ["AsymmetricQuantileLoss"]},
+        # Quantile regression with magnitude-aware weighting
+        # Combines: tau asymmetry + non_zero_weight + magnitude scaling (1 + |target|)
+        # Total weight = tau × non_zero_weight × (1 + |target|)
+        "loss_function": {"values": ["MagnitudeAwareQuantileLoss"]},
         
         # tau (quantile level): Controls asymmetry between under/overestimation
         # - tau = 0.5: Symmetric MAE
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         # - tau = 0.75: 3× penalty (FN:FP = 3:1)
         # - tau = 0.8: 4× penalty (FN:FP = 4:1)
-        # Range 0.65-0.80: Favors catching events without excessive overprediction
-        # Formula: underestimate penalty = tau, overestimate penalty = 1-tau
+        # Range 0.60-0.80: Favors catching events without excessive overprediction
         "tau": {
             "distribution": "uniform",
-            "min": 0.65,
-            "max": 0.85,
+            "min": 0.55,
+            "max": 0.80,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
         # With ~95% zeros in conflict data, non-zero targets need amplification
-        # Range 2-10: Strong emphasis on conflict periods for MSLE optimization
-        # Higher values help model focus on rare events but may cause overprediction
+        # Combined with magnitude scaling, can use lower values than plain quantile loss
+        # Range 1-10: balance with magnitude awareness
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 2.0,
+            "min": 1.0,
             "max": 10.0,
         },
         
-        # Conversion: asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
-        "zero_threshold": {"values": [0.88, 1.82, 2.49]},
+        # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
+        # Also used as reference for magnitude scaling: mult = 1 + |target|/threshold
+        # asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
+        # Higher threshold = more conservative event detection
+        "zero_threshold": {"values": [0.88, 1.82]},
+        
+        # magnitude_cap: Maximum magnitude multiplier (None = uncapped)
+        # With asinh data bounded at ~9, max mult is ~10x which is stable
+        # None is recommended for this data
+        "magnitude_cap": {"values": [None]},
     }
 
     sweep_config["parameters"] = parameters

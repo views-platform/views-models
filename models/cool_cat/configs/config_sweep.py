@@ -42,7 +42,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_magnitude_v2_bcd",
+        "name": "cool_cat_tide_magnitude_v3_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -192,7 +192,7 @@ def get_sweep_config():
         # Range 3-8: Moderate emphasis, balanced with magnitude scaling
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 3.0,
+            "min": 1.0,
             "max": 8.0,
         },
         
@@ -202,7 +202,7 @@ def get_sweep_config():
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 0.7,
-            "max": 2.0,
+            "max": 3.0,
         },
         
         # false_negative_weight: Weight ADDED on top of (1 + non_zero_weight) for FN
@@ -212,7 +212,7 @@ def get_sweep_config():
         # effective FN weights of ~30-140 at max magnitude
         "false_negative_weight": {
             "distribution": "uniform",
-            "min": 2.0,
+            "min": 3.0,
             "max": 20.0,
         },
         
@@ -220,7 +220,7 @@ def get_sweep_config():
         # Also used as reference for magnitude scaling: mult = 1 + |target|/threshold
         # asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
         # Higher threshold = more conservative event detection
-        "zero_threshold": {"values": [1.82, 2.49]},
+        "zero_threshold": {"values": [0.88, 1.82]},
     }
 
     sweep_config["parameters"] = parameters
