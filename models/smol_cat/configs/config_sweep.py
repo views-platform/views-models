@@ -196,9 +196,8 @@ def get_sweep_config():
         },
         
         # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
-        # asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
         # Higher threshold = more conservative event detection
-        "zero_threshold": {"values": [0.88, 1.82]},
+        "zero_threshold": {"values": [1.82, 2.09]}, # 3, 4
     }
 
     sweep_config["parameters"] = parameters
