@@ -36,7 +36,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_mag_quantile_v2_msle",
+        "name": "smol_cat_tide_mag_quantile_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -87,7 +87,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 1.5]},
+        "gradient_clip_val": {"values": [1.5, 2.0]},
         
         # ==============================================================================
         # SCALING
@@ -151,8 +151,8 @@ def get_sweep_config():
         "num_decoder_layers": {"values": [2]},
         "decoder_output_dim": {"values": [128]},
         "hidden_size": {"values": [128, 256]},
-        "temporal_width_past": {"values": [12, 24]},
-        "temporal_width_future": {"values": [12, 24]},
+        "temporal_width_past": {"values": [24, 64, 128]},
+        "temporal_width_future": {"values": [24, 64, 128]},
         "temporal_hidden_size_past": {"values": [128, 256]},
         "temporal_hidden_size_future": {"values": [128, 256]},
         "temporal_decoder_hidden": {"values": [256]},
@@ -161,7 +161,7 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
-        "dropout": {"values": [0.1, 0.15, 0.25]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [False, True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         
@@ -181,7 +181,7 @@ def get_sweep_config():
         # Range 0.60-0.80: Favors catching events without excessive overprediction
         "tau": {
             "distribution": "uniform",
-            "min": 0.30,
+            "min": 0.40,
             "max": 0.80,
         },
         
@@ -192,7 +192,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 10.0,
+            "max": 20.0,
         },
         
         # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
