@@ -1,0 +1,1 @@
+This sweep explores the trade-off between stacks and blocks. It compares deeper (more blocks) vs. wider (more stacks) N-BEATS architectures that have similar computational depth.

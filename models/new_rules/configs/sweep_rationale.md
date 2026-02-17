@@ -1,0 +1,1 @@
+This sweep investigates if the `1x6` block architecture of the best-performing run can be improved by slightly tuning the number of blocks and the dropout rate for regularization.

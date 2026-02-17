@@ -21,6 +21,7 @@ def get_sweep_config():
 
     parameters_dict = {
         'model' : {'value' :'HydraBNUNet06_LSTM4'},
+        'target_variable' : {'value': 'sb'}, # 'sb', 'ns', or 'os' for now - eval lib does not eval multiple targets yet!!!! 
         'weight_init' : {'value' : 'xavier_norm'}, # ['xavier_uni', 'xavier_norm', 'kaiming_uni', 'kaiming_normal']
         'clip_grad_norm' : {'value': True},
         'scheduler' : {'value': 'WarmupDecay'}, #CosineAnnealingLR004  'CosineAnnealingLR' 'OneCycleLR'

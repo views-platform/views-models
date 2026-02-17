@@ -8,8 +8,8 @@ def get_meta_config():
     """
     meta_config = {
         "name": "rude_boy",
-        "models": ["new_rules", "teenage_dirtbag", "thousand_miles", "thrift_shop"], 
-        "targets": ["ln_ged_sb_dep"],
+        "models": ["cool_cat", "dancing_queen", "elastic_heart", "good_life", "heat_waves", "new_rules", "teenage_dirtbag"],
+        "targets": ["lr_ged_sb_dep"],
         "level": "cm", 
         "aggregation": "mean",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],

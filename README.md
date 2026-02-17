@@ -9,6 +9,20 @@ This repository contains all of the necesary components for creating new models 
 
 ---
 
+## .env Template
+
+```
+# .env
+cm_path=""
+pgm_path=""
+month_to_update=[]
+
+APPWRITE_ENDPOINT=""
+APPWRITE_DATASTORE_PROJECT_ID=""
+```
+
+---
+
 ## Table of contents
 
 <!-- toc -->

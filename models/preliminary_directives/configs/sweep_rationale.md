@@ -1,0 +1,1 @@
+This sweep is a direct test of regularization, exploring how different levels of dropout, from none to 0.3, affect the performance of this simple `1x1` block architecture.
