@@ -23,62 +23,56 @@ def get_hp_config():
         "force_reset": True,
         
         # ==============================================================================
-        # ARCHITECTURE (Best Run Configuration)
+        # ARCHITECTURE
         # ==============================================================================
         "batch_size": 64,
-        "input_chunk_length": 48,
-        "hidden_size": 256,
+        "input_chunk_length": 36,
+        "hidden_size": 128,
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
         "decoder_output_dim": 128,
-        "temporal_width_past": 12,
-        "temporal_width_future": 12,
+        "temporal_width_past": 24,
+        "temporal_width_future": 64,
         "temporal_hidden_size_past": 128,
-        "temporal_hidden_size_future": 128,
+        "temporal_hidden_size_future": 256,
         "temporal_decoder_hidden": 256,
         
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": 0.05,
+        "dropout": 0.25,
         "use_layer_norm": True,
         "use_reversible_instance_norm": False,
-        "use_static_covariates": False,
+        "use_static_covariates": True,
         "weight_decay": 1e-6,
         
         # ==============================================================================
         # OPTIMIZATION (CosineAnnealingWarmRestarts Strategy)
         # ==============================================================================
-        "lr": 0.001358054181340207,
+        "lr": 7.697672334093277e-05,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 50,
+        "lr_scheduler_T_0": 25,
         "lr_scheduler_T_mult": 1,
         "lr_scheduler_eta_min": 1e-6,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 1.0,
         
         # Early stopping
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.0001,
         
         # ==============================================================================
-        # LOSS FUNCTION: WeightedPenaltyHuberLoss (Swept Weights)
+        # LOSS FUNCTION: MagnitudeAwareQuantileLoss
         # ==============================================================================
-        "loss_function": "WeightedPenaltyHuberLoss",
+        "loss_function": "MagnitudeAwareQuantileLoss",
         
-        # Huber delta (asinh scale: ~1.2 means L2 for small conflicts, L1 for large)
-        "delta": 1.1961636786267764,
+        # tau: Quantile level (0.5 = symmetric, >0.5 = penalize under-prediction more)
+        "tau": 0.4954467702033263,
         
-        # Zero threshold (asinh scale: ~1.16 ≈ asinh(1.4) fatalities)
-        "zero_threshold": 1.159666712548936,
+        # zero_threshold: asinh-space threshold for non-zero detection
+        "zero_threshold": 1.82,
         
-        # ADDITIVE WEIGHTS:
-        # TN = 1.0 (base)
-        # TP = 1.0 + 25.0 = 26.0
-        # FP = 0.456 (Absolute - cheap to explore)
-        # FN = 1.0 + 25.0 + 16.3 = 42.3
-        "non_zero_weight": 25,
-        "false_positive_weight": 0.456053758405519,
-        "false_negative_weight": 16.30133196931405,
+        # non_zero_weight: Extra weight for conflict samples
+        "non_zero_weight": 5.247081077099809,
         
         # ==============================================================================
         # SCALING MAPS
@@ -139,17 +133,15 @@ def get_hp_config():
                 "lr_topic_ste_theta13_stock_t1_splag",
                 "lr_topic_ste_theta14_stock_t1_splag",
             ],
-            "RobustScaler": [
-                "lr_splag_1_ged_sb",
-                "lr_splag_1_ged_ns",
-                "lr_splag_1_ged_os",
-            ],
             "AsinhTransform": [
                 "lr_acled_sb",
                 "lr_acled_os",
                 "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
                 "lr_wdi_nv_agr_totl_kn",
+                "lr_splag_1_ged_sb",
+                "lr_splag_1_ged_ns",
+                "lr_splag_1_ged_os",
             ],
             "StandardScaler": [
                 "lr_wdi_sm_pop_netm",

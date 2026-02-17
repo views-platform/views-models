@@ -52,13 +52,13 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_20260214_v1_bcd",
+        "name": "good_life_transformer_mag_quantile_v1_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
             "eta": 2,
         },
-        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -74,14 +74,14 @@ def get_sweep_config():
         "detect_anomaly": {"values": [False]},
         "optimizer_cls": {"values": ["Adam"]},
         "num_samples": {"values": [1]},
-        "n_jobs": {"values": [-1]},  # All cores (was 2)
+        "n_jobs": {"values": [-1]},
 
         # ==============================================================================
         # TRAINING BASICS
         # ==============================================================================
         # Batch size 64-128: ~98% probability of non-zero events per batch
         # (was 1024-2048: caused "all-zero batches" → mode collapse)
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [64, 128]},
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -94,15 +94,15 @@ def get_sweep_config():
         # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,  # Raised floor (was 5e-5)
-            "max": 2e-3,
+            "min": 1e-4,
+            "max": 5e-4,
         },
         "weight_decay": {"values": [1e-6]},  # Minimal only (was [0, 1e-6, 1e-4, 1e-3])
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
         "lr_scheduler_T_0": {"values": [25]},  # Faster restarts
         "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
         "lr_scheduler_eta_min": {"values": [1e-6]},  # Higher min maintains gradients
-        "gradient_clip_val": {"values": [1.0, 1.5]},  # Higher clip for larger LR spikes
+        "gradient_clip_val": {"values": [1.0, 2.0]},
 
         # ==============================================================================
         # FEATURE SCALING
@@ -193,23 +193,23 @@ def get_sweep_config():
         # ==============================================================================
         # d_model: 128-256 balanced for ~200 series
         # Constraint: d_model / nhead >= 32
-        "d_model": {"values": [128, 256]},  # Removed 64 (head_dim too small)
+        "d_model": {"values": [128, 256]},
 
         # num_attention_heads: 4 heads with head_dim >= 32
         # 128/4=32✓, 256/4=64✓
-        "num_attention_heads": {"values": [4]},  # FIXED (was [2, 4])
+        "num_attention_heads": {"values": [4]},
 
         # num_encoder_layers: 2 sufficient for ~200 series (Vaswani et al.)
-        "num_encoder_layers": {"values": [2]},  # FIXED (was [2, 3])
+        "num_encoder_layers": {"values": [2]},
 
         # num_decoder_layers: Match encoder for balanced capacity
-        "num_decoder_layers": {"values": [2]},  # FIXED (was [1, 2])
+        "num_decoder_layers": {"values": [2]},
 
         # dim_feedforward: 2-4x d_model (standard practice)
-        "dim_feedforward": {"values": [256, 512]},
+        "dim_feedforward": {"values": [512, 1024]},
 
         # dropout: Low to preserve rare pattern learning
-        "dropout": {"values": [0.05, 0.1]},  # Reduced from [0.1, 0.2, 0.3]
+        "dropout": {"values": [0.15, 0.25]},
 
         # activation: GEGLU (gated activation, Shazeer 2020)
         "activation": {"values": ["GEGLU"]},  # FIXED (was [SwiGLU, GEGLU])
@@ -217,7 +217,7 @@ def get_sweep_config():
         # norm_type: LayerNorm more stable than RMSNorm
         "norm_type": {"values": ["LayerNorm"]},  # FIXED (was [RMSNorm, LayerNorm])
 
-        # RevIN: Critical for distribution shift in conflict data
+        # RevIN: Address distribution shift in conflict data
         "use_reversible_instance_norm": {"values": [True, False]},
 
         # ==============================================================================
@@ -233,8 +233,8 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.40,
-            "max": 0.80,
+            "min": 0.45,
+            "max": 0.55,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
