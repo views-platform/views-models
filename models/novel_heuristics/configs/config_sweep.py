@@ -67,7 +67,7 @@ def get_sweep_config():
         # --- Other ---
         'steps': {'values': [[*range(1, 37)]]},
         'force_reset': {'values': [True]},
-        'random_state': {'values': [1]},
+        'random_state': {'values': [1,2]},
         'n_jobs': {'values': [-1]},
     }
 

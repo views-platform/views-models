@@ -6,8 +6,8 @@ def get_sweep_config():
     """
 
     sweep_config = {
-        'method': 'bayes',
-        'name': 'hot_stream_harmonized',
+        'method': 'grid',
+        'name': 'hot_stream_grid_test',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -16,15 +16,11 @@ def get_sweep_config():
 
     parameters = {
         # --- Harmonized Training Basics (from novel_heuristics) ---
-        'batch_size': {'values': [8, 16]},
+        'batch_size': {'values': [16]},
         'n_epochs': {'values': [150]},
         'early_stopping_patience': {'values': [15]},
         'early_stopping_min_delta': {'values': [0.01]},
-        'lr': {
-            'distribution': 'uniform',
-            'min': 0.0001,
-            'max': 0.0005,
-        },
+        'lr': {'values': [0.0004295014201718642]},
         'weight_decay': {'values': [0.0001]},
         'optimizer_cls': {'values': ['Adam']},
         'gradient_clip_val': {'values': [1.0]},
@@ -51,16 +47,16 @@ def get_sweep_config():
         'delta': {'values': [0.025]},
         'zero_threshold': {'values': [0.01]},
         'false_positive_weight': {'values': [1.0]},
-        'false_negative_weight': {'values': [5.0, 10.0]},
-        'non_zero_weight': {'values': [5.0, 10.0]},
+        'false_negative_weight': {'values': [5.0]},
+        'non_zero_weight': {'values': [10.0]},
 
         # --- TFT Specific Architecture (Focused Search) ---
-        'hidden_size': {'values': [64, 128, 256]},
-        'lstm_layers': {'values': [1, 2]},
-        'num_attention_heads': {'values': [2, 4]},
-        'dropout': {'values': [0.2, 0.3]},
+        'hidden_size': {'values': [256]},
+        'lstm_layers': {'values': [1]},
+        'num_attention_heads': {'values': [2]},
+        'dropout': {'values': [0.3]},
         'full_attention': {'values': [False]},
-        'feed_forward': {'values': ['GELU', 'GatedResidualNetwork']},
+        'feed_forward': {'values': ['GELU']},
         'add_relative_index': {'values': [True]},
         'use_static_covariates': {'values': [True]},
         'norm_type': {'values': ['LayerNorm']},
@@ -69,12 +65,12 @@ def get_sweep_config():
 
         # --- Operational Fixed Keys ---
         'steps': {'values': [[*range(1, 37)]]},
-        'input_chunk_length': {'values': [24, 36]},
+        'input_chunk_length': {'values': [24]},
         'output_chunk_length': {'values': [36]},
         'output_chunk_shift': {'values': [0]},
         'num_samples': {'values': [1]},
-        'mc_dropout': {'values': [True, False]},
-        'random_state': {'values': [1]},
+        'mc_dropout': {'values': [False]},
+        'random_state': {'values': [1, 2]},
         'force_reset': {'values': [True]},
         'use_reversible_instance_norm': {'values': [False]},
     }

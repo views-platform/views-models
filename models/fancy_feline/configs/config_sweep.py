@@ -6,8 +6,8 @@ def get_sweep_config():
     """
 
     sweep_config = {
-        'method': 'bayes',
-        'name': 'fancy_feline_harmonized',
+        'method': 'grid',
+        'name': 'fancy_feline_grid_test',
         'metric': {
             'name': 'time_series_wise_msle_mean_sb',
             'goal': 'minimize'
@@ -20,11 +20,7 @@ def get_sweep_config():
         'n_epochs': {'values': [150]},
         'early_stopping_patience': {'values': [15]},
         'early_stopping_min_delta': {'values': [0.01]},
-        'lr': {
-            'distribution': 'uniform',
-            'min': 0.0001,
-            'max': 0.0005,
-        },
+        'lr': {'values': [0.00028862640357452747]},
         'weight_decay': {'values': [0.0001]},
         'optimizer_cls': {'values': ['Adam']},
         'gradient_clip_val': {'values': [1.0]},
@@ -51,31 +47,31 @@ def get_sweep_config():
         'delta': {'values': [0.025]},
         'zero_threshold': {'values': [0.01]},
         'false_positive_weight': {'values': [1.0]},
-        'false_negative_weight': {'values': [5.0, 10.0]},
-        'non_zero_weight': {'values': [5.0, 10.0]},
+        'false_negative_weight': {'values': [5.0]},
+        'non_zero_weight': {'values': [5.0]},
 
         # --- TiDE Specific Architecture (Focused Search) ---
-        'num_encoder_layers': {'values': [1, 2]},
-        'num_decoder_layers': {'values': [1, 2]},
-        'decoder_output_dim': {'values': [16, 32]},
-        'hidden_size': {'values': [128, 256]},
-        'temporal_width_past': {'values': [4, 8]},
-        'temporal_width_future': {'values': [4, 8]},
-        'temporal_hidden_size_past': {'values': [16, 32]},
-        'temporal_hidden_size_future': {'values': [16, 32]},
-        'temporal_decoder_hidden': {'values': [32, 64]},
-        'dropout': {'values': [0.2, 0.3]},
+        'num_encoder_layers': {'values': [2]},
+        'num_decoder_layers': {'values': [2]},
+        'decoder_output_dim': {'values': [16]},
+        'hidden_size': {'values': [256]},
+        'temporal_width_past': {'values': [8]},
+        'temporal_width_future': {'values': [4]},
+        'temporal_hidden_size_past': {'values': [32]},
+        'temporal_hidden_size_future': {'values': [32]},
+        'temporal_decoder_hidden': {'values': [64]},
+        'dropout': {'values': [0.3]},
         'use_layer_norm': {'values': [True]},
         'use_static_covariates': {'values': [True]},
 
         # --- Operational Fixed Keys ---
         'steps': {'values': [[*range(1, 37)]]},
-        'input_chunk_length': {'values': [24, 36]},
+        'input_chunk_length': {'values': [36]},
         'output_chunk_length': {'values': [36]},
         'output_chunk_shift': {'values': [0]},
         'num_samples': {'values': [1]},
         'mc_dropout': {'values': [False]},
-        'random_state': {'values': [2023]},
+        'random_state': {'values': [1, 2]},
         'force_reset': {'values': [True]},
         'use_reversible_instance_norm': {'values': [False]},
     }

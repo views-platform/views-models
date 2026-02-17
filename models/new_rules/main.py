@@ -3,10 +3,9 @@ from pathlib import Path
 from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
 
-from views_r2darts2.manager.model import DartsForecastingModelManager
-from views_r2darts2.utils.nbeats_patch import patch_nbeats_dropout_issue
+from views_r2darts2 import DartsForecastingModelManager, apply_nbeats_patch
 
-patch_nbeats_dropout_issue()
+apply_nbeats_patch()
 
 warnings.filterwarnings("ignore")
 
