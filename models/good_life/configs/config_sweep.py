@@ -52,7 +52,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_mag_quantile_v1_msle",
+        "name": "good_life_transformer_mag_quantile_v2_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -191,13 +191,12 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        # d_model: 128-256 balanced for ~200 series
+        # d_model: 64-128 smaller to prevent mean-memorization
         # Constraint: d_model / nhead >= 32
-        "d_model": {"values": [128, 256]},
+        "d_model": {"values": [64, 128]},
 
-        # nhead: 4 heads with head_dim >= 32
-        # 128/4=32✓, 256/4=64✓
-        "nhead": {"values": [4]},
+        # nhead: 2 for d_model=64 (64/2=32✓), 4 for d_model=128 (128/4=32✓)
+        "nhead": {"values": [2, 4]},
 
         # num_encoder_layers: 2 sufficient for ~200 series (Vaswani et al.)
         "num_encoder_layers": {"values": [2]},
@@ -205,11 +204,11 @@ def get_sweep_config():
         # num_decoder_layers: Match encoder for balanced capacity
         "num_decoder_layers": {"values": [2]},
 
-        # dim_feedforward: 2-4x d_model (standard practice)
-        "dim_feedforward": {"values": [512, 1024]},
+        # dim_feedforward: 2-4x d_model (scaled down with d_model)
+        "dim_feedforward": {"values": [256, 512]},
 
-        # dropout: Low to preserve rare pattern learning
-        "dropout": {"values": [0.15, 0.25]},
+        # dropout: Higher to force diversity and prevent mean collapse
+        "dropout": {"values": [0.2, 0.3]},
 
         # activation: GEGLU (gated activation, Shazeer 2020)
         "activation": {"values": ["GEGLU"]},  # FIXED (was [SwiGLU, GEGLU])
@@ -233,8 +232,8 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.30,
-            "max": 0.80,
+            "min": 0.45,
+            "max": 0.60,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
