@@ -14,6 +14,6 @@ def get_meta_config():
         "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson"],
+        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson", "LevelRatio"],
     }
     return meta_config
