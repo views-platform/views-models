@@ -220,13 +220,15 @@ def get_sweep_config():
         # Paper uses 512 as default; [256, 512] for reasonable sweep
         "layer_widths": {"values": [256, 512]},  # CHANGED (was [64, 128, 256])
 
-        # pooling_kernel_sizes: Auto-configured (paper recommendation)
-        # Darts creates geometric progression based on input_chunk_length
-        "pooling_kernel_sizes": {"values": [None]},  # FIXED
+        # pooling_kernel_sizes: Per-stack temporal aggregation (multi-scale extraction)
+        # Stack 1: [8] - captures slow trends with 8x pooling
+        # Stack 2: [1] - captures fast dynamics with no pooling
+        "pooling_kernel_sizes": {"values": [[[8], [1]]]},  # num_stacks=2, num_blocks=1
 
-        # n_freq_downsample: Auto-configured (paper recommendation)
-        # Creates geometric progression based on output_chunk_length
-        "n_freq_downsample": {"values": [None]},  # FIXED
+        # n_freq_downsample: Per-stack output frequency (basis function resolution)
+        # Stack 1: [4] - coarse resolution (36/4=9 basis functions for trends)
+        # Stack 2: [1] - full resolution (36 basis functions for details)
+        "n_freq_downsample": {"values": [[[4], [1]]]},  # output_chunk=36
 
         # max_pool_1d=True: Preserves spike magnitudes for sparse conflict events
         # AvgPool dilutes isolated spikes in zero-inflated data
