@@ -12,7 +12,7 @@ def get_hp_config():
         # CORE SETTINGS
         # ==============================================================================
         "steps": [*range(1, 36 + 1, 1)],
-        "num_samples": 1,
+        "num_samples": 256,
         "mc_dropout": True,
         "random_state": 67,
         "n_jobs": -1,
