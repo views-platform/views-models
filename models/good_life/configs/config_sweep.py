@@ -52,7 +52,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_mag_quantile_v2_msle",
+        "name": "good_life_transformer_mag_quantile_v3_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -191,12 +191,13 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        # d_model: 64-128 smaller to prevent mean-memorization
-        # Constraint: d_model / nhead >= 32
-        "d_model": {"values": [64, 128]},
+        # d_model: Use 128 only to ensure valid nhead combinations
+        # Constraint: d_model / nhead >= 32 (head_dim >= 32 for stable attention)
+        "d_model": {"values": [128]},
 
-        # nhead: 2 for d_model=64 (64/2=32✓), 4 for d_model=128 (128/4=32✓)
-        "nhead": {"values": [2, 4]},
+        # nhead: 4 for d_model=128 (128/4=32✓)
+        # NOTE: d_model=64 with nhead=4 gives head_dim=16 which is UNSTABLE
+        "nhead": {"values": [4]},
 
         # num_encoder_layers: 2 sufficient for ~200 series (Vaswani et al.)
         "num_encoder_layers": {"values": [2]},
@@ -204,11 +205,11 @@ def get_sweep_config():
         # num_decoder_layers: Match encoder for balanced capacity
         "num_decoder_layers": {"values": [2]},
 
-        # dim_feedforward: 2-4x d_model (scaled down with d_model)
+        # dim_feedforward: 2-4x d_model
         "dim_feedforward": {"values": [256, 512]},
 
-        # dropout: Higher to force diversity and prevent mean collapse
-        "dropout": {"values": [0.2, 0.3]},
+        # dropout: Lower to preserve rare pattern learning (high dropout → mean regression)
+        "dropout": {"values": [0.15, 0.25]},
 
         # activation: GEGLU (gated activation, Shazeer 2020)
         "activation": {"values": ["GEGLU"]},  # FIXED (was [SwiGLU, GEGLU])
@@ -233,15 +234,15 @@ def get_sweep_config():
         "tau": {
             "distribution": "uniform",
             "min": 0.45,
-            "max": 0.60,
+            "max": 0.80,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
         # With ~95% zeros in conflict data, non-zero targets need amplification
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 20.0,
+            "min": 10.0,
+            "max": 50.0,
         },
         
         # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
