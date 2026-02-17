@@ -64,14 +64,14 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_20260214_v1_bcd",
+        "name": "revolving_door_nhits_mag_quantile_v1_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,  # Increased from 20 for sparse signal
             "eta": 2,
         },
         "metric": {
-            "name": "time_series_wise_bcd_mean_sb",  # BCD better for zero-inflated (was MTD)
+            "name": "time_series_wise_msle_mean_sb",
             "goal": "minimize",
         },
     }
@@ -95,7 +95,7 @@ def get_sweep_config():
         # ==============================================================================
         # Batch size 64-128: ~98% probability of non-zero events per batch
         # (was 1024-4096: caused "all-zero batches" → mode collapse)
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [64, 128]},
         "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
         "early_stopping_patience": {"values": [30]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -105,11 +105,11 @@ def get_sweep_config():
         # OPTIMIZER: CosineAnnealingWarmRestarts (replaces ReduceLROnPlateau)
         # ==============================================================================
         # CosineAnnealing restarts help escape local minima (mode collapse prevention)
-        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
+        # N-HiTS paper uses lr~1e-3; with batch 64-128, range 5e-5 to 1e-3 is stable
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,  # Raised floor (was 5e-5)
-            "max": 5e-3,  # Raised ceiling for smaller batches
+            "min": 5e-5,
+            "max": 1e-3,  # N-HiTS paper default ceiling
         },
         "weight_decay": {"values": [1e-6]},  # Minimal (was 0)
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
@@ -238,7 +238,7 @@ def get_sweep_config():
 
         # dropout: Low to preserve rare pattern learning
         # N-HiTS already has implicit regularization from pooling structure
-        "dropout": {"values": [0.05, 0.1]},  # Reduced (was [0.05, 0.15])
+        "dropout": {"values": [0.15, 0.25]},
 
         # RevIN: Critical for distribution shift in conflict data
         "use_reversible_instance_norm": {"values": [True, False]},  # FIXED (was [False, True])
@@ -265,7 +265,7 @@ def get_sweep_config():
         "non_zero_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 20.0,
+            "max": 50.0,
         },
         
         # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
