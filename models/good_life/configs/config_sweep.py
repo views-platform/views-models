@@ -212,7 +212,7 @@ def get_sweep_config():
         "dropout": {"values": [0.15, 0.25]},
 
         # activation: GEGLU (gated activation, Shazeer 2020)
-        "activation": {"values": ["GEGLU"]},  # FIXED (was [SwiGLU, GEGLU])
+        "activation": {"values": ["GEGLU", "SwiGLU"]},  # FIXED (was [SwiGLU, GEGLU])
 
         # norm_type: LayerNorm more stable than RMSNorm
         "norm_type": {"values": ["LayerNorm"]},  # FIXED (was [RMSNorm, LayerNorm])
@@ -233,8 +233,8 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.45,
-            "max": 0.80,
+            "min": 0.50,
+            "max": 0.85,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
