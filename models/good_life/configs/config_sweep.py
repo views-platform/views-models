@@ -195,9 +195,9 @@ def get_sweep_config():
         # Constraint: d_model / nhead >= 32
         "d_model": {"values": [128, 256]},
 
-        # num_attention_heads: 4 heads with head_dim >= 32
+        # nhead: 4 heads with head_dim >= 32
         # 128/4=32✓, 256/4=64✓
-        "num_attention_heads": {"values": [4]},
+        "nhead": {"values": [4]},
 
         # num_encoder_layers: 2 sufficient for ~200 series (Vaswani et al.)
         "num_encoder_layers": {"values": [2]},
