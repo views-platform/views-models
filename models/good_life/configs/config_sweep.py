@@ -233,8 +233,8 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.45,
-            "max": 0.55,
+            "min": 0.30,
+            "max": 0.80,
         },
         
         # non_zero_weight: Extra weight for samples where target > threshold
