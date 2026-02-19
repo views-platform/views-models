@@ -40,7 +40,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_nbinomial_v4_bcd",
+        "name": "cool_cat_tide_nbinomial_v5_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -200,7 +200,9 @@ def get_sweep_config():
         # FP = model predicts high but actual is zero/low
         # Range 0.5-1.0: equal or reduced penalty for false positives
         "false_positive_weight": {
-            "values": [1.0],
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 12.0,
         },
         
         # zero_threshold: Raw count threshold to distinguish zero from non-zero
