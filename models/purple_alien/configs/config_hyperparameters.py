@@ -68,15 +68,15 @@ def get_hp_config():
         # ============================================================
         'loss_reg': 'b',
         'loss_class': 'b',
-        'loss_reg_a': 16,
-        'loss_reg_c': 0.05,
+        'loss_reg_a': 258,
+        'loss_reg_c': 0.001,
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 20,        
+        'total_lessons': 300,        
         'max_ratio': 0.95,           
         'min_ratio': 0.05,           
         'slope_ratio': 0.75,         

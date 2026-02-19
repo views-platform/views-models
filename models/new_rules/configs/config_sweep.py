@@ -28,9 +28,10 @@ def get_sweep_config():
         'batch_norm': {'values': [False]},
 
         # --- Loss Function ---
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-        'zero_threshold': {'values': [0.01]},
-        'delta': {'values': [0.025]},
+        'loss_function': {'values': ['TweedieLoss']},
+        'p': {'values': [1.2, 1.5, 1.8]},
+        'eps': {'values': [1e-6]},
+        'zero_threshold': {'values': [0.05]},
         'non_zero_weight': {'values': [5.0]},
         'false_positive_weight': {'values': [1.0]},
         'false_negative_weight': {'values': [5.0]},
@@ -45,17 +46,17 @@ def get_sweep_config():
         'lr_scheduler_patience': {'values': [7]},
         'lr_scheduler_factor': {'values': [0.46]},
         'lr_scheduler_min_lr': {'values': [0.00001]},
-        'early_stopping_patience': {'values': [10]}, # 40 
+        'early_stopping_patience': {'values': [1]}, # 40 
         'early_stopping_min_delta': {'values': [0.01]},
         
         # --- Data Handling & Input/Output ---
-        'input_chunk_length': {'values': [36]},
+        'input_chunk_length': {'values': [24]},
         'output_chunk_length': {'values': [36]},
         'output_chunk_shift': {'values': [0]},
         'batch_size': {'values': [8]},
-        'target_scaler': {'values': ['MinMaxScaler']},
-        'feature_scaler': {'values': ['MinMaxScaler']},
-        'log_targets': {'values': [True]},
+        'target_scaler': {'values': [None]},
+        'feature_scaler': {'values': [None]},
+        'log_targets': {'values': [None]},
         'log_features': {'values': [None]},
         "use_reversible_instance_norm": {'values': [False]}, # darts native
         # 'use_static_covariates': {'values': [True]},
@@ -67,7 +68,7 @@ def get_sweep_config():
         # --- Other ---
         'steps': {'values': [[*range(1, 37)]]},
         'force_reset': {'values': [True]},
-        'random_state': {'values': [1, 2]},
+        'random_state': {'values': [1]},
         'n_jobs': {'values': [-1]},
     }
 

@@ -46,17 +46,18 @@ def get_hp_config():
         "lr_scheduler_patience": 7,
 
         # --- Scaling & transforms ---
-        "feature_scaler": "MinMaxScaler",
-        "target_scaler": "MinMaxScaler",
-        "log_targets": True,
+        "feature_scaler": None, #"MinMaxScaler",
+        "target_scaler": None, # "MinMaxScaler",
+        "log_targets": None,
         "log_features": None,
         "use_reversible_instance_norm": False, # True, # False, # darts native
         # "use_static_covariates": True, 
 
         # --- Loss & penalties ---
-        "loss_function": "WeightedPenaltyHuberLoss",
-        "delta": 0.025,
-        "zero_threshold": 0.01,
+        "loss_function": "TweedieLoss",
+        "p": 1.5,
+        "eps": 1e-6,
+        "zero_threshold": 0.05,
         "non_zero_weight": 7.0,
         "false_positive_weight": 1.0,
         "false_negative_weight": 10.0,
