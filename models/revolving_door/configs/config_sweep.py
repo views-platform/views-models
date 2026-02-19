@@ -64,7 +64,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_mag_quantile_v1_msle",
+        "name": "revolving_door_nhits_mag_quantile_v2_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,  # Increased from 20 for sparse signal
@@ -221,9 +221,9 @@ def get_sweep_config():
         "layer_widths": {"values": [256, 512]},  # CHANGED (was [64, 128, 256])
 
         # pooling_kernel_sizes: Per-stack temporal aggregation (multi-scale extraction)
-        # Stack 1: [8] - captures slow trends with 8x pooling
+        # Stack 1: [2] - captures slow trends with 2x pooling
         # Stack 2: [1] - captures fast dynamics with no pooling
-        "pooling_kernel_sizes": {"values": [[[8], [1]]]},  # num_stacks=2, num_blocks=1
+        "pooling_kernel_sizes": {"values": [[[1], [1]], [[2], [1]]]}, 
 
         # n_freq_downsample: Per-stack output frequency (basis function resolution)
         # Stack 1: [4] - coarse resolution (36/4=9 basis functions for trends)
@@ -258,7 +258,7 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.40,
+            "min": 0.50,
             "max": 0.80,
         },
         
@@ -266,7 +266,7 @@ def get_sweep_config():
         # With ~95% zeros in conflict data, non-zero targets need amplification
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 1.0,
+            "min": 2.0,
             "max": 50.0,
         },
         
