@@ -11,10 +11,20 @@ def get_meta_config():
         "name": "locf_cmbaseline",
         "algorithm": "LocfModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["ln_ged_sb_dep"],
+        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Sonja",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "MTD", "y_hat_bar"],
+        "metrics": [
+            "RMSLE",
+            "CRPS",
+            "MSE",
+            "MSLE",
+            "y_hat_bar",
+            "MTD",
+            "BCD",
+            "Pearson",
+            "LevelRatio",
+        ],
     }
     return meta_config
