@@ -10,7 +10,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -18,7 +18,7 @@ def get_hp_config():
         # Inference
         "num_samples": 1,
         "mc_dropout": True,
-        "n_jobs": 1,
+        "n_jobs": -1,
         
         # Training
         "batch_size": 64,
@@ -29,21 +29,30 @@ def get_hp_config():
         
         # Optimizer
         "optimizer_cls": "Adam",
-        "lr": 0.0002476663239164474,
+        "lr": 0.00016112813049684902,
         "weight_decay": 0.000001,
-        "gradient_clip_val": 1,
+        "gradient_clip_val": 1.5,
         
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 25,
         "lr_scheduler_T_mult": 1,
         "lr_scheduler_eta_min": 0.000001,
+        "lr_scheduler_kwargs": {
+            "T_0": 25,
+            "T_mult": 1,
+            "eta_min": 0.000001,
+        },
+        "optimizer_kwargs": {
+            "lr": 0.00016112813049684902,
+            "weight_decay": 0.000001,
+        },
         
         # Loss: MagnitudeAwareQuantileLoss
         "loss_function": "MagnitudeAwareQuantileLoss",
-        "tau": 0.43565747704476154,
-        "zero_threshold": 1.82,
-        "non_zero_weight": 2.8485379671489968,
+        "tau": 0.45214108890315474,
+        "zero_threshold": 2.09,
+        "non_zero_weight": 35.20259257390748,
         
         # Scaling
         "feature_scaler": None,
@@ -127,13 +136,13 @@ def get_hp_config():
         "num_stacks": 2,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 256,
+        "layer_widths": 512,
         "pooling_kernel_sizes": [[8], [1]],
         "n_freq_downsample": [[4], [1]],
         "max_pool_1d": True,
         "activation": "ReLU",
-        "dropout": 0.25,
-        "use_reversible_instance_norm": True,
+        "dropout": 0.15,
+        "use_reversible_instance_norm": False,
     }
 
     return hyperparameters

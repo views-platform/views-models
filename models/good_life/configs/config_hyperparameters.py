@@ -12,6 +12,7 @@ def get_hp_config():
         "steps": [*range(1, 36 + 1, 1)],
         "num_samples": 1,
         "mc_dropout": True,
+        "detect_anomaly": False,
 
         "activation": "SwiGLU",
         "batch_size": 128,
@@ -111,7 +112,7 @@ def get_hp_config():
         },
         "n_epochs": 200,
         "nhead": 4,
-        "non_zero_weight": 26.557867534599048,
+        "non_zero_weight": 22.557867534599048,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 2,
         "num_encoder_layers": 2,
@@ -125,7 +126,7 @@ def get_hp_config():
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "tau": 0.5054102588960857,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "weight_decay": 0.000001,
         "zero_threshold": 1.82,
     }

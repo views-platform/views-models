@@ -1,48 +1,46 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - MagnitudeAwareHuberLoss
-    ==================================================================
+    TiDE Hyperparameter Sweep Configuration - NegativeBinomialLoss
+    ===============================================================
     
-    Strategy: Magnitude-Aware Weighted Huber Loss with Linear Scaling
-    -----------------------------------------------------------------
-    This loss combines the robustness of Huber loss with magnitude-aware
-    weighting that scales LINEARLY with target values. Linear scaling provides
-    stable gradients while still differentiating between small and large events.
+    Strategy: Probabilistic Count Modeling with Overdispersion
+    -----------------------------------------------------------
+    Uses Negative Binomial distribution for zero-inflated, overdispersed count data.
+    Model predicts RAW COUNTS directly (no target transformation).
     
-    Why MagnitudeAwareHuberLoss:
-    - Linear magnitude scaling → stable gradients (vs quadratic which explodes)
-    - Huber loss → robust to outliers (L2 for small errors, L1 for large)
-    - Additive weight structure → efficient hyperparameter search
-    - Magnitude awareness → properly penalizes missing large events in asinh space
+    Why NegativeBinomialLoss:
+    - Proper count distribution: NB is designed for discrete non-negative data
+    - Overdispersion: Var = μ + αμ² handles conflict data where Var >> Mean
+    - Zero-inflation: NB naturally assigns high probability to zero
+    - Calibrated uncertainty: Better tail coverage than Gaussian losses
     
-    Magnitude Scaling (Linear):
-    - target = threshold:     mult = 2x
-    - target = 2×threshold:   mult = 3x 
-    - target = 3×threshold:   mult = 4x
-    - target = 4.5×threshold: mult = 5.5x (max for asinh data ~9)
+    Parameterization:
+    - μ (mean): predicted via softplus(model_output), always > 0
+    - α (dispersion): controls overdispersion, higher = more variance
+    - P(Y=0 | μ, α) = (1 + αμ)^(-1/α)
     
-    Weight Structure (Additive):
-    - TN: 1.0 (base)
-    - TP: 1.0 + non_zero_weight
-    - FP: false_positive_weight (absolute)
-    - FN: 1.0 + non_zero_weight + false_negative_weight
+    Alpha Interpretation:
+    - α → 0: approaches Poisson (Var = Mean)
+    - α = 0.5-1.0: mild overdispersion (typical for low-intensity conflict)
+    - α = 1.0-2.0: moderate overdispersion (typical for high-intensity regions)
+    - α > 2.0: severe overdispersion (extreme conflict spikes)
     
-    With magnitude scaling:
-    - TP_effective = (1 + non_zero_weight) × magnitude_mult
-    - FN_effective = (1 + non_zero_weight + fn_weight) × magnitude_mult
+    Example with α=1.0, μ=10:
+    - Variance = 10 + 1×10² = 110 (vs Poisson Var=10)
+    - P(Y=0) = (1 + 10)^(-1) = 0.091
     
-    BCD Optimization:
-    - BCD = ∛(MTD × MSLE × log(1+MSE))
-    - false_negative_weight → higher FN penalty → lower MTD
-    - non_zero_weight → focuses on conflict periods → improves MSLE
-    - AsinhTransform → bounded predictions → controls MSE explosion
+    FN/FP Weighting:
+    - false_negative_weight > 1.0: Missing conflict is worse
+    - false_positive_weight < 1.0: False alarms less costly
     
-    Note: AsinhTransform used for bounded training space.
-    Loss computed in asinh-space, predictions inverse-transformed for evaluation.
+    LR Considerations:
+    - Raw counts → larger gradients than transformed data
+    - Use lower LR range: 1e-5 to 2e-4
+    - Combined with gradient clipping for stability
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_magnitude_v3_bcd",
+        "name": "cool_cat_tide_nbinomial_v4_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -64,9 +62,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # MagnitudeAwareHuberLoss with linear scaling is stable but larger batches
-        # help smooth gradient estimates. Small batches (64) may need lower LR.
-        "batch_size": {"values": [64, 128, 256, 512]}, 
+        # With raw counts, larger batches stabilize gradient estimates
+        # Batch 64-128 recommended for NB loss stability
+        "batch_size": {"values": [64, 128]}, 
         "n_epochs": {"values": [200]},
         "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -75,12 +73,14 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Lower LR range for magnitude-aware loss stability
-        # Smaller batches (64) should pair with lower LR end (5e-6)
+        # LR range for NegativeBinomialLoss with raw counts:
+        # - Raw counts → larger gradients → need lower LR
+        # - NB has log-gamma computations → sensitive to instability
+        # - Batch 64-128 with gradient clipping enables slightly higher LR
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-6, 
-            "max": 1e-4,
+            "min": 1e-5,
+            "max": 2e-4,
         },
         "weight_decay": {"values": [1e-6]},
         
@@ -91,16 +91,17 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [25]},
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Tighter gradient clipping for magnitude-weighted loss
-        "gradient_clip_val": {"values": [0.25, 0.5, 1.0]},
+        # Gradient clipping critical for NB with raw counts (large gradients)
+        "gradient_clip_val": {"values": [0.5, 1.0]},
         
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        # AsinhTransform compresses heavy-tailed counts into bounded range
-        # Loss computed in asinh space (stable), predictions inverse-transformed for metrics
+        # NegativeBinomialLoss requires RAW COUNTS for proper NB semantics
+        # Model predicts raw counts through softplus (ensures μ > 0)
+        # Input features still scaled for stable forward pass
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": [None]},
         
         "feature_scaler_map": {
             "values": [
@@ -156,8 +157,8 @@ def get_sweep_config():
         "num_decoder_layers": {"values": [2]},
         "decoder_output_dim": {"values": [128]},
         "hidden_size": {"values": [128, 256]},
-        "temporal_width_past": {"values": [12]},
-        "temporal_width_future": {"values": [12]},
+        "temporal_width_past": {"values": [24, 64, 128]},
+        "temporal_width_future": {"values": [24, 64, 128]},
         "temporal_hidden_size_past": {"values": [128, 256]},
         "temporal_hidden_size_future": {"values": [128, 256]},
         "temporal_decoder_hidden": {"values": [256]},
@@ -166,61 +167,52 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True, False]},
-        "dropout": {"values": [0.1, 0.15]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [False, True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         
         # ==============================================================================
-        # LOSS FUNCTION: MagnitudeAwareHuberLoss
+        # LOSS FUNCTION: NegativeBinomialLoss
         # ==============================================================================
-        # Magnitude-aware Huber loss with additive weight structure and LINEAR scaling.
-        # Linear scaling provides stable gradients while preserving magnitude awareness.
-        "loss_function": {"values": ["MagnitudeAwareHuberLoss"]},
+        # Negative Binomial for overdispersed count data
+        # NLL: -log P(y | μ, α) with softplus(pred) → μ
+        "loss_function": {"values": ["NegativeBinomialLoss"]},
         
-        # delta: Huber loss L2→L1 transition threshold
-        # For asinh-scaled data [0, ~9], delta 1.0-2.0 gives balanced behavior
-        # Lower delta = more L1 (robust), higher = more L2 (smooth gradients)
-        "delta": {
+        # alpha (dispersion): Controls overdispersion Var = μ + αμ²
+        # - alpha = 0.5: mild overdispersion
+        # - alpha = 1.0: moderate (Var = μ + μ²)
+        # - alpha = 2.0: severe overdispersion
+        # Higher alpha → more probability mass at extremes
+        "alpha": {
             "distribution": "uniform",
-            "min": 1.0,
+            "min": 0.5,
             "max": 2.0,
         },
         
-        # non_zero_weight: Weight ADDED to base (1.0) for non-zero targets
-        # Controls TP weight: TP = 1 + non_zero_weight
-        # With ~95% zeros, non-zero targets need amplification
-        # Range 3-8: Moderate emphasis, balanced with magnitude scaling
-        "non_zero_weight": {
-            "distribution": "uniform",
-            "min": 1.0,
-            "max": 8.0,
-        },
-        
-        # false_positive_weight: ABSOLUTE weight for false positives
-        # Values < 1.0 reduce FP penalty, encouraging model to predict events
-        # Range 0.3-0.9: Encourages exploration without excessive false alarms
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.7,
-            "max": 3.0,
-        },
-        
-        # false_negative_weight: Weight ADDED on top of (1 + non_zero_weight) for FN
-        # FN = 1 + non_zero_weight + false_negative_weight
-        # Controls asymmetry: how much worse is missing a conflict
-        # Range 5-20: With linear magnitude scaling (max 5.5x), this gives
-        # effective FN weights of ~30-140 at max magnitude
+        # false_negative_weight: Penalty multiplier for missing conflict
+        # FN = model predicts low but actual is high
+        # Range 1.5-3.0: moderate to strong preference for catching events
         "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 3.0,
-            "max": 20.0,
+            "values": [1.0],
         },
         
-        # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
-        # Also used as reference for magnitude scaling: mult = 1 + |target|/threshold
-        # asinh(1)≈0.88, asinh(3)≈1.82, asinh(6)≈2.49, asinh(10)≈3.0
-        # Higher threshold = more conservative event detection
-        "zero_threshold": {"values": [0.88, 1.82]},
+        # false_positive_weight: Penalty multiplier for false alarms
+        # FP = model predicts high but actual is zero/low
+        # Range 0.5-1.0: equal or reduced penalty for false positives
+        "false_positive_weight": {
+            "values": [1.0],
+        },
+        
+        # zero_threshold: Raw count threshold to distinguish zero from non-zero
+        # For raw counts, 0.5 means < 1 fatality classified as zero
+        "zero_threshold": {"values": [1, 3, 4]},
+        
+        # learn_alpha: Estimate dispersion from batch variance
+        # If True, overrides fixed alpha with moment-based estimate
+        "learn_alpha": {"values": [False]},
+        
+        # inverse_transform: Not needed since target_scaler is None
+        "inverse_transform": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters
