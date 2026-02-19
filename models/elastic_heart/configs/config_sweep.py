@@ -46,14 +46,14 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_20260214_v1_bcd",
+        "name": "elastic_heart_tsmixer_mag_quantile_v1_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,  # More time for sparse signal (was 20)
             "eta": 2,
         },
         "metric": {
-            "name": "time_series_wise_bcd_mean_sb",
+            "name": "time_series_wise_msle_mean_sb",
             "goal": "minimize",
         },
     }
@@ -75,7 +75,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING 
         # ==============================================================================
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [64, 128]},
         "n_epochs": {"values": [200]},  # Increased from 150 for CosineAnnealing
         "early_stopping_patience": {"values": [30]},  # 40% of T_0 cycle
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -86,10 +86,11 @@ def get_sweep_config():
         # ==============================================================================
         # CosineAnnealing restarts help escape local minima (mode collapse prevention)
         # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
+        # LR scaled for batch 64-128 (linear scaling rule)
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,  # Raised floor (was 5e-5)
-            "max": 5e-3,  # Raised ceiling for larger batches
+            "min": 1e-4,  # Higher floor for larger batches
+            "max": 1e-3,  # Conservative ceiling for stability
         },
         "weight_decay": {"values": [1e-6]},  # Minimal (was 0 - can cause instability)
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
@@ -207,7 +208,7 @@ def get_sweep_config():
         "norm_type": {"values": ["LayerNorm"]},
 
         # Dropout: Low to preserve rare pattern learning
-        "dropout": {"values": [0.05, 0.1]},
+        "dropout": {"values": [0.15, 0.25]},
 
         # RevIN: Critical for distribution shift in conflict data
         "use_reversible_instance_norm": {"values": [True, False]},  # FIXED (was [True, False])
@@ -228,7 +229,7 @@ def get_sweep_config():
         # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
         "tau": {
             "distribution": "uniform",
-            "min": 0.40,
+            "min": 0.45,
             "max": 0.80,
         },
         
@@ -236,7 +237,7 @@ def get_sweep_config():
         # With ~95% zeros in conflict data, non-zero targets need amplification
         "non_zero_weight": {
             "distribution": "uniform",
-            "min": 1.0,
+            "min": 2.0,
             "max": 20.0,
         },
         
