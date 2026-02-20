@@ -8,8 +8,8 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "average_cmbaseline", 
-        "algorithm": "AverageModel",
+        "name": "mirror_cmbaseline", 
+        "algorithm": "MirrorModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",

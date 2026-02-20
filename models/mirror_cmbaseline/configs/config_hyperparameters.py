@@ -10,7 +10,6 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'months':18,
         # Add more hyperparameters as needed
     }
     return hyperparameters
