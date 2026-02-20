@@ -290,8 +290,8 @@ def get_sweep_config():
         #
         # Note: Cyclic encoding requires DatetimeIndex which has compatibility issues
         # with Darts slicing. Seasonality captured via raw 'month' feature instead.
-        "use_datetime_index": {"values": [False]},
-        "temporal_precision": {"values": ["month"]},  # month | week | day (for future use)
+        # "use_datetime_index": {"values": [False]},
+        # "temporal_precision": {"values": ["month"]},  # month | week | day (for future use)
         "add_encoders": {
             "values": [
                 {
