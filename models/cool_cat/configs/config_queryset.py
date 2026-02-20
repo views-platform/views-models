@@ -6,17 +6,24 @@ model_name = ModelPathManager.get_model_name_from_path(__file__)
 
 def generate():
     """
-    Optimized queryset for conflict forecasting with TiDE + NegativeBinomialLoss.
+    Expanded queryset for conflict forecasting with TiDE + NegativeBinomialLoss.
     
     Feature Strategy:
     -----------------
     1. Conflict History (core signal): GED counts + momentum (deltas)
-    2. Spatial Spillover: Neighboring country conflict only
+    2. Spatial Spillover: Neighboring country conflict
     3. Seasonality: Raw month (1-12), scaled via MinMaxScaler
     4. Governance (V-Dem): Full set - strong predictors of institutional fragility
     5. Economic Stress (WDI): Full set - economic shocks trigger unrest
-    6. Topic Models: Top 7 topics (reduced from 15)
-
+    6. Topic Models: All 15 topics (theta0-14) with temporal lags (t1, t2, t13)
+       + spatial lags + decay features + topic_tokens
+    
+    Feature Counts:
+    - Conflict: 10 (3 GED + 3 delta + 3 splag + 1 month)
+    - WDI: 13
+    - V-Dem: 18
+    - Topics: 64 (3 tokens + 45 thetas + 16 splags)
+    - Total: ~105 features
     """
 
     def _add_conflict_history(queryset: Queryset) -> Queryset:
@@ -231,33 +238,358 @@ def generate():
         """Top 7 topic model features. Removed topics 7-14 and all spatial lags."""
         return (
             queryset
+            # ==================== TOPIC TOKENS ====================
             .with_column(
-                Column("lr_topic_ste_theta0", from_loa="country_month", from_column="topic_ste_theta0_stock")
+                Column("lr_topic_tokens_t1", from_loa="country_month", from_column="topic_tokens")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta1", from_loa="country_month", from_column="topic_ste_theta1_stock")
+                Column("lr_topic_tokens_t2", from_loa="country_month", from_column="topic_tokens")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta2", from_loa="country_month", from_column="topic_ste_theta2_stock")
+                Column("lr_topic_tokens_t13", from_loa="country_month", from_column="topic_tokens")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA0 ====================
+            .with_column(
+                Column("lr_topic_ste_theta0_stock_t1", from_loa="country_month", from_column="topic_ste_theta0_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta3", from_loa="country_month", from_column="topic_ste_theta3_stock")
+                Column("lr_topic_ste_theta0_stock_t2", from_loa="country_month", from_column="topic_ste_theta0_stock")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta4", from_loa="country_month", from_column="topic_ste_theta4_stock")
+                Column("lr_topic_ste_theta0_stock_t13", from_loa="country_month", from_column="topic_ste_theta0_stock")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA1 ====================
+            .with_column(
+                Column("lr_topic_ste_theta1_stock_t1", from_loa="country_month", from_column="topic_ste_theta1_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta5", from_loa="country_month", from_column="topic_ste_theta5_stock")
+                Column("lr_topic_ste_theta1_stock_t2", from_loa="country_month", from_column="topic_ste_theta1_stock")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
             )
             .with_column(
-                Column("lr_topic_ste_theta6", from_loa="country_month", from_column="topic_ste_theta6_stock")
+                Column("lr_topic_ste_theta1_stock_t13", from_loa="country_month", from_column="topic_ste_theta1_stock")
                 .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA2 ====================
+            .with_column(
+                Column("lr_topic_ste_theta2_stock_t1", from_loa="country_month", from_column="topic_ste_theta2_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta2_stock_t2", from_loa="country_month", from_column="topic_ste_theta2_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta2_stock_t13", from_loa="country_month", from_column="topic_ste_theta2_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA3 ====================
+            .with_column(
+                Column("lr_topic_ste_theta3_stock_t1", from_loa="country_month", from_column="topic_ste_theta3_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta3_stock_t2", from_loa="country_month", from_column="topic_ste_theta3_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta3_stock_t13", from_loa="country_month", from_column="topic_ste_theta3_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA4 ====================
+            .with_column(
+                Column("lr_topic_ste_theta4_stock_t1", from_loa="country_month", from_column="topic_ste_theta4_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta4_stock_t2", from_loa="country_month", from_column="topic_ste_theta4_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta4_stock_t13", from_loa="country_month", from_column="topic_ste_theta4_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA5 ====================
+            .with_column(
+                Column("lr_topic_ste_theta5_stock_t1", from_loa="country_month", from_column="topic_ste_theta5_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta5_stock_t2", from_loa="country_month", from_column="topic_ste_theta5_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta5_stock_t13", from_loa="country_month", from_column="topic_ste_theta5_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA6 ====================
+            .with_column(
+                Column("lr_topic_ste_theta6_stock_t1", from_loa="country_month", from_column="topic_ste_theta6_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta6_stock_t2", from_loa="country_month", from_column="topic_ste_theta6_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta6_stock_t13", from_loa="country_month", from_column="topic_ste_theta6_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA7 ====================
+            .with_column(
+                Column("lr_topic_ste_theta7_stock_t1", from_loa="country_month", from_column="topic_ste_theta7_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta7_stock_t2", from_loa="country_month", from_column="topic_ste_theta7_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta7_stock_t13", from_loa="country_month", from_column="topic_ste_theta7_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA8 ====================
+            .with_column(
+                Column("lr_topic_ste_theta8_stock_t1", from_loa="country_month", from_column="topic_ste_theta8_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta8_stock_t2", from_loa="country_month", from_column="topic_ste_theta8_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta8_stock_t13", from_loa="country_month", from_column="topic_ste_theta8_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA9 ====================
+            .with_column(
+                Column("lr_topic_ste_theta9_stock_t1", from_loa="country_month", from_column="topic_ste_theta9_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta9_stock_t2", from_loa="country_month", from_column="topic_ste_theta9_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta9_stock_t13", from_loa="country_month", from_column="topic_ste_theta9_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA10 ====================
+            .with_column(
+                Column("lr_topic_ste_theta10_stock_t1", from_loa="country_month", from_column="topic_ste_theta10_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta10_stock_t2", from_loa="country_month", from_column="topic_ste_theta10_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta10_stock_t13", from_loa="country_month", from_column="topic_ste_theta10_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA11 ====================
+            .with_column(
+                Column("lr_topic_ste_theta11_stock_t1", from_loa="country_month", from_column="topic_ste_theta11_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta11_stock_t2", from_loa="country_month", from_column="topic_ste_theta11_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta11_stock_t13", from_loa="country_month", from_column="topic_ste_theta11_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA12 ====================
+            .with_column(
+                Column("lr_topic_ste_theta12_stock_t1", from_loa="country_month", from_column="topic_ste_theta12_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta12_stock_t2", from_loa="country_month", from_column="topic_ste_theta12_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta12_stock_t13", from_loa="country_month", from_column="topic_ste_theta12_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA13 ====================
+            .with_column(
+                Column("lr_topic_ste_theta13_stock_t1", from_loa="country_month", from_column="topic_ste_theta13_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta13_stock_t2", from_loa="country_month", from_column="topic_ste_theta13_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta13_stock_t13", from_loa="country_month", from_column="topic_ste_theta13_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== THETA14 ====================
+            .with_column(
+                Column("lr_topic_ste_theta14_stock_t1", from_loa="country_month", from_column="topic_ste_theta14_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(1).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta14_stock_t2", from_loa="country_month", from_column="topic_ste_theta14_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(2).transform.missing.fill()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta14_stock_t13", from_loa="country_month", from_column="topic_ste_theta14_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+            )
+            # ==================== SPATIAL LAGS (t13 + splag) ====================
+            .with_column(
+                Column("lr_topic_tokens_t1_splag", from_loa="country_month", from_column="topic_tokens")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta0_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta0_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta1_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta1_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta2_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta2_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta3_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta3_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta4_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta4_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta5_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta5_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta6_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta6_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta7_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta7_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta8_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta8_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta9_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta9_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta10_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta10_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta11_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta11_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta12_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta12_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta13_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta13_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
+            )
+            .with_column(
+                Column("lr_topic_ste_theta14_stock_t1_splag", from_loa="country_month", from_column="topic_ste_theta14_stock")
+                .transform.missing.fill().transform.missing.replace_na()
+                .transform.temporal.tlag(13).transform.missing.fill()
+                .transform.spatial.countrylag(1, 1, 0, 0).transform.missing.replace_na()
             )
         )
 
