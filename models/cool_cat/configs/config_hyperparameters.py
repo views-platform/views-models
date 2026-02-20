@@ -19,62 +19,7 @@ def get_hp_config():
         "early_stopping_patience": 30,
         "feature_scaler": None,
         "feature_scaler_map": {
-            "MinMaxScaler": [
-                "lr_wdi_sl_tlf_totl_fe_zs",
-                "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_urb_totl_in_zs",
-                "lr_vdem_v2x_horacc",
-                "lr_vdem_v2xnp_client",
-                "lr_vdem_v2x_veracc",
-                "lr_vdem_v2x_divparctrl",
-                "lr_vdem_v2xpe_exlpol",
-                "lr_vdem_v2x_diagacc",
-                "lr_vdem_v2xpe_exlgeo",
-                "lr_vdem_v2xpe_exlgender",
-                "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_ex_party",
-                "lr_vdem_v2x_genpp",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty",
-                "lr_vdem_v2xeg_eqprotec",
-                "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2xcl_dmove",
-                "lr_vdem_v2x_clphy",
-                "lr_vdem_v2xnp_regcorr",
-                "lr_topic_ste_theta0",
-                "lr_topic_ste_theta1",
-                "lr_topic_ste_theta2",
-                "lr_topic_ste_theta3",
-                "lr_topic_ste_theta4",
-                "lr_topic_ste_theta5",
-                "lr_topic_ste_theta6",
-                "lr_topic_ste_theta7",
-                "lr_topic_ste_theta8",
-                "lr_topic_ste_theta9",
-                "lr_topic_ste_theta10",
-                "lr_topic_ste_theta11",
-                "lr_topic_ste_theta12",
-                "lr_topic_ste_theta13",
-                "lr_topic_ste_theta14",
-                "lr_topic_ste_theta0_stock_t1_splag",
-                "lr_topic_ste_theta1_stock_t1_splag",
-                "lr_topic_ste_theta2_stock_t1_splag",
-                "lr_topic_ste_theta3_stock_t1_splag",
-                "lr_topic_ste_theta4_stock_t1_splag",
-                "lr_topic_ste_theta5_stock_t1_splag",
-                "lr_topic_ste_theta6_stock_t1_splag",
-                "lr_topic_ste_theta7_stock_t1_splag",
-                "lr_topic_ste_theta8_stock_t1_splag",
-                "lr_topic_ste_theta9_stock_t1_splag",
-                "lr_topic_ste_theta10_stock_t1_splag",
-                "lr_topic_ste_theta11_stock_t1_splag",
-                "lr_topic_ste_theta12_stock_t1_splag",
-                "lr_topic_ste_theta13_stock_t1_splag",
-                "lr_topic_ste_theta14_stock_t1_splag",
-            ],
             "AsinhTransform": [
-                "lr_acled_sb",
-                "lr_acled_os",
                 "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
                 "lr_wdi_nv_agr_totl_kn",
@@ -83,6 +28,9 @@ def get_hp_config():
                 "lr_splag_1_ged_os",
             ],
             "StandardScaler": [
+                "lr_ged_sb_delta",
+                "lr_ged_ns_delta",
+                "lr_ged_os_delta",
                 "lr_wdi_sm_pop_netm",
                 "lr_wdi_dt_oda_odat_pc_zs",
                 "lr_wdi_sp_pop_grow",
@@ -90,6 +38,39 @@ def get_hp_config():
                 "lr_wdi_sp_dyn_imrt_fe_in",
                 "lr_wdi_sh_sta_stnt_zs",
                 "lr_wdi_sh_sta_maln_zs",
+            ],
+            "MinMaxScaler": [
+                "month",
+                "lr_wdi_sl_tlf_totl_fe_zs",
+                "lr_wdi_se_enr_prim_fm_zs",
+                "lr_wdi_sp_urb_totl_in_zs",
+                # V-Dem (all bounded 0-1)
+                "lr_vdem_v2x_horacc",
+                "lr_vdem_v2x_veracc",
+                "lr_vdem_v2x_diagacc",
+                "lr_vdem_v2xnp_client",
+                "lr_vdem_v2xnp_regcorr",
+                "lr_vdem_v2xpe_exlpol",
+                "lr_vdem_v2xpe_exlgeo",
+                "lr_vdem_v2xpe_exlgender",
+                "lr_vdem_v2xpe_exlsocgr",
+                "lr_vdem_v2x_divparctrl",
+                "lr_vdem_v2x_ex_party",
+                "lr_vdem_v2x_ex_military",
+                "lr_vdem_v2x_genpp",
+                "lr_vdem_v2xeg_eqdr",
+                "lr_vdem_v2xcl_prpty",
+                "lr_vdem_v2xeg_eqprotec",
+                "lr_vdem_v2xcl_dmove",
+                "lr_vdem_v2x_clphy",
+                # Topics (probabilities 0-1)
+                "lr_topic_ste_theta0",
+                "lr_topic_ste_theta1",
+                "lr_topic_ste_theta2",
+                "lr_topic_ste_theta3",
+                "lr_topic_ste_theta4",
+                "lr_topic_ste_theta5",
+                "lr_topic_ste_theta6",
             ],
         },
         "force_reset": True,
@@ -102,7 +83,7 @@ def get_hp_config():
         "lr_scheduler_T_0": 25,
         "lr_scheduler_T_mult": 1,
         "lr_scheduler_eta_min": 1e-6,
-        "n_epochs": 200,
+        "n_epochs": 1,
         "n_jobs": -1,
         "num_decoder_layers": 2,
         "num_encoder_layers": 2,
@@ -115,6 +96,26 @@ def get_hp_config():
         "temporal_hidden_size_past": 256,
         "temporal_width_future": 64,
         "temporal_width_past": 64,
+        # ==============================================================================
+        # TEMPORAL ENCODINGS (Position-based)
+        # ==============================================================================
+        # use_datetime_index: Convert views month_id to DatetimeIndex
+        #   - Required for cyclic encoders (month, week, dayofweek sin/cos)
+        #   - NOT required for position encoder (works with integer indices)
+        # temporal_precision: Which views index type (month, week, day) - for DatetimeIndex conversion
+        #
+        # position encoder: relative position in sequence (0.0 to 1.0)
+        #   - Works with ANY index type (int or datetime)
+        #   - Provides temporal context without requiring DatetimeIndex
+        #
+        # Note: Cyclic encoding (sin/cos for month) requires DatetimeIndex which has
+        # compatibility issues with Darts slicing. Seasonality is captured via raw
+        # 'month' feature (MinMax scaled) in the queryset instead.
+        "use_datetime_index": False,
+        "temporal_precision": "month",  # month | week | day (for future use)
+        "add_encoders": {
+            "position": {"past": ["relative"], "future": ["relative"]},
+        },
         "use_layer_norm": True,
         "use_reversible_instance_norm": False,
         "use_static_covariates": True,
