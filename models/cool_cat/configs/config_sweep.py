@@ -40,7 +40,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_nbinomial_v5_bcd",
+        "name": "cool_cat_tide_nbinomial_v6_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -92,7 +92,7 @@ def get_sweep_config():
         "lr_scheduler_T_mult": {"values": [1]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
         # Gradient clipping critical for NB with raw counts (large gradients)
-        "gradient_clip_val": {"values": [0.5, 1.0]},
+        "gradient_clip_val": {"values": [0.5, 1.0, 1.5]},
         
         # ==============================================================================
         # SCALING
@@ -169,7 +169,7 @@ def get_sweep_config():
         "use_layer_norm": {"values": [True, False]},
         "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [False, True]},
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
         
         # ==============================================================================
         # LOSS FUNCTION: NegativeBinomialLoss
@@ -185,8 +185,8 @@ def get_sweep_config():
         # Higher alpha → more probability mass at extremes
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "min": 0.1,
+            "max": 1.0,
         },
         
         # false_negative_weight: Penalty multiplier for missing conflict
