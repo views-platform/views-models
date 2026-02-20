@@ -183,7 +183,7 @@ def get_hp_config():
         "alpha": 0.17658264095878612,
         "zero_threshold": 3,
         "false_negative_weight": 1,
-        "false_positive_weight": 2.6,
+        "false_positive_weight": 2.9,
         "learn_alpha": False,
         "inverse_transform": False,
     }
