@@ -1,8 +1,8 @@
 import wandb
 import warnings
 from pathlib import Path
-from views_graphdb.managers.extractor.extractor import UCDPExtractorManager
-from views_graphdb.managers.extractor.extractor import ExtractorPathManager
+from views_extractors.ucdp.extractor import UCDPExtractorManager
+from views_pipeline_core.managers.extractor import ExtractorPathManager
 
 warnings.filterwarnings("ignore")
 
