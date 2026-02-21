@@ -36,7 +36,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_tweedie_v8_bcd2",
+        "name": "cool_cat_tide_tweedie_v9_bcd2",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -230,7 +230,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True, False]},
+        "use_layer_norm": {"values": [True]},
         "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False]},
@@ -260,14 +260,12 @@ def get_sweep_config():
         # false_negative_weight: Penalty for missing conflict
         # Tweedie handles zeros mathematically, so mild boost suffices
         "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 1.0,
-            "max": 3.0,
+            "values": [1.0, 2.0, 3.0]
         },
         # false_positive_weight: Penalty for false alarms
         # Keep at 1.0 - Tweedie already tolerates zeros naturally
         "false_positive_weight": {
-            "values": [1.0],
+            "values": [1.0, 2.0, 3.0]
         },
         # zero_threshold: Raw count threshold to distinguish zero from non-zero
         # For raw counts, 0.5 means < 1 fatality classified as zero
