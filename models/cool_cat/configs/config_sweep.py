@@ -36,7 +36,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_tweedie_v9_bcd2",
+        "name": "cool_cat_tide_tweedie_v10_bcd2",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -222,7 +222,7 @@ def get_sweep_config():
         "num_decoder_layers": {"values": [2]},
         "decoder_output_dim": {"values": [128]},
         "hidden_size": {"values": [128, 256, 512]},
-        "temporal_width_past": {"values": [24, 36]},
+        "temporal_width_past": {"values": [36, 48]},
         "temporal_width_future": {"values": [24, 36]},
         "temporal_hidden_size_past": {"values": [128, 256]},
         "temporal_hidden_size_future": {"values": [128, 256]},
@@ -247,8 +247,8 @@ def get_sweep_config():
         # - p ≈ 1.3: Good for conflict data (~90% zeros)
         "p": {
             "distribution": "uniform",
-            "min": 1.1,
-            "max": 1.6,
+            "min": 1.00,
+            "max": 1.25,
         },
         # non_zero_weight: Base weight multiplier for non-zero targets
         # Controls how much more the model prioritizes conflict events
@@ -260,12 +260,12 @@ def get_sweep_config():
         # false_negative_weight: Penalty for missing conflict
         # Tweedie handles zeros mathematically, so mild boost suffices
         "false_negative_weight": {
-            "values": [1.0, 2.0, 3.0]
+            "values": [1.0, 2.0, 3.0, 4.0]
         },
         # false_positive_weight: Penalty for false alarms
         # Keep at 1.0 - Tweedie already tolerates zeros naturally
         "false_positive_weight": {
-            "values": [1.0, 2.0, 3.0]
+            "values": [1.0, 2.0, 3.0, 4.0]
         },
         # zero_threshold: Raw count threshold to distinguish zero from non-zero
         # For raw counts, 0.5 means < 1 fatality classified as zero
