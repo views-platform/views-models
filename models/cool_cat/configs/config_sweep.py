@@ -40,9 +40,9 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_nbinomial_v11_bcd2",
+        "name": "cool_cat_tide_nbinomial_v11_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -234,7 +234,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True, False]},
+        "use_layer_norm": {"values": [True]},
         "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False]},
