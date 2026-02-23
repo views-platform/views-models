@@ -9,14 +9,14 @@ def get_meta_config():
     meta_config = {
         "name": "purple_alien",
         "algorithm": "HydraNet", 
-        "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"], #, "ln_sb_best_binarized", "ln_ns_best_binarized", "ln_os_best_binarized"], 
+        # "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"], #, "ln_sb_best_binarized", "ln_ns_best_binarized", "ln_os_best_binarized"], 
         # "queryset": "escwa001_cflong",
-        "identity_cols" : ["priogrid_gid", "col", "row", "month_id", "c_id"],
-        "index_names": ['month_id', 'priogrid_gid'],
-        "features" : ["lr_sb_best", "lr_ns_best", "lr_os_best"],
+        # "identity_cols" : ["priogrid_gid", "col", "row", "month_id", "c_id"],
+        # "index_names": ['month_id', 'priogrid_gid'],
+        # "features" : ["lr_sb_best", "lr_ns_best", "lr_os_best"],
         "level": "pgm",
         "creator": "Simon",
-        "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "regression_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "classification_metrics": ["AP"],
     }
     return meta_config 

@@ -11,13 +11,26 @@ def get_hp_config():
 
     hyperparameters = {
 
+
+        # ============================================================
+        # diagnostic settings
+        # ============================================================
+        "diagnostic_visualizations": True,
+
+        # ============================================================
+        # evaluation metric
+        # ============================================================
+        "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "classification_metrics": ["AP"],
+        
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
         # ============================================================
         'time_col': 'month_id',
         'id_col': 'priogrid_gid',
         'spatial_cols': ['row', 'col'],
-        'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row_id', 'col_id'],
+        'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
+        "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
         'input_channels': 3, # Checksum: Must match len(features)
         'row_offset': 87,
@@ -53,13 +66,23 @@ def get_hp_config():
         # Multi-Task Signals (ADR 020 Compliance)
         # ============================================================
         #'target_variable': 'lr_sb_best',
-        'classification_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'], # auto transform to by_ 
+        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'], # auto transform to by_ 
         'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        'transform': {
+        
+        'transformations': {
             'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
             'asinh': [],
             'identity': []
         },
+
+        'derivations': {
+            'binary': [
+                {'from': 'lr_sb_best', 'to': 'by_sb_best', 'threshold': 0},
+                {'from': 'lr_ns_best', 'to': 'by_ns_best', 'threshold': 0},
+                {'from': 'lr_os_best', 'to': 'by_os_best', 'threshold': 0},
+            ],
+        },
+
         'steps': list(range(1, 37)),
         'time_steps': 36, # Checksum: Must match len(steps)
 
@@ -76,7 +99,7 @@ def get_hp_config():
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 300,        
+        'total_lessons': 150,        
         'max_ratio': 0.95,           
         'min_ratio': 0.05,           
         'slope_ratio': 0.75,         
