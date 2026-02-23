@@ -19,19 +19,27 @@ def get_sweep_config():
     - α (dispersion): controls overdispersion, higher = more variance
     - P(Y=0 | μ, α) = (1 + αμ)^(-1/α)
 
-    Alpha Interpretation:
-    - α → 0: approaches Poisson (Var = Mean)
-    - α = 0.5-1.0: mild overdispersion (typical for low-intensity conflict)
-    - α = 1.0-2.0: moderate overdispersion (typical for high-intensity regions)
-    - α > 2.0: severe overdispersion (extreme conflict spikes)
+    Alpha Interpretation (sweep range [0.20, 0.60]):
+    - α = 0.20: tight precision, gradients alive to μ~1000
+    - α = 0.40: balanced, gradients alive to μ~5000
+    - α = 0.60: wider tolerance, gradients alive to μ~15000
+    Previous range [0.05, 0.25] caused gradient vanishing for high counts,
+    producing flat predictions and the "escalation everywhere" artifact.
 
-    Example with α=1.0, μ=10:
-    - Variance = 10 + 1×10² = 110 (vs Poisson Var=10)
-    - P(Y=0) = (1 + 10)^(-1) = 0.091
+    Example with α=0.4, μ=1000:
+    - Variance = 1000 + 0.4×1000² = 401,000 (SD ≈ 633)
+    - Gradient denominator = 1000 + 400,000 = 401,000
+    - Still provides informative signal for μ up to ~5000
 
     FN/FP Weighting:
-    - false_negative_weight > 1.0: Missing conflict is worse
-    - false_positive_weight < 1.0: False alarms less costly
+    - false_negative_weight = 1.0: NB natural penalty already severe at low α
+    - false_positive_weight [1.0, 2.5]: prevents over-prediction without
+      fighting the gradient signal (previous max 4.0 caused oscillatory training)
+
+    Sweep Metric: BCD (Balanced Conflict Deviation)
+    - Optimizes simultaneously for volume, tail capture, and timing
+    - Previous sweeps on MSLE produced models with good log-scale accuracy
+      but poor BCD due to flat predictions lacking tail/timing quality
 
     LR Considerations:
     - Raw counts → larger gradients than transformed data
@@ -40,9 +48,9 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_nbinomial_v11_msle",
+        "name": "cool_cat_tide_nbinomial_v12_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -245,28 +253,39 @@ def get_sweep_config():
         # NLL: -log P(y | μ, α) with softplus(pred) → μ
         "loss_function": {"values": ["NegativeBinomialLoss"]},
         # alpha (dispersion): Controls overdispersion Var = μ + αμ²
-        # - alpha = 0.5: mild overdispersion
-        # - alpha = 1.0: moderate (Var = μ + μ²)
-        # - alpha = 2.0: severe overdispersion
-        # Higher alpha → more probability mass at extremes
+        # Previous range [0.05, 0.25] caused gradient vanishing for μ > 500.
+        # With max fatalities ~15,000, the gradient ∝ error/(μ + αμ²) becomes
+        # negligible at low α for high counts. Range [0.20, 0.60] keeps gradients
+        # alive across 3 orders of magnitude while still enforcing precision.
+        # - alpha = 0.2: tight, good for low-intensity (gradient alive to μ~1000)
+        # - alpha = 0.4: balanced (gradient alive to μ~5000)
+        # - alpha = 0.6: wider tolerance (gradient alive to μ~15000)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.25,
+            "min": 0.20,
+            "max": 0.60,
         },
         # false_negative_weight: Penalty multiplier for missing conflict
         # FN = model predicts low but actual is high
-        # Range 1.5-3.0: moderate to strong preference for catching events
+        # With alpha widened to [0.20, 0.60], the natural NB FN penalty is
+        # weaker at higher alpha. A small range [1.0, 1.5] lets the optimizer
+        # compensate without risking gradient explosion at low alpha.
+        # BCD's P_tail already selects for tail-capturing models, so this
+        # provides complementary training-time pressure.
         "false_negative_weight": {
-            "values": [1.0],
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 1.5,
         },
         # false_positive_weight: Penalty multiplier for false alarms
         # FP = model predicts high but actual is zero/low
-        # Range 0.5-1.0: equal or reduced penalty for false positives
+        # With wider alpha, FP penalty can be narrower to avoid the
+        # escalation-everywhere artifact from competing FP/gradient forces.
+        # Range [1.0, 2.5]: mild to moderate FP penalty.
         "false_positive_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 4.0,
+            "max": 2.5,
         },
         # zero_threshold: Raw count threshold to distinguish zero from non-zero
         # For raw counts, 0.5 means < 1 fatality classified as zero
