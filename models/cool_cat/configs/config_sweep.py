@@ -1,54 +1,45 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - NegativeBinomialLoss
-    ===============================================================
+    TiDE Hyperparameter Sweep Configuration - MagnitudeAwareHuberLoss
+    ==================================================================
 
-    Strategy: Probabilistic Count Modeling with Overdispersion
-    -----------------------------------------------------------
-    Uses Negative Binomial distribution for zero-inflated, overdispersed count data.
-    Model predicts RAW COUNTS directly (no target transformation).
-
-    Why NegativeBinomialLoss:
-    - Proper count distribution: NB is designed for discrete non-negative data
-    - Overdispersion: Var = μ + αμ² handles conflict data where Var >> Mean
-    - Zero-inflation: NB naturally assigns high probability to zero
-    - Calibrated uncertainty: Better tail coverage than Gaussian losses
-
-    Parameterization:
-    - μ (mean): predicted via softplus(model_output), always > 0
-    - α (dispersion): controls overdispersion, higher = more variance
-    - P(Y=0 | μ, α) = (1 + αμ)^(-1/α)
-
-    Alpha Interpretation (sweep range [0.20, 0.60]):
-    - α = 0.20: tight precision, gradients alive to μ~1000
-    - α = 0.40: balanced, gradients alive to μ~5000
-    - α = 0.60: wider tolerance, gradients alive to μ~15000
-    Previous range [0.05, 0.25] caused gradient vanishing for high counts,
-    producing flat predictions and the "escalation everywhere" artifact.
-
-    Example with α=0.4, μ=1000:
-    - Variance = 1000 + 0.4×1000² = 401,000 (SD ≈ 633)
-    - Gradient denominator = 1000 + 400,000 = 401,000
-    - Still provides informative signal for μ up to ~5000
-
-    FN/FP Weighting:
-    - false_negative_weight = 1.0: NB natural penalty already severe at low α
-    - false_positive_weight [1.0, 2.5]: prevents over-prediction without
-      fighting the gradient signal (previous max 4.0 caused oscillatory training)
-
+    Strategy: Asinh-space regression with magnitude-aware asymmetric weighting
+    ---------------------------------------------------------------------------
+    
+    Why this approach for 85% zero-inflated conflict data:
+    
+    1. AsinhTransform on target: Compresses [0, 15000] → [0, ~10]
+       - Stabilizes optimization landscape (model predicts in bounded space)
+       - Preserves zero/non-zero distinction (asinh(0) = 0)
+       - Makes gradient magnitudes comparable across the count range
+    
+    2. MagnitudeAwareHuberLoss: Explicitly encodes operational priorities
+       - FN penalty: Missing conflicts penalized proportional to magnitude
+       - FP penalty: False alarms tolerated more than missed events
+       - Huber delta: L2 for small errors (precision), L1 for large (stability)
+       - Magnitude scaling: Linear scaling ensures high-fatality events 
+         get proportionally more gradient signal without explosion
+    
+    3. Feature-level scaling via feature_scaler_map:
+       - Each feature scaled according to its statistical properties
+       - Target scaled independently via AsinhTransform
+    
     Sweep Metric: BCD (Balanced Conflict Deviation)
-    - Optimizes simultaneously for volume, tail capture, and timing
-    - Previous sweeps on MSLE produced models with good log-scale accuracy
-      but poor BCD due to flat predictions lacking tail/timing quality
-
-    LR Considerations:
-    - Raw counts → larger gradients than transformed data
-    - Use lower LR range: 1e-5 to 2e-4
-    - Combined with gradient clipping for stability
+    - Geometric mean of MTD, P_level, P_tail, P_shape
+    - Directly rewards volume accuracy, tail capture, and temporal correlation
+    - MagnitudeAwareHuber's components map to BCD components:
+      * FP/FN weights → P_level (volume)
+      * Magnitude scaling → P_tail (extreme events)
+      * Huber shape → P_shape (timing via stable gradients)
+    
+    LR Strategy:
+    - Asinh space → stable gradients → can use wider LR range than raw counts
+    - CosineAnnealingWarmRestarts with T_mult=2: progressively longer refinement
+    - Gradient clipping still used for safety but less critical than NB
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_nbinomial_v12_bcd",
+        "name": "cool_cat_tide_mahub_v14_bcd",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
     }
@@ -58,58 +49,93 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        # input_chunk_length: How many months of history the model sees.
+        # 36 = 3 years captures annual seasonality + medium-term conflict dynamics.
+        # 48 = 4 years gives more context but increases memory and may overfit
+        # on slow-moving features. For CM-level with ~200 series, 36 is safer.
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
         "optimizer_cls": {"values": ["Adam"]},
         "mc_dropout": {"values": [True]},
+        # num_samples=1 for point forecast evaluation during sweep.
+        # MC dropout uncertainty is evaluated post-sweep with num_samples=100+.
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # With raw counts, larger batches stabilize gradient estimates
-        # Batch 64-128 recommended for NB loss stability
-        "batch_size": {"values": [64, 128]},
-        "n_epochs": {"values": [200]},
-        "early_stopping_patience": {"values": [30]},
+        # Batch size 64: With ~200 countries × ~400 months ÷ chunks, dataset is small.
+        # Smaller batches (64) give noisier gradients that act as implicit regularization,
+        # helping the model not overfit to the zero-majority. Batch 128 smooths too much
+        # for a dataset this small — the model converges to the zero-mode faster.
+        # Batch 32 is too noisy for stable Huber training.
+        "batch_size": {"values": [64]},
+        # 300 epochs with patience 40: Conflict signal is sparse, so the model needs
+        # more epochs to extract it. Early stopping prevents overfitting, but patience
+        # must be long enough to survive LR warm restarts (T_0=30 → first restart at
+        # epoch 30, second at 90). With patience=30, a restart could trigger early stop
+        # before the model recovers. Patience=40 survives one full restart cycle.
+        "n_epochs": {"values": [300]},
+        "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # LR range for NegativeBinomialLoss with raw counts:
-        # - Raw counts → larger gradients → need lower LR
-        # - NB has log-gamma computations → sensitive to instability
-        # - Batch 64-128 with gradient clipping enables slightly higher LR
+        # LR range for asinh-space training:
+        # - Asinh compresses range → gradients are moderate → wider LR range is safe
+        # - Lower bound 5e-5: Below this, model underfits on sparse signal
+        # - Upper bound 5e-4: Above this, FN magnitude weighting causes instability
+        # - Log-uniform: Explores orders of magnitude efficiently
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 2e-4,
+            "min": 5e-5,
+            "max": 5e-4,
         },
-        "weight_decay": {"values": [1e-6]},
+        # Weight decay 1e-5: Light L2 regularization.
+        # Too high (1e-4+) penalizes the large weights needed to predict rare events.
+        # Too low (1e-7) provides no regularization benefit.
+        # Sweep between 1e-6 and 1e-5 to let Bayes find the right balance.
+        "weight_decay": {
+            "distribution": "log_uniform_values",
+            "min": 1e-6,
+            "max": 1e-5,
+        },
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [25]},
-        "lr_scheduler_T_mult": {"values": [1]},
+        # T_0=30: First cycle is 30 epochs. With T_mult=2, subsequent cycles are
+        # 60, 120 epochs. This gives:
+        #   - Epochs 0-30: Exploration phase (high LR sweeps through loss landscape)
+        #   - Epochs 30-90: First refinement (60 epochs at progressively lower LR)
+        #   - Epochs 90-210: Deep refinement (120 epochs, model fine-tunes on rare events)
+        # Previous T_0=25, T_mult=1 gave 8 identical 25-epoch cycles — too short
+        # for the model to ever deeply learn rare conflict patterns.
+        "lr_scheduler_T_0": {"values": [30]},
+        "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Gradient clipping critical for NB with raw counts (large gradients)
-        "gradient_clip_val": {"values": [1.0, 1.5]},
+        # Gradient clipping: Safety net, not primary stability mechanism.
+        # In asinh space, gradients are naturally bounded (~10 max target).
+        # Clip at 1.0 to catch rare outlier batches without affecting normal training.
+        "gradient_clip_val": {"values": [1.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        # NegativeBinomialLoss requires RAW COUNTS for proper NB semantics
-        # Model predicts raw counts through softplus (ensures μ > 0)
-        # Input features still scaled for stable forward pass
+        # Target: AsinhTransform compresses [0, 15000] → [0, ~10]
+        # This is THE critical design choice. Benefits:
+        # 1. Model's linear output layer can reach all target values
+        # 2. Gradient magnitudes are comparable across the count range
+        # 3. Zero remains zero (asinh(0) = 0), preserving the zero/non-zero boundary
+        # 4. MagnitudeAwareHuberLoss operates in this compressed space
+        #    where threshold=0.88 corresponds to ~1 fatality
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": [None]},
+        "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # Heavy-tailed features: Asinh transform
                     "AsinhTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
@@ -117,13 +143,11 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
-                        # Topic tokens (counts, can be large)
                         "lr_topic_tokens_t1",
                         "lr_topic_tokens_t2",
                         "lr_topic_tokens_t13",
                         "lr_topic_tokens_t1_splag",
                     ],
-                    # Can be negative or unbounded: Standard scaling
                     "StandardScaler": [
                         "lr_ged_sb_delta",
                         "lr_ged_ns_delta",
@@ -136,13 +160,11 @@ def get_sweep_config():
                         "lr_wdi_sh_sta_stnt_zs",
                         "lr_wdi_sh_sta_maln_zs",
                     ],
-                    # Bounded features: MinMax scaling
                     "MinMaxScaler": [
                         "month",
                         "lr_wdi_sl_tlf_totl_fe_zs",
                         "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
-                        # V-Dem (all bounded 0-1)
                         "lr_vdem_v2x_horacc",
                         "lr_vdem_v2x_veracc",
                         "lr_vdem_v2x_diagacc",
@@ -161,7 +183,6 @@ def get_sweep_config():
                         "lr_vdem_v2xeg_eqprotec",
                         "lr_vdem_v2xcl_dmove",
                         "lr_vdem_v2x_clphy",
-                        # Topic thetas (probabilities 0-1) - temporal lags
                         "lr_topic_ste_theta0_stock_t1",
                         "lr_topic_ste_theta0_stock_t2",
                         "lr_topic_ste_theta0_stock_t13",
@@ -207,7 +228,6 @@ def get_sweep_config():
                         "lr_topic_ste_theta14_stock_t1",
                         "lr_topic_ste_theta14_stock_t2",
                         "lr_topic_ste_theta14_stock_t13",
-                        # Topic thetas - spatial lags (probabilities 0-1)
                         "lr_topic_ste_theta0_stock_t1_splag",
                         "lr_topic_ste_theta1_stock_t1_splag",
                         "lr_topic_ste_theta2_stock_t1_splag",
@@ -230,87 +250,137 @@ def get_sweep_config():
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
+        # Encoder/decoder depth: 2 layers is sufficient for CM-level (~200 series).
+        # Deeper networks need more data per series to avoid overfitting.
         "num_encoder_layers": {"values": [2]},
         "num_decoder_layers": {"values": [2]},
         "decoder_output_dim": {"values": [128]},
+        # hidden_size: Core capacity of the model.
+        # 256 gives enough capacity to learn conflict-specific patterns.
+        # 512 risks overfitting with ~200 country series.
+        # Sweep 128 vs 256 to find the capacity sweet spot.
         "hidden_size": {"values": [128, 256]},
-        "temporal_width_past": {"values": [24, 64, 128]},
-        "temporal_width_future": {"values": [24, 64, 128]},
-        "temporal_hidden_size_past": {"values": [128, 256]},
-        "temporal_hidden_size_future": {"values": [128, 256]},
+        # temporal_width: Controls how much temporal information flows through
+        # the temporal encoder/decoder. Higher values capture more temporal
+        # patterns but increase parameter count.
+        # For CM-level monthly data, 24-64 captures seasonal + conflict dynamics.
+        # 128 is overkill for monthly resolution (no sub-monthly patterns to learn).
+        "temporal_width_past": {"values": [24, 64]},
+        "temporal_width_future": {"values": [24, 64]},
         "temporal_decoder_hidden": {"values": [256]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
         "use_layer_norm": {"values": [True]},
-        "dropout": {"values": [0.15, 0.25]},
-        "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
-        # ==============================================================================
-        # LOSS FUNCTION: NegativeBinomialLoss
-        # ==============================================================================
-        # Negative Binomial for overdispersed count data
-        # NLL: -log P(y | μ, α) with softplus(pred) → μ
-        "loss_function": {"values": ["NegativeBinomialLoss"]},
-        # alpha (dispersion): Controls overdispersion Var = μ + αμ²
-        # Previous range [0.05, 0.25] caused gradient vanishing for μ > 500.
-        # With max fatalities ~15,000, the gradient ∝ error/(μ + αμ²) becomes
-        # negligible at low α for high counts. Range [0.20, 0.60] keeps gradients
-        # alive across 3 orders of magnitude while still enforcing precision.
-        # - alpha = 0.2: tight, good for low-intensity (gradient alive to μ~1000)
-        # - alpha = 0.4: balanced (gradient alive to μ~5000)
-        # - alpha = 0.6: wider tolerance (gradient alive to μ~15000)
-        "alpha": {
+        # Dropout: Critical for zero-inflated data.
+        # 0.20-0.30: Forces the model to learn redundant representations,
+        # preventing over-reliance on any single feature for rare events.
+        # Below 0.15: Model memorizes training zeros, predicts flat.
+        # Above 0.35: Too much noise, model can't converge on sparse signal.
+        "dropout": {
             "distribution": "uniform",
             "min": 0.20,
-            "max": 0.60,
+            "max": 0.30,
         },
-        # false_negative_weight: Penalty multiplier for missing conflict
-        # FN = model predicts low but actual is high
-        # With alpha widened to [0.20, 0.60], the natural NB FN penalty is
-        # weaker at higher alpha. A small range [1.0, 1.5] lets the optimizer
-        # compensate without risking gradient explosion at low alpha.
-        # BCD's P_tail already selects for tail-capturing models, so this
-        # provides complementary training-time pressure.
+        "use_static_covariates": {"values": [True]},
+        # RevIN=False: Critical. RevIN normalizes each series to zero mean/unit var
+        # before the model sees it. For zero-inflated data, this transforms the
+        # majority zeros into negative values, destroying the zero/non-zero boundary
+        # that the loss function relies on. Also distorts the asinh scale.
+        "use_reversible_instance_norm": {"values": [False]},
+        # ==============================================================================
+        # LOSS FUNCTION: MagnitudeAwareHuberLoss
+        # ==============================================================================
+        # Operates in asinh-space where:
+        #   asinh(0) = 0.0
+        #   asinh(1) ≈ 0.88  (1 fatality)
+        #   asinh(5) ≈ 2.31  (5 fatalities)
+        #   asinh(25) ≈ 3.91 (25 fatalities)
+        #   asinh(100) ≈ 5.30 (100 fatalities)
+        #   asinh(1000) ≈ 7.60 (1000 fatalities)
+        #   asinh(15000) ≈ 10.31 (max observed)
+        "loss_function": {"values": ["MagnitudeAwareHuberLoss"]},
+        # zero_threshold: Boundary between "zero" and "conflict" in asinh space.
+        # 0.88 = asinh(1), meaning ≥1 fatality is classified as conflict.
+        # This is the decision boundary for FP/FN weight assignment.
+        # Don't sweep this — the boundary should be principled, not data-mined.
+        "zero_threshold": {"values": [0.88]},
+        # delta: Huber L2→L1 transition point.
+        # In asinh space [0, ~10]:
+        #   delta=1.5: L2 (quadratic) for errors <1.5 asinh units (~4 fatalities),
+        #              L1 (linear) for larger errors. This means:
+        #     - Small prediction errors get precise quadratic correction
+        #     - Large errors (e.g., predicting 0 when actual is 1000) get linear
+        #       treatment, preventing gradient explosion
+        #   delta=1.0: More aggressive L1 transition, more robust to outliers
+        #   delta=2.0: Wider L2 zone, more precise but less stable
+        "delta": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 2.0,
+        },
+        # non_zero_weight: ADDED to base weight (1.0) for any non-zero target.
+        # With 85% zeros, the model sees ~6x more zero samples per epoch.
+        # non_zero_weight=5 → TP weight = 1+5 = 6.0, approximately balancing
+        # the class ratio. Range [3, 8] lets Bayes find the optimal balance.
+        # Below 3: Model still dominated by zeros, predicts flat.
+        # Above 10: Over-correction, model over-predicts everywhere.
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 3.0,
+            "max": 8.0,
+        },
+        # false_positive_weight: ABSOLUTE weight for predicting conflict where none exists.
+        # Values < 1.0 mean FP is penalized LESS than a true negative error.
+        # This is intentional: in conflict forecasting, a false alarm (FP) is
+        # less costly than missing a conflict (FN). Range [0.3, 1.0]:
+        #   0.3: Very tolerant of false alarms → model explores more
+        #   0.8: Moderate FP penalty → model is more conservative
+        # Below 0.3: Model predicts conflict everywhere ("escalation artifact")
+        # Above 1.0: Conflicts with FN/non_zero_weight, pushes model back to zeros
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 0.3,
+            "max": 1.0,
+        },
+        # false_negative_weight: ADDED on top of (1 + non_zero_weight) for FN.
+        # FN = model predicts zero but actual has conflict.
+        # Total FN weight = 1 + non_zero_weight + false_negative_weight
+        # With non_zero_weight=5, fn_weight=10: FN total = 16.0
+        # With power-law magnitude scaling (exp=0.5) at target=7.6 (1000 fat):
+        #   mult = 1 + (7.6/0.88)^0.5 ≈ 3.94x
+        #   Effective FN weight: 16 × 3.94 ≈ 63x vs TN weight of 1.0
+        #
+        # Range [5, 15]:
+        #   5: Mild FN penalty, model balances precision/recall
+        #   15: Strong FN penalty, model prioritizes not missing conflicts
+        # Above 20: Even with sqrt scaling, effective weights become large
+        # for batch_size=64, causing gradient variance issues.
         "false_negative_weight": {
             "distribution": "uniform",
             "min": 1.0,
-            "max": 1.5,
+            "max": 15.0,
         },
-        # false_positive_weight: Penalty multiplier for false alarms
-        # FP = model predicts high but actual is zero/low
-        # With wider alpha, FP penalty can be narrower to avoid the
-        # escalation-everywhere artifact from competing FP/gradient forces.
-        # Range [1.0, 2.5]: mild to moderate FP penalty.
-        "false_positive_weight": {
+        # magnitude_exponent: Power-law exponent for magnitude scaling.
+        # Controls how aggressively the loss differentiates small vs large events.
+        # Also controls adaptive delta: effective_delta = delta / (1+ratio)^(exp/2)
+        #
+        # Exponent values and their max multiplier (at target=9.0, threshold=0.88):
+        #   0.3: mult=2.82x, δ_eff=0.93  — gentle, very stable
+        #   0.5: mult=4.20x, δ_eff=0.76  — balanced (recommended)
+        #   0.7: mult=6.33x, δ_eff=0.63  — aggressive but bounded
+        #   1.0: mult=11.2x, δ_eff=0.50  — original linear (high variance)
+        #
+        # Sweep range [0.3, 0.7] lets Bayes find the optimal trade-off between
+        # magnitude differentiation (higher exp) and gradient stability (lower exp).
+        "magnitude_exponent": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 2.5,
+            "min": 0.3,
+            "max": 0.7,
         },
-        # zero_threshold: Raw count threshold to distinguish zero from non-zero
-        # For raw counts, 0.5 means < 1 fatality classified as zero
-        "zero_threshold": {"values": [0.5, 1, 2]},
-        # learn_alpha: Estimate dispersion from batch variance
-        # If True, overrides fixed alpha with moment-based estimate
-        "learn_alpha": {"values": [False]},
-        # inverse_transform: Not needed since target_scaler is None
-        "inverse_transform": {"values": [False]},
         # ==============================================================================
-        # TEMPORAL ENCODINGS (Position-based)
+        # TEMPORAL ENCODINGS
         # ==============================================================================
-        # use_datetime_index: Convert views index to DatetimeIndex
-        #   - Required for cyclic encoders (month, week, dayofweek sin/cos)
-        #   - NOT required for position encoder (works with integer indices)
-        # temporal_precision: Which views index type (month, week, day) - for DatetimeIndex conversion
-        #
-        # position encoder: relative position in sequence (0.0 to 1.0)
-        #   - Works with ANY index type (int or datetime)
-        #   - Provides temporal context without requiring DatetimeIndex
-        #
-        # Note: Cyclic encoding requires DatetimeIndex which has compatibility issues
-        # with Darts slicing. Seasonality captured via raw 'month' feature instead.
-        # "use_datetime_index": {"values": [False]},
-        # "temporal_precision": {"values": ["month"]},  # month | week | day (for future use)
         "add_encoders": {
             "values": [
                 {
