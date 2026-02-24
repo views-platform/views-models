@@ -9,6 +9,7 @@ def get_sweep_config():
     """
  
     sweep_config = {
+    'name': 'purple_alien_sweep',
     'method': 'grid'
     }
 
