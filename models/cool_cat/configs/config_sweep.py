@@ -6,46 +6,50 @@ def get_sweep_config():
     Strategy: Asinh-space regression with magnitude-aware asymmetric weighting
     ---------------------------------------------------------------------------
 
-    v16: Anti-flatline sweep (output_chunk_length=36 fixed)
-    --------------------------------------------------------
+    v17: Anti-flatline sweep — no topics (output_chunk_length=36 fixed)
+    -------------------------------------------------------------------
     Root cause of flatline: TiDE's decoder generates all 36 steps in one
     forward pass from a single latent vector + position encoding. The position
     encoding (linear ramp) carries no conflict-relevant signal, so the decoder
     learns to predict the unconditional mean (≈0) for steps beyond ~5.
 
+    Features: 37 (6 conflict + 13 WDI + 18 V-Dem, no topics).
+    Input tensor per window: 37 × 36 = 1,332 values.
+    Training windows: ~16.5K.
+
     Fixes applied (without changing output_chunk_length):
 
     1. RevIN swept [True, False]: Per-series denormalization rescales outputs
        back to each country's historical range, preventing Sudan from collapsing
-       to the global near-zero mean. This is the primary anti-flatline mechanism
-       when autoregressive rolling is not available.
+       to the global near-zero mean. Primary anti-flatline mechanism.
 
-    2. Richer future encoders: Added cyclic month + datetime month as future
-       covariates. This gives the decoder seasonal structure — the only future
-       signal beyond bare position index. Conflict has dry/wet season patterns
-       that position-only encoding cannot capture.
+    2. Topics excluded entirely: Noisy topic features (64→16→0) were the
+       majority of inputs but contributed weakest signal. With 37 high-quality
+       features, the encoder has a cleaner compression task.
 
-    3. Deeper decoder: Swept num_decoder_layers [2, 3]. More layers give the
-       decoder more capacity to learn position-dependent transformations of the
-       latent state, potentially sustaining signal further into the horizon.
+    3. Architecture right-sized for 37 features:
+       - hidden_size [128, 256, 512]: 128 viable now (37→128 = 3.5:1 compression)
+       - temporal_hidden_size_past [64, 128, 256]: 64 added (proportional to input dim)
+       - num_encoder_layers [1, 2] (paper default: 1)
+       - decoder_output_dim [32, 64, 128] (paper default: 32)
+       - temporal_width_past swept [4, 12, 24] (paper default: 4)
 
-    4. Larger temporal_decoder_hidden [256, 512]: More capacity per output step.
+    4. Deeper decoder [2, 3]: More capacity to sustain signal across 36 steps.
 
-    5. temporal_hidden_size_past/future swept independently: The temporal block
-       processes position-wise features. Larger future hidden gives the decoder
-       more capacity to differentiate 36 output positions.
+    5. temporal_decoder_hidden [128, 256, 512]: More capacity per output step.
 
-    6. Increased num_encoder_layers [2, 3]: A richer latent representation
-       gives the decoder more signal to work with at distant horizons.
+    6. mc_dropout=False: Deterministic inference eliminates dropout-induced
+       signal suppression.
 
-    7. mc_dropout=False: Confirmed not the cause. Deterministic inference
-       eliminates dropout-induced signal suppression.
+    7. Position encoder: relative only (Darts doesn't support absolute).
+       VIEWS uses integer month_id indexing, so cyclic/datetime encoders
+       are also incompatible.
     """
     sweep_config = {
         "method": "bayes",
         "name": "cool_cat_tide_mahub_v16_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_bcd_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -108,10 +112,6 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
-                        "lr_topic_tokens_t1",
-                        "lr_topic_tokens_t2",
-                        "lr_topic_tokens_t13",
-                        "lr_topic_tokens_t1_splag",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -126,7 +126,6 @@ def get_sweep_config():
                         "lr_wdi_sh_sta_maln_zs",
                     ],
                     "MinMaxScaler": [
-
                         "lr_wdi_sl_tlf_totl_fe_zs",
                         "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
@@ -148,66 +147,6 @@ def get_sweep_config():
                         "lr_vdem_v2xeg_eqprotec",
                         "lr_vdem_v2xcl_dmove",
                         "lr_vdem_v2x_clphy",
-                        "lr_topic_ste_theta0_stock_t1",
-                        "lr_topic_ste_theta0_stock_t2",
-                        "lr_topic_ste_theta0_stock_t13",
-                        "lr_topic_ste_theta1_stock_t1",
-                        "lr_topic_ste_theta1_stock_t2",
-                        "lr_topic_ste_theta1_stock_t13",
-                        "lr_topic_ste_theta2_stock_t1",
-                        "lr_topic_ste_theta2_stock_t2",
-                        "lr_topic_ste_theta2_stock_t13",
-                        "lr_topic_ste_theta3_stock_t1",
-                        "lr_topic_ste_theta3_stock_t2",
-                        "lr_topic_ste_theta3_stock_t13",
-                        "lr_topic_ste_theta4_stock_t1",
-                        "lr_topic_ste_theta4_stock_t2",
-                        "lr_topic_ste_theta4_stock_t13",
-                        "lr_topic_ste_theta5_stock_t1",
-                        "lr_topic_ste_theta5_stock_t2",
-                        "lr_topic_ste_theta5_stock_t13",
-                        "lr_topic_ste_theta6_stock_t1",
-                        "lr_topic_ste_theta6_stock_t2",
-                        "lr_topic_ste_theta6_stock_t13",
-                        "lr_topic_ste_theta7_stock_t1",
-                        "lr_topic_ste_theta7_stock_t2",
-                        "lr_topic_ste_theta7_stock_t13",
-                        "lr_topic_ste_theta8_stock_t1",
-                        "lr_topic_ste_theta8_stock_t2",
-                        "lr_topic_ste_theta8_stock_t13",
-                        "lr_topic_ste_theta9_stock_t1",
-                        "lr_topic_ste_theta9_stock_t2",
-                        "lr_topic_ste_theta9_stock_t13",
-                        "lr_topic_ste_theta10_stock_t1",
-                        "lr_topic_ste_theta10_stock_t2",
-                        "lr_topic_ste_theta10_stock_t13",
-                        "lr_topic_ste_theta11_stock_t1",
-                        "lr_topic_ste_theta11_stock_t2",
-                        "lr_topic_ste_theta11_stock_t13",
-                        "lr_topic_ste_theta12_stock_t1",
-                        "lr_topic_ste_theta12_stock_t2",
-                        "lr_topic_ste_theta12_stock_t13",
-                        "lr_topic_ste_theta13_stock_t1",
-                        "lr_topic_ste_theta13_stock_t2",
-                        "lr_topic_ste_theta13_stock_t13",
-                        "lr_topic_ste_theta14_stock_t1",
-                        "lr_topic_ste_theta14_stock_t2",
-                        "lr_topic_ste_theta14_stock_t13",
-                        "lr_topic_ste_theta0_stock_t1_splag",
-                        "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag",
-                        "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag",
-                        "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag",
-                        "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag",
-                        "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag",
-                        "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag",
-                        "lr_topic_ste_theta13_stock_t1_splag",
-                        "lr_topic_ste_theta14_stock_t1_splag",
                     ],
                 }
             ]
@@ -215,10 +154,8 @@ def get_sweep_config():
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
-        # Encoder layers: Paper uses 1 for most benchmarks. With noisy features,
-        # deeper encoders risk memorizing noise. Include 1 (paper default) to
-        # let Bayes check if simpler is better. 2 is the sweet spot for
-        # compressing 107 mixed-quality features. 3 is aggressive.
+        # Encoder layers: Paper uses 1 for most benchmarks. With only 37
+        # high-quality features, 1 layer is likely sufficient.
         "num_encoder_layers": {"values": [1, 2]},
         # Decoder layers: More critical than encoder for anti-flatline.
         # Must sustain signal across 36 steps from a single latent.
@@ -230,10 +167,11 @@ def get_sweep_config():
         # target and noisy inputs, 256 is way overkill — the model has
         # more output capacity than useful signal. 32 (paper) to 128.
         "decoder_output_dim": {"values": [32, 64, 128]},
-        # hidden_size: The main encoder/decoder bottleneck. 256 worked in
-        # prior sweeps. 512 added for anti-flatline (richer latent for
-        # decoder to draw from at distant steps).
-        "hidden_size": {"values": [256, 512]},
+        # hidden_size: The main encoder/decoder bottleneck. With 37 features
+        # (input tensor 37×36=1332), 128 gives a 10:1 compression — viable
+        # now that noisy topics are gone. 256 worked in prior sweeps.
+        # 512 for anti-flatline (richer latent at distant steps).
+        "hidden_size": {"values": [128, 256, 512]},
         # temporal_width_past: Paper default is 4. With noisy features,
         # very wide receptive field (24) may average noise into the signal.
         # Swept to let Bayes find whether narrow (4, paper) or wide (24,
@@ -250,11 +188,10 @@ def get_sweep_config():
         # Paper default is 128. 256 is reasonable. 512 may overfit
         # given ~16K training windows. Include 128 (paper) as floor.
         "temporal_decoder_hidden": {"values": [128, 256, 512]},
-        # temporal_hidden_size: With mostly noisy features, the temporal
-        # block doesn't need huge hidden sizes to process them.
-        # 128 is sufficient for the ~10 signal features; 256 if the
-        # noisy features contribute marginally.
-        "temporal_hidden_size_past": {"values": [128, 256]},
+        # temporal_hidden_size_past: Processes per-timestep features.
+        # With 37 features, 64 = ~1.7× input dim (reasonable floor).
+        # 128 and 256 for more capacity.
+        "temporal_hidden_size_past": {"values": [64, 128, 256]},
         "temporal_hidden_size_future": {"values": [128, 256]},
         # ==============================================================================
         # REGULARIZATION
@@ -337,13 +274,12 @@ def get_sweep_config():
         # are compatible with integer-indexed TimeSeries.
         #
         # position:relative generates a [0.0, ..., 1.0] ramp over the window.
-        # position:absolute uses the raw month_id values as features.
-        # Using both gives the decoder two signals: relative position within
-        # the window AND absolute temporal location (captures trend/drift).
+        # Darts position encoder only supports "relative" — "absolute" raises
+        # ValueError. This is the only future signal beyond bare features.
         "add_encoders": {
             "values": [
                 {
-                    "position": {"past": ["relative"], "future": ["relative", "absolute"]},
+                    "position": {"past": ["relative"], "future": ["relative"]},
                 }
             ]
         },
