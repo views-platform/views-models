@@ -81,11 +81,6 @@ def generate():
                 .transform.spatial.countrylag(1, 1, 0, 0)
                 .transform.missing.replace_na()
             )
-            # ==================== SEASONALITY ====================
-            .with_column(
-                Column("month", from_loa="country_month", from_column="month")
-                .transform.missing.fill()
-            )
         )
 
     def _add_wdi(queryset: Queryset) -> Queryset:
