@@ -1,6 +1,0 @@
-Single Model Name: average_cmbaseline
-Single Model Timestamp: 20260210_221353
-Data Generation Timestamp: 20260210_221413
-Data Fetch Timestamp: 20260210_221400
-Deployment Status: shadow
-
