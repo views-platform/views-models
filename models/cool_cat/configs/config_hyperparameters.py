@@ -8,41 +8,67 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        "lr": 0.000262237933422431,
+        # Steps
         "steps": [*range(1, 36 + 1, 1)],
         "n_jobs": -1,
+
+        # TiDE Architecture
+        "input_chunk_length": 36,
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "hidden_size": 512,
+        "decoder_output_dim": 32,
+        "temporal_decoder_hidden": 256,
+        "temporal_width_past": 12,
+        "temporal_width_future": 64,
+        "temporal_hidden_size_past": 64,
+        "temporal_hidden_size_future": 256,
+        "num_encoder_layers": 1,
+        "num_decoder_layers": 2,
+        "use_layer_norm": True,
+        "use_reversible_instance_norm": True,
         "dropout": 0.1839193745538052,
+        "use_static_covariates": True,
+
+        # Training
         "n_epochs": 300,
         "batch_size": 64,
-        "likelihood": None,
-        "mc_dropout": False,
-        "force_reset": True,
-        "hidden_size": 512,
-        "num_samples": 1,
-        "add_encoders": {
-            "position": {"past": ["relative"], "future": ["relative"]},
-        },
         "random_state": 67,
-        "weight_decay": 0.00000376381721098347,
-        "loss_function": "MagnitudeAwareHuberLoss",
+        "force_reset": True,
+
+        # Optimizer (top-level keys are the source of truth for OptimizerCatalog)
         "optimizer_cls": "Adam",
-        "target_scaler": "AsinhTransform",
-        "feature_scaler": None,
-        "use_layer_norm": True,
-        "zero_threshold": 0.88,
+        "lr": 0.000262237933422431,
+        "weight_decay": 0.00000376381721098347,
+
+        # LR Scheduler (top-level keys are the source of truth for ModelCatalog._get_lr_scheduler_kwargs)
+        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
+        "lr_scheduler_T_0": 30,
+        "lr_scheduler_T_mult": 2,
+        "lr_scheduler_eta_min": 0.000001,
+
+        # Trainer
+        "gradient_clip_val": 1,
+        "early_stopping_patience": 40,
+        "early_stopping_min_delta": 0.0001,
+
+        # Loss
+        "loss_function": "MagnitudeAwareHuberLoss",
         "delta": 1.8056778902732389,
         "non_zero_weight": 5.161339868790769,
         "false_positive_weight": 0.8485148051411111,
         "false_negative_weight": 3.102607057890584,
         "magnitude_exponent": 0.7069321585811144,
-        "lr_scheduler_T_0": 30,
-        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "optimizer_kwargs": {
-            "lr": 0.000262237933422431,
-            "weight_decay": 0.00000376381721098347,
-        },
-        "gradient_clip_val": 1,
-        "decoder_output_dim": 32,
+        "zero_threshold": 0.88,
+
+        # Prediction
+        "likelihood": None,
+        "num_samples": 1,
+        "mc_dropout": False,
+
+        # Scalers
+        "target_scaler": "AsinhTransform",
+        "feature_scaler": None,
         "feature_scaler_map": {
             "MinMaxScaler": [
                 "lr_wdi_sl_tlf_totl_fe_zs",
@@ -88,27 +114,11 @@ def get_hp_config():
                 "lr_wdi_sh_sta_maln_zs",
             ],
         },
-        "input_chunk_length": 36,
-        "num_decoder_layers": 2,
-        "num_encoder_layers": 1,
-        "output_chunk_shift": 0,
-        "lr_scheduler_T_mult": 2,
-        "lr_scheduler_kwargs": {
-            "T_0": 30,
-            "T_mult": 2,
-            "eta_min": 0.000001,
+
+        # Encoders
+        "add_encoders": {
+            "position": {"past": ["relative"], "future": ["relative"]},
         },
-        "output_chunk_length": 36,
-        "temporal_width_past": 12,
-        "lr_scheduler_eta_min": 0.000001,
-        "temporal_width_future": 64,
-        "use_static_covariates": True,
-        "early_stopping_patience": 40,
-        "temporal_decoder_hidden": 256,
-        "early_stopping_min_delta": 0.0001,
-        "temporal_hidden_size_past": 64,
-        "temporal_hidden_size_future": 256,
-        "use_reversible_instance_norm": True,
     }
 
     return hyperparameters
