@@ -16,23 +16,40 @@ def generate():
 
     # VIEWSER 6, Example configuration. Modify as needed.
 
+    def _add_minimal_features(queryset: Queryset) -> Queryset:
+        return queryset.with_column(
+            Column(
+                "lr_ged_sb_dep",
+                from_loa="country_month",
+                from_column="ged_sb_best_sum_nokgi",
+            ).transform.missing.fill()
+        ).with_column(
+            Column(
+                "lr_ged_sb",
+                from_loa="country_month",
+                from_column="ged_sb_best_sum_nokgi",
+            )
+            .transform.missing.fill()
+            .transform.ops.ln()
+        )
+
     def _add_conflict_history(queryset: Queryset) -> Queryset:
         print("Adding conflict history features...")
         return (
             queryset.with_column(
-                Column(
-                    "lr_ged_sb_dep",
-                    from_loa="country_month",
-                    from_column="ged_sb_best_sum_nokgi",
-                ).transform.missing.fill()
-            )
-            .with_column(
                 Column(
                     "lr_ged_sb",
                     from_loa="country_month",
                     from_column="ged_sb_best_sum_nokgi",
                 ).transform.missing.fill()
             )
+            # .with_column(
+            #     Column(
+            #         "lr_ged_sb",
+            #         from_loa="country_month",
+            #         from_column="ged_sb_best_sum_nokgi",
+            #     ).transform.missing.fill()
+            # )
             .with_column(
                 Column(
                     "lr_ged_ns",
@@ -52,28 +69,29 @@ def generate():
                     "lr_acled_sb", from_loa="country_month", from_column="acled_sb_fat"
                 ).transform.missing.fill()
             )
-            .with_column(
-                Column(
-                    "lr_acled_sb_count",
-                    from_loa="country_month",
-                    from_column="acled_sb_count",
-                ).transform.missing.fill()
-            )
+            # REMOVED: lr_acled_sb_count - redundant with lr_acled_sb (same events, different measure)
+            # .with_column(
+            #     Column(
+            #         "lr_acled_sb_count",
+            #         from_loa="country_month",
+            #         from_column="acled_sb_count",
+            #     ).transform.missing.fill()
+            # )
             .with_column(
                 Column(
                     "lr_acled_os", from_loa="country_month", from_column="acled_os_fat"
                 ).transform.missing.fill()
             )
-            .with_column(
-                Column(
-                    "lr_ged_sb_tsum_24",
-                    from_loa="country_month",
-                    from_column="ged_sb_best_sum_nokgi",
-                )
-                .transform.missing.replace_na()
-                .transform.temporal.moving_sum(24)
-                .transform.missing.replace_na()
-            )
+            # .with_column(
+            #     Column(
+            #         "lr_ged_sb_tsum_24",
+            #         from_loa="country_month",
+            #         from_column="ged_sb_best_sum_nokgi",
+            #     )
+            #     .transform.missing.replace_na()
+            #     .transform.temporal.moving_sum(24)
+            #     .transform.missing.replace_na()
+            # )
             .with_column(
                 Column(
                     "lr_splag_1_ged_sb",
@@ -382,15 +400,16 @@ def generate():
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(
-                Column(
-                    "lr_vdem_v2x_hosabort",
-                    from_loa="country_year",
-                    from_column="vdem_v2x_hosabort",
-                )
-                .transform.missing.fill()
-                .transform.missing.replace_na()
-            )
+            # REMOVED: lr_vdem_v2x_hosabort - 99.8% zeros, effectively constant (no predictive value)
+            # .with_column(
+            #     Column(
+            #         "lr_vdem_v2x_hosabort",
+            #         from_loa="country_year",
+            #         from_column="vdem_v2x_hosabort",
+            #     )
+            #     .transform.missing.fill()
+            #     .transform.missing.replace_na()
+            # )
             .with_column(
                 Column(
                     "lr_vdem_v2xnp_regcorr",
@@ -404,16 +423,20 @@ def generate():
 
     def _add_topics(queryset: Queryset) -> Queryset:
         print("Adding topic model features...")
+        # REMOVED: lr_topic_tokens_t1 - extreme skew (81.6), ~40% zeros, redundant with theta features
+        # REMOVED: lr_topic_tokens_t1_splag - extreme max (~858K), scaling issues
+        # The theta probability distributions capture topic information more stably
         return (
-            queryset.with_column(
-                Column(
-                    "lr_topic_tokens_t1",
-                    from_loa="country_month",
-                    from_column="topic_tokens",
-                )
-                .transform.missing.fill()
-                .transform.missing.replace_na()
-            )
+            queryset
+            # .with_column(
+            #     Column(
+            #         "lr_topic_tokens_t1",
+            #         from_loa="country_month",
+            #         from_column="topic_tokens",
+            #     )
+            #     .transform.missing.fill()
+            #     .transform.missing.replace_na()
+            # )
             .with_column(
                 Column(
                     "lr_topic_ste_theta0",
@@ -549,17 +572,18 @@ def generate():
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(
-                Column(
-                    "lr_topic_tokens_t1_splag",
-                    from_loa="country_month",
-                    from_column="topic_tokens",
-                )
-                .transform.missing.fill()
-                .transform.missing.replace_na()
-                .transform.spatial.countrylag(1, 1, 0, 0)
-                .transform.missing.replace_na()
-            )
+            # REMOVED: lr_topic_tokens_t1_splag - extreme max (~858K), scaling issues
+            # .with_column(
+            #     Column(
+            #         "lr_topic_tokens_t1_splag",
+            #         from_loa="country_month",
+            #         from_column="topic_tokens",
+            #     )
+            #     .transform.missing.fill()
+            #     .transform.missing.replace_na()
+            #     .transform.spatial.countrylag(1, 1, 0, 0)
+            #     .transform.missing.replace_na()
+            # )
             .with_column(
                 Column(
                     "lr_topic_ste_theta0_stock_t1_splag",
@@ -729,5 +753,6 @@ def generate():
 
     queryset = Queryset(f"{model_name}", "country_month")
 
-    return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
+    # return _add_topics(_add_vdem(_add_wdi(_add_conflict_history(queryset))))
+    return _add_minimal_features(queryset)
     # return _add_topics(_add_conflict_history(queryset=queryset))

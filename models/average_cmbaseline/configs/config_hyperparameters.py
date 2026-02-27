@@ -1,4 +1,3 @@
-
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -7,10 +6,15 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    
+
     hyperparameters = {
+<<<<<<< HEAD
+        "steps": [*range(1, 36 + 1, 1)],
+        "months": 18,
+=======
         'steps': [*range(1, 36 + 1, 1)],
-        'months':60,
+        'months':18,
+>>>>>>> origin/chained_scalers_2
         # Add more hyperparameters as needed
     }
     return hyperparameters
