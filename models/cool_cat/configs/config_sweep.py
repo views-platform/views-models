@@ -47,7 +47,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_mahub_v17_cgm",
+        "name": "cool_cat_tide_mahub_v18_cgm",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_cgm_mean_sb", "goal": "minimize"},
     }
@@ -57,7 +57,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [36, 48, 60]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -71,7 +71,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [64]},
+        "batch_size": {"values": [32, 64, 128]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -183,7 +183,7 @@ def get_sweep_config():
         # predictions by allowing cross-position information flow.
         # 24 is the new floor (2/3 of horizon). 48 and 64 give full
         # horizon context.
-        "temporal_width_future": {"values": [24, 48, 64]},
+        "temporal_width_future": {"values": [24, 36, 48, 64]},
         # temporal_decoder_hidden: MLP width in temporal decoder.
         # Paper default is 128. 256 is reasonable. 512 may overfit
         # given ~16K training windows. Include 128 (paper) as floor.
@@ -196,7 +196,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True, False]},
+        "use_layer_norm": {"values": [False]},
         "dropout": {
             "distribution": "uniform",
             "min": 0.15,
