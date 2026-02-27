@@ -47,7 +47,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_charb_v18_cgm",
+        "name": "smol_cat_tide_charbonnier_v18_cgm",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_cgm_mean_sb", "goal": "minimize"},
     }
@@ -64,7 +64,7 @@ def get_sweep_config():
         "optimizer_cls": {"values": ["Adam"]},
         # mc_dropout=False: Deterministic inference. Dropout at inference
         # suppresses activations by (1-p), compounding signal loss across
-        # decoder layers. With the flatline problem, every bit of signal matters.
+        # decoder layers.
         "mc_dropout": {"values": [False]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
