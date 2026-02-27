@@ -1,0 +1,6 @@
+Single Model Name: popular_monster
+Single Model Timestamp: 20250218_230842
+Data Generation Timestamp: None
+Data Fetch Timestamp: 20250218_210342
+Deployment Status: shadow
+

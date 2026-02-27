@@ -1,47 +1,120 @@
-    
-def get_hp_config():
 
+def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
     This configuration is "operational" so modifying these settings will impact the model's behavior during training.
 
     Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
+    - hyperparameters (dict): A dictionary containing hyperparameters for training the model,
+      which determine the model's behavior during the training phase.
     """
 
     hyperparameters = {
-    'model' : 'HydraBNUNet06_LSTM4', #'BNUNet',
-    'weight_init' : 'xavier_norm',
-    'clip_grad_norm' : True,
-    'scheduler' : 'WarmupDecay', #  'CosineAnnealingLR' 'OneCycleLR'
-    'total_hidden_channels' : 32,
-    'min_events' : 5,
-    'samples': 300, # 600 for actual trainnig, 10 for debug
-    'batch_size': 3, 
-    'dropout_rate' : 0.125,
-    'learning_rate' :  0.001,
-    'weight_decay' :  0.1,
-    'slope_ratio' : 0.75,
-    'roof_ratio' : 0.7,
-    'input_channels' : 3,
-    'output_channels' : 1,
-    'targets' : 6, # 3 class and 3 reg for now. And for now this parameter is only used in utils, and changing it does not change the model - so don't.
-    'loss_class': 'b',  # band c are is still unstable... c is old, d = FocalLoss_new
-    'loss_class_gamma' : 1.5, # 0 and 2 works. But 2 gives a lot of noise. "If you want to prioritize hard cases in your training and make your model focus more on misclassified or uncertain examples, you should consider setting gamma to a value greater than 1""
-    'loss_class_alpha' : 0.75, #An alpha value of 0.75 means that you are assigning more weight to the minority class during training.
-    'loss_reg': 'b',
-    'loss_reg_a' : 258, 
-    'loss_reg_c' :  0.001, # 0.05 works...
-    'test_samples': 10, # 128 for actual testing, 10 for debug
-    'np_seed' : 4,
-    'torch_seed' : 4,
-    'window_dim' : 32,
-    'h_init' : 'abs_rand_exp-100',
-    'un_log' : False, # right now this is just as a note to self. Can't change it here} and it is not true..
-    'warmup_steps' : 100,
-    'first_feature_idx' : 5,
-    'norm_target' : False,
-    'freeze_h' : "hl", # "all", "random", "hl", "hs", "none" - you should use "hl" for now!
-    'time_steps' : 36, # 36 right?
-   }
+
+
+        # ============================================================
+        # diagnostic settings
+        # ============================================================
+        "diagnostic_visualizations": True,
+
+        # ============================================================
+        # evaluation metric
+        # ============================================================
+        "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "classification_metrics": ["AP"],
+        
+        # ============================================================
+        # Ledger / Topology (ADR 007 Compliance)
+        # ============================================================
+        'time_col': 'month_id',
+        'id_col': 'priogrid_gid',
+        'spatial_cols': ['row', 'col'],
+        'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
+        "index_names": ['month_id', 'priogrid_gid'],
+        'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+        'input_channels': 3, # Checksum: Must match len(features)
+        'row_offset': 87,
+        'col_offset': 310,
+        'height': 180,
+        'width': 180,
+
+        # ============================================================
+        # Model Architecture
+        # ============================================================
+        'model': 'HydraBNUNet06_LSTM4',
+        'total_hidden_channels': 32,
+        'dropout_rate': 0.125,
+        'window_dim': 32,
+        'output_channels': 1, # Depth per head
+        'weight_init': 'xavier_norm',
+        'freeze_h': "hl",
+        'h_init': 'abs_rand_exp-100',
+
+        # ============================================================
+        # Optimization (ADR 014 Compliance)
+        # ============================================================
+        'windows_per_lesson': 3,     
+        'learning_rate': 0.001,
+        'weight_decay': 0.1,
+        'scheduler': 'WarmupDecay',
+        'warmup_steps': 100,
+        'clip_grad_norm': True,
+        'torch_seed': 4,
+        'np_seed': 4,
+
+        # ============================================================
+        # Multi-Task Signals (ADR 020 Compliance)
+        # ============================================================
+        #'target_variable': 'lr_sb_best',
+        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'], # auto transform to by_ 
+        'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+        
+        'transformations': {
+            'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+            'asinh': [],
+            'identity': []
+        },
+
+        'derivations': {
+            'binary': [
+                {'from': 'lr_sb_best', 'to': 'by_sb_best', 'threshold': 0},
+                {'from': 'lr_ns_best', 'to': 'by_ns_best', 'threshold': 0},
+                {'from': 'lr_os_best', 'to': 'by_os_best', 'threshold': 0},
+            ],
+        },
+
+        'steps': list(range(1, 37)),
+        'time_steps': 36, # Checksum: Must match len(steps)
+
+        # ============================================================
+        # Loss Functions
+        # ============================================================
+        'loss_reg': 'b',
+        'loss_class': 'b',
+        'loss_reg_a': 258,
+        'loss_reg_c': 0.001,
+        'loss_class_alpha': 0.75,
+        'loss_class_gamma': 1.5,
+
+        # ============================================================
+        # Strategy (Curriculum ADR 011/012 Compliance)
+        # ============================================================
+        'total_lessons': 150,        
+        'max_ratio': 0.95,           
+        'min_ratio': 0.05,           
+        'slope_ratio': 0.75,         
+        'roof_ratio': 0.7,           
+        'min_events': 5,             
+
+        # ============================================================
+        # Outbound / Evaluation
+        # ============================================================
+        # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
+        'n_posterior_samples': 3,
+        'evalution_mode': "point", #'stochastic',
+        'aggregate_method': 'arithmetic_mean',
+        'run_type': 'calibration',
+    }
+
     return hyperparameters
+

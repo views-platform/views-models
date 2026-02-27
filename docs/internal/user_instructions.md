@@ -1,0 +1,3 @@
+Okay, I have inserted the necessary logging statements and provided you with detailed instructions in `user_instructions.md` on how to capture the `NBEATSModel kwargs` for both single-run and sweep-run modes.
+
+Please execute those steps and provide the captured logs. Once I receive them, I will perform a line-by-line comparison to pinpoint the exact differences in model instantiation, which should finally resolve the mystery of the persistent discrepancy.

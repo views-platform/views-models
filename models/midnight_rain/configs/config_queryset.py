@@ -38,13 +38,13 @@ def generate():
                      .transform.missing.replace_na(0)
                      )
 
-              .with_column(Column('lr_cropprop', from_loa='priogrid_month', from_column='cropprop')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_cropprop', from_loa='priogrid_month', from_column='cropprop')
+              #        .transform.missing.replace_na(0)
+              #        )
 
-              .with_column(Column('lr_growseasdummy', from_loa='priogrid_month', from_column='growseasdummy')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_growseasdummy', from_loa='priogrid_month', from_column='growseasdummy')
+              #        .transform.missing.replace_na(0)
+              #        )
 
               .with_column(Column('lr_spei1_gs_prev10', from_loa='priogrid_month', from_column='spei1_gs_prev10')
                      .transform.missing.replace_na(0)
@@ -86,21 +86,21 @@ def generate():
                      .transform.missing.replace_na(0)
                      )
 
-              .with_column(Column('lr_tlag_12_crop_sum', from_loa='priogrid_month', from_column='tlag_12_crop_sum')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_tlag_12_crop_sum', from_loa='priogrid_month', from_column='tlag_12_crop_sum')
+              #        .transform.missing.replace_na(0)
+              #        )
 
-              .with_column(Column('lr_tlag_12_harvarea_maincrops', from_loa='priogrid_month', from_column='tlag_12_harvarea_maincrops')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_tlag_12_harvarea_maincrops', from_loa='priogrid_month', from_column='tlag_12_harvarea_maincrops')
+              #        .transform.missing.replace_na(0)
+              #        )
 
-              .with_column(Column('lr_tlag_12_irr_maincrops', from_loa='priogrid_month', from_column='tlag_12_irr_maincrops')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_tlag_12_irr_maincrops', from_loa='priogrid_month', from_column='tlag_12_irr_maincrops')
+              #        .transform.missing.replace_na(0)
+              #        )
 
-              .with_column(Column('lr_tlag_12_rainf_maincrops', from_loa='priogrid_month', from_column='tlag_12_rainf_maincrops')
-                     .transform.missing.replace_na(0)
-                     )
+              # .with_column(Column('lr_tlag_12_rainf_maincrops', from_loa='priogrid_month', from_column='tlag_12_rainf_maincrops')
+              #        .transform.missing.replace_na(0)
+              #        )
 
               # .with_column(Column('lr_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
               #        .transform.missing.replace_na()

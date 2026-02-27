@@ -38,10 +38,10 @@ def generate():
         .transform.missing.fill()
         )
 
-    .with_column(Column('lr_reign_tenure_months', from_loa='country_month', from_column='tenure_months')
-        .transform.missing.fill()
-        .transform.missing.replace_na()
-        )
+    # .with_column(Column('lr_reign_tenure_months', from_loa='country_month', from_column='tenure_months')
+    #     .transform.missing.fill()
+    #     .transform.missing.replace_na()
+    #     )
 
     .with_column(Column('lr_wdi_sp_pop_totl', from_loa='country_year', from_column='wdi_sp_pop_totl')
         .transform.missing.fill()
@@ -226,7 +226,7 @@ def generate():
         )
 
     .with_theme('fatalities')
-    .describe("""Predicting lr_ged_sb_dep, cm level
+    .describe("""Predicting lr_ged_sb, cm level
 
                              Queryset with features from various sources, 'joint narrow'
 

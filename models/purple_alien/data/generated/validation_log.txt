@@ -1,0 +1,6 @@
+Single Model Name: purple_alien
+Single Model Timestamp: 20250219_064436
+Data Generation Timestamp: None
+Data Fetch Timestamp: 20250219_064344
+Deployment Status: shadow
+
