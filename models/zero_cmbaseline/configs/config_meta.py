@@ -11,20 +11,16 @@ def get_meta_config():
         "name": "zero_cmbaseline",
         "algorithm": "ZeroModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Sonja",
-        "metrics": [
+        "regression_point_metrics": [
             "RMSLE",
-            "CRPS",
             "MSE",
             "MSLE",
             "y_hat_bar",
-            "MTD",
-            "BCD",
             "Pearson",
-            "LevelRatio",
         ],
     }
     return meta_config
