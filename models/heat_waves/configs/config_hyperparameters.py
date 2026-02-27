@@ -1,3 +1,6 @@
+from statistics import quantiles
+
+
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -48,23 +51,23 @@ def get_hp_config():
             36,
         ],
         # --- Input / output structure ---
-        "input_chunk_length": 24,
+        "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         # --- Architecture (TFT) ---
-        "hidden_size": 256,
+        "hidden_size": 128,
         "lstm_layers": 1,
-        "num_attention_heads": 2,
+        "num_attention_heads": 4,
         "full_attention": False,
         "feed_forward": "GELU",
-        "hidden_continuous_size": 8,
+        "hidden_continuous_size": 16,
         "add_relative_index": True,
         "norm_type": "LayerNorm",
         "use_static_covariates": True,
         "output_dim": [1, 1],
         "num_static_components": 1,
         # --- Regularization ---
-        "dropout": 0.3,
+        "dropout": 0.1,
         "weight_decay": 0.0001,
         "gradient_clip_val": 1,
         # --- Optimization ---
@@ -78,16 +81,16 @@ def get_hp_config():
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.46,
         "lr_scheduler_min_lr": 1e-05,
-        "lr_scheduler_patience": 7,
+        "lr_scheduler_patience": 3,
         "lr_scheduler_kwargs": {
             "factor": 0.46,
             "min_lr": 1e-05,
             "mode": "min",
             "monitor": "train_loss",
-            "patience": 7,
+            "patience": 3,
         },
         # --- Early Stopping ---
-        "early_stopping_patience": 15,
+        "early_stopping_patience": 3,
         "early_stopping_min_delta": 0.01,
         # --- Loss ---
         "loss_function": "WeightedPenaltyHuberLoss",
@@ -99,7 +102,7 @@ def get_hp_config():
         "likelihood": None,
         # --- Scaling & transforms ---
         "feature_scaler": "MinMaxScaler",
-        "target_scaler": "MinMaxScaler",
+        "target_scaler": "RobustScaler",
         "log_targets": True,
         "log_features": [
             "lr_ged_sb",
