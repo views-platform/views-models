@@ -31,7 +31,7 @@ def get_hp_config():
         "use_static_covariates": True,
 
         # Training
-        "n_epochs": 300,
+        "n_epochs": 1,
         "batch_size": 64,
         "random_state": 67,
         "force_reset": True,
