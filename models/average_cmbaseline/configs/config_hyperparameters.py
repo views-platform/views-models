@@ -8,8 +8,13 @@ def get_hp_config():
     """
 
     hyperparameters = {
+<<<<<<< HEAD
         "steps": [*range(1, 36 + 1, 1)],
         "months": 18,
+=======
+        'steps': [*range(1, 36 + 1, 1)],
+        'months':18,
+>>>>>>> origin/chained_scalers_2
         # Add more hyperparameters as needed
     }
     return hyperparameters

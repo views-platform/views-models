@@ -13,6 +13,7 @@ def generate():
 
     # VIEWSER 6, Example configuration. Modify as needed.
 
+<<<<<<< HEAD
     queryset_base = (
         Queryset("average_baseline", "country_month")
         # Create a new column 'lr_sb_best' using data from 'priogrid_month' and 'ged_sb_best_count_nokgi' column
@@ -53,6 +54,31 @@ def generate():
         .with_column(
             Column("month", from_loa="month", from_column="month")
         ).with_column(Column("year_id", from_loa="country_year", from_column="year_id"))
+=======
+    queryset_base = (Queryset("zero_baseline", "country_month")
+
+        .with_column(
+                Column(
+                    "lr_ged_sb",
+                    from_loa="country_month",
+                    from_column="ged_sb_best_sum_nokgi",
+                ).transform.missing.fill()
+            )
+            .with_column(
+                Column(
+                    "lr_ged_ns",
+                    from_loa="country_month",
+                    from_column="ged_ns_best_sum_nokgi",
+                ).transform.missing.fill()
+            )
+            .with_column(
+                Column(
+                    "lr_ged_os",
+                    from_loa="country_month",
+                    from_column="ged_os_best_sum_nokgi",
+                ).transform.missing.fill()
+            )
+>>>>>>> origin/chained_scalers_2
     )
 
     return queryset_base

@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'ucdp_extractor'
+        'name': 'zero_baseline'
     }
 
     # Example metric setup:
