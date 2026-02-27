@@ -47,9 +47,9 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "cool_cat_tide_mahub_v17_msle",
+        "name": "cool_cat_tide_mahub_v17_cgm",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_cgm_mean_sb", "goal": "minimize"},
     }
 
     parameters = {

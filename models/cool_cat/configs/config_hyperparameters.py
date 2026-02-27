@@ -63,8 +63,8 @@ def get_hp_config():
 
         # Prediction
         "likelihood": None,
-        "num_samples": 1,
-        "mc_dropout": False,
+        "num_samples": 256,
+        "mc_dropout": True,
 
         # Scalers
         "target_scaler": "AsinhTransform",
