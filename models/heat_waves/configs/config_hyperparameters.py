@@ -81,16 +81,16 @@ def get_hp_config():
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.46,
         "lr_scheduler_min_lr": 1e-05,
-        "lr_scheduler_patience": 3,
+        "lr_scheduler_patience": 1,
         "lr_scheduler_kwargs": {
             "factor": 0.46,
             "min_lr": 1e-05,
             "mode": "min",
             "monitor": "train_loss",
-            "patience": 3,
+            "patience": 1,
         },
         # --- Early Stopping ---
-        "early_stopping_patience": 3,
+        "early_stopping_patience": 1,
         "early_stopping_min_delta": 0.01,
         # --- Loss ---
         "loss_function": "WeightedPenaltyHuberLoss",
@@ -122,13 +122,13 @@ def get_hp_config():
         "use_reversible_instance_norm": False,
         "skip_interpolation": False,
         # --- Training ---
-        "batch_size": 16,
+        "batch_size": 256,
         "n_epochs": 150,
         "force_reset": True,
         "random_state": 1,
         # --- Probabilistic / sampling ---
-        "num_samples": 1,
-        "mc_dropout": False,
+        "num_samples": 5,
+        "mc_dropout": True,
     }
 
     return hyperparameters
