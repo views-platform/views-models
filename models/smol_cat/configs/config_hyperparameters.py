@@ -59,6 +59,8 @@ def get_hp_config():
         "false_negative_weight": 7.28484137442015,
         "magnitude_exponent": 0.3057202588210821,
         "zero_threshold": 0.88,
+        "p": 1.2,
+        "eps": 0.1,
 
         # Prediction
         "likelihood": None,
