@@ -1,10 +1,10 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - MagnitudeAwareCharbonnierLoss
-    ========================================================================
+    TiDE Hyperparameter Sweep Configuration - FocalMagnitudeExpandingLoss
+    =====================================================================
 
-    Strategy: Asinh-space regression with magnitude-aware asymmetric weighting
-    ---------------------------------------------------------------------------
+    Strategy: Asinh-space regression with focal magnitude-expanding weighting
+    --------------------------------------------------------------------------
 
     v17: Anti-flatline sweep — no topics (output_chunk_length=36 fixed)
     -------------------------------------------------------------------
@@ -47,9 +47,9 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_charbonnier_v18_cgm",
+        "name": "smol_cat_tide_fmel_v19_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
-        "metric": {"name": "time_series_wise_cgm_mean_sb", "goal": "minimize"},
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
@@ -71,11 +71,11 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size interacts with loss + rare signal: larger batches give
-        # more stable gradient estimates (critical when non-zero samples are
-        # <5% of each batch). Smaller batches give noisier gradients that
-        # can help escape flat minima.
-        "batch_size": {"values": [32, 64, 128]},
+        # Batch size: FME-Loss stability notes require ≥64 (need enough
+        # conflict samples per batch for stable gradient estimates when
+        # ~85% of targets are zero). 32 is too noisy with three unbounded
+        # multipliers.
+        "batch_size": {"values": [64, 128]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -88,7 +88,7 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 3e-5,
-            "max": 8e-4,
+            "max": 3e-4,
         },
         "weight_decay": {
             "distribution": "log_uniform_values",
@@ -102,11 +102,12 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Charbonnier gradients grow as |r|^{p-1} (never cap). Clipping
-        # at 1.0 can re-introduce the hard gradient ceiling we designed
-        # the loss to avoid. Sweep to find the tradeoff between stability
-        # and preserving the Charbonnier advantage.
-        "gradient_clip_val": {"values": [1.0, 5.0, 10.0]},
+        # FME-Loss has three unbounded multipliers (Charbonnier gradient ×
+        # inflation × exp magnitude). Stability notes require clip ≥ 5.0.
+        # Clipping at 1.0 would re-introduce the gradient ceiling the loss
+        # is designed to avoid. 5.0 is the safe floor; 10.0 gives more
+        # headroom for large-event signal.
+        "gradient_clip_val": {"values": [5.0, 10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -234,64 +235,113 @@ def get_sweep_config():
         # Sweep both to let Bayes measure the tradeoff.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
-        # LOSS FUNCTION: MagnitudeAwareCharbonnierLoss (Smooth Lp)
+        # LOSS FUNCTION: FocalMagnitudeExpandingLoss (FME-Loss)
         # ==============================================================================
-        # Replaces MagnitudeAwareHuberLoss. Key advantage: gradient never
-        # saturates (∝ |r|^{p-1}), eliminating the spike suppression that
-        # Huber/LogCosh cause during extended training. See Barron (2019)
-        # "A General and Adaptive Robust Loss Function", CVPR.
+        # Four-mechanism hybrid loss for asinh-transformed zero-inflated data:
+        #   1. Asymmetric Residual Inflation  — counteracts asinh compression
+        #   2. Charbonnier Core (gradient ∝ |r|^{p-1}) — never saturates
+        #   3. Exponential Magnitude Weighting — inverts asinh compression
+        #   4. Focal TN Suppression            — frees gradient budget from 85% zeros
         #
-        # Core: L(r) = [(r² + ε²)^{p/2} − εᵖ] / [(p/2)·ε^{p−2}]
-        # Normalised so L(r) ≈ r² near origin regardless of (p, ε).
-        "loss_function": {"values": ["MagnitudeAwareCharbonnierLoss"]},
+        # Stability: 99.9th-percentile per-sample clamp inside loss. Requires
+        # gradient_clip_val ≥ 5.0 externally. batch_size ≥ 64 recommended.
+        "loss_function": {"values": ["FocalMagnitudeExpandingLoss"]},
         "zero_threshold": {"values": [0.88]},
+        # ── Charbonnier Core ──────────────────────────────────────────────
         # p (Lp exponent): Controls gradient growth in the tail.
         #   p=2.0 → MSE (linear gradient, least robust)
         #   p=1.5 → gradient ∝ √|r| (recommended sweet-spot)
-        #   p→1.0 → approaches L1 (gradient saturates — defeats purpose)
-        # Must be strictly > 1.0 to ensure non-saturating gradients.
-        "p": {"values": [1.2, 1.5, 1.7, 2.0]},
-        # eps (smoothness): Width of the quadratic (MSE-like) zone.
-        #   Small ε → narrow quadratic zone, aggressive sub-linear onset
-        #   Large ε → wide quadratic zone, MSE-like over typical residuals
-        # For asinh-transformed data (residuals typically 0–7):
-        #   0.01 = very aggressive, 0.1 = balanced, 0.5 = conservative
-        "eps": {"values": [0.01, 0.1, 0.5]},
-        "non_zero_weight": {
+        #   p=1.2 → gentler growth, closer to MAE
+        # Must be strictly > 1.0.
+        "p": {"values": [1.3, 1.5, 1.8]},
+        # eps (smoothness): Width of the quadratic (MSE-like) zone near r=0.
+        # Fixed at 0.1 (balanced). Rarely worth sweeping.
+        "eps": {"values": [0.1]},
+        # ── Residual Inflation ────────────────────────────────────────────
+        # fn_inflation_power: Expands under-prediction residuals on large
+        # targets before Charbonnier sees them.
+        #   factor = 1 + (|y|/τ)^power
+        #   0.0 = disabled (pure focal Charbonnier)
+        #   0.5 = sqrt (gentle)
+        #   0.7 = recommended
+        #   1.0 = linear (aggressive, watch for instability)
+        "fn_inflation_power": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
-        },
-        # false_positive_weight: Raised floor to 0.6.
-        # Low FP weight allows unconstrained over-prediction, which ironically
-        # contributes to flatline: the model learns it's "free" to predict
-        # low values without penalty, so near-zero is always safe.
-        # Higher FP weight forces the model to commit — if it predicts
-        # conflict, it should be right, but when it does predict, the
-        # predictions carry more signal.
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 0.6,
+            "min": 0.3,
             "max": 1.0,
         },
-        # false_negative_weight: With Charbonnier the gradient never caps,
-        # so FN weight can be lower than with Huber while still breaking
-        # through. But we keep a meaningful floor to ensure the model
-        # prioritises rare conflict events over the zero-majority.
-        "false_negative_weight": {
+        # ── Exponential Magnitude ─────────────────────────────────────────
+        # magnitude_alpha: Exponential tilt strength.
+        # w_mag = exp(α · |y| / τ). Inverts asinh compression.
+        #   0.3 = mild  (10× at asinh=9)
+        #   0.5 = moderate (166× at asinh=9, recommended)
+        #   0.7 = aggressive (1600× at asinh=9)
+        # Primary knob for underprediction correction.
+        "magnitude_alpha": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 10.0,
+            "min": 0.3,
+            "max": 0.7,
         },
-        # magnitude_exponent: Power-law importance weighting.
-        # With Charbonnier, this no longer compensates for gradient
-        # saturation — purely controls large-vs-small event weighting.
-        # Widened to include 0.0 (no magnitude scaling) as a baseline:
-        # need to verify magnitude weighting helps with a non-saturating core.
-        "magnitude_exponent": {
+        # ── Focal TN Suppression ──────────────────────────────────────────
+        # focal_gamma: TN down-weighting. exp(-|r|)^γ.
+        #   0.0 = no suppression (all zeros get full weight)
+        #   2.0 = recommended
+        #   3.0 = very aggressive
+        "focal_gamma": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 3.0,
+        },
+        # ── FN Residual Scaling ───────────────────────────────────────────
+        # focal_gamma_fn: Scales FN weight by |r|^γ — larger misses get
+        # progressively more penalty.
+        #   0.0 = no scaling
+        #   0.5 = sqrt (recommended)
+        #   1.0 = linear
+        "focal_gamma_fn": {
             "distribution": "uniform",
             "min": 0.0,
             "max": 1.0,
+        },
+        # ── Class Weights ─────────────────────────────────────────────────
+        # CRITICAL BALANCE: FN has three amplifiers (inflation × exp_mag ×
+        # class weight) that can reach 80,000× effective weight. FP has
+        # only class weight × FP focal (no inflation, no exp_mag since
+        # target=0). If FP weight is too low relative to FN, the model
+        # over-predicts conflict everywhere because FN spillover through
+        # shared weights overwhelms FP pushback.
+        #
+        # Calibration: at mid-range params, a moderate conflict (asinh=5.3)
+        # gets FN effective ≈ 18 × 20 = 360. To keep FP pushback within
+        # ~1-2 orders of magnitude (letting the 85%/15% sample ratio help):
+        #   FP_w × 54_zeros ≈ 360 × 10_conflicts × (spillover_fraction)
+        #   FP_w ≈ 360 × 10 × 0.05 / 54 ≈ 3.3
+        # So FP weight in [2, 8] keeps the balance reasonable.
+        "non_zero_weight": {
+            "distribution": "uniform",
+            "min": 3.0,
+            "max": 8.0,
+        },
+        # false_positive_weight: Must be high enough to counteract FN
+        # spillover from shared network weights. FP focal modulation
+        # inside the loss already softens small false alarms, so a high
+        # base weight won't over-penalize near-threshold predictions.
+        # Floor of 2.0 ensures meaningful pushback; ceiling of 8.0
+        # prevents FP from dominating and causing underprediction.
+        "false_positive_weight": {
+            "distribution": "uniform",
+            "min": 2.0,
+            "max": 8.0,
+        },
+        # false_negative_weight: Additive on top of non_zero_weight.
+        # This is the TERTIARY FN lever — inflation and magnitude_alpha
+        # are the primary amplifiers. Keep moderate to avoid compounding
+        # the already-extreme FN effective weight. Ceiling lowered from
+        # 15 → 10 to reduce the FN/FP imbalance.
+        "false_negative_weight": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 10.0,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
