@@ -57,7 +57,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48, 60]},
+        "input_chunk_length": {"values": [36]},  # FIX: match output_chunk_length. 48/60 adds noise with 37 features.
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -71,11 +71,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size: FME-Loss stability notes require ≥64 (need enough
-        # conflict samples per batch for stable gradient estimates when
-        # ~85% of targets are zero). 32 is too noisy with three unbounded
-        # multipliers.
-        "batch_size": {"values": [64, 128]},
+        # Batch size: Fixed at 64. FME-Loss requires ≥64 for stable
+        # gradients with three unbounded multipliers.
+        "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -83,18 +81,15 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Widened for Charbonnier: different gradient profile than Huber
-        # (non-saturating tails) may shift the optimal LR.
+        # LR is loss-dependent — always sweep. Narrowed range from prior sweeps.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-5,
-            "max": 3e-4,
+            "min": 5e-5,
+            "max": 2e-4,
         },
-        "weight_decay": {
-            "distribution": "log_uniform_values",
-            "min": 2e-6,
-            "max": 8e-6,
-        },
+        # Weight decay: Fixed at geometric mean of prior narrow range.
+        # Negligible effect vs loss params.
+        "weight_decay": {"values": [5e-6]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -102,12 +97,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # FME-Loss has three unbounded multipliers (Charbonnier gradient ×
-        # inflation × exp magnitude). Stability notes require clip ≥ 5.0.
-        # Clipping at 1.0 would re-introduce the gradient ceiling the loss
-        # is designed to avoid. 5.0 is the safe floor; 10.0 gives more
-        # headroom for large-event signal.
-        "gradient_clip_val": {"values": [5.0, 10.0]},
+        # FME-Loss has three unbounded multipliers. Fixed at 5.0 — the
+        # safe floor. 10.0 is too loose for the worst-case alpha×inflation.
+        "gradient_clip_val": {"values": [5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -163,76 +155,49 @@ def get_sweep_config():
             ]
         },
         # ==============================================================================
-        # TiDE ARCHITECTURE
+        # TiDE ARCHITECTURE (narrowed — fix low-impact, sweep high-impact)
         # ==============================================================================
-        # Encoder layers: Paper uses 1 for most benchmarks. With only 37
-        # high-quality features, 1 layer is likely sufficient.
-        "num_encoder_layers": {"values": [1, 2]},
-        # Decoder layers: More critical than encoder for anti-flatline.
-        # Must sustain signal across 36 steps from a single latent.
-        # 2-3 layers give the decoder nonlinear capacity to learn
-        # position-dependent output transformations.
+        # Encoder layers: Fixed at 1 (paper default). With 37 clean features,
+        # the encoder's job is easy. Decoder needs the depth, not encoder.
+        "num_encoder_layers": {"values": [1]},
+        # Decoder layers: SWEPT. Directly affects anti-flatline. Must sustain
+        # signal across 36 steps from a single latent.
         "num_decoder_layers": {"values": [2, 3]},
-        # decoder_output_dim: Paper default is 32. This is the per-step
-        # dimensionality before the final projection to 1. With a 1-dim
-        # target and noisy inputs, 256 is way overkill — the model has
-        # more output capacity than useful signal. 32 (paper) to 128.
-        "decoder_output_dim": {"values": [32, 64, 128]},
-        # hidden_size: The main encoder/decoder bottleneck. With 37 features
-        # (input tensor 37×36=1332), 128 gives a 10:1 compression — viable
-        # now that noisy topics are gone. 256 worked in prior sweeps.
-        # 512 for anti-flatline (richer latent at distant steps).
-        "hidden_size": {"values": [128, 256, 512]},
-        # temporal_width_past: Paper default is 4. With noisy features,
-        # very wide receptive field (24) may average noise into the signal.
-        # Swept to let Bayes find whether narrow (4, paper) or wide (24,
-        # previous) works better. 12 is the compromise for monthly data
-        # where meaningful trends span ~1 year.
-        "temporal_width_past": {"values": [4, 12, 24]},
-        # temporal_width_future: Controls how much of the output horizon
-        # each position can see. Larger values help maintain coherent
-        # predictions by allowing cross-position information flow.
-        # 24 is the new floor (2/3 of horizon). 48 and 64 give full
-        # horizon context.
-        # 36 added: matches output_chunk_length exactly (natural landmark).
-        "temporal_width_future": {"values": [24, 36, 48, 64]},
-        # temporal_decoder_hidden: MLP width in temporal decoder.
-        # Paper default is 128. 256 is reasonable. 512 may overfit
-        # given ~16K training windows. Include 128 (paper) as floor.
-        "temporal_decoder_hidden": {"values": [128, 256, 512]},
-        # temporal_hidden_size_past: Processes per-timestep features.
-        # With 37 features, 64 = ~1.7× input dim (reasonable floor).
-        # 128 and 256 for more capacity.
-        "temporal_hidden_size_past": {"values": [64, 128, 256]},
-        "temporal_hidden_size_future": {"values": [128, 256]},
+        # decoder_output_dim: Fixed at 64. 32 too small for 36-step output,
+        # 128 overkill for 1-dim target.
+        "decoder_output_dim": {"values": [64]},
+        # hidden_size: SWEPT. Most impactful arch param. 128 dropped (too
+        # compressed to sustain signal over 36 steps).
+        "hidden_size": {"values": [256, 512]},
+        # temporal_width_past: SWEPT. 24 dropped (too wide for 37 features,
+        # averages noise). 4 (paper) vs 12 (1 year cycle).
+        "temporal_width_past": {"values": [4, 12]},
+        # temporal_width_future: SWEPT. 24 too short, 64 overkill.
+        # 36 = horizon match, 48 = moderate context.
+        "temporal_width_future": {"values": [36, 48]},
+        # temporal_decoder_hidden: Fixed at 256. 128 underpowered for
+        # 36-step decoder, 512 overkill for ~16K training windows.
+        "temporal_decoder_hidden": {"values": [256]},
+        # temporal_hidden_size_past/future: Fixed at 128. 3.5× input dim
+        # is the right compression ratio for 37 features.
+        "temporal_hidden_size_past": {"values": [128]},
+        "temporal_hidden_size_future": {"values": [128]},
         # ==============================================================================
-        # REGULARIZATION
+        # REGULARIZATION (narrowed — fix layer_norm, tighten dropout)
         # ==============================================================================
-        "use_layer_norm": {"values": [True, False]},
-        # Floor lowered to 0.05: with 95% zero targets, rare non-zero
-        # activations are fragile — high dropout further suppresses them.
-        # TiDE paper default is 0.1. Let Bayes explore light regularization.
+        # Layer norm: Fixed at True. Stabilizes Charbonnier gradient flow.
+        "use_layer_norm": {"values": [True]},
+        # Dropout: SWEPT but narrowed. High dropout kills rare conflict
+        # signal. Light regularization only.
         "dropout": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.25,
+            "max": 0.15,
         },
         "use_static_covariates": {"values": [True]},
-        # Without autoregressive chaining, RevIN is the primary mechanism to
-        # prevent collapse to the global unconditional mean.
-        #
-        # How it helps: RevIN normalizes each series to zero-mean/unit-var at
-        # input, then REVERSES the normalization at output. So even if the
-        # decoder predicts a flat "0.3" for all steps in normalized space,
-        # the denormalization rescales it to Sudan's range (~500+) and
-        # Norway's range (~0). The decoder only needs to learn relative
-        # temporal patterns, not absolute magnitudes.
-        #
-        # Risk: Zeros become negative in normalized space, distorting the
-        # zero_threshold boundary. But the flatline is worse than threshold
-        # distortion — a threshold can be recalibrated, a flatline cannot.
-        #
-        # Sweep both to let Bayes measure the tradeoff.
+        # RevIN disabled: Per-series normalization distorts the zero_threshold 
+        # in Asinh space. The FME-Loss handles magnitude scaling natively, making 
+        # RevIN redundant and potentially harmful to the loss function's logic.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: FocalMagnitudeExpandingLoss (FME-Loss)
@@ -247,101 +212,56 @@ def get_sweep_config():
         # gradient_clip_val ≥ 5.0 externally. batch_size ≥ 64 recommended.
         "loss_function": {"values": ["FocalMagnitudeExpandingLoss"]},
         "zero_threshold": {"values": [0.88]},
-        # ── Charbonnier Core ──────────────────────────────────────────────
-        # p (Lp exponent): Controls gradient growth in the tail.
-        #   p=2.0 → MSE (linear gradient, least robust)
-        #   p=1.5 → gradient ∝ √|r| (recommended sweet-spot)
-        #   p=1.2 → gentler growth, closer to MAE
-        # Must be strictly > 1.0.
-        "p": {"values": [1.3, 1.5, 1.8]},
-        # eps (smoothness): Width of the quadratic (MSE-like) zone near r=0.
-        # Fixed at 0.1 (balanced). Rarely worth sweeping.
+        #
+        # FIXED loss params (well-understood or secondary):
+        #
+        # p=1.5: Theoretical sweet spot for Charbonnier (sqrt gradient growth).
+        "p": {"values": [1.5]},
         "eps": {"values": [0.1]},
-        # ── Residual Inflation ────────────────────────────────────────────
-        # fn_inflation_power: Expands under-prediction residuals on large
-        # targets before Charbonnier sees them.
-        #   factor = 1 + (|y|/τ)^power
-        #   0.0 = disabled (pure focal Charbonnier)
-        #   0.5 = sqrt (gentle)
-        #   0.7 = recommended
-        #   1.0 = linear (aggressive, watch for instability)
-        "fn_inflation_power": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.0,
-        },
-        # ── Exponential Magnitude ─────────────────────────────────────────
-        # magnitude_alpha: Exponential tilt strength.
+        # focal_gamma=2.0: Lin et al. ICCV 2017 default, well-validated.
+        "focal_gamma": {"values": [2.0]},
+        # focal_gamma_fn=0.5: sqrt scaling, balanced.
+        "focal_gamma_fn": {"values": [0.5]},
+        # Class weights: Fixed at calibrated midpoints. The exponential
+        # magnitude + inflation are the primary FN amplifiers. Class weights
+        # are tertiary — fixing them removes 2 dimensions.
+        "non_zero_weight": {"values": [5.0]},
+        "false_negative_weight": {"values": [5.0]},
+        #
+        # SWEPT loss params (the 3 primary levers):
+        #
+        # ── magnitude_alpha ───────────────────────
+        # THE most important knob. Exponential tilt strength.
         # w_mag = exp(α · |y| / τ). Inverts asinh compression.
         #   0.3 = mild  (10× at asinh=9)
         #   0.5 = moderate (166× at asinh=9, recommended)
         #   0.7 = aggressive (1600× at asinh=9)
-        # Primary knob for underprediction correction.
         "magnitude_alpha": {
             "distribution": "uniform",
             "min": 0.3,
             "max": 0.7,
         },
-        # ── Focal TN Suppression ──────────────────────────────────────────
-        # focal_gamma: TN down-weighting. exp(-|r|)^γ.
-        #   0.0 = no suppression (all zeros get full weight)
-        #   2.0 = recommended
-        #   3.0 = very aggressive
-        "focal_gamma": {
+        # ── fn_inflation_power  ────────────────────
+        # Expands under-prediction residuals before Charbonnier sees them.
+        #   factor = 1 + (|y|/τ)^power
+        #   0.3 = gentle, 0.7 = recommended, 1.0 = aggressive
+        "fn_inflation_power": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 3.0,
-        },
-        # ── FN Residual Scaling ───────────────────────────────────────────
-        # focal_gamma_fn: Scales FN weight by |r|^γ — larger misses get
-        # progressively more penalty.
-        #   0.0 = no scaling
-        #   0.5 = sqrt (recommended)
-        #   1.0 = linear
-        "focal_gamma_fn": {
-            "distribution": "uniform",
-            "min": 0.0,
+            "min": 0.3,
             "max": 1.0,
         },
-        # ── Class Weights ─────────────────────────────────────────────────
-        # CRITICAL BALANCE: FN has three amplifiers (inflation × exp_mag ×
-        # class weight) that can reach 80,000× effective weight. FP has
-        # only class weight × FP focal (no inflation, no exp_mag since
-        # target=0). If FP weight is too low relative to FN, the model
-        # over-predicts conflict everywhere because FN spillover through
-        # shared weights overwhelms FP pushback.
-        #
-        # Calibration: at mid-range params, a moderate conflict (asinh=5.3)
-        # gets FN effective ≈ 18 × 20 = 360. To keep FP pushback within
-        # ~1-2 orders of magnitude (letting the 85%/15% sample ratio help):
-        #   FP_w × 54_zeros ≈ 360 × 10_conflicts × (spillover_fraction)
-        #   FP_w ≈ 360 × 10 × 0.05 / 54 ≈ 3.3
-        # So FP weight in [2, 8] keeps the balance reasonable.
-        "non_zero_weight": {
+        # ── false_positive_weight ───────────────────
+        # Must scale with the FN amplifiers (alpha × inflation) to prevent
+        # "Global Escalation." FP focal modulation inside the loss already
+        # softens small false alarms, so a high base weight won't
+        # over-penalize near-threshold predictions.
+        #   At alpha=0.7, inflation=1.0: effective FN ≈ 10,000×
+        #   FP weight of 3.0 would be too loose; 8.0 may over-suppress.
+        # Let Bayes find the equilibrium.
+        "false_positive_weight": {
             "distribution": "uniform",
             "min": 3.0,
             "max": 8.0,
-        },
-        # false_positive_weight: Must be high enough to counteract FN
-        # spillover from shared network weights. FP focal modulation
-        # inside the loss already softens small false alarms, so a high
-        # base weight won't over-penalize near-threshold predictions.
-        # Floor of 2.0 ensures meaningful pushback; ceiling of 8.0
-        # prevents FP from dominating and causing underprediction.
-        "false_positive_weight": {
-            "distribution": "uniform",
-            "min": 2.0,
-            "max": 8.0,
-        },
-        # false_negative_weight: Additive on top of non_zero_weight.
-        # This is the TERTIARY FN lever — inflation and magnitude_alpha
-        # are the primary amplifiers. Keep moderate to avoid compounding
-        # the already-extreme FN effective weight. Ceiling lowered from
-        # 15 → 10 to reduce the FN/FP imbalance.
-        "false_negative_weight": {
-            "distribution": "uniform",
-            "min": 1.0,
-            "max": 10.0,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
