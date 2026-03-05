@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "purple_haze", 
         "algorithm": "ShurfModel",
-        "targets": ["sb_best"],
+        "targets": ["lr_sb_best"],
         "level": "cm",
         "creator": "Håvard",
         "model_reg": "XGBRegressor",

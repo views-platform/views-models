@@ -9,16 +9,16 @@ def generate():
     qs_conflictlong = (Queryset(f'{model_name}','priogrid_month')
                        
 
-        .with_column(Column('raw_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
+        # .with_column(Column('raw_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
 
-        .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi'))
+        # .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi'))
 
-        .with_column(Column('raw_ged_ns', from_loa='priogrid_month', from_column='ged_ns_best_sum_nokgi'))
+        # .with_column(Column('raw_ged_ns', from_loa='priogrid_month', from_column='ged_ns_best_sum_nokgi'))
 
-        .with_column(Column('ln_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
-            .transform.missing.replace_na()
-            .transform.ops.ln()
-            )
+        # .with_column(Column('lr_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+        #     .transform.missing.replace_na()
+        #     # .transform.ops.ln()
+        #     )
 
         .with_column(Column('lr_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
@@ -158,7 +158,7 @@ def generate():
         .with_theme('fatalities')
         .describe("""fatalities longer conflict history, pgm level
 
-                                Predicting ln(ged_best_sb) using conflict predictors, longer version
+                                Predicting lr_ged_sb using conflict predictors, longer version
 
                                 """)
     )

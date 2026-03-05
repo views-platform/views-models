@@ -1,0 +1,20 @@
+/home/simon/anaconda3/envs/views_pipeline/lib/python3.11/site-packages/fs/__init__.py:4: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__("pkg_resources").declare_namespace(__name__)  # type: ignore
+Traceback (most recent call last):
+  File "/home/simon/Documents/scripts/views_platform/views-models/models/preliminary_directives/main.py", line 27, in <module>
+    DartsForecastingModelManager(
+  File "/home/simon/Documents/scripts/views_platform/views-models/models/emerging_principles/temp-views-r2darts2/views_r2darts2/manager/model.py", line 97, in __init__
+    print(f"DartsForecastingModelManager.__init__ - self.config:\n{pprint.pformat(self.config)}")
+                                                                   ^^^^^^
+NameError: name 'pprint' is not defined. Did you mean: 'print'?
+
+ERROR conda.cli.main_run:execute(47): `conda run python models/preliminary_directives/main.py -r calibration -t -e` failed. (See above for error)
+   dBBBBBb   dBBBBBb     dBBBP      dBP     dBP     dBBBBBBb     dBP     dBBBBb  dBBBBBb   dBBBBBb dBP dBP             dBBBBb     dBP   dBBBBBb     dBBBP      dBBBP  dBBBBBBP     dBP   dBP dP     dBBBP   .dBBBBP
+       dB'       dBP                                     dBP                dBP       BB       dBP    dBP                 dBP               dBP                                                             BP     
+   dBBBP'    dBBBBK    dBBP       dBP     dBP     dBPdBPdBP    dBP     dBP dBP    dBP BB   dBBBBK    dBP             dBP dBP    dBP     dBBBBK    dBBP       dBP       dBP       dBP   dB .BP     dBBP      `BBBBb 
+  dBP       dBP  BB   dBP        dBP     dBP     dBPdBPdBP    dBP     dBP dBP    dBP  BB  dBP  BB   dBP             dBP dBP    dBP     dBP  BB   dBP        dBP       dBP       dBP    BB.BP     dBP           dBP 
+ dBP       dBP  dB'  dBBBBP     dBBBBP  dBP     dBPdBPdBP    dBP     dBP dBP    dBBBBBBB dBP  dB'  dBP             dBBBBBP    dBP     dBP  dB'  dBBBBP     dBBBBP    dBP       dBP     BBBP     dBBBBP    dBBBBP'  
+                                                                                                           dBBBBBP                                                                                                 
+views-pipeline-core v
+
+

@@ -13,99 +13,99 @@ def generate():
 
     queryset = (Queryset('uncertainty_conflict_nolog','country_month')
 
-        .with_column(Column('sb_best', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_sb_best', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_ns', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
+        .with_column(Column('lr_ged_ns', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+        .with_column(Column('lr_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('acled_sb', from_loa='country_month', from_column='acled_sb_fat')
+        .with_column(Column('lr_acled_sb', from_loa='country_month', from_column='acled_sb_fat')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ln_acled_sb_count', from_loa='country_month', from_column='acled_sb_count')
-            .transform.ops.ln()
+        .with_column(Column('lr_acled_sb_count', from_loa='country_month', from_column='acled_sb_count')
+            # .transform.ops.ln()
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('acled_os', from_loa='country_month', from_column='acled_os_fat')
+        .with_column(Column('lr_acled_os', from_loa='country_month', from_column='acled_os_fat')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('wdi_sp_pop_totl', from_loa='country_year', from_column='wdi_sp_pop_totl')
+        .with_column(Column('lr_wdi_sp_pop_totl', from_loa='country_year', from_column='wdi_sp_pop_totl')
             .transform.missing.fill()
             .transform.temporal.tlag(12)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_1', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_1', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(1)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_2', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_2', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(2)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_3', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_3', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(3)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_4', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_4', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(4)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(5)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_sb_tlag_6', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_ged_sb_tlag_6', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(6)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('ged_os_tlag_1', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+        .with_column(Column('lr_ged_os_tlag_1', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
             .transform.missing.fill()
             .transform.temporal.tlag(1)
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_sb_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_sb_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -113,7 +113,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_os_5', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_os_5', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -121,7 +121,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(100)
             .transform.temporal.time_since()
@@ -129,7 +129,7 @@ def generate():
             .transform.missing.replace_na()
             )
         
-        .with_column(Column('decay_240_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_decay_240_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(100)
             .transform.temporal.time_since()
@@ -137,14 +137,14 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_sb_500', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_sb_500', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(500)
             .transform.temporal.time_since()
             .transform.temporal.decay(24)
             .transform.missing.replace_na()
             )
-        .with_column(Column('decay_ged_sb_1000', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_sb_1000', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(1000)
             .transform.temporal.time_since()
@@ -152,7 +152,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_os_100', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_os_100', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(100)
             .transform.temporal.time_since()
@@ -160,7 +160,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_ns_5', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_ns_5', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -168,7 +168,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_ged_ns_100', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
+        .with_column(Column('lr_decay_ged_ns_100', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(100)
             .transform.temporal.time_since()
@@ -176,7 +176,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_acled_sb_5', from_loa='country_month', from_column='acled_sb_fat')
+        .with_column(Column('lr_decay_acled_sb_5', from_loa='country_month', from_column='acled_sb_fat')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -184,7 +184,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_acled_os_5', from_loa='country_month', from_column='acled_os_fat')
+        .with_column(Column('lr_decay_acled_os_5', from_loa='country_month', from_column='acled_os_fat')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -192,7 +192,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('decay_acled_ns_5', from_loa='country_month', from_column='acled_ns_fat')
+        .with_column(Column('lr_decay_acled_ns_5', from_loa='country_month', from_column='acled_ns_fat')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -200,7 +200,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('splag_1_decay_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_splag_1_decay_ged_sb_100', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(100)
             .transform.temporal.time_since()
@@ -209,7 +209,7 @@ def generate():
             .transform.missing.replace_na()
             )
         
-        .with_column(Column('splag_1_decay_ged_sb_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_splag_1_decay_ged_sb_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -218,7 +218,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('splag_1_decay_ged_os_5', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
+        .with_column(Column('lr_splag_1_decay_ged_os_5', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -227,7 +227,7 @@ def generate():
             .transform.missing.replace_na()
             )
 
-        .with_column(Column('splag_1_decay_ged_ns_5', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
+        .with_column(Column('lr_splag_1_decay_ged_ns_5', from_loa='country_month', from_column='ged_ns_best_sum_nokgi')
             .transform.missing.replace_na()
             .transform.bool.gte(5)
             .transform.temporal.time_since()
@@ -238,7 +238,7 @@ def generate():
 
 
         .with_theme('uncertainty')
-        .describe("""Predicting ln(fatalities), cm level
+        .describe("""Predicting fatalities, cm level
         
                                 Queryset with baseline and conflict indicators from GED and ACLED only
         
