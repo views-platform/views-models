@@ -7,9 +7,6 @@ from views_pipeline_core.managers.model import ModelPathManager
 # Import your model manager class here
 
 # NOTE: Should be changed when implemented properly
-import sys, os
-sys.path.append(os.path.abspath("../"))
-
 from views_markov.manager.markovmodel_manager import MarkovModelManager
 
 warnings.filterwarnings("ignore")
