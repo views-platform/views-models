@@ -6,14 +6,14 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
+
     meta_config = {
-        "name": "brown_cheese", 
+        "name": "brown_cheese",
         "algorithm": "XGBRFRegressor",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "targets": "lr_ged_sb",
         "queryset": "fatalities003_baseline",
         "level": "cm",
-        "creator": "Borbála"
+        "creator": "Borbála",
     }
     return meta_config

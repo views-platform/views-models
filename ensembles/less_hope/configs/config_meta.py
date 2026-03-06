@@ -7,14 +7,17 @@ def get_meta_config():
     - meta_config (dict): A dictionary containing model meta configuration.
     """
     meta_config = {
-        "name": "white_mustang",
-        "models": ["lavender_haze", "blank_space"],
-        "metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb",  # Double-check the target variables of each model
+        "name": "less_hope",
+        "models": ["average_pgmbaseline", "zero_pgmbaseline"],
+        "targets": ["lr_ged_sb"],
         "level": "pgm",
         "aggregation": "mean",
-        "creator": "Xiaolong",
-        "reconciliation": "pgm_cm_point",
-        "reconcile_with": "cruel_summer",
+        "metrics": [
+            "RMSLE",
+            "MSE",
+            "MSLE",
+            "y_hat_bar",
+        ],
+        "creator": "Sonja",
     }
     return meta_config

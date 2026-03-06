@@ -11,10 +11,10 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "LGBMClassifier",
         "model_reg": "LGBMRegressor",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb",  
+        "metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "targets": "lr_ged_sb",
         "queryset": "fatalities003_pgm_natsoc",
         "level": "pgm",
-        "creator": "Xiaolong"
+        "creator": "Xiaolong",
     }
     return meta_config
