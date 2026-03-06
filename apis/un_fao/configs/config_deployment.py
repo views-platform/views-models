@@ -19,5 +19,7 @@ def get_deployment_config():
     deployment_config = {'deployment_status': 'shadow',
                          'port': 8000,
                          'host': '0.0.0.0',
-                         'action': 'start'}
+                         'action': 'start',
+                         'workers': 4,
+                         'reload': "false"}
     return deployment_config

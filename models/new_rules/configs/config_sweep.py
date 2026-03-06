@@ -72,5 +72,5 @@ def get_sweep_config():
         'n_jobs': {'values': [-1]},
     }
 
-    sweep_config['parameters'] = parameters
+    sweep_config["parameters"] = parameters
     return sweep_config

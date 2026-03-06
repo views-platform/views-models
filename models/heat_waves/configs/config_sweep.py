@@ -1,119 +1,83 @@
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
-
-    Returns:
-    - sweep_config (dict): A dictionary containing the configuration for hyperparameter sweeps, defining the methods and parameter ranges used to search for optimal hyperparameters.
+    Harmonized sweep configuration for hot_stream (TFT).
+    Adapted from novel_heuristics general configuration principles.
+    Targeting ~20 trials with Bayesian optimization.
     """
 
     sweep_config = {
-        'method': 'bayes',
-        'name': 'heat_waves_tft_focus',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 10,
-            'eta': 2
-        },
-        'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
-            'goal': 'minimize'
-        },
+        "method": "grid",
+        "name": "heat_wave_grid_test",
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
-        # Temporal horizon & context
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60]},
-        'output_chunk_shift': {'values': [0, 1, 2]},
-
-        # Training basics - FIXED: smaller batches, more epochs
-        'batch_size': {'values': [32, 64, 96, 128]},  # Reduced from 256
-        'n_epochs': {'values': [300]},
-        'early_stopping_patience': {'values': [15, 20, 25]},
-        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
-
-        # Optimizer / scheduler - FIXED: lower learning rates
-        'lr': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,  # Much lower to prevent explosion
-            'max': 1e-4,  # Lower max for stability
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
-        },
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
-
-        # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'log_targets': {'values': [True]},
-        'log_features': {
-            'values': [
-                ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
-                 "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns", 
-                 "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or", "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
-                 ]
+        # --- Harmonized Training Basics (from novel_heuristics) ---
+        "batch_size": {"values": [256]},
+        "n_epochs": {"values": [150]},
+        "early_stopping_patience": {"values": [2]},
+        "early_stopping_min_delta": {"values": [0.01]},
+        "lr": {"values": [0.0004295014201718642]},
+        "weight_decay": {"values": [0.0001]},
+        "optimizer_cls": {"values": ["Adam"]},
+        "gradient_clip_val": {"values": [1.0]},
+        "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.46]},
+        "lr_scheduler_patience": {"values": [2]},
+        "lr_scheduler_min_lr": {"values": [0.00001]},
+        # --- Harmonized Scaling & Data ---
+        "feature_scaler": {"values": ["MinMaxScaler"]},
+        "target_scaler": {"values": ["MinMaxScaler"]},
+        "log_targets": {"values": [True]},
+        "log_features": {
+            "values": [
+                [
+                    "lr_ged_sb",
+                    "lr_ged_ns",
+                    "lr_ged_os",
+                    "lr_acled_sb",
+                    "lr_acled_os",
+                    "lr_ged_sb_tsum_24",
+                    "lr_splag_1_ged_sb",
+                    "lr_splag_1_ged_os",
+                    "lr_splag_1_ged_ns",
+                    "lr_wdi_sm_pop_netm",
+                    "lr_wdi_sm_pop_refg_or",
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    "lr_wdi_ny_gdp_mktp_kd",
+                ]
             ]
         },
-
-        # TFT specific architecture - FIXED: more conservative
-        'hidden_size': {'values': [32, 64, 128]},  # Reduced from 256
-        'lstm_layers': {'values': [1, 2]},  # Reduced from 4
-        'num_attention_heads': {'values': [2, 4]},  # Reduced from 8
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.3
-        'full_attention': {'values': [True, False]},
-        'feed_forward': {'values': ['GLU', 'Bilinear', 'ReGLU', 'GEGLU', 'SwiGLU', 'ReLU', 'GELU', 'GatedResidualNetwork']},
-        'add_relative_index': {'values': [True]},
-        'use_static_covariates': {'values': [True]},
-        'norm_type': {'values': ['LayerNorm', 'RMSNorm']},
-        'force_reset': {'values': [True]},
-
-        # Loss function
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-
-        # Loss function parameters
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
-        },
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
-        },
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
-        },
-        'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 1.0,
-        },
-        
-        # Gradient clipping - CRITICAL: added to prevent explosion
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
-        },
+        # --- Harmonized Loss Function ---
+        "loss_function": {"values": ["WeightedPenaltyHuberLoss"]},
+        "delta": {"values": [0.025]},
+        "zero_threshold": {"values": [0.01]},
+        "false_positive_weight": {"values": [1.0]},
+        "false_negative_weight": {"values": [5.0]},
+        "non_zero_weight": {"values": [10.0]},
+        # --- TFT Specific Architecture (Focused Search) ---
+        "hidden_size": {"values": [256]},
+        "lstm_layers": {"values": [1]},
+        "num_attention_heads": {"values": [2]},
+        "dropout": {"values": [0.3]},
+        "full_attention": {"values": [False]},
+        "feed_forward": {"values": ["GELU"]},
+        "add_relative_index": {"values": [True]},
+        "use_static_covariates": {"values": [True]},
+        "norm_type": {"values": ["LayerNorm"]},
+        "skip_interpolation": {"values": [False]},
+        "hidden_continuous_size": {"values": [8]},
+        # --- Operational Fixed Keys ---
+        "steps": {"values": [[*range(1, 37)]]},
+        "input_chunk_length": {"values": [24]},
+        "output_chunk_length": {"values": [36]},
+        "output_chunk_shift": {"values": [0]},
+        "num_samples": {"values": [1]},
+        "mc_dropout": {"values": [False]},
+        "random_state": {"values": [1, 2]},
+        "force_reset": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [False]},
     }
 
-    sweep_config['parameters'] = parameters
+    sweep_config["parameters"] = parameters
     return sweep_config

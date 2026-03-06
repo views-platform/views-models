@@ -9,12 +9,12 @@ def get_meta_config():
     meta_config = {
         "name": "white_mustang",
         "models": ["lavender_haze", "blank_space"],
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "targets": "lr_ged_sb",  # Double-check the target variables of each model
         "level": "pgm",
         "aggregation": "mean",
         "creator": "Xiaolong",
         "reconciliation": "pgm_cm_point",
-        "reconcile_with": "cruel_summer"
+        "reconcile_with": "cruel_summer",
     }
     return meta_config
