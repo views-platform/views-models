@@ -1,36 +1,54 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - JATLoss
-    ==================================================
+    TiDE Hyperparameter Sweep Configuration - MAATLoss
+    ===================================================
 
-    Strategy: Asinh-space regression with Jacobian-asymmetric temporal weighting
-    -----------------------------------------------------------------------------
+    Strategy: Asinh-space regression with magnitude-aligned asymmetric temporal loss
+    ---------------------------------------------------------------------------------
 
-    v21: JAT-Loss sweep — Jacobian-weighted magnitude + temporal alignment
-    -----------------------------------------------------------------------
-    Replaces FME-Loss with a simpler 3-component design:
-      1. Jacobian weight cosh(max(ŷ,y)) — directly inverts asinh compression
-      2. Asymmetric penalty β — FN costs (1+β)× more than FP
-      3. Temporal Huber loss on first-differences — penalizes onset/offset errors
+    v22: MAAT-Loss sweep — Country-Month (CM) level forecasting
+    -------------------------------------------------------------
+    Upgrades from JATLoss (v21) to MAATLoss — a 4-component composite loss
+    addressing all three failure modes (Drama Queen, Coward, Bad Timer):
 
-    Advantages over FME-Loss:
-    - Fewer hyperparameters (4 vs 10) — smaller sweep space
-    - Jacobian weight is mathematically exact (cosh = d/dy sinh)
-    - No separate class-weight machinery — asymmetry via single β parameter
-    - Temporal term directly addresses flatline by penalizing constant predictions
+      1. Magnitude-recovering weighted Huber: cosh(α·max(|ŷ|,|y|)) Jacobian
+         weight with Huber base — restores raw-scale gradient sensitivity.
+      2. CDF temporal alignment (Cramér distance): penalizes cumulative
+         temporal offsets, not just pointwise errors.
+      3. Temporal derivative penalty: cosine-similarity on first-differences
+         weighted by true change magnitude — enforces onset/offset direction.
+      4. Asymmetric soft-focal hurdle: sigmoid-relaxed peace/conflict boundary
+         with focal cross-entropy, β_FN > β_FP for asymmetric FN/FP tradeoff.
+
+    Advantages over JATLoss:
+    - CDF alignment directly penalizes "right magnitude, wrong timing"
+    - Soft-focal hurdle provides explicit classification signal at the
+      peace/conflict boundary (vs. JATLoss implicit via asymmetric MSE)
+    - Derivative penalty catches onset/offset direction errors
+    - Magnitude weight cap (w_max) prevents gradient explosion without
+      relying solely on percentile clamping
+
+    Country-Month (CM) level notes:
+    - ~200 countries × 36-month horizon → ~7,200 cells per output window
+    - Denser conflict signal per series than PGM (~60% have ≥1 conflict month)
+    - Larger per-series magnitudes (country aggregates) → higher asinh values
+    - Lower α (0.3–0.6) sufficient since country-level asinh values are larger
+    - Stronger CDF alignment (λ_cdf up to 0.3) since country time series
+      are smoother and temporal structure is more coherent
+    - Moderate hurdle weight — country series have clearer peace/conflict split
 
     Features: 37 (6 conflict + 13 WDI + 18 V-Dem, no topics).
     Input tensor per window: 37 × 36 = 1,332 values.
     Training windows: ~16.5K.
 
-    Architecture notes (same as v17+):
+    Architecture notes:
     - RevIN disabled: Jacobian weighting handles magnitude natively
     - mc_dropout=False: Deterministic inference
     - Position encoder: relative only (integer month_id indexing)
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_jat_v21_msle",
+        "name": "smol_cat_tide_maat_v22_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -40,23 +58,21 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},  # FIX: match output_chunk_length. 48/60 adds noise with 37 features.
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
         "optimizer_cls": {"values": ["Adam"]},
-        # mc_dropout=False: Deterministic inference. Dropout at inference
-        # suppresses activations by (1-p), compounding signal loss across
-        # decoder layers.
         "mc_dropout": {"values": [False]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size: Fixed at 64. Jacobian weighting on high-magnitude
-        # samples can produce large per-sample gradients — need enough
-        # samples per batch for stable gradient estimates.
+        # Batch size: Fixed at 64. MAAT magnitude weighting + hurdle produces
+        # heterogeneous per-sample gradients — need enough samples for stable
+        # batch gradient estimates. Country-level has fewer series than PGM,
+        # so 64 is appropriate.
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
@@ -65,14 +81,13 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # LR is loss-dependent — always sweep. Narrowed range from prior sweeps.
+        # LR: MAAT has more gradient sources (4 components) — slightly wider
+        # range to accommodate different component balance regimes.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
-            "max": 2e-4,
+            "min": 3e-5,
+            "max": 3e-4,
         },
-        # Weight decay: Fixed at geometric mean of prior narrow range.
-        # Negligible effect vs loss params.
         "weight_decay": {"values": [5e-6]},
         # ==============================================================================
         # LR SCHEDULER
@@ -81,9 +96,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # JAT-Loss: cosh weight is unbounded (cosh(9)≈4052). Fixed at 5.0 —
-        # sufficient since JAT has fewer multiplicative amplifiers than FME.
-        "gradient_clip_val": {"values": [1.0, 1.5, 3.0]},
+        # MAAT: cosh weight is capped at w_max (default 100), and Huber base
+        # limits gradient growth. Lower clip than raw JATLoss needed.
+        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -139,110 +154,147 @@ def get_sweep_config():
             ]
         },
         # ==============================================================================
-        # TiDE ARCHITECTURE (narrowed — fix low-impact, sweep high-impact)
+        # TiDE ARCHITECTURE
         # ==============================================================================
-        # Encoder layers: Fixed at 1 (paper default). With 37 clean features,
-        # the encoder's job is easy. Decoder needs the depth, not encoder.
+        # Country-month: fewer series (~200) but richer temporal structure.
+        # Need sufficient capacity to model diverse country trajectories.
         "num_encoder_layers": {"values": [1]},
-        # Decoder layers: SWEPT. Directly affects anti-flatline. Must sustain
-        # signal across 36 steps from a single latent.
+        # Decoder layers: 2 or 3. Country series are smoother than PGM —
+        # 2 layers may suffice, but 3 gives more capacity for diverse patterns.
         "num_decoder_layers": {"values": [2, 3]},
-        # decoder_output_dim: Fixed at 64. 32 too small for 36-step output,
-        # 128 overkill for 1-dim target.
         "decoder_output_dim": {"values": [64]},
-        # hidden_size: SWEPT. Most impactful arch param. 128 dropped (too
-        # compressed to sustain signal over 36 steps).
+        # hidden_size: SWEPT. Country-level needs capacity for ~200 diverse
+        # trajectories. 256 is minimum viable, 512 gives headroom.
         "hidden_size": {"values": [256, 512]},
-        # temporal_width_past: SWEPT. 24 dropped (too wide for 37 features,
-        # averages noise). 4 (paper) vs 12 (1 year cycle).
+        # temporal_width: Country series have stronger annual cycles.
+        # 4 (paper default) vs 12 (annual cycle match).
         "temporal_width_past": {"values": [4, 12]},
-        # temporal_width_future: SWEPT. 24 too short, 64 overkill.
-        # 36 = horizon match, 48 = moderate context.
         "temporal_width_future": {"values": [36, 48]},
-        # temporal_decoder_hidden: Fixed at 256. 128 underpowered for
-        # 36-step decoder, 512 overkill for ~16K training windows.
         "temporal_decoder_hidden": {"values": [256]},
-        # temporal_hidden_size_past/future: Fixed at 128. 3.5× input dim
-        # is the right compression ratio for 37 features.
         "temporal_hidden_size_past": {"values": [128]},
         "temporal_hidden_size_future": {"values": [128]},
         # ==============================================================================
-        # REGULARIZATION (narrowed — fix layer_norm, tighten dropout)
+        # REGULARIZATION
         # ==============================================================================
-        # Layer norm: Fixed at True. Stabilizes Jacobian-weighted gradient flow.
         "use_layer_norm": {"values": [True]},
-        # Dropout: SWEPT but narrowed. High dropout kills rare conflict
-        # signal. Light regularization only.
+        # Dropout: Country-level has fewer training windows per series.
+        # Slightly higher dropout ceiling to prevent overfitting on ~200 series.
         "dropout": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.15,
+            "max": 0.20,
         },
         "use_static_covariates": {"values": [True]},
-        # RevIN disabled: Jacobian weighting (cosh) handles magnitude scaling
-        # natively. RevIN's per-series normalization would distort the asinh
-        # space that the Jacobian correction relies on.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
-        # LOSS FUNCTION: JATLoss (Jacobian-Asymmetric Temporal Loss)
+        # LOSS FUNCTION: MAATLoss (Magnitude-Aligned Asymmetric Temporal Loss)
         # ==============================================================================
-        # Three-component loss for asinh-transformed zero-inflated data:
-        #   1. Jacobian weight cosh(max(ŷ,y)) — exact asinh compression correction
-        #   2. Asymmetric penalty β           — FN costs (1+β)× more than FP
-        #   3. Temporal Huber on Δŷ vs Δy     — penalizes onset/offset timing errors
+        # Four-component loss for asinh-transformed zero-inflated data:
+        #   A. Magnitude-recovering weighted Huber (cosh Jacobian weight)
+        #   B1. CDF temporal alignment (Cramér distance on cumulative sums)
+        #   B2. Temporal derivative penalty (cosine-sim on first-differences)
+        #   C. Asymmetric soft-focal classification (hurdle)
         #
-        # Stability: 99.9th-percentile per-sample clamp inside loss. Requires
-        # gradient_clip_val ≥ 5.0 externally. batch_size ≥ 64 recommended.
-        "loss_function": {"values": ["JATLoss"]},
+        # Stability: w_max caps Jacobian weight. 99.9th-percentile per-sample
+        # clamp inside loss. gradient_clip_val ≥ 1.0 externally.
+        "loss_function": {"values": ["MAATLoss"]},
         #
-        # ── beta ──────────────────────────────────────
-        # Asymmetric penalty for under-prediction (false negatives).
-        # FN cost = (1+β) × FP cost. Primary FN/FP balance knob.
-        #   0.3 = mild asymmetry (1.3× FN)
-        #   0.5 = moderate (1.5× FN, recommended)
-        #   1.0 = strong (2× FN)
-        #   2.0 = aggressive (3× FN)
-        "beta": {
+        # ── alpha (magnitude expansion rate) ──────────
+        # Controls how aggressively cosh undoes asinh compression.
+        # Country-level has higher asinh values (aggregated fatalities) →
+        # lower α avoids excessive weighting at the country-aggregate tail.
+        #   0.3 = conservative (cosh(0.3×9)=3.5× at asinh=9)
+        #   0.5 = moderate (cosh(0.5×9)=45× at asinh=9)
+        #   0.6 = aggressive (cosh(0.6×9)=132× at asinh=9)
+        "alpha": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 2.0,
+            "max": 0.6,
         },
-        # ── lambda_mag ────────────────────────────────
-        # Weight for the magnitude component. Fixed at 1.0 as the reference
-        # scale — lambda_time is tuned relative to this.
-        "lambda_mag": {"values": [1.0]},
-        # ── lambda_time ───────────────────────────────
-        # Weight for temporal alignment component.
-        # Too low: model ignores timing. Too high: overwhelms magnitude signal.
-        #   0.01 = light temporal guidance
-        #   0.1  = moderate (recommended starting point)
-        #   0.5  = strong temporal constraint
-        "lambda_time": {
-            "distribution": "log_uniform_values",
-            "min": 0.01,
-            "max": 0.5,
-        },
-        # ── huber_kappa ───────────────────────────────
-        # Huber delta for temporal gradient loss. Controls sensitivity to
-        # sharp onsets vs gradual trends.
-        #   0.5 = more robust to sharp spikes (treats large Δ as linear)
-        #   1.0 = balanced (recommended)
-        #   2.0 = closer to MSE on temporal gradients
-        "huber_kappa": {
+        # ── w_max (magnitude weight cap) ──────────────
+        # Prevents gradient explosion at extreme tail values.
+        # At α=0.5, asinh(4000)=9: cosh(4.5)≈45. Cap at 100 gives headroom.
+        # Country aggregates can reach asinh(50000)≈11.5: cosh(5.75)≈157,
+        # capped at 100. Fixed — not worth sweeping.
+        "w_max": {"values": [100.0]},
+        # ── huber_delta ───────────────────────────────
+        # Huber transition point. Controls sensitivity to large residuals.
+        # At δ=1: quadratic for |r|<1, linear for |r|>1.
+        # Country-level residuals tend to be larger → slightly higher δ OK.
+        "huber_delta": {
             "distribution": "uniform",
             "min": 0.5,
-            "max": 2.0,
+            "max": 1.5,
+        },
+        # ── tau (peace/conflict threshold) ────────────
+        # Threshold in asinh space for the soft hurdle classifier.
+        # asinh(1)≈0.88 (at least 1 fatality) is the natural boundary.
+        # Country-level could use slightly higher (asinh(5)≈2.3) since
+        # country aggregates rarely have exactly 1 fatality.
+        "tau": {"values": [0.88]},
+        # ── kappa (sigmoid sharpness) ─────────────────
+        # Controls how hard the soft peace/conflict boundary is.
+        # Higher kappa → sharper sigmoid → more binary classification signal.
+        # Fixed at 5.0: at τ=0.88, σ(5·(2.3-0.88))≈1.0 (clear conflict).
+        "kappa": {"values": [5.0]},
+        # ── beta_fn / beta_fp (FN/FP asymmetry) ──────
+        # Controls the false negative vs false positive tradeoff in the
+        # hurdle component. ρ = beta_fn / beta_fp is the FN/FP ratio.
+        # Country-level: missing a country-level conflict onset is critical
+        # for early warning → moderate-to-high ρ.
+        #   ρ=2: FN penalty 2× FP
+        #   ρ=3: FN penalty 3× FP (recommended)
+        #   ρ=5: FN penalty 5× FP (aggressive, risk Drama Queen)
+        "beta_fn": {
+            "distribution": "uniform",
+            "min": 2.0,
+            "max": 5.0,
+        },
+        "beta_fp": {"values": [1.0]},
+        # ── focal_gamma ───────────────────────────────
+        # Focal exponent for easy-example down-weighting in the hurdle.
+        # γ=2.0 is the standard Lin et al. (2017) recommendation.
+        # Country-level has better class separation → γ=2 is appropriate.
+        "focal_gamma": {"values": [2.0]},
+        # ── lambda_reg ────────────────────────────────
+        # Weight for the magnitude-recovering regression component.
+        # Fixed at 1.0 as the reference scale.
+        "lambda_reg": {"values": [1.0]},
+        # ── lambda_cdf ────────────────────────────────
+        # Weight for CDF temporal alignment.
+        # Country time series are smoother with more coherent temporal
+        # structure → CDF alignment is more useful at CM than PGM.
+        #   0.05 = light temporal guidance
+        #   0.1  = moderate (good starting point)
+        #   0.3  = strong temporal constraint
+        "lambda_cdf": {
+            "distribution": "log_uniform_values",
+            "min": 0.05,
+            "max": 0.3,
+        },
+        # ── lambda_deriv ──────────────────────────────
+        # Weight for temporal derivative penalty.
+        # Lighter touch than CDF — catches onset/offset direction errors.
+        "lambda_deriv": {
+            "distribution": "log_uniform_values",
+            "min": 0.01,
+            "max": 0.1,
+        },
+        # ── lambda_hurdle ─────────────────────────────
+        # Weight for the asymmetric soft-focal classification component.
+        # Primary anti-Coward mechanism. Too high risks Drama Queen if
+        # beta_fn is also high.
+        #   0.3 = moderate classification pressure
+        #   0.5 = balanced (recommended)
+        #   1.0 = strong classification pressure
+        "lambda_hurdle": {
+            "distribution": "uniform",
+            "min": 0.3,
+            "max": 1.0,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        # NOTE: cyclic and datetime_attribute encoders require DatetimeIndex,
-        # but VIEWS uses integer month_id indexing. Only position encoders
-        # are compatible with integer-indexed TimeSeries.
-        #
-        # position:relative generates a [0.0, ..., 1.0] ramp over the window.
-        # Darts position encoder only supports "relative" — "absolute" raises
-        # ValueError. This is the only future signal beyond bare features.
         "add_encoders": {
             "values": [
                 {
