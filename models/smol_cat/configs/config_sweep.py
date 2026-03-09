@@ -1,53 +1,36 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - FocalMagnitudeExpandingLoss
-    =====================================================================
+    TiDE Hyperparameter Sweep Configuration - JATLoss
+    ==================================================
 
-    Strategy: Asinh-space regression with focal magnitude-expanding weighting
-    --------------------------------------------------------------------------
+    Strategy: Asinh-space regression with Jacobian-asymmetric temporal weighting
+    -----------------------------------------------------------------------------
 
-    v17: Anti-flatline sweep — no topics (output_chunk_length=36 fixed)
-    -------------------------------------------------------------------
-    Root cause of flatline: TiDE's decoder generates all 36 steps in one
-    forward pass from a single latent vector + position encoding. The position
-    encoding (linear ramp) carries no conflict-relevant signal, so the decoder
-    learns to predict the unconditional mean (≈0) for steps beyond ~5.
+    v21: JAT-Loss sweep — Jacobian-weighted magnitude + temporal alignment
+    -----------------------------------------------------------------------
+    Replaces FME-Loss with a simpler 3-component design:
+      1. Jacobian weight cosh(max(ŷ,y)) — directly inverts asinh compression
+      2. Asymmetric penalty β — FN costs (1+β)× more than FP
+      3. Temporal Huber loss on first-differences — penalizes onset/offset errors
+
+    Advantages over FME-Loss:
+    - Fewer hyperparameters (4 vs 10) — smaller sweep space
+    - Jacobian weight is mathematically exact (cosh = d/dy sinh)
+    - No separate class-weight machinery — asymmetry via single β parameter
+    - Temporal term directly addresses flatline by penalizing constant predictions
 
     Features: 37 (6 conflict + 13 WDI + 18 V-Dem, no topics).
     Input tensor per window: 37 × 36 = 1,332 values.
     Training windows: ~16.5K.
 
-    Fixes applied (without changing output_chunk_length):
-
-    1. RevIN swept [True, False]: Per-series denormalization rescales outputs
-       back to each country's historical range, preventing Sudan from collapsing
-       to the global near-zero mean. Primary anti-flatline mechanism.
-
-    2. Topics excluded entirely: Noisy topic features (64→16→0) were the
-       majority of inputs but contributed weakest signal. With 37 high-quality
-       features, the encoder has a cleaner compression task.
-
-    3. Architecture right-sized for 37 features:
-       - hidden_size [128, 256, 512]: 128 viable now (37→128 = 3.5:1 compression)
-       - temporal_hidden_size_past [64, 128, 256]: 64 added (proportional to input dim)
-       - num_encoder_layers [1, 2] (paper default: 1)
-       - decoder_output_dim [32, 64, 128] (paper default: 32)
-       - temporal_width_past swept [4, 12, 24] (paper default: 4)
-
-    4. Deeper decoder [2, 3]: More capacity to sustain signal across 36 steps.
-
-    5. temporal_decoder_hidden [128, 256, 512]: More capacity per output step.
-
-    6. mc_dropout=False: Deterministic inference eliminates dropout-induced
-       signal suppression.
-
-    7. Position encoder: relative only (Darts doesn't support absolute).
-       VIEWS uses integer month_id indexing, so cyclic/datetime encoders
-       are also incompatible.
+    Architecture notes (same as v17+):
+    - RevIN disabled: Jacobian weighting handles magnitude natively
+    - mc_dropout=False: Deterministic inference
+    - Position encoder: relative only (integer month_id indexing)
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_fmel_v20_msle",
+        "name": "smol_cat_tide_jat_v21_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -71,8 +54,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        # Batch size: Fixed at 64. FME-Loss requires ≥64 for stable
-        # gradients with three unbounded multipliers.
+        # Batch size: Fixed at 64. Jacobian weighting on high-magnitude
+        # samples can produce large per-sample gradients — need enough
+        # samples per batch for stable gradient estimates.
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
@@ -97,9 +81,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # FME-Loss has three unbounded multipliers. Fixed at 5.0 — the
-        # safe floor. 10.0 is too loose for the worst-case alpha×inflation.
-        "gradient_clip_val": {"values": [5.0]},
+        # JAT-Loss: cosh weight is unbounded (cosh(9)≈4052). Fixed at 5.0 —
+        # sufficient since JAT has fewer multiplicative amplifiers than FME.
+        "gradient_clip_val": {"values": [1.0, 1.5, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -185,7 +169,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION (narrowed — fix layer_norm, tighten dropout)
         # ==============================================================================
-        # Layer norm: Fixed at True. Stabilizes Charbonnier gradient flow.
+        # Layer norm: Fixed at True. Stabilizes Jacobian-weighted gradient flow.
         "use_layer_norm": {"values": [True]},
         # Dropout: SWEPT but narrowed. High dropout kills rare conflict
         # signal. Light regularization only.
@@ -195,73 +179,59 @@ def get_sweep_config():
             "max": 0.15,
         },
         "use_static_covariates": {"values": [True]},
-        # RevIN disabled: Per-series normalization distorts the zero_threshold 
-        # in Asinh space. The FME-Loss handles magnitude scaling natively, making 
-        # RevIN redundant and potentially harmful to the loss function's logic.
+        # RevIN disabled: Jacobian weighting (cosh) handles magnitude scaling
+        # natively. RevIN's per-series normalization would distort the asinh
+        # space that the Jacobian correction relies on.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
-        # LOSS FUNCTION: FocalMagnitudeExpandingLoss (FME-Loss)
+        # LOSS FUNCTION: JATLoss (Jacobian-Asymmetric Temporal Loss)
         # ==============================================================================
-        # Four-mechanism hybrid loss for asinh-transformed zero-inflated data:
-        #   1. Asymmetric Residual Inflation  — counteracts asinh compression
-        #   2. Charbonnier Core (gradient ∝ |r|^{p-1}) — never saturates
-        #   3. Exponential Magnitude Weighting — inverts asinh compression
-        #   4. Focal TN Suppression            — frees gradient budget from 85% zeros
+        # Three-component loss for asinh-transformed zero-inflated data:
+        #   1. Jacobian weight cosh(max(ŷ,y)) — exact asinh compression correction
+        #   2. Asymmetric penalty β           — FN costs (1+β)× more than FP
+        #   3. Temporal Huber on Δŷ vs Δy     — penalizes onset/offset timing errors
         #
         # Stability: 99.9th-percentile per-sample clamp inside loss. Requires
         # gradient_clip_val ≥ 5.0 externally. batch_size ≥ 64 recommended.
-        "loss_function": {"values": ["FocalMagnitudeExpandingLoss"]},
-        "zero_threshold": {"values": [0.88]},
+        "loss_function": {"values": ["JATLoss"]},
         #
-        # FIXED loss params (well-understood or secondary):
-        #
-        # p=1.5: Theoretical sweet spot for Charbonnier (sqrt gradient growth).
-        "p": {"values": [1.5]},
-        "eps": {"values": [0.1]},
-        # focal_gamma=2.0: Lin et al. ICCV 2017 default, well-validated.
-        "focal_gamma": {"values": [2.0]},
-        # focal_gamma_fn=0.5: sqrt scaling, balanced.
-        "focal_gamma_fn": {"values": [0.5]},
-        # Class weights: Fixed at calibrated midpoints. The exponential
-        # magnitude + inflation are the primary FN amplifiers. Class weights
-        # are tertiary — fixing them removes 2 dimensions.
-        "non_zero_weight": {"values": [5.0]},
-        "false_negative_weight": {"values": [5.0]},
-        #
-        # SWEPT loss params (the 3 primary levers):
-        #
-        # ── magnitude_alpha ───────────────────────
-        # THE most important knob. Exponential tilt strength.
-        # w_mag = exp(α · |y| / τ). Inverts asinh compression.
-        #   0.3 = mild  (10× at asinh=9)
-        #   0.5 = moderate (166× at asinh=9, recommended)
-        #   0.7 = aggressive (1600× at asinh=9)
-        "magnitude_alpha": {
+        # ── beta ──────────────────────────────────────
+        # Asymmetric penalty for under-prediction (false negatives).
+        # FN cost = (1+β) × FP cost. Primary FN/FP balance knob.
+        #   0.3 = mild asymmetry (1.3× FN)
+        #   0.5 = moderate (1.5× FN, recommended)
+        #   1.0 = strong (2× FN)
+        #   2.0 = aggressive (3× FN)
+        "beta": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.7,
+            "max": 2.0,
         },
-        # ── fn_inflation_power  ────────────────────
-        # Expands under-prediction residuals before Charbonnier sees them.
-        #   factor = 1 + (|y|/τ)^power
-        #   0.3 = gentle, 0.7 = recommended, 1.0 = aggressive
-        "fn_inflation_power": {
-            "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.7,
+        # ── lambda_mag ────────────────────────────────
+        # Weight for the magnitude component. Fixed at 1.0 as the reference
+        # scale — lambda_time is tuned relative to this.
+        "lambda_mag": {"values": [1.0]},
+        # ── lambda_time ───────────────────────────────
+        # Weight for temporal alignment component.
+        # Too low: model ignores timing. Too high: overwhelms magnitude signal.
+        #   0.01 = light temporal guidance
+        #   0.1  = moderate (recommended starting point)
+        #   0.5  = strong temporal constraint
+        "lambda_time": {
+            "distribution": "log_uniform_values",
+            "min": 0.01,
+            "max": 0.5,
         },
-        # ── false_positive_weight ───────────────────
-        # Must scale with the FN amplifiers (alpha × inflation) to prevent
-        # "Global Escalation." FP focal modulation inside the loss already
-        # softens small false alarms, so a high base weight won't
-        # over-penalize near-threshold predictions.
-        #   At alpha=0.7, inflation=1.0: effective FN ≈ 10,000×
-        #   FP weight of 3.0 would be too loose; 8.0 may over-suppress.
-        # Let Bayes find the equilibrium.
-        "false_positive_weight": {
+        # ── huber_kappa ───────────────────────────────
+        # Huber delta for temporal gradient loss. Controls sensitivity to
+        # sharp onsets vs gradual trends.
+        #   0.5 = more robust to sharp spikes (treats large Δ as linear)
+        #   1.0 = balanced (recommended)
+        #   2.0 = closer to MSE on temporal gradients
+        "huber_kappa": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 30.0,
+            "min": 0.5,
+            "max": 2.0,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
