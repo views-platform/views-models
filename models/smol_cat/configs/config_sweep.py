@@ -1,54 +1,10 @@
 def get_sweep_config():
     """
-    TiDE Hyperparameter Sweep Configuration - MAATLoss
-    ===================================================
-
-    Strategy: Asinh-space regression with magnitude-aligned asymmetric temporal loss
-    ---------------------------------------------------------------------------------
-
-    v22: MAAT-Loss sweep — Country-Month (CM) level forecasting
-    -------------------------------------------------------------
-    Upgrades from JATLoss (v21) to MAATLoss — a 4-component composite loss
-    addressing all three failure modes (Drama Queen, Coward, Bad Timer):
-
-      1. Magnitude-recovering weighted Huber: cosh(α·max(|ŷ|,|y|)) Jacobian
-         weight with Huber base — restores raw-scale gradient sensitivity.
-      2. CDF temporal alignment (Cramér distance): penalizes cumulative
-         temporal offsets, not just pointwise errors.
-      3. Temporal derivative penalty: cosine-similarity on first-differences
-         weighted by true change magnitude — enforces onset/offset direction.
-      4. Asymmetric soft-focal hurdle: sigmoid-relaxed peace/conflict boundary
-         with focal cross-entropy, β_FN > β_FP for asymmetric FN/FP tradeoff.
-
-    Advantages over JATLoss:
-    - CDF alignment directly penalizes "right magnitude, wrong timing"
-    - Soft-focal hurdle provides explicit classification signal at the
-      peace/conflict boundary (vs. JATLoss implicit via asymmetric MSE)
-    - Derivative penalty catches onset/offset direction errors
-    - Magnitude weight cap (w_max) prevents gradient explosion without
-      relying solely on percentile clamping
-
-    Country-Month (CM) level notes:
-    - ~200 countries × 36-month horizon → ~7,200 cells per output window
-    - Denser conflict signal per series than PGM (~60% have ≥1 conflict month)
-    - Larger per-series magnitudes (country aggregates) → higher asinh values
-    - Lower α (0.3–0.6) sufficient since country-level asinh values are larger
-    - Stronger CDF alignment (λ_cdf up to 0.3) since country time series
-      are smoother and temporal structure is more coherent
-    - Moderate hurdle weight — country series have clearer peace/conflict split
-
-    Features: 37 (6 conflict + 13 WDI + 18 V-Dem, no topics).
-    Input tensor per window: 37 × 36 = 1,332 values.
-    Training windows: ~16.5K.
-
-    Architecture notes:
-    - RevIN disabled: Jacobian weighting handles magnitude natively
-    - mc_dropout=False: Deterministic inference
-    - Position encoder: relative only (integer month_id indexing)
+    meow
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_maat_v22_cm_msle",
+        "name": "smol_cat_tide_spotlight_v23_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -187,7 +143,7 @@ def get_sweep_config():
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
-        # LOSS FUNCTION: MAATLoss (Magnitude-Aligned Asymmetric Temporal Loss)
+        # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         # Four-component loss for asinh-transformed zero-inflated data:
         #   A. Magnitude-recovering weighted Huber (cosh Jacobian weight)
@@ -197,100 +153,58 @@ def get_sweep_config():
         #
         # Stability: w_max caps Jacobian weight. 99.9th-percentile per-sample
         # clamp inside loss. gradient_clip_val ≥ 1.0 externally.
-        "loss_function": {"values": ["MAATLoss"]},
-        #
+        "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # Controls how aggressively cosh undoes asinh compression.
-        # Country-level has higher asinh values (aggregated fatalities) →
-        # lower α avoids excessive weighting at the country-aggregate tail.
-        #   0.3 = conservative (cosh(0.3×9)=3.5× at asinh=9)
-        #   0.5 = moderate (cosh(0.5×9)=45× at asinh=9)
-        #   0.6 = aggressive (cosh(0.6×9)=132× at asinh=9)
+        # Controls cosh amplification. 
+        # Country-month data has high max values (asinh~9+).
+        #   0.5: cosh(0.5*9) ≈ 45x (Stable, moderate tail pressure)
+        #   0.8: cosh(0.8*9) ≈ 222x (Aggressive tail pressure)
+        # Fixed < 1.0 to prevent explosion without internal clamping.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.6,
+            "min": 0.5,
+            "max": 0.8,
         },
-        # ── w_max (magnitude weight cap) ──────────────
-        # Prevents gradient explosion at extreme tail values.
-        # At α=0.5, asinh(4000)=9: cosh(4.5)≈45. Cap at 100 gives headroom.
-        # Country aggregates can reach asinh(50000)≈11.5: cosh(5.75)≈157,
-        # capped at 100. Fixed — not worth sweeping.
-        "w_max": {"values": [100.0]},
-        # ── huber_delta ───────────────────────────────
-        # Huber transition point. Controls sensitivity to large residuals.
-        # At δ=1: quadratic for |r|<1, linear for |r|>1.
-        # Country-level residuals tend to be larger → slightly higher δ OK.
-        "huber_delta": {
+        
+        # ── beta (asymmetry strength) ─────────────────
+        # Extra multiplier for FN, gated by magnitude.
+        #   0.3: FN costs 1.3x FP (on events)
+        #   0.7: FN costs 1.7x FP (on events)
+        # Range is conservative because magnitude weights already 
+        # heavily favor FN recall.
+        "beta": {
+            "distribution": "uniform",
+            "min": 0.3,
+            "max": 0.7,
+        },
+        
+        # ── kappa (sigmoid sharpness) ─────────────────
+        # Controls transition smoothness between FP/FN regimes.
+        #   5.0: Smooth transition.
+        #   15.0: Sharp, almost binary transition.
+        "kappa": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 15.0,
+        },
+        
+        # ── delta (huber threshold) ───────────────────
+        # Transition point for quadratic->linear.
+        # Sweeping 0.5 to 1.5 allows finding the optimal robustness.
+        "delta": {
             "distribution": "uniform",
             "min": 0.5,
             "max": 1.5,
         },
-        # ── tau (peace/conflict threshold) ────────────
-        # Threshold in asinh space for the soft hurdle classifier.
-        # asinh(1)≈0.88 (at least 1 fatality) is the natural boundary.
-        # Country-level could use slightly higher (asinh(5)≈2.3) since
-        # country aggregates rarely have exactly 1 fatality.
-        "tau": {"values": [0.88]},
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls how hard the soft peace/conflict boundary is.
-        # Higher kappa → sharper sigmoid → more binary classification signal.
-        # Fixed at 5.0: at τ=0.88, σ(5·(2.3-0.88))≈1.0 (clear conflict).
-        "kappa": {"values": [5.0]},
-        # ── beta_fn / beta_fp (FN/FP asymmetry) ──────
-        # Controls the false negative vs false positive tradeoff in the
-        # hurdle component. ρ = beta_fn / beta_fp is the FN/FP ratio.
-        # Country-level: missing a country-level conflict onset is critical
-        # for early warning → moderate-to-high ρ.
-        #   ρ=2: FN penalty 2× FP
-        #   ρ=3: FN penalty 3× FP (recommended)
-        #   ρ=5: FN penalty 5× FP (aggressive, risk Drama Queen)
-        "beta_fn": {
+        
+        # ── gamma (temporal weight) ───────────────────
+        # Weight for the temporal gradient alignment term.
+        #   0.05: Light timing guidance.
+        #   0.2: Strong timing guidance.
+        "gamma": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 5.0,
-        },
-        "beta_fp": {"values": [1.0]},
-        # ── focal_gamma ───────────────────────────────
-        # Focal exponent for easy-example down-weighting in the hurdle.
-        # γ=2.0 is the standard Lin et al. (2017) recommendation.
-        # Country-level has better class separation → γ=2 is appropriate.
-        "focal_gamma": {"values": [2.0]},
-        # ── lambda_reg ────────────────────────────────
-        # Weight for the magnitude-recovering regression component.
-        # Fixed at 1.0 as the reference scale.
-        "lambda_reg": {"values": [1.0]},
-        # ── lambda_cdf ────────────────────────────────
-        # Weight for CDF temporal alignment.
-        # Country time series are smoother with more coherent temporal
-        # structure → CDF alignment is more useful at CM than PGM.
-        #   0.05 = light temporal guidance
-        #   0.1  = moderate (good starting point)
-        #   0.3  = strong temporal constraint
-        "lambda_cdf": {
-            "distribution": "log_uniform_values",
             "min": 0.05,
-            "max": 0.3,
-        },
-        # ── lambda_deriv ──────────────────────────────
-        # Weight for temporal derivative penalty.
-        # Lighter touch than CDF — catches onset/offset direction errors.
-        "lambda_deriv": {
-            "distribution": "log_uniform_values",
-            "min": 0.01,
-            "max": 0.1,
-        },
-        # ── lambda_hurdle ─────────────────────────────
-        # Weight for the asymmetric soft-focal classification component.
-        # Primary anti-Coward mechanism. Too high risks Drama Queen if
-        # beta_fn is also high.
-        #   0.3 = moderate classification pressure
-        #   0.5 = balanced (recommended)
-        #   1.0 = strong classification pressure
-        "lambda_hurdle": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 1.0,
+            "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
