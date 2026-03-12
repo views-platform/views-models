@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v23_cm_msle",
+        "name": "smol_cat_tide_spotlight_v24_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -18,7 +18,7 @@ def get_sweep_config():
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
-        "optimizer_cls": {"values": ["Adam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "mc_dropout": {"values": [False]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
@@ -52,12 +52,6 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-
-        # Not relevant. Remove from reproducability gate ----------------------------
-        "lr_scheduler_factor": {"values": [0.46]},
-        "lr_scheduler_patience": {"values": [7]},
-        "lr_scheduler_min_lr": {"values": [1e-5]},
-        # ----------------------------
         # MAAT: cosh weight is capped at w_max (default 100), and Huber base
         # limits gradient growth. Lower clip than raw JATLoss needed.
         "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
