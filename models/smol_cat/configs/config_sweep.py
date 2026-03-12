@@ -52,6 +52,12 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
+
+        # Not relevant. Remove from reproducability gate ----------------------------
+        "lr_scheduler_factor": {"values": [0.46]},
+        "lr_scheduler_patience": {"values": [7]},
+        "lr_scheduler_min_lr": {"values": [1e-5]},
+        # ----------------------------
         # MAAT: cosh weight is capped at w_max (default 100), and Huber base
         # limits gradient growth. Lower clip than raw JATLoss needed.
         "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
