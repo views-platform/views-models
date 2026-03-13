@@ -114,21 +114,33 @@ def get_sweep_config():
         # ==============================================================================
         # Country-month: fewer series (~200) but richer temporal structure.
         # Need sufficient capacity to model diverse country trajectories.
-        "num_encoder_layers": {"values": [1]},
+        "num_encoder_layers": {"values": [1, 2]},
         # Decoder layers: 2 or 3. Country series are smoother than PGM —
         # 2 layers may suffice, but 3 gives more capacity for diverse patterns.
         "num_decoder_layers": {"values": [2, 3]},
-        "decoder_output_dim": {"values": [64]},
+        # decoder_output_dim: Dimensionality of the decoder output before
+        # the temporal decoder. 32-64 is typical; 16 is the Darts default.
+        "decoder_output_dim": {"values": [32, 64]},
         # hidden_size: SWEPT. Country-level needs capacity for ~200 diverse
         # trajectories. 256 is minimum viable, 512 gives headroom.
         "hidden_size": {"values": [256, 512]},
-        # temporal_width: Country series have stronger annual cycles.
-        # 4 (paper default) vs 12 (annual cycle match).
+        # temporal_width_past: Width of past covariate projection output.
+        # 0 bypasses projection (uses raw features). 4 is paper default,
+        # 12 matches annual cycle for monthly data.
         "temporal_width_past": {"values": [4, 12]},
+        # temporal_width_future: Width of future covariate projection output.
+        # Larger values capture richer future covariate interactions.
         "temporal_width_future": {"values": [36, 48]},
-        "temporal_decoder_hidden": {"values": [256]},
-        "temporal_hidden_size_past": {"values": [128]},
-        "temporal_hidden_size_future": {"values": [128]},
+        # temporal_decoder_hidden: Width of the temporal decoder MLP.
+        # Needs enough capacity to map decoder output to final predictions.
+        "temporal_decoder_hidden": {"values": [128, 256]},
+        # temporal_hidden_size_past: Hidden layer width in past covariate
+        # projection ResBlock. Defaults to hidden_size if None, which is
+        # often too large. 64-128 is more appropriate.
+        "temporal_hidden_size_past": {"values": [64, 128]},
+        # temporal_hidden_size_future: Hidden layer width in future covariate
+        # projection ResBlock. Same reasoning as past.
+        "temporal_hidden_size_future": {"values": [64, 128]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
