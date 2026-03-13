@@ -1,63 +1,11 @@
 def get_sweep_config():
     """
-    Transformer Model Hyperparameter Sweep Configuration
-    =============================================================================================
-
-    Data Characteristics:
-    ---------------------
-    - ~200 time series (countries), ~82,512 observations
-    - Zero-inflated targets: sb=86%, ns=93%, os=94% zeros
-    - Heavy right skew: fatality counts span 0 to ~4,000+
-    - 69 features (WDI, V-Dem, topic models, conflict history)
-    - 36-month forecast horizon
-
-    Transformer Architecture (Fixed based on literature):
-    -----------------------------------------------------
-    - Self-attention captures long-range dependencies without recurrence
-    - num_encoder_layers=2: Sufficient for ~200 series (Vaswani et al.)
-    - num_decoder_layers=2: Match encoder for balanced capacity
-    - d_model: 128-256 (moderate size prevents overfitting)
-    - num_attention_heads: 4 (head_dim >= 32 required for stability)
-    - activation=GEGLU: Gated activation (Shazeer 2020)
-    - norm_type=LayerNorm: More stable than RMSNorm
-    - use_reversible_instance_norm=True: Critical for distribution shift
-
-    Loss Function: AsinhWeightedPenaltyHuberLoss (Additive Structure)
-    -------------------------------------------------------------
-    - TN (zero→zero): 1.0x baseline
-    - TP (conflict→conflict): 1.0 + non_zero_weight
-    - FP (zero→conflict): false_positive_weight (absolute, <0.5 encourages exploration)
-    - FN (conflict→zero): 1.0 + non_zero_weight + false_negative_weight
-
-    Mode Collapse Prevention:
-    -------------------------
-    - CosineAnnealingWarmRestarts: periodic LR restarts escape local minima
-    - Low false_positive_weight (<0.5): encourages non-zero predictions
-    - Batch size 64-128: ensures non-zero events in every batch
-    - Low dropout (0.05-0.1): preserves neurons learning rare patterns
-
-    Attention Stability Constraint:
-    --------------------------------
-    d_model / num_attention_heads >= 32 required for stable attention.
-    Valid combinations: d_model=128/nhead=4 (32✓), d_model=256/nhead=4 (64✓)
-
-    Hyperband Early Termination:
-    ----------------------------
-    - min_iter=30: More time for sparse signal (was 20)
-    - eta=2: Keeps top 50% each round
-
-    Returns:
-        sweep_config (dict): WandB sweep configuration dictionary
+    meow
     """
-
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_mag_quantile_v3_msle",
-        "early_terminate": {
-            "type": "hyperband",
-            "min_iter": 30,
-            "eta": 2,
-        },
+        "name": "good_life_transformer_spotlight_v1_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -69,185 +17,174 @@ def get_sweep_config():
         "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
-        "mc_dropout": {"values": [True]},
         "random_state": {"values": [67]},
+        "mc_dropout": {"values": [True]},
         "detect_anomaly": {"values": [False]},
-        "optimizer_cls": {"values": ["Adam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
-
         # ==============================================================================
-        # TRAINING BASICS
+        # TRAINING
         # ==============================================================================
-        # Batch size 64-128: ~98% probability of non-zero events per batch
-        # (was 1024-2048: caused "all-zero batches" → mode collapse)
-        "batch_size": {"values": [64, 128]},
-        "n_epochs": {"values": [200]},
-        "early_stopping_patience": {"values": [30]},  # 40% of T_0 cycle
+        "batch_size": {"values": [64]},
+        "n_epochs": {"values": [300]},
+        "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
-
         # ==============================================================================
-        # OPTIMIZER / LEARNING RATE SCHEDULE
+        # OPTIMIZER
         # ==============================================================================
-        # CosineAnnealing restarts help escape local minima (mode collapse prevention)
-        # T_0=50 → 4 cycles in 200 epochs (50, 50, 50, 50)
+        # Transformers are notoriously sensitive to LR — the warmup from
+        # CosineAnnealing restarts helps, but the range must be conservative.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,
-            "max": 5e-4,
+            "min": 1e-5,
+            "max": 3e-4,
         },
-        "weight_decay": {"values": [1e-6]},  # Minimal only (was [0, 1e-6, 1e-4, 1e-3])
-        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [25]},  # Faster restarts
-        "lr_scheduler_T_mult": {"values": [1]},  # Fixed period for sustained exploration
-        "lr_scheduler_eta_min": {"values": [1e-6]},  # Higher min maintains gradients
-        "gradient_clip_val": {"values": [1.0, 2.0]},
-
+        "weight_decay": {"values": [5e-6]},
         # ==============================================================================
-        # FEATURE SCALING
+        # LR SCHEDULER
+        # ==============================================================================
+        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
+        "lr_scheduler_T_0": {"values": [30]},
+        "lr_scheduler_T_mult": {"values": [2]},
+        "lr_scheduler_eta_min": {"values": [1e-6]},
+        # Transformers benefit from moderate clipping — attention can
+        # produce gradient spikes, but too tight kills long-range signal.
+        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        # ==============================================================================
+        # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        # AsinhTransform ONLY: preserves zero structure + variance
-        # (was AsinhTransform->MinMaxScaler: compressed signal → flat predictions)
         "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [
                 {
-                    # Zero-inflated counts: Log-like
                     "AsinhTransform": [
-                        # "lr_ged_sb", "lr_ged_ns", "lr_ged_os",
-                        "lr_acled_sb", "lr_acled_os",
                         "lr_wdi_sm_pop_refg_or",
-                        "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                        "lr_wdi_ny_gdp_mktp_kd",
+                        "lr_wdi_nv_agr_totl_kn",
+                        "lr_splag_1_ged_sb",
+                        "lr_splag_1_ged_ns",
+                        "lr_splag_1_ged_os",
                     ],
-                    # Continuous rates/indices: Center around 0 with unit variance
                     "StandardScaler": [
-                        "lr_wdi_sm_pop_netm", "lr_wdi_dt_oda_odat_pc_zs",
-                        "lr_wdi_sp_pop_grow", "lr_wdi_ms_mil_xpnd_gd_zs",
-                        "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_stnt_zs",
+                        "lr_ged_sb_delta",
+                        "lr_ged_ns_delta",
+                        "lr_ged_os_delta",
+                        "lr_wdi_sm_pop_netm",
+                        "lr_wdi_dt_oda_odat_pc_zs",
+                        "lr_wdi_sp_pop_grow",
+                        "lr_wdi_ms_mil_xpnd_gd_zs",
+                        "lr_wdi_sp_dyn_imrt_fe_in",
+                        "lr_wdi_sh_sta_stnt_zs",
                         "lr_wdi_sh_sta_maln_zs",
                     ],
-                    # V-Dem indices (0-1), WDI %, topic theta
                     "MinMaxScaler": [
-                        "lr_wdi_sl_tlf_totl_fe_zs", "lr_wdi_se_enr_prim_fm_zs",
+                        "lr_wdi_sl_tlf_totl_fe_zs",
+                        "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
                         "lr_vdem_v2x_horacc",
-                        "lr_vdem_v2xnp_client",
                         "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2x_divparctrl",
-                        "lr_vdem_v2xpe_exlpol",
                         "lr_vdem_v2x_diagacc",
+                        "lr_vdem_v2xnp_client",
+                        "lr_vdem_v2xnp_regcorr",
+                        "lr_vdem_v2xpe_exlpol",
                         "lr_vdem_v2xpe_exlgeo",
                         "lr_vdem_v2xpe_exlgender",
                         "lr_vdem_v2xpe_exlsocgr",
+                        "lr_vdem_v2x_divparctrl",
                         "lr_vdem_v2x_ex_party",
+                        "lr_vdem_v2x_ex_military",
                         "lr_vdem_v2x_genpp",
                         "lr_vdem_v2xeg_eqdr",
                         "lr_vdem_v2xcl_prpty",
                         "lr_vdem_v2xeg_eqprotec",
-                        "lr_vdem_v2x_ex_military",
                         "lr_vdem_v2xcl_dmove",
                         "lr_vdem_v2x_clphy",
-                        "lr_vdem_v2xnp_regcorr",
-                        # Topic model theta values (probability distributions, already 0-1)
-                        "lr_topic_ste_theta0",
-                        "lr_topic_ste_theta1",
-                        "lr_topic_ste_theta2",
-                        "lr_topic_ste_theta3",
-                        "lr_topic_ste_theta4",
-                        "lr_topic_ste_theta5",
-                        "lr_topic_ste_theta6",
-                        "lr_topic_ste_theta7",
-                        "lr_topic_ste_theta8",
-                        "lr_topic_ste_theta9",
-                        "lr_topic_ste_theta10",
-                        "lr_topic_ste_theta11",
-                        "lr_topic_ste_theta12",
-                        "lr_topic_ste_theta13",
-                        "lr_topic_ste_theta14",
-                        # Topic spatial lags (neighborhood averages, still bounded)
-                        "lr_topic_ste_theta0_stock_t1_splag",
-                        "lr_topic_ste_theta1_stock_t1_splag",
-                        "lr_topic_ste_theta2_stock_t1_splag",
-                        "lr_topic_ste_theta3_stock_t1_splag",
-                        "lr_topic_ste_theta4_stock_t1_splag",
-                        "lr_topic_ste_theta5_stock_t1_splag",
-                        "lr_topic_ste_theta6_stock_t1_splag",
-                        "lr_topic_ste_theta7_stock_t1_splag",
-                        "lr_topic_ste_theta8_stock_t1_splag",
-                        "lr_topic_ste_theta9_stock_t1_splag",
-                        "lr_topic_ste_theta10_stock_t1_splag",
-                        "lr_topic_ste_theta11_stock_t1_splag",
-                        "lr_topic_ste_theta12_stock_t1_splag",
-                        "lr_topic_ste_theta13_stock_t1_splag",
-                        "lr_topic_ste_theta14_stock_t1_splag",
                     ],
                 }
             ]
         },
-
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        # d_model: Use 128 only to ensure valid nhead combinations
-        # Constraint: d_model / nhead >= 32 (head_dim >= 32 for stable attention)
+        # d_model: Embedding dimension. Constrained jointly with nhead so
+        # that head_dim = d_model / nhead >= 32 for stable attention.
+        # 128/4=32 is the proven minimum; 128/2=64 gives richer heads.
         "d_model": {"values": [128]},
-
-        # nhead: 4 for d_model=128 (128/4=32✓)
-        # NOTE: d_model=64 with nhead=4 gives head_dim=16 which is UNSTABLE
-        "nhead": {"values": [4]},
-
-        # num_encoder_layers: 2 sufficient for ~200 series (Vaswani et al.)
-        "num_encoder_layers": {"values": [2]},
-
-        # num_decoder_layers: Match encoder for balanced capacity
-        "num_decoder_layers": {"values": [2]},
-
-        # dim_feedforward: 2-4x d_model
+        # nhead: 4 gives head_dim=32 (tight but stable), 2 gives 64 (rich).
+        # Both valid with d_model=128. Avoids the 64/4=16 trap entirely.
+        "nhead": {"values": [2, 4]},
+        # num_encoder_layers: 2-3 layers. ~200 series don't need deep
+        # encoders; 2 is standard, 3 adds capacity for temporal complexity.
+        "num_encoder_layers": {"values": [2, 3]},
+        # num_decoder_layers: Match or slightly fewer than encoder.
+        # Decoder complexity should mirror encoder for balanced attention.
+        "num_decoder_layers": {"values": [2, 3]},
+        # dim_feedforward: FF expansion factor. 2-4x d_model.
+        # 256-512 for d_model=64-128. Controls capacity of position-wise FF.
         "dim_feedforward": {"values": [256, 512]},
-
-        # dropout: Lower to preserve rare pattern learning (high dropout → mean regression)
-        "dropout": {"values": [0.15, 0.25]},
-
-        # activation: GEGLU (gated activation, Shazeer 2020)
-        "activation": {"values": ["GEGLU", "SwiGLU"]},  # FIXED (was [SwiGLU, GEGLU])
-
-        # norm_type: LayerNorm more stable than RMSNorm
-        "norm_type": {"values": ["LayerNorm"]},  # FIXED (was [RMSNorm, LayerNorm])
-
-        # RevIN: Address distribution shift in conflict data
-        "use_reversible_instance_norm": {"values": [True, False]},
-
+        # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
+        # relu/gelu in recent Transformer literature (Shazeer 2020).
+        "activation": {"values": ["gelu", "SwiGLU"]},
+        # norm_type: LayerNorm is standard and most stable.
+        "norm_type": {"values": ["LayerNorm"]},
         # ==============================================================================
-        # LOSS FUNCTION: MagnitudeAwareQuantileLoss
+        # REGULARIZATION
         # ==============================================================================
-        # Quantile regression with magnitude-aware weighting
-        # Combines: tau asymmetry + non_zero_weight + magnitude scaling
-        # Total weight = tau × non_zero_weight × (1 + max(|target|, |pred|))
-        "loss_function": {"values": ["MagnitudeAwareQuantileLoss"]},
-        
-        # tau (quantile level): Controls asymmetry between under/overestimation
-        # - tau = 0.5: Symmetric MAE
-        # - tau = 0.7: 2.3× penalty for underestimation (FN:FP = 2.3:1)
-        "tau": {
+        # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
+        # practical floor — below that, attention memorizes training windows.
+        "dropout": {
             "distribution": "uniform",
-            "min": 0.50,
-            "max": 0.85,
+            "min": 0.15,
+            "max": 0.35,
         },
-        
-        # non_zero_weight: Extra weight for samples where target > threshold
-        # With ~95% zeros in conflict data, non-zero targets need amplification
-        "non_zero_weight": {
+        "use_reversible_instance_norm": {"values": [False, True]},
+        # ==============================================================================
+        # LOSS FUNCTION: SpotlightLoss
+        # ==============================================================================
+        "loss_function": {"values": ["SpotlightLoss"]},
+        # ── alpha (magnitude expansion rate) ──────────
+        "alpha": {
             "distribution": "uniform",
-            "min": 10.0,
-            "max": 50.0,
+            "min": 0.5,
+            "max": 0.8,
         },
-        
-        # zero_threshold: Threshold in asinh-space to distinguish zero from non-zero
-        # asinh(3)≈1.82, asinh(4)≈2.09
-        "zero_threshold": {"values": [1.82, 2.09]},
+        # ── beta (asymmetry strength) ─────────────────
+        "beta": {
+            "distribution": "uniform",
+            "min": 0.3,
+            "max": 0.7,
+        },
+        # ── kappa (sigmoid sharpness) ─────────────────
+        "kappa": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 15.0,
+        },
+        # ── delta (huber threshold) ───────────────────
+        "delta": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 1.5,
+        },
+        # ── gamma (temporal weight) ───────────────────
+        "gamma": {
+            "distribution": "uniform",
+            "min": 0.05,
+            "max": 0.2,
+        },
+        # ==============================================================================
+        # TEMPORAL ENCODINGS
+        # ==============================================================================
+        "add_encoders": {
+            "values": [
+                {
+                    "position": {"past": ["relative"], "future": ["relative"]},
+                }
+            ]
+        },
     }
 
     sweep_config["parameters"] = parameters
