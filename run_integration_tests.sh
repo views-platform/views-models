@@ -2,23 +2,27 @@
 #
 # Integration test runner for views-models
 #
-# Trains and evaluates each model on calibration and validation partitions.
-# Logs results per model — never aborts on failure.
+# Trains and evaluates each model on calibration and validation partitions
+# using a single conda environment. Logs results per model — never aborts on failure.
 #
 # Usage:
-#   bash run_integration_tests.sh                          # all models, calibration + validation
-#   bash run_integration_tests.sh --models "counting_stars purple_alien"  # subset
-#   bash run_integration_tests.sh --partitions "calibration"              # one partition only
-#   bash run_integration_tests.sh --timeout 3600           # 60-minute timeout per run
+#   bash run_integration_tests.sh                                         # all models
+#   bash run_integration_tests.sh --models "counting_stars bad_blood"     # subset
+#   bash run_integration_tests.sh --partitions "calibration"              # one partition
+#   bash run_integration_tests.sh --exclude "purple_alien novel_heuristics"  # skip models
+#   bash run_integration_tests.sh --env my_conda_env                     # different env
+#   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
 #
 
 set -uo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────
 
-TIMEOUT=1800  # 30 minutes per model+partition run
+CONDA_ENV="views_pipeline"
+TIMEOUT=1800
 PARTITIONS="calibration validation"
 FILTER_MODELS=""
+EXCLUDE_MODELS="purple_alien"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_DIR="$SCRIPT_DIR/models"
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
@@ -36,51 +40,53 @@ NC='\033[0m'
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --models)
-            FILTER_MODELS="$2"
-            shift 2
-            ;;
-        --partitions)
-            PARTITIONS="$2"
-            shift 2
-            ;;
-        --timeout)
-            TIMEOUT="$2"
-            shift 2
-            ;;
+        --models)     FILTER_MODELS="$2"; shift 2 ;;
+        --exclude)    EXCLUDE_MODELS="$2"; shift 2 ;;
+        --partitions) PARTITIONS="$2"; shift 2 ;;
+        --timeout)    TIMEOUT="$2"; shift 2 ;;
+        --env)        CONDA_ENV="$2"; shift 2 ;;
         --help|-h)
             echo "Usage: bash run_integration_tests.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --models \"model1 model2\"    Run only these models (space-separated)"
+            echo "  --env NAME                  Conda env to activate (default: views_pipeline)"
+            echo "  --models \"m1 m2\"            Run only these models"
+            echo "  --exclude \"m1 m2\"           Skip these models (default: purple_alien)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
-            echo "  --help                      Show this help"
             exit 0
             ;;
-        *)
-            echo "Unknown option: $1"
-            exit 1
-            ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
     esac
+done
+
+# ── Build exclusion set ──────────────────────────────────────────────
+
+declare -A EXCLUDED
+for m in $EXCLUDE_MODELS; do
+    EXCLUDED[$m]=1
 done
 
 # ── Discover models ──────────────────────────────────────────────────
 
+MODELS=()
 if [ -n "$FILTER_MODELS" ]; then
-    MODELS=()
     for m in $FILTER_MODELS; do
-        if [ -f "$MODELS_DIR/$m/run.sh" ]; then
+        if [[ -n "${EXCLUDED[$m]:-}" ]]; then
+            echo -e "${YELLOW}Excluding: $m${NC}"
+        elif [ -f "$MODELS_DIR/$m/main.py" ]; then
             MODELS+=("$m")
         else
-            echo -e "${YELLOW}WARNING: Model '$m' not found or has no run.sh — skipping${NC}"
+            echo -e "${YELLOW}WARNING: '$m' not found — skipping${NC}"
         fi
     done
 else
-    MODELS=()
     for dir in "$MODELS_DIR"/*/; do
         model_name=$(basename "$dir")
-        if [ -f "$dir/run.sh" ]; then
+        if [[ -n "${EXCLUDED[$model_name]:-}" ]]; then
+            continue
+        fi
+        if [ -f "$dir/main.py" ]; then
             MODELS+=("$model_name")
         fi
     done
@@ -104,7 +110,9 @@ done
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}  views-models integration test${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
+echo "  Conda env:  $CONDA_ENV"
 echo "  Models:     $TOTAL_MODELS"
+echo "  Excluded:   $EXCLUDE_MODELS"
 echo "  Partitions: $PARTITIONS"
 echo "  Timeout:    ${TIMEOUT}s per run"
 echo "  Logs:       $LOG_DIR"
@@ -128,24 +136,21 @@ for model in "${MODELS[@]}"; do
 
         echo -ne "[${RUN_INDEX}/${TOTAL_RUNS}] ${BOLD}${model}${NC} (${partition})... "
 
-        # Record start time
         start_time=$(date +%s)
 
-        # Run the model via its own run.sh, capturing all output
-        # The run.sh handles conda env activation internally
         timeout "$TIMEOUT" bash -c "
-            cd '$MODELS_DIR/$model' && \
-            bash run.sh -r '$partition' -t -e
+            eval \"\$(conda shell.bash hook)\"
+            conda activate '$CONDA_ENV'
+            cd '$MODELS_DIR/$model'
+            python main.py -r '$partition' -t -e
         " > "$model_log" 2>&1
         exit_code=$?
 
-        # Record duration
         end_time=$(date +%s)
         duration=$((end_time - start_time))
-        duration_str="${duration}s"
 
         if [ "$exit_code" -eq 0 ]; then
-            echo -e "${GREEN}PASS${NC} (${duration_str})"
+            echo -e "${GREEN}PASS${NC} (${duration}s)"
             RESULTS[$result_key]="PASS"
             PASS_COUNT=$((PASS_COUNT + 1))
         elif [ "$exit_code" -eq 124 ]; then
@@ -154,7 +159,7 @@ for model in "${MODELS[@]}"; do
             TIMEOUT_COUNT=$((TIMEOUT_COUNT + 1))
             echo "=== TIMEOUT after ${TIMEOUT}s ===" >> "$model_log"
         else
-            echo -e "${RED}FAIL${NC} (exit ${exit_code}, ${duration_str})"
+            echo -e "${RED}FAIL${NC} (exit ${exit_code}, ${duration}s)"
             RESULTS[$result_key]="FAIL(${exit_code})"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
@@ -169,19 +174,13 @@ echo -e "${BOLD}  Summary${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 
-# Print table header
 printf "%-30s" "Model"
-for partition in $PARTITIONS; do
-    printf "%-15s" "$partition"
-done
+for partition in $PARTITIONS; do printf "%-15s" "$partition"; done
 echo ""
 printf "%-30s" "-----"
-for partition in $PARTITIONS; do
-    printf "%-15s" "----------"
-done
+for partition in $PARTITIONS; do printf "%-15s" "----------"; done
 echo ""
 
-# Print results per model
 for model in "${MODELS[@]}"; do
     printf "%-30s" "$model"
     for partition in $PARTITIONS; do
@@ -199,9 +198,7 @@ done
 echo ""
 echo -e "  ${GREEN}Passed:${NC}   $PASS_COUNT"
 echo -e "  ${RED}Failed:${NC}   $FAIL_COUNT"
-if [ "$TIMEOUT_COUNT" -gt 0 ]; then
-    echo -e "  ${RED}Timeout:${NC}  $TIMEOUT_COUNT"
-fi
+[ "$TIMEOUT_COUNT" -gt 0 ] && echo -e "  ${RED}Timeout:${NC}  $TIMEOUT_COUNT"
 echo "  Total:    $TOTAL_RUNS"
 echo ""
 
@@ -209,23 +206,19 @@ echo ""
 
 {
     echo "Integration Test Summary — $TIMESTAMP"
-    echo "Models: $TOTAL_MODELS | Partitions: $PARTITIONS | Timeout: ${TIMEOUT}s"
+    echo "Env: $CONDA_ENV | Models: $TOTAL_MODELS | Excluded: $EXCLUDE_MODELS"
+    echo "Partitions: $PARTITIONS | Timeout: ${TIMEOUT}s"
     echo ""
     printf "%-30s" "Model"
-    for partition in $PARTITIONS; do
-        printf "%-15s" "$partition"
-    done
+    for partition in $PARTITIONS; do printf "%-15s" "$partition"; done
     echo ""
     printf "%-30s" "-----"
-    for partition in $PARTITIONS; do
-        printf "%-15s" "----------"
-    done
+    for partition in $PARTITIONS; do printf "%-15s" "----------"; done
     echo ""
     for model in "${MODELS[@]}"; do
         printf "%-30s" "$model"
         for partition in $PARTITIONS; do
-            result_key="${model}__${partition}"
-            result="${RESULTS[$result_key]:-SKIPPED}"
+            result="${RESULTS[${model}__${partition}]:-SKIPPED}"
             printf "%-15s" "$result"
         done
         echo ""
@@ -237,8 +230,5 @@ echo ""
 echo "Full summary: $LOG_DIR/summary.log"
 echo "Per-model logs: $LOG_DIR/{partition}/{model}.log"
 
-# Exit with non-zero if any failures
-if [ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
-    exit 1
-fi
+[ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ] && exit 1
 exit 0
