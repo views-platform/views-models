@@ -6,8 +6,6 @@ the same canonical partition boundaries and forecasting offset.
 """
 import re
 
-import pytest
-
 
 def _extract_partition_tuples(source: str) -> dict:
     """Extract calibration/validation train/test tuples from source code."""

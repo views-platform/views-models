@@ -78,5 +78,5 @@ class TestGenerateMarkdownTable:
         assert "test_model" in table
         assert "XGBRegressor" in table
         assert "|" in table
-        lines = [l for l in table.strip().split("\n") if l.strip()]
+        lines = [line for line in table.strip().split("\n") if line.strip()]
         assert len(lines) >= 3

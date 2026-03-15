@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from tests.conftest import ALL_MODEL_DIRS, MODEL_NAMES, REPO_ROOT
+from tests.conftest import MODEL_NAMES
 
 MODEL_NAME_PATTERN = re.compile(r'^[a-z]+_[a-z]+$')
 

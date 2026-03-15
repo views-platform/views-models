@@ -8,15 +8,12 @@ Ensembles have different required config keys than individual models:
 
 Ensembles do NOT have config_sweep.py or config_queryset.py.
 """
-import re
-
 import pytest
 
 from tests.conftest import (
     load_config_module,
     MODELS_DIR,
     ENSEMBLES_DIR,
-    REPO_ROOT,
 )
 
 
