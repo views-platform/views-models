@@ -9,6 +9,7 @@ def get_hp_config():
 
     hyperparameters = {
         "steps": [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
         "num_samples": 1,
         "mc_dropout": True,
         "activation": "ReLU",

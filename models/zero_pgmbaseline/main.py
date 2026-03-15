@@ -1,8 +1,7 @@
-import wandb
 import warnings
 from pathlib import Path
-from views_pipeline_core.cli.utils import parse_args, validate_arguments
-from views_pipeline_core.managers.model import ModelPathManager
+from views_pipeline_core.cli import ForecastingModelArgs
+from views_pipeline_core.managers import ModelPathManager
 from views_baseline.manager.baseline_manager import BaselineForecastingModelManager
 
 warnings.filterwarnings("ignore")
@@ -13,17 +12,15 @@ except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
 
 if __name__ == "__main__":
-    wandb.login()
-    args = parse_args()
-    validate_arguments(args)
+    args = ForecastingModelArgs.parse_args()
+
+    manager = BaselineForecastingModelManager(
+        model_path=model_path,
+        wandb_notifications=args.wandb_notifications,
+        use_prediction_store=args.prediction_store,
+    )
 
     if args.sweep:
-        BaselineForecastingModelManager(
-            model_path=model_path,
-        ).execute_sweep_run(args)
+        manager.execute_sweep_run(args)
     else:
-        BaselineForecastingModelManager(
-            model_path=model_path,
-            wandb_notifications=args.wandb_notifications,
-            use_prediction_store=args.prediction_store,
-        ).execute_single_run(args)
+        manager.execute_single_run(args)

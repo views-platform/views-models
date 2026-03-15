@@ -18,5 +18,6 @@ def get_meta_config():
         "level": "pgm",
         "creator": "Xiaolong",
         "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

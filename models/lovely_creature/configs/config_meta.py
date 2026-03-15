@@ -18,5 +18,6 @@ def get_meta_config():
         "model_clf": "XGBClassifier",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
         "queryset": "uncertainty_broad_nolog",
+        "rolling_origin_stride": 1,
     }
     return meta_config

@@ -10,6 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         "steps": [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
         # Good! silvery-sweep-1
         # "batch_size": 64,
         # "decoder_output_dim": 8,

@@ -17,5 +17,6 @@ def get_meta_config():
         "creator": "Dylan",
         "prediction_format": "dataframe",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "rolling_origin_stride": 1,
     }
     return meta_config

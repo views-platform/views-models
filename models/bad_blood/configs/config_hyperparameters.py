@@ -10,6 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
         'parameters': {
             'n_estimators': 200,
         }

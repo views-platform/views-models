@@ -14,5 +14,6 @@ def get_meta_config():
         "level": "cm",
         "creator": "Sara",
         "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return model_config 

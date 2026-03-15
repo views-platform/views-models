@@ -16,5 +16,6 @@ def get_meta_config():
         "creator": "Simon",
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config
