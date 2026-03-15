@@ -18,7 +18,9 @@ if __name__ == "__main__":
     validate_arguments(args)
 
     if args.sweep:
-        print("No Sweep Run for Baseline Models")
+        BaselineForecastingModelManager(
+            model_path=model_path,
+        ).execute_sweep_run(args)
     else:
         BaselineForecastingModelManager(
             model_path=model_path,

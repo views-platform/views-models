@@ -14,6 +14,7 @@ def get_meta_config():
         "targets": "lr_ged_sb",
         "queryset": "fatalities003_pgm_conflict_history",
         "level": "pgm",
-        "creator": "Xiaolong"
+        "creator": "Xiaolong",
+        "prediction_format": "dataframe",
     }
     return meta_config

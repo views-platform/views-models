@@ -14,6 +14,7 @@ def get_meta_config():
         "targets": "lr_ged_sb",
         "queryset": "fatalities003_conflict_history_long",
         "level": "cm",
-        "creator": "Borbála"
+        "creator": "Borbála",
+        "prediction_format": "dataframe",
     }
     return meta_config

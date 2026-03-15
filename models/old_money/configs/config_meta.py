@@ -15,6 +15,7 @@ def get_meta_config():
         "targets": "lr_ged_sb", 
         "queryset": "fatalities003_pgm_escwa_drought",
         "level": "pgm",
-        "creator": "Xiaolong"
+        "creator": "Xiaolong",
+        "prediction_format": "dataframe",
     }
     return meta_config

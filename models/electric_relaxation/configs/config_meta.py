@@ -12,6 +12,7 @@ def get_meta_config():
         "targets": "lr_ged_sb", 
         "queryset": "escwa001_cflong",
         "level": "cm",
-        "creator": "Sara" 
+        "creator": "Sara",
+        "prediction_format": "dataframe",
     }
     return model_config 

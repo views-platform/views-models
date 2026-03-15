@@ -13,16 +13,15 @@ def get_sweep_config():
         'name': 'locf_pgmbaseline'
     }
 
-    # Example metric setup:
     metric = {
         'name': 'MSE',
         'goal': 'minimize'
     }
     sweep_config['metric'] = metric
 
-    # Example parameters setup:
     parameters_dict = {
-        'steps': {'values': [[*range(1, 36 + 1, 1)]]},
+        'steps': {'value': [*range(1, 36 + 1, 1)]},
+        'time_steps': {'value': 36},
     }
     sweep_config['parameters'] = parameters_dict
 

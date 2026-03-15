@@ -16,6 +16,7 @@ def get_meta_config():
         "targets": "lr_ged_sb",
         "queryset": "fatalities003_joint_narrow",
         "level": "cm",
-        "creator": "Marina"
+        "creator": "Marina",
+        "prediction_format": "dataframe",
     }
     return meta_config
