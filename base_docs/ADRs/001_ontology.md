@@ -47,7 +47,6 @@ The repository recognizes the following ontological categories:
 |----------|----------|-------------|
 | **Scaffolding** | `build_model_scaffold.py`, `build_ensemble_scaffold.py`, `build_package_scaffold.py` | Interactive CLI tools for creating new model/ensemble directories |
 | **Catalog Generation** | `create_catalogs.py`, `update_readme.py`, `generate_features_catalog.py` | Scripts that generate documentation from configs |
-| **Validation** | `compare_configs.py`, `verify_architecture.py` | Ad-hoc validation/diagnostic scripts |
 
 ### Testing Entities
 | Category | Location | Description |
@@ -58,7 +57,7 @@ The repository recognizes the following ontological categories:
 
 | Level | Categories | Change Policy |
 |-------|-----------|---------------|
-| **Stable** | Shared Infrastructure (`common/`), config key requirements | Changes require ADR or team discussion |
+| **Stable** | Config key requirements, partition boundaries | Changes require ADR or team discussion |
 | **Conventional** | Config structure, CLI pattern, naming conventions | Changes require updating all models + tests |
 | **Volatile** | Individual model hyperparameters, querysets | Changed freely by model owners |
 
