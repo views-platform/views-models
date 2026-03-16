@@ -60,6 +60,12 @@ def get_hp_config():
 
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
+        "dropout": 0.3,
+        "add_relative_index": True,
+        "use_static_covariates": True,
+        "norm_type": "LayerNorm",
+        "skip_interpolation": False,
+        "hidden_continuous_size": 8,
 
         "random_state": 1,
         "optimizer_cls": "Adam",

@@ -37,6 +37,8 @@ def get_hp_config():
 
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": False,
 
         "random_state": 1,
         "optimizer_cls": "Adam",

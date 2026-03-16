@@ -67,6 +67,7 @@ def get_hp_config():
 
         "output_chunk_length": 36,
         "optimizer_cls": "Adam",
+        "use_reversible_instance_norm": False,
     }
 
     return hyperparameters
