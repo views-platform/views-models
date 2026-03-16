@@ -9,6 +9,8 @@
 #   bash run_integration_tests.sh                                         # all models
 #   bash run_integration_tests.sh --models "counting_stars bad_blood"     # subset
 #   bash run_integration_tests.sh --partitions "calibration"              # one partition
+#   bash run_integration_tests.sh --level cm                              # only CM models
+#   bash run_integration_tests.sh --level pgm                             # only PGM models
 #   bash run_integration_tests.sh --exclude "purple_alien novel_heuristics"  # skip models
 #   bash run_integration_tests.sh --env my_conda_env                     # different env
 #   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
@@ -22,6 +24,7 @@ CONDA_ENV="views_pipeline"
 TIMEOUT=1800
 PARTITIONS="calibration validation"
 FILTER_MODELS=""
+FILTER_LEVEL=""
 EXCLUDE_MODELS="purple_alien"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_DIR="$SCRIPT_DIR/models"
@@ -41,6 +44,7 @@ NC='\033[0m'
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --models)     FILTER_MODELS="$2"; shift 2 ;;
+        --level)      FILTER_LEVEL="$2"; shift 2 ;;
         --exclude)    EXCLUDE_MODELS="$2"; shift 2 ;;
         --partitions) PARTITIONS="$2"; shift 2 ;;
         --timeout)    TIMEOUT="$2"; shift 2 ;;
@@ -51,6 +55,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --env NAME                  Conda env to activate (default: views_pipeline)"
             echo "  --models \"m1 m2\"            Run only these models"
+            echo "  --level cm|pgm              Run only models at this level of analysis"
             echo "  --exclude \"m1 m2\"           Skip these models (default: purple_alien)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
@@ -93,6 +98,25 @@ else
     IFS=$'\n' MODELS=($(sort <<<"${MODELS[*]}")); unset IFS
 fi
 
+# ── Filter by level (cm/pgm) if requested ────────────────────────────
+
+if [ -n "$FILTER_LEVEL" ]; then
+    FILTERED=()
+    for model in "${MODELS[@]}"; do
+        level=$(python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('m', '$MODELS_DIR/$model/configs/config_meta.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print(mod.get_meta_config().get('level', ''))
+" 2>/dev/null)
+        if [ "$level" = "$FILTER_LEVEL" ]; then
+            FILTERED+=("$model")
+        fi
+    done
+    MODELS=("${FILTERED[@]}")
+fi
+
 TOTAL_MODELS=${#MODELS[@]}
 if [ "$TOTAL_MODELS" -eq 0 ]; then
     echo "No models found to test."
@@ -112,6 +136,7 @@ echo -e "${BOLD}  views-models integration test${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo "  Conda env:  $CONDA_ENV"
 echo "  Models:     $TOTAL_MODELS"
+[ -n "$FILTER_LEVEL" ] && echo "  Level:      $FILTER_LEVEL"
 echo "  Excluded:   $EXCLUDE_MODELS"
 echo "  Partitions: $PARTITIONS"
 echo "  Timeout:    ${TIMEOUT}s per run"
