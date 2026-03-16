@@ -13,7 +13,7 @@ Completed during initial adoption of governance docs for views-models.
 ### Per-ADR adaptation notes
 - [x] **ADR-000:** Path set to `docs/ADRs/`
 - [x] **ADR-001:** Ontology categories mapped to views-models entities (models, configs, ensembles, tooling, etc.)
-- [x] **ADR-002:** Dependency direction defined (models → external packages, configs → common/)
+- [x] **ADR-002:** Dependency direction defined (models → external packages, self-contained configs)
 - [x] **ADR-003:** Fail-loud examples adapted to config validation and partition consistency
 - [x] **ADR-004:** Deferred (evolution/stability rules not yet needed)
 - [x] **ADR-005:** Testing taxonomy mapped to existing test suite (green/beige categories)

@@ -9,7 +9,7 @@
 
 ## Context
 
-views-models contains several non-trivial classes and modules whose purpose, boundaries, and failure modes are not documented. `ModelScaffoldBuilder`, `EnsembleScaffoldBuilder`, and `common/partitions.generate()` all have implicit contracts that new contributors must reverse-engineer from code.
+views-models contains several non-trivial classes and modules whose purpose, boundaries, and failure modes are not documented. `ModelScaffoldBuilder`, `EnsembleScaffoldBuilder`, and `create_catalogs.extract_models()` all have implicit contracts that new contributors must reverse-engineer from code.
 
 ---
 

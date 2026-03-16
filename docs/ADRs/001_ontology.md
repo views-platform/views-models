@@ -69,7 +69,7 @@ The repository recognizes the following ontological categories:
 - Stability levels prevent accidental changes to load-bearing conventions
 
 ### Negative
-- Some entities (e.g., `verify_architecture.py`) are one-off scripts that don't fit cleanly into any category
+- Adding a new entity type requires updating this ADR
 
 ---
 

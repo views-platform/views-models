@@ -23,7 +23,7 @@ Specifically:
 - Model algorithm, level of analysis, targets, and creator are declared in `config_meta.py`
 - Deployment status is declared in `config_deployment.py`
 - Hyperparameters and temporal settings are declared in `config_hyperparameters.py`
-- Partition boundaries are declared in `common/partitions.py` (single source of truth)
+- Partition boundaries are declared in each model's self-contained `config_partitions.py` (consistency enforced by tests)
 - Model name must match the directory name (enforced by `test_config_completeness.py`)
 
 ### Fail-Loud Invariant

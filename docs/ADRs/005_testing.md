@@ -47,7 +47,7 @@ We adopt a three-team testing taxonomy:
 
 - Adding a new required config key: add the key to `REQUIRED_META_KEYS` or `REQUIRED_HP_KEYS` in `test_config_completeness.py`
 - Adding a new model: it must pass all existing tests (enforced by parametrization)
-- Changing partition boundaries: update `common/partitions.py` and the expected values in `test_config_partitions.py`
+- Changing partition boundaries: update each model's `config_partitions.py` and the expected values in `test_config_partitions.py`
 
 ---
 

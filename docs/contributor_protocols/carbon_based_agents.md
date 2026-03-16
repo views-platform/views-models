@@ -55,7 +55,7 @@ Silent failure is unacceptable.
 Introducing:
 - implicit defaults for missing config keys,
 - fallback logic that hides config errors,
-- or partition boundaries that differ from `common/partitions.py`
+- or partition boundaries that differ from the canonical values enforced by tests
 
 is considered a defect, even if the model runs successfully.
 

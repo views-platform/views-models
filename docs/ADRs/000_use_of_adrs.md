@@ -36,7 +36,7 @@ ADRs are:
 Write an ADR when making a decision that:
 - Affects model configuration conventions or required config keys
 - Changes partition boundaries, training windows, or evaluation methodology
-- Introduces new shared infrastructure (e.g., `common/`)
+- Introduces new shared infrastructure or conventions
 - Changes the CLI API pattern or model launcher conventions
 - Modifies ensemble reconciliation logic or CM/PGM ordering
 - Affects the CI/CD pipeline or catalog generation

@@ -20,7 +20,7 @@ Silent failures, implicit fallbacks, and "best-effort" corrections are forbidden
 
 ### C. Partition Integrity
 **"All models evaluate on the same temporal windows."**
-Partition boundaries are defined once in `common/partitions.py` and shared by all models.
+Partition boundaries are defined in each model's self-contained `config_partitions.py`. Consistency is enforced by `tests/test_config_partitions.py`.
 - **Requirement:** Every model's `config_partitions.py` must be a one-line import from `common.partitions`.
 - **Prohibited:** Model-specific partition overrides, custom forecasting offsets, or hardcoded boundary values in individual model configs.
 - **Rationale:** Divergent partitions make model evaluation metrics incomparable.
@@ -71,7 +71,7 @@ Country-month ensembles must complete before priogrid-month ensembles to enable 
 
 ## 4. Operational Invariants
 
-- **Partition Centralization:** All models share `common/partitions.py`. No exceptions.
+- **Partition Consistency:** All models must use identical partition boundaries. Enforced by `tests/test_config_partitions.py`.
 - **CLI Uniformity:** All models use `ForecastingModelArgs.parse_args()`. No explicit `wandb.login()`.
 - **Config Completeness:** All required keys are present. Tests enforce this.
 - **Catalog Safety:** Config loading uses `importlib.util`, not `exec()`.
