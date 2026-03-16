@@ -81,6 +81,24 @@ class TestEnsembleConfigMeta:
             f"{ensemble_dir.name} config_meta.models must be a non-empty list"
         )
 
+    def test_no_old_targets_key(self, ensemble_dir):
+        """Ensembles must use 'regression_targets', not the old 'targets' key."""
+        cfg_path = ensemble_dir / "configs" / "config_meta.py"
+        module = load_config_module(cfg_path)
+        meta = module.get_meta_config()
+        assert "targets" not in meta, (
+            f"{ensemble_dir.name} still has old 'targets' key"
+        )
+
+    def test_no_old_metrics_key(self, ensemble_dir):
+        """Ensembles must use 'regression_point_metrics', not old 'metrics' key."""
+        cfg_path = ensemble_dir / "configs" / "config_meta.py"
+        module = load_config_module(cfg_path)
+        meta = module.get_meta_config()
+        assert "metrics" not in meta, (
+            f"{ensemble_dir.name} still has old 'metrics' key"
+        )
+
 
 class TestEnsembleConfigDeployment:
     def test_deployment_has_valid_status(self, ensemble_dir):
@@ -114,6 +132,26 @@ class TestEnsembleDependencies:
         ]
         assert not missing, (
             f"{ensemble_dir.name} references non-existent models: {missing}"
+        )
+
+    def test_constituent_models_match_ensemble_level(self, ensemble_dir):
+        """All models in an ensemble must have the same level (cm/pgm) as the ensemble."""
+        cfg_path = ensemble_dir / "configs" / "config_meta.py"
+        module = load_config_module(cfg_path)
+        meta = module.get_meta_config()
+        ensemble_level = meta["level"]
+
+        mismatched = []
+        for model_name in meta["models"]:
+            model_meta_path = MODELS_DIR / model_name / "configs" / "config_meta.py"
+            if model_meta_path.exists():
+                model_module = load_config_module(model_meta_path)
+                model_level = model_module.get_meta_config().get("level")
+                if model_level != ensemble_level:
+                    mismatched.append(f"{model_name} (level={model_level})")
+        assert not mismatched, (
+            f"{ensemble_dir.name} is level='{ensemble_level}' but contains "
+            f"models with different levels: {mismatched}"
         )
 
     def test_reconcile_with_target_exists(self, ensemble_dir):

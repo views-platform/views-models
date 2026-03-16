@@ -57,6 +57,20 @@ class TestConfigMeta:
             f"{model_dir.name} has invalid level: {meta_config['level']}"
         )
 
+    def test_no_old_targets_key(self, model_dir, meta_config):
+        """Models must use 'regression_targets', not the old 'targets' key."""
+        assert "targets" not in meta_config, (
+            f"{model_dir.name} still has old 'targets' key — "
+            f"rename to 'regression_targets'"
+        )
+
+    def test_no_old_metrics_key(self, model_dir, meta_config):
+        """Models must use 'regression_point_metrics', not the old 'metrics' key."""
+        assert "metrics" not in meta_config, (
+            f"{model_dir.name} still has old 'metrics' key — "
+            f"rename to 'regression_point_metrics'"
+        )
+
 
 # ── config_deployment.py ───────────────────────────────────────────────
 
