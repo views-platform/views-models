@@ -40,7 +40,7 @@ An Intent Contract is mandatory for:
 
 ### Current Contracts
 
-See `base_docs/CICs/README.md` for the active contracts list.
+See `docs/CICs/README.md` for the active contracts list.
 
 ---
 
@@ -59,6 +59,6 @@ See `base_docs/CICs/README.md` for the active contracts list.
 
 ## References
 
-- `base_docs/CICs/` — Intent Contract directory
+- `docs/CICs/` — Intent Contract directory
 - ADR-003 (Authority of Declarations)
 - ADR-005 (Testing)

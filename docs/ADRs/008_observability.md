@@ -27,7 +27,7 @@ Specifically:
 
 ### Logging Standards
 
-This repository follows the logging standard defined in `base_docs/standards/logging_and_observability_standard.md`.
+This repository follows the logging standard defined in `docs/standards/logging_and_observability_standard.md`.
 
 Key rules:
 - `ERROR` and `CRITICAL` must be both logged and raised
@@ -57,6 +57,6 @@ Key rules:
 
 ## References
 
-- `base_docs/standards/logging_and_observability_standard.md`
+- `docs/standards/logging_and_observability_standard.md`
 - ADR-003 (Authority of Declarations)
 - ADR-005 (Testing)

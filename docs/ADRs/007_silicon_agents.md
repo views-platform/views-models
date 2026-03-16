@@ -69,6 +69,6 @@ Every silicon-based agent-assisted change must include:
 
 ## References
 
-- `base_docs/contributor_protocols/silicon_based_agents.md`
+- `docs/contributor_protocols/silicon_based_agents.md`
 - ADR-003 (Authority of Declarations)
 - ADR-005 (Testing)

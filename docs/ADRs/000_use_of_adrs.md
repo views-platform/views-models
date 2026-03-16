@@ -25,7 +25,7 @@ We will use **Architecture Decision Records (ADRs)** to document significant tec
 
 ADRs are:
 - Written in Markdown
-- Stored in the repository under `base_docs/ADRs/`
+- Stored in the repository under `docs/ADRs/`
 - Numbered sequentially
 - Treated as first-class project artifacts
 
@@ -75,5 +75,5 @@ Decisions are never deleted. If a decision changes, it is **superseded**, not er
 
 ## References
 
-- `base_docs/ADRs/adr_template.md`
-- `base_docs/ADRs/README.md`
+- `docs/ADRs/adr_template.md`
+- `docs/ADRs/README.md`

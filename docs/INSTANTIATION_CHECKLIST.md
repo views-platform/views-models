@@ -1,6 +1,6 @@
 # Instantiation Checklist
 
-Completed during initial adoption of base_docs for views-models.
+Completed during initial adoption of governance docs for views-models.
 
 ---
 
@@ -11,7 +11,7 @@ Completed during initial adoption of base_docs for views-models.
 - [x] Fill in Date (2026-03-15), Deciders (Simon), Informed (All contributors)
 
 ### Per-ADR adaptation notes
-- [x] **ADR-000:** Path set to `base_docs/ADRs/`
+- [x] **ADR-000:** Path set to `docs/ADRs/`
 - [x] **ADR-001:** Ontology categories mapped to views-models entities (models, configs, ensembles, tooling, etc.)
 - [x] **ADR-002:** Dependency direction defined (models → external packages, configs → common/)
 - [x] **ADR-003:** Fail-loud examples adapted to config validation and partition consistency
