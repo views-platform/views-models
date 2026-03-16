@@ -63,8 +63,10 @@ def get_hp_config():
         "use_layer_norm": True,
         "use_static_covariates": False,
         "weight_decay": 0.0007039914716229751,
-        "zero_threshold": 0.28929505832987634
-    }
+        "zero_threshold": 0.28929505832987634,
 
+        "output_chunk_length": 36,
+        "optimizer_cls": "Adam",
+    }
 
     return hyperparameters

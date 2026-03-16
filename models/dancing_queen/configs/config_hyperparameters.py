@@ -55,6 +55,10 @@ def get_hp_config():
         "use_reversible_instance_norm": False,
         "weight_decay": 0.0007293652167062485,
         "zero_threshold": 0.15954413640606746,
+
+        "output_chunk_length": 36,
+        "random_state": 1,
+        "optimizer_cls": "Adam",
     }
 
     return hyperparameters
