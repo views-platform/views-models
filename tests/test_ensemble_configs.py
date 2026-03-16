@@ -1,7 +1,7 @@
 """Tests for ensemble configuration completeness and dependency validation.
 
 Ensembles have different required config keys than individual models:
-- config_meta.py: name, models, targets, level, aggregation
+- config_meta.py: name, models, regression_targets, level, aggregation
 - config_deployment.py: deployment_status
 - config_hyperparameters.py: steps
 - config_partitions.py: generate() function
@@ -17,7 +17,7 @@ from tests.conftest import (
 )
 
 
-REQUIRED_ENSEMBLE_META_KEYS = {"name", "models", "targets", "level", "aggregation"}
+REQUIRED_ENSEMBLE_META_KEYS = {"name", "models", "regression_targets", "level", "aggregation"}
 
 REQUIRED_ENSEMBLE_CONFIG_FILES = [
     "config_meta.py",

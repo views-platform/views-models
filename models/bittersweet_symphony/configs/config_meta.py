@@ -12,7 +12,7 @@ def get_meta_config():
         "algorithm": "XGBRegressor",
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "regression_targets": ["lr_ged_sb"],
-        "queryset": " fatalities003_all_features",
+        "queryset": "fatalities003_all_features",
         "level": "cm",
         "creator": "Marina",
         "prediction_format": "dataframe",
