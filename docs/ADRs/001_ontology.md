@@ -32,7 +32,6 @@ The repository recognizes the following ontological categories:
 ### Infrastructure Entities
 | Category | Location | Description |
 |----------|----------|-------------|
-| **Shared Infrastructure** | `common/` | Cross-model shared logic (e.g., `partitions.py`) |
 | **CI/CD** | `.github/workflows/` | Automated catalog generation |
 | **APIs** | `apis/` | External API integrations (e.g., UN FAO) |
 
