@@ -249,7 +249,7 @@ cython_debug/
 *.bak
 
 # txt logs
-# *.txt
+*.txt
 
 # logs
 *.log

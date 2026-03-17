@@ -5,7 +5,9 @@
 # Trains and evaluates each model on calibration and validation partitions
 # using a single conda environment. Logs results per model — never aborts on failure.
 #
-# Usage:
+# Full documentation: docs/run_integration_tests.md
+#
+# Quick examples:
 #   bash run_integration_tests.sh                                         # all models
 #   bash run_integration_tests.sh --models "counting_stars bad_blood"     # subset
 #   bash run_integration_tests.sh --partitions "calibration"              # one partition
