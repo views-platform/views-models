@@ -8,7 +8,7 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "temporal_disaggregation", 
+        "name": "temporal_splag", 
         "algorithm": "TSMixerModel",
         "level": "cm",
         "targets": ["lr_gdp_pcap"],
