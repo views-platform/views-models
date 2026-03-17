@@ -199,6 +199,6 @@ bash run_integration_tests.sh --models "bad_blood counting_stars" --partitions "
 
 - **Single shared environment**: Unlike each model's own `run.sh` (which creates/activates a per-model conda env), this script uses one environment for all models. All models must be installable into that environment. If a model needs packages that conflict with the shared env, it will fail.
 - **`--exclude` replaces, not appends**: Passing `--exclude "foo"` means *only* `foo` is excluded — `purple_alien` is no longer excluded unless you include it: `--exclude "purple_alien foo"`.
-- **Models run sequentially**: There is no parallelism. A full run of all 70 models across 2 partitions can take many hours depending on model complexity and data fetch times.
+- **Models run sequentially**: There is no parallelism. A full run of all models across 2 partitions can take many hours depending on model complexity and data fetch times.
 - **Data is fetched live**: Each model's queryset pulls data from the VIEWS API at runtime. Network issues or API downtime will cause failures unrelated to model code.
 - **Forecasting partition uses live time**: If you pass `--partitions "forecasting"`, the train/test ranges are computed from `ViewsMonth.now()`, so results depend on when you run.
