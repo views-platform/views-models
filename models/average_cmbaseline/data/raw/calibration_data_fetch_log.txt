@@ -1,3 +1,0 @@
-Single Model Name: average_cmbaseline
-Data Fetch Timestamp: 20260316_195220
-

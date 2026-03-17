@@ -29,6 +29,9 @@ bash run_integration_tests.sh --models "counting_stars bad_blood"
 
 # Run only country-month models on calibration only
 bash run_integration_tests.sh --level cm --partitions "calibration"
+
+# Run only baseline models
+bash run_integration_tests.sh --library baseline
 ```
 
 
@@ -38,6 +41,7 @@ bash run_integration_tests.sh --level cm --partitions "calibration"
 |------|-------|---------|-------------|
 | `--models` | `"name1 name2 ..."` | *(all models)* | Run **only** these models. Names are space-separated inside quotes. Each name must match a directory under `models/` that contains a `main.py`. Names not found are skipped with a warning. |
 | `--level` | `cm` or `pgm` | *(no filter)* | Run only models whose `config_meta.py` reports this level of analysis. The script reads each model's config via Python to check. Models whose level cannot be read are silently excluded. |
+| `--library` | `baseline`, `stepshifter`, `r2darts2`, or `hydranet` | *(no filter)* | Run only models that depend on this architecture library. Determined by matching `views-<name>` in each model's `requirements.txt`. Can be combined with `--level`. |
 | `--exclude` | `"name1 name2 ..."` | `"purple_alien"` | Skip these models. **Replaces** the default exclusion list — it does not append to it. To exclude nothing, pass an empty string: `--exclude ""`. |
 | `--partitions` | `"p1 p2 ..."` | `"calibration validation"` | Which partitions to test. Valid values are `calibration`, `validation`, and `forecasting`. Space-separated inside quotes. |
 | `--timeout` | seconds | `1800` (30 min) | Maximum wall-clock time per individual model run (one model x one partition). If exceeded, the run is killed and recorded as `TIMEOUT`. |
@@ -67,7 +71,13 @@ print(mod.get_meta_config().get('level', ''))
 
 Only models whose `level` matches the filter survive. If a model's config can't be loaded, it is silently dropped.
 
-### 3. Execution
+### 3. Library Filtering (optional)
+
+When `--library` is set, the script checks each model's `requirements.txt` for a line containing `views-<library>`. For example, `--library baseline` keeps only models whose `requirements.txt` contains `views-baseline`. This is a pure text match — no Python needed.
+
+`--library` and `--level` can be combined to narrow further (e.g., `--library stepshifter --level cm` runs only country-month stepshifter models).
+
+### 4. Execution
 
 For each model, for each partition, the script runs:
 
@@ -85,7 +95,7 @@ Key points:
 - **All stdout and stderr** are captured to a log file, not printed to the terminal.
 - The terminal shows only: `[N/TOTAL] model_name (partition)... PASS/FAIL/TIMEOUT (duration)`.
 
-### 4. Result Classification
+### 5. Result Classification
 
 | Exit Code | Result | Meaning |
 |-----------|--------|---------|
@@ -93,7 +103,7 @@ Key points:
 | `124` | `TIMEOUT` | Model exceeded the per-run timeout and was killed. |
 | anything else | `FAIL(code)` | Model crashed. The exit code is recorded. |
 
-### 5. Summary Output
+### 6. Summary Output
 
 After all runs complete, the script prints a colored table to the terminal:
 
@@ -173,6 +183,12 @@ bash run_integration_tests.sh --exclude ""
 
 # Use a different conda environment
 bash run_integration_tests.sh --env views_r2darts2
+
+# All baseline models only
+bash run_integration_tests.sh --library baseline
+
+# All stepshifter models at country-month level
+bash run_integration_tests.sh --library stepshifter --level cm
 
 # Multiple flags combined: specific models, one partition, custom timeout
 bash run_integration_tests.sh --models "bad_blood counting_stars" --partitions "calibration" --timeout 600

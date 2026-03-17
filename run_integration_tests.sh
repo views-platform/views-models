@@ -13,6 +13,7 @@
 #   bash run_integration_tests.sh --partitions "calibration"              # one partition
 #   bash run_integration_tests.sh --level cm                              # only CM models
 #   bash run_integration_tests.sh --level pgm                             # only PGM models
+#   bash run_integration_tests.sh --library baseline                        # one library
 #   bash run_integration_tests.sh --exclude "purple_alien novel_heuristics"  # skip models
 #   bash run_integration_tests.sh --env my_conda_env                     # different env
 #   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
@@ -27,6 +28,7 @@ TIMEOUT=1800
 PARTITIONS="calibration validation"
 FILTER_MODELS=""
 FILTER_LEVEL=""
+FILTER_LIBRARY=""
 EXCLUDE_MODELS="purple_alien"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_DIR="$SCRIPT_DIR/models"
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --models)     FILTER_MODELS="$2"; shift 2 ;;
         --level)      FILTER_LEVEL="$2"; shift 2 ;;
+        --library)    FILTER_LIBRARY="$2"; shift 2 ;;
         --exclude)    EXCLUDE_MODELS="$2"; shift 2 ;;
         --partitions) PARTITIONS="$2"; shift 2 ;;
         --timeout)    TIMEOUT="$2"; shift 2 ;;
@@ -58,6 +61,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --env NAME                  Conda env to activate (default: views_pipeline)"
             echo "  --models \"m1 m2\"            Run only these models"
             echo "  --level cm|pgm              Run only models at this level of analysis"
+            echo "  --library NAME              Run only models using this library (baseline|stepshifter|r2darts2|hydranet)"
             echo "  --exclude \"m1 m2\"           Skip these models (default: purple_alien)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
@@ -119,6 +123,19 @@ print(mod.get_meta_config().get('level', ''))
     MODELS=("${FILTERED[@]}")
 fi
 
+# ── Filter by library (baseline/stepshifter/r2darts2/hydranet) ──────
+
+if [ -n "$FILTER_LIBRARY" ]; then
+    FILTERED=()
+    for model in "${MODELS[@]}"; do
+        req_file="$MODELS_DIR/$model/requirements.txt"
+        if [ -f "$req_file" ] && grep -q "views-${FILTER_LIBRARY}" "$req_file"; then
+            FILTERED+=("$model")
+        fi
+    done
+    MODELS=("${FILTERED[@]}")
+fi
+
 TOTAL_MODELS=${#MODELS[@]}
 if [ "$TOTAL_MODELS" -eq 0 ]; then
     echo "No models found to test."
@@ -139,6 +156,7 @@ echo -e "${BOLD}═════════════════════�
 echo "  Conda env:  $CONDA_ENV"
 echo "  Models:     $TOTAL_MODELS"
 [ -n "$FILTER_LEVEL" ] && echo "  Level:      $FILTER_LEVEL"
+[ -n "$FILTER_LIBRARY" ] && echo "  Library:    $FILTER_LIBRARY"
 echo "  Excluded:   $EXCLUDE_MODELS"
 echo "  Partitions: $PARTITIONS"
 echo "  Timeout:    ${TIMEOUT}s per run"
@@ -257,5 +275,7 @@ echo ""
 echo "Full summary: $LOG_DIR/summary.log"
 echo "Per-model logs: $LOG_DIR/{partition}/{model}.log"
 
-[ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ] && exit 1
+if [ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
+    exit 1
+fi
 exit 0
