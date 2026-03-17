@@ -19,6 +19,8 @@ def get_hp_config():
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
+        "time_steps": 36,
+        "rolling_origin_stride": 1,
 
         # --- Architecture ---
         "activation": "LeakyReLU",

@@ -39,6 +39,7 @@ APPWRITE_DATASTORE_PROJECT_ID=""
 - [Ensemble scripts](#ensemble-scripts)
 - [Ensemble filesystem](#ensemble-filesystem)
 - [Running an ensemble](#running-an-ensemble)
+- [Integration Testing](#integration-testing)
 - [Implemented Models](#implemented-models)
 - [Model Catalogs](#catalogs)
     - [Country-Month Models](#country-month-model-catalog)
@@ -331,6 +332,41 @@ Consequently, in order to train a model and generate predictions, execute either
 
 As of now, the only implemented model architecture is the [stepshifter model](https://github.com/views-platform/views-stepshifter/blob/main/README.md). Experienced users have the possibility to develop their own model architecture including their own model class manager. Head over to [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) for further information on the model class manager and on how to develop new model architectures. 
 
+
+## Integration Testing
+<a name="integration-testing"></a>
+
+The repository includes an integration test runner that verifies models haven't been broken by changes in this repo or in upstream/downstream packages. It trains and evaluates every model end-to-end on calibration and validation partitions, running them sequentially in a single shared conda environment, and produces a summary table of PASS/FAIL/TIMEOUT results with per-model logs.
+
+```bash
+# Run all models (calibration + validation)
+bash run_integration_tests.sh
+
+# Run only country-month models
+bash run_integration_tests.sh --level cm
+
+# Run only baseline models
+bash run_integration_tests.sh --library baseline
+
+# Run specific models with a custom timeout
+bash run_integration_tests.sh --models "counting_stars bad_blood" --timeout 3600
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--models "m1 m2"` | all models | Run only these models |
+| `--level` `cm` or `pgm` | no filter | Run only models at this level of analysis |
+| `--library NAME` | no filter | Run only models using this library (baseline/stepshifter/r2darts2/hydranet) |
+| `--exclude "m1 m2"` | `"purple_alien"` | Skip these models (replaces the default, does not append) |
+| `--partitions "p1 p2"` | `"calibration validation"` | Partitions to test |
+| `--timeout SECONDS` | `1800` | Max wall-clock time per model run |
+| `--env NAME` | `views_pipeline` | Conda environment to activate |
+
+Logs are written to `logs/integration_test_<timestamp>/` with a `summary.log` and per-model logs under `{partition}/{model}.log`.
+
+For the full guide — including how model discovery works, how to read failure logs, and important caveats — see [docs/run_integration_tests.md](docs/run_integration_tests.md).
+
+---
 
 ## Implemented Models
 

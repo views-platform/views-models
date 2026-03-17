@@ -6,6 +6,9 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
+# Integration test logs
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -86,6 +89,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
 cover/
 
 # Translations
@@ -245,7 +249,7 @@ cython_debug/
 *.bak
 
 # txt logs
-# *.txt
+*.txt
 
 # logs
 *.log

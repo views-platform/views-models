@@ -12,10 +12,12 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "XGBRFClassifier",
         "model_reg": "XGBRFRegressor",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_joint_broad",
         "level": "cm",
-        "creator": "Borbála"
+        "creator": "Borbála",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

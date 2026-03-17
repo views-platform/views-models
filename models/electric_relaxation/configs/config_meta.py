@@ -8,10 +8,12 @@ def get_meta_config():
     model_config = {
         "name": "electric_relaxation",
         "algorithm": "RandomForestRegressor", 
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "lr_ged_sb", 
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"], 
         "queryset": "escwa001_cflong",
         "level": "cm",
-        "creator": "Sara" 
+        "creator": "Sara",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return model_config 

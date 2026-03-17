@@ -9,6 +9,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
 
 
         # royal-sweep-63
@@ -56,6 +57,23 @@ def get_hp_config():
         "use_reversible_instance_norm": False,
         "weight_decay": 0.00002389357463410524,
         "zero_threshold": 0.0881212976698389,
+
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "dropout": 0.3,
+        "add_relative_index": True,
+        "use_static_covariates": True,
+        "norm_type": "LayerNorm",
+        "skip_interpolation": False,
+        "hidden_continuous_size": 8,
+
+        "random_state": 1,
+        "optimizer_cls": "Adam",
+        "lr_scheduler_factor": 0.46,
+        "lr_scheduler_patience": 7,
+        "lr_scheduler_min_lr": 1e-05,
+        "early_stopping_min_delta": 0.01,
+        "gradient_clip_val": 1,
 
         "num_samples": 1,
         "mc_dropout": True,

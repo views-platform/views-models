@@ -9,6 +9,7 @@ def get_hp_config():
 
     hyperparameters = {
         "steps": [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
         "num_samples": 1,
         "mc_dropout": True,
         "activation": "ReLU",
@@ -54,6 +55,10 @@ def get_hp_config():
         "use_reversible_instance_norm": False,
         "weight_decay": 0.0007293652167062485,
         "zero_threshold": 0.15954413640606746,
+
+        "output_chunk_length": 36,
+        "random_state": 1,
+        "optimizer_cls": "Adam",
     }
 
     return hyperparameters

@@ -10,10 +10,12 @@ def get_meta_config():
     meta_config = {
         "name": "novel_heuristics", 
         "algorithm": "NBEATSModel",
-        "regression_targets": ["lr_ged_sb_dep"],
+        "regression_targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Simon",
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

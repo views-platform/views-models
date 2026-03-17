@@ -12,16 +12,6 @@ def get_hp_config():
     hyperparameters = {
 
 
-        # ============================================================
-        # diagnostic settings
-        # ============================================================
-        "diagnostic_visualizations": True,
-
-        # ============================================================
-        # evaluation metric
-        # ============================================================
-        "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "classification_metrics": ["AP"],
         
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
@@ -110,10 +100,17 @@ def get_hp_config():
         # Outbound / Evaluation
         # ============================================================
         # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
-        'n_posterior_samples': 3,
-        'evalution_mode': "point", #'stochastic',
+        'n_posterior_samples': 64,
+        #'evalution_mode': "point", #'stochastic',
+        'evalution_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        'run_type': 'calibration',
+        # 'run_type': 'calibration',
+
+        # Track B (list-in-cell parquet delivery) is suspended at pgm scale.
+        # to_prediction_df() creates 5.5M Python float objects per target per origin
+        # (~4.8–6.4 GB peak + 2.3 GB permanent fragmentation). Track A (.npy) is
+        # written per-origin for metrics. Re-enable once Track B has a PyArrow fix.
+        'skip_predictions_delivery':  False, #True,
     }
 
     return hyperparameters
