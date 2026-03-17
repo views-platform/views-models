@@ -16,7 +16,12 @@ except Exception as e:
 
 if __name__ == "__main__":
     args = ImpactModelArgs.parse_args()
+    manager = ImpactModelManager(
+        model_path=model_path,
+        wandb_notifications=args.wandb_notifications,
+        use_prediction_store=args.prediction_store,
+    )
     if args.sweep:
-        ImpactModelManager(model_path=model_path, wandb_notifications=False).execute_sweep_run(args)
+        manager.execute_sweep_run(args)
     else:
-        ImpactModelManager(model_path=model_path, wandb_notifications=False).execute_single_run(args)
+        manager.execute_single_run(args)

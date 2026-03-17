@@ -12,7 +12,6 @@ def get_hp_config():
         "steps": [*range(1, 36 + 1, 1)], # won't be used
 
         "log_targets": True,  
-        # "log_features": ["lr_ged_sb", "lr_ged_os", "lr_ged_ns", "lr_pop_totl", "lr_vdem_v2x_libdem", "lr_splag_pop_totl", "lr_splag_vdem_v2x_libdem"],
         "log_features": ["lr_ged_sb", "lr_ged_os", "lr_ged_ns", "lr_pop_totl", "lr_vdem_v2x_libdem"],
         "feature_scaler": "StandardScaler", 
         "target_scaler": "StandardScaler",  
@@ -21,8 +20,6 @@ def get_hp_config():
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "sum",
-                "regressor_col": "lr_gdp_pcap"
-                
             },
             "lr_pop_totl": {
                 "method": "uniform",

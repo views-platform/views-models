@@ -10,6 +10,11 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        # Add more hyperparameters as needed
+        "temporal_disaggregation": {
+            "lr_gdp_pcap": {
+                "method": "denton-cholette",
+                "conversion": "sum",
+            }
+        }
     }
     return hyperparameters

@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'temporal_disaggregation'
+        'name': 'buffalo_baseline'
     }
 
     # Example metric setup:
