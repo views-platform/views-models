@@ -345,6 +345,9 @@ bash run_integration_tests.sh
 # Run only country-month models
 bash run_integration_tests.sh --level cm
 
+# Run only baseline models
+bash run_integration_tests.sh --library baseline
+
 # Run specific models with a custom timeout
 bash run_integration_tests.sh --models "counting_stars bad_blood" --timeout 3600
 ```
@@ -353,6 +356,7 @@ bash run_integration_tests.sh --models "counting_stars bad_blood" --timeout 3600
 |------|---------|-------------|
 | `--models "m1 m2"` | all models | Run only these models |
 | `--level` `cm` or `pgm` | no filter | Run only models at this level of analysis |
+| `--library NAME` | no filter | Run only models using this library (baseline/stepshifter/r2darts2/hydranet) |
 | `--exclude "m1 m2"` | `"purple_alien"` | Skip these models (replaces the default, does not append) |
 | `--partitions "p1 p2"` | `"calibration validation"` | Partitions to test |
 | `--timeout SECONDS` | `1800` | Max wall-clock time per model run |
