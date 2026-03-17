@@ -15,6 +15,8 @@ def get_hp_config():
                 "method": "denton-cholette",
                 "conversion": "sum",
             }
-        }
+        },
+        'window_months': 18,
+        'output_chunk_length': 36,
     }
     return hyperparameters
