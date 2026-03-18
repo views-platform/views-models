@@ -20,24 +20,15 @@ def get_hp_config():
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "sum",
-                "regressor_col": "lr_ged_sb"
             },
             "lr_pop_totl": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
             "lr_vdem_v2x_libdem": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
-            # "lr_splag_pop_totl": {
-            #     "method": "uniform",
-            #     "conversion": "average"
-            # },
-            # "lr_splag_vdem_v2x_libdem": {
-            #     "method": "uniform",
-            #     "conversion": "average"
-            # },
 
         },
         
@@ -69,6 +60,8 @@ def get_hp_config():
         "batch_size": 32,
         "num_samples": 1,
         "mc_dropout": False,
+
+
 
     }
     return hyperparameters

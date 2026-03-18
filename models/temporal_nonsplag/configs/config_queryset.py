@@ -33,7 +33,8 @@ def generate():
             .transform.missing.replace_na()
             )
             
-    .with_column(Column('lr_vdem_v2x_libdem', from_loa='country_year', from_column='vdem_v2x_libdem')
+    .with_column(
+        Column('lr_vdem_v2x_libdem', from_loa='country_year', from_column='vdem_v2x_libdem')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
