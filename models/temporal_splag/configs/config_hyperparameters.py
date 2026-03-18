@@ -21,19 +21,19 @@ def get_hp_config():
                 "conversion": "sum",
             },
             "lr_pop_totl": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
             "lr_vdem_v2x_libdem": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
             "lr_pop_totl_splag": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
             "lr_vdem_v2x_libdem_splag": {
-                "method": "uniform",
+                "method": "denton-cholette",
                 "conversion": "average"
             },
 
