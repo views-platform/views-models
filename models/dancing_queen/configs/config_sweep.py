@@ -136,7 +136,7 @@ def get_sweep_config():
         },
         "use_static_covariates": {"values": [True]},
         # RevIN: Handles distribution shift between train/test periods.
-        "use_reversible_instance_norm": {"values": [False, True]},
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
