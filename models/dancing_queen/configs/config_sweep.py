@@ -4,11 +4,28 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v1_msle",
+        "name": "dancing_queen_blockrnn_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
-
+    # ==============================================================================
+    # WHY alpha MUST BE NEAR-ZERO FOR BlockRNN
+    # ==============================================================================
+    # BlockRNN processes input through 36 LSTM timesteps, then maps the final
+    # hidden state through FC layers to produce all 36 output values. Gradients
+    # from SpotlightLoss must travel back through all 36 BPTT steps.
+    #
+    # At alpha=0.6, a conflict event at m=7 gets cosh(4.2) ≈ 33x weight. After
+    # 36 BPTT steps, that gradient is attenuated by the vanishing gradient
+    # factor — it might arrive at the input weights as 3x or less. But at
+    # alpha=0.8 and m=9, cosh(7.2) ≈ 672x, which after BPTT might still be 50x+.
+    #
+    # Batches containing a high-magnitude conflict event produce 100x+ larger
+    # gradient norms than zero-dominated batches. The optimizer can't form stable
+    # parameter updates because the gradient direction and magnitude are dominated
+    # by random batch composition. The model's defensive response: collapse to
+    # predicting near-zero, which gives consistent low loss on 86% of observations.
+    # ==============================================================================
     parameters = {
         # ==============================================================================
         # TEMPORAL CONFIGURATION
@@ -138,44 +155,39 @@ def get_sweep_config():
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # Controls cosh amplification for asinh-transformed targets.
-        #   0.5: cosh(0.5*9) ≈ 45x  (stable, moderate tail pressure)
-        #   0.8: cosh(0.8*9) ≈ 222x (aggressive tail pressure)
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.4,
-            "max": 0.8,
-        },
+        # Must be near-zero for RNN. Cosh creates O(100x) gradient
+        # variance that BPTT attenuates unpredictably → mode collapse.
+        # 0.0 = disabled, 0.1 = very mild (cosh(0.1*9) ≈ 1.4x — negligible)
+        "alpha": {"values": [0.0, 0.1]},
         # ── beta (asymmetry strength) ─────────────────
-        # Extra FN multiplier gated by magnitude.
-        #   0.3: FN costs 1.3x FP on events
-        #   0.7: FN costs 1.7x FP on events
+        # Primary anti-collapse mechanism for RNN.
+        # Under-predicting real events costs (1+beta)x more than over-predicting.
+        # This is bounded and BPTT-safe — gradient variance is max 2.5x, not 672x.
         "beta": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
-        },
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Transition smoothness between FP/FN regimes.
-        #   5: smooth, 15: near-binary.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 5.0,
-            "max": 15.0,
-        },
-        # ── delta (huber threshold) ───────────────────
-        # Quadratic→linear transition point.
-        "delta": {
             "distribution": "uniform",
             "min": 0.5,
             "max": 1.5,
         },
+        # ── kappa (sigmoid sharpness) ─────────────────
+        # Keep moderate — sharp transitions (>10) create gradient spikes
+        # that compound through BPTT.
+        "kappa": {"values": [8.0, 10.0]},
+        # ── delta (huber threshold) ───────────────────
+        # Wider quadratic region = more stable MSE-like gradients.
+        # RNNs need gradient consistency across the batch.
+        "delta": {
+            "distribution": "uniform",
+            "min": 1.0,
+            "max": 2.5,
+        },
+
         # ── gamma (temporal weight) ───────────────────
-        # Weight for temporal gradient alignment term.
+        # Temporal gradient alignment is valuable for RNNs — it provides
+        # a supervision signal at every timestep, combating vanishing gradients.
         "gamma": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.2,
+            "max": 0.15,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
