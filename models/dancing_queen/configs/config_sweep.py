@@ -143,7 +143,7 @@ def get_sweep_config():
         #   0.8: cosh(0.8*9) ≈ 222x (aggressive tail pressure)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
+            "min": 0.4,
             "max": 0.8,
         },
         # ── beta (asymmetry strength) ─────────────────
