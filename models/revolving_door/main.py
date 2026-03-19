@@ -3,7 +3,7 @@ from pathlib import Path
 from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
 
-from views_r2darts2.manager.model import DartsForecastingModelManager
+from views_r2darts2 import DartsForecastingModelManager
 
 warnings.filterwarnings("ignore")
 
