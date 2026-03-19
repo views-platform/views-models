@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v2_msle",
+        "name": "dancing_queen_blockrnn_spotlight_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -52,8 +52,8 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-5,
-            "max": 3e-4,
+            "min": 1e-4,
+            "max": 5e-4,
         },
         "weight_decay": {"values": [5e-6]},
         # ==============================================================================
@@ -63,7 +63,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -124,16 +124,19 @@ def get_sweep_config():
         # LSTM: Separate cell state for long-term memory — critical for
         # 36-month horizon where conflict escalation patterns span years.
         "rnn_type": {"values": ["LSTM"]},
-        # hidden_dim: RNN hidden state size. 128-256 for ~200 country series.
-        # Larger than TiDE hidden_size because the RNN must compress the
-        # entire temporal context into a single hidden vector.
-        "hidden_dim": {"values": [128, 256, 384]},
-        # n_rnn_layers: 2 layers for hierarchical pattern extraction.
-        # 1 is too shallow for 36-month context, 3+ risks vanishing gradients.
-        "n_rnn_layers": {"values": [1, 2]},
-        # hidden_fc_sizes: FC layers after RNN output. None uses a single
-        # linear projection. [128] adds a hidden layer for richer decoding.
-        "hidden_fc_sizes": {"values": [None, [128]]},
+        # hidden_dim: RNN hidden state size. 128-192 for ~200 country series.
+        # v2 best run (384×2 layers) had median gradient 0.002 — 50% of params
+        # received zero signal. Smaller network = every param gets gradient.
+        "hidden_dim": {"values": [128, 192]},
+        # n_rnn_layers: 1 layer only. 2-layer 384-dim had 1.9M params for
+        # ~200 series — gradient starvation in lower layers. 1 layer at
+        # 128-192 gives 200-400K params where the entire network trains.
+        "n_rnn_layers": {"values": [1]},
+        # hidden_fc_sizes: FC decoder after RNN output. REQUIRED — without it
+        # the 128/192-dim hidden state projects directly to 108 outputs (36×3)
+        # via a single linear layer with no nonlinear bottleneck for
+        # target-specific discrimination.
+        "hidden_fc_sizes": {"values": [[64], [128]]},
         # activation: GELU provides smoother gradients than ReLU through
         # the FC decoder, reducing dead neuron risk on sparse targets.
         "activation": {"values": ["ReLU", "GELU"]},
@@ -143,9 +146,7 @@ def get_sweep_config():
         # Dropout: RNNs are more prone to overfitting on small series counts.
         # MC dropout enabled — used for uncertainty at inference.
         "dropout": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.20,
+            "values": [0.0],
         },
         "use_static_covariates": {"values": [True]},
         # RevIN: Handles distribution shift between train/test periods.
@@ -162,11 +163,13 @@ def get_sweep_config():
         # ── beta (asymmetry strength) ─────────────────
         # Primary anti-collapse mechanism for RNN.
         # Under-predicting real events costs (1+beta)x more than over-predicting.
-        # This is bounded and BPTT-safe — gradient variance is max 2.5x, not 672x.
+        # v2 best run had beta=0.63 → over-predicted on 86% zero-observations
+        # (y_hat_bar_sb=22.78 but Pearson=0.21 — no discrimination).
+        # Lower range: enough to prevent collapse, not enough to flood zeros.
         "beta": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
+            "min": 0.2,
+            "max": 0.5,
         },
         # ── kappa (sigmoid sharpness) ─────────────────
         # Keep moderate — sharp transitions (>10) create gradient spikes
