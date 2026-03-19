@@ -18,7 +18,7 @@ def get_sweep_config():
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
-        "mc_dropout": {"values": [True]},
+        "mc_dropout": {"values": [False]},
         "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
@@ -33,12 +33,10 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # RNNs benefit from slightly higher LR than TiDE due to simpler
-        # parameter surface, but BPTT makes them more sensitive to LR spikes.
         "lr": {
             "distribution": "log_uniform_values",
             "min": 3e-5,
-            "max": 5e-4,
+            "max": 3e-4,
         },
         "weight_decay": {"values": [5e-6]},
         # ==============================================================================
@@ -48,9 +46,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # RNNs are prone to exploding gradients through BPTT —
-        # tighter clipping than TiDE is critical.
-        "gradient_clip_val": {"values": [0.5, 1.0, 1.5]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
