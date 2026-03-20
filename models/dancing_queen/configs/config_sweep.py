@@ -1,37 +1,36 @@
 def get_sweep_config():
     """
-    meow
+    Key changes from v3:
+    - Wider FC decoder ([256], [128,64]) — v3's [64]/[128] had < 1 hidden unit
+      per output, killing target-specific discrimination.
+    - Higher beta [0.4, 0.8] — v3 network CAN discriminate (unlike v2's 1.9M
+      blob), so stronger asymmetry won't cause blanket over-prediction.
+    - Higher delta [2.0, 4.0] — with alpha≈0, delta IS the max gradient from
+      any error. v3's delta=1.0 capped Sudan's gradient = Chad's gradient.
+      This is why it chronically under-predicts large events.
+    - Sweep GRU vs LSTM — GRU's update gate may handle zero-heavy sequences
+      better than LSTM's forget gate (which aggressively zeros cell state
+      during long runs of zeros).
+    - Shorter input option [24, 36] — less zero-dilution of the hidden state.
+    - Dropped input_chunk=48 (36 BPTT steps is already the limit for stable
+      gradients with SpotlightLoss).
     """
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v3_msle",
+        "name": "dancing_queen_blockrnn_spotlight_v4_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
-    # ==============================================================================
-    # WHY alpha MUST BE NEAR-ZERO FOR BlockRNN
-    # ==============================================================================
-    # BlockRNN processes input through 36 LSTM timesteps, then maps the final
-    # hidden state through FC layers to produce all 36 output values. Gradients
-    # from SpotlightLoss must travel back through all 36 BPTT steps.
-    #
-    # At alpha=0.6, a conflict event at m=7 gets cosh(4.2) ≈ 33x weight. After
-    # 36 BPTT steps, that gradient is attenuated by the vanishing gradient
-    # factor — it might arrive at the input weights as 3x or less. But at
-    # alpha=0.8 and m=9, cosh(7.2) ≈ 672x, which after BPTT might still be 50x+.
-    #
-    # Batches containing a high-magnitude conflict event produce 100x+ larger
-    # gradient norms than zero-dominated batches. The optimizer can't form stable
-    # parameter updates because the gradient direction and magnitude are dominated
-    # by random batch composition. The model's defensive response: collapse to
-    # predicting near-zero, which gives consistent low loss on 86% of observations.
-    # ==============================================================================
+
     parameters = {
         # ==============================================================================
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        # Shorter input reduces zero-dilution of hidden state. 24 months
+        # still captures conflict escalation cycles while halving the BPTT
+        # path length (→ healthier gradients). 36 for full 3-year context.
+        "input_chunk_length": {"values": [24, 36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -63,7 +62,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -121,76 +120,73 @@ def get_sweep_config():
         # ==============================================================================
         # BLOCKRNN ARCHITECTURE
         # ==============================================================================
-        # LSTM: Separate cell state for long-term memory — critical for
-        # 36-month horizon where conflict escalation patterns span years.
-        "rnn_type": {"values": ["LSTM"]},
-        # hidden_dim: RNN hidden state size. 128-192 for ~200 country series.
-        # v2 best run (384×2 layers) had median gradient 0.002 — 50% of params
-        # received zero signal. Smaller network = every param gets gradient.
+        # Sweep GRU vs LSTM: GRU's single update gate may handle zero-heavy
+        # sequences better — LSTM's forget gate learns to aggressively zero
+        # the cell state during long runs of zeros, biasing toward under-prediction.
+        "rnn_type": {"values": ["GRU"]},
+        # hidden_dim: 128-192 for ~200 series. 1-layer keeps all params
+        # reachable by gradient.
         "hidden_dim": {"values": [128, 192]},
-        # n_rnn_layers: 1 layer only. 2-layer 384-dim had 1.9M params for
-        # ~200 series — gradient starvation in lower layers. 1 layer at
-        # 128-192 gives 200-400K params where the entire network trains.
-        "n_rnn_layers": {"values": [1]},
-        # hidden_fc_sizes: FC decoder after RNN output. REQUIRED — without it
-        # the 128/192-dim hidden state projects directly to 108 outputs (36×3)
-        # via a single linear layer with no nonlinear bottleneck for
-        # target-specific discrimination.
-        "hidden_fc_sizes": {"values": [[64], [128]]},
-        # activation: GELU provides smoother gradients than ReLU through
-        # the FC decoder, reducing dead neuron risk on sparse targets.
-        "activation": {"values": ["ReLU", "GELU"]},
+        "n_rnn_layers": {"values": [1, 2]},
+        # hidden_fc_sizes: WIDE decoder. v3's [64]/[128] had less than 1
+        # hidden unit per output (108 = 36×3). The decoder must learn
+        # target-specific AND step-specific patterns:
+        # [256] — single wide layer, 2.4 units per output
+        # [128, 64] — two-layer decoder, progressive compression
+        "hidden_fc_sizes": {"values": [[256], [128, 64]]},
+        # GELU only — smoother gradients through the wider FC decoder.
+        # ReLU dead neurons are worse with higher delta/beta pushing
+        # gradient magnitudes up.
+        "activation": {"values": ["GELU"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: RNNs are more prone to overfitting on small series counts.
-        # MC dropout enabled — used for uncertainty at inference.
-        "dropout": {
-            "values": [0.0],
-        },
+        # Dropout for MC uncertainty via inter-layer RNN dropout.
+        # Only active when n_rnn_layers=2 (PyTorch applies dropout between
+        # layers only). Bayes will learn to pair n_rnn_layers=2 with
+        # dropout > 0 and n_rnn_layers=1 with dropout=0 (no-op anyway).
+        "dropout": {"values": [0.05, 0.10]},
         "use_static_covariates": {"values": [True]},
-        # RevIN: Handles distribution shift between train/test periods.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # Must be near-zero for RNN. Cosh creates O(100x) gradient
-        # variance that BPTT attenuates unpredictably → mode collapse.
-        # 0.0 = disabled, 0.1 = very mild (cosh(0.1*9) ≈ 1.4x — negligible)
-        "alpha": {"values": [0.0, 0.1]},
+        # Near-zero for BPTT safety. 0.0 disables cosh weighting entirely.
+        # 0.1 gives cosh(0.1*9) ≈ 1.4x — negligible but lets Bayes test.
+        "alpha": {
+            "distribution": "uniform",
+            "min": 0.5,
+            "max": 0.8,
+        },
         # ── beta (asymmetry strength) ─────────────────
-        # Primary anti-collapse mechanism for RNN.
-        # Under-predicting real events costs (1+beta)x more than over-predicting.
-        # v2 best run had beta=0.63 → over-predicted on 86% zero-observations
-        # (y_hat_bar_sb=22.78 but Pearson=0.21 — no discrimination).
-        # Lower range: enough to prevent collapse, not enough to flood zeros.
         "beta": {
             "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.5,
+            "min": 0.4,
+            "max": 0.8,
         },
         # ── kappa (sigmoid sharpness) ─────────────────
-        # Keep moderate — sharp transitions (>10) create gradient spikes
-        # that compound through BPTT.
-        "kappa": {"values": [8.0, 10.0]},
+        # Moderate. Sharp transitions compound through BPTT.
+        "kappa": {
+            "distribution": "uniform",
+            "min": 5.0,
+            "max": 15.0,
+        },
         # ── delta (huber threshold) ───────────────────
-        # Wider quadratic region = more stable MSE-like gradients.
-        # RNNs need gradient consistency across the batch.
         "delta": {
             "distribution": "uniform",
-            "min": 1.0,
-            "max": 2.5,
+            "min": 0.5,
+            "max": 1.5,
         },
-
         # ── gamma (temporal weight) ───────────────────
-        # Temporal gradient alignment is valuable for RNNs — it provides
-        # a supervision signal at every timestep, combating vanishing gradients.
+        # Low — block model produces all 36 outputs at once, so temporal
+        # smoothness is less natural than for autoregressive models.
+        # Just enough to prevent wild step-to-step swings.
         "gamma": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.15,
+            "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
