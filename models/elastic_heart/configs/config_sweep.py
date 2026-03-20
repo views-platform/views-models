@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v1_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -18,7 +18,7 @@ def get_sweep_config():
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
-        "mc_dropout": {"values": [True]},
+        "mc_dropout": {"values": [False]},
         "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
@@ -48,7 +48,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        # Best run hit ceiling at 3.0. Drop 1.0 (too restrictive with
+        # cosh amplification). Add 5.0 for headroom.
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -110,31 +112,31 @@ def get_sweep_config():
         # TSMixer paper uses 2 for small datasets. 3 gives more capacity
         # but risks overfitting on ~200 series.
         "num_blocks": {"values": [2, 3]},
-        # hidden_size: Second FF layer dim in feature mixing. Controls the
-        # bottleneck representation. 64-128 for ~69 input features.
-        # Larger than input dim allows cross-feature interaction capacity.
-        "hidden_size": {"values": [64, 128]},
-        # ff_size: First FF layer dim (expansion). Standard ratio is
-        # 2-4x hidden_size. Larger expansion captures richer interactions
-        # before projecting back down.
-        "ff_size": {"values": [128, 256, 512]},
+        # hidden_size: Bottleneck dim in feature mixing. 64 is too tight
+        # for 59 input channels — destroys cross-feature information.
+        "hidden_size": {"values": [128]},
+        # ff_size: Expansion dim. Must be 2-4x hidden_size for meaningful
+        # cross-feature interaction. v1's 128/128 = 1:1 ratio was effectively
+        # a residual identity (no expansion). 256=2x, 512=4x.
+        "ff_size": {"values": [256, 512]},
         # normalize_before: Pre-norm (True) is more training-stable,
         # post-norm (False) can give slightly better final performance.
         "normalize_before": {"values": [True]},
-        # activation: GELU is the TSMixer paper default — smoother
-        # gradients than ReLU, beneficial for sparse targets.
-        "activation": {"values": ["ReLU", "GELU"]},
+        # GELU only — smoother gradients than ReLU, no dead neurons.
+        # v1 best run picked GELU.
+        "activation": {"values": ["GELU"]},
         # norm_type: LayerNorm is standard for MLP-mixers.
         # TimeBatchNorm2d is the TSMixer-specific variant.
         "norm_type": {"values": ["LayerNorm"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: TSMixer has fewer parameters than TiDE/TFT, so it
-        # overfits faster on ~200 series. Slightly higher range.
+        # Dropout: TSMixer has 3-5 MonteCarloDropout layers per block.
+        # v1 best landed at 0.223 (86% of range). Raise floor since
+        # Bayes clearly wants higher dropout for ~200 series.
         "dropout": {
             "distribution": "uniform",
-            "min": 0.05,
+            "min": 0.10,
             "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
@@ -144,34 +146,47 @@ def get_sweep_config():
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
+        # TSMixer has no pooling to smooth cosh gradient disparity.
+        # v1 at alpha=0.624 → 72x gradient starvation (mean/median).
+        # N-HiTS (with pooling) tolerated same alpha at only 10x.
+        # Lower alpha reduces disparity: 0.4→18x, 0.3→7.5x.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 0.8,
+            "min": 0.3,
+            "max": 0.6,
         },
         # ── beta (asymmetry strength) ─────────────────
+        # With lower alpha, beta takes over as primary anti-underprediction
+        # lever. Wider ceiling lets Bayes push harder if needed.
         "beta": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.7,
+            "max": 0.8,
         },
         # ── kappa (sigmoid sharpness) ─────────────────
+        # v1 best: 13.48 (85% of range). kappa<10 wastes budget.
         "kappa": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 15.0,
+            "min": 10.0,
+            "max": 16.0,
         },
         # ── delta (huber threshold) ───────────────────
+        # v1 best: 1.476 (98% ceiling). With lower alpha, wider
+        # quadratic zone picks up magnitude discrimination work.
         "delta": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
+            "min": 0.8,
+            "max": 2.0,
         },
         # ── gamma (temporal weight) ───────────────────
+        # v1 best: 0.18 — caused 14 loss spikes (CV=0.828).
+        # TSMixer's time-mixing blocks already handle temporal structure.
+        # TiDE/N-HiTS both landed at ~0.05. Heavy gamma is redundant
+        # and destabilizes training.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
+            "min": 0.02,
+            "max": 0.08,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
