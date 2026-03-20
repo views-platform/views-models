@@ -17,7 +17,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v1_msle",
+        "name": "revolving_door_nhits_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -63,9 +63,9 @@ def get_sweep_config():
         # settle into finer optima in later cycles.
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # SpotlightLoss cosh weight can amplify gradients — clip at 1-3x
-        # to prevent spikes from dominating parameter updates.
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        # Best run hit ceiling at 3.0. With alpha~0.6, cosh(0.6*9)≈45x
+        # amplification needs gradient headroom. Drop 1.0 (too restrictive).
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -146,12 +146,12 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # N-HiTS already regularizes via pooling structure. Keep dropout
-        # light to preserve rare pattern learning.
+        # Best run hit ceiling (0.143/0.15). N-HiTS's pooling already
+        # regularizes, but wider FC layers benefit from more dropout.
         "dropout": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.15,
+            "min": 0.10,
+            "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False]},
@@ -163,12 +163,11 @@ def get_sweep_config():
         # for cosh magnitude weighting.
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # N-HiTS is feedforward — cosh amplification is safe (no BPTT).
-        # 0.5: cosh(0.5*9) ≈ 45x for asinh(4000+) events
-        # 0.8: cosh(0.8*9) ≈ 222x — aggressive but stable with gradient clip
+        # Best run: 0.618, well-centered. N-HiTS is feedforward — cosh
+        # is safe. Widen floor to let Bayes explore less amplification.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
+            "min": 0.4,
             "max": 0.8,
         },
         # ── beta (asymmetry strength) ─────────────────
@@ -180,27 +179,32 @@ def get_sweep_config():
             "max": 0.7,
         },
         # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls transition smoothness between FP/FN regimes.
-        # 5.0: smooth. 15.0: near-binary.
+        # Best run: 13.34, near ceiling. N-HiTS's MaxPool preserves spike
+        # magnitudes so sharp FP/FN switching works. Raise ceiling, drop
+        # the low end (kappa<10 is too smooth to help discrimination).
         "kappa": {
             "distribution": "uniform",
-            "min": 5.0,
-            "max": 15.0,
+            "min": 10.0,
+            "max": 16.0,
         },
         # ── delta (huber threshold) ───────────────────
-        # Quadratic→linear transition. Lower values = more robust to outliers.
+        # Best run: 1.377, hit 92% of ceiling. Higher delta gives the coarse
+        # stack full quadratic gradient for larger errors — MaxPool +
+        # hierarchical interpolation smooth the noise, so it's safe.
+        # Center around best run with room to explore upward.
         "delta": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
+            "min": 0.8,
+            "max": 2.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # Temporal gradient alignment penalizes step-to-step prediction swings.
-        # Valuable for block models that produce all 36 outputs at once.
+        # Best run: 0.059, at floor. N-HiTS's coarse stack already produces
+        # smooth forecasts via low-frequency basis functions — extra temporal
+        # penalty is redundant and constrains the fine stack.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
+            "min": 0.02,
+            "max": 0.08,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
