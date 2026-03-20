@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v2_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -153,7 +153,7 @@ def get_sweep_config():
         "alpha": {
             "distribution": "uniform",
             "min": 0.3,
-            "max": 0.6,
+            "max": 0.9,
         },
         # ── beta (asymmetry strength) ─────────────────
         # With lower alpha, beta takes over as primary anti-underprediction
@@ -175,18 +175,14 @@ def get_sweep_config():
         # quadratic zone picks up magnitude discrimination work.
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
+            "min": 0.5,
             "max": 2.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # v1 best: 0.18 — caused 14 loss spikes (CV=0.828).
-        # TSMixer's time-mixing blocks already handle temporal structure.
-        # TiDE/N-HiTS both landed at ~0.05. Heavy gamma is redundant
-        # and destabilizes training.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.02,
-            "max": 0.08,
+            "min": 0.05,
+            "max": 0.4,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

@@ -17,7 +17,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v2_msle",
+        "name": "revolving_door_nhits_spotlight_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -133,13 +133,12 @@ def get_sweep_config():
         # Format: [[stack1_block1], [stack2_block1]]
         # Option 1: [4,1] — stack1 pools quarterly trends, stack2 raw monthly
         # Option 2: [6,1] — stack1 pools semi-annual, stack2 raw monthly
-        # These actually leverage N-HiTS's multi-rate design (unlike [1,1]).
         "pooling_kernel_sizes": {"values": [[[4], [1]], [[6], [1]]]},
         # n_freq_downsample: Output resolution per stack.
         # Stack1 at 6: 36/6 = 6 basis functions (slow structural trends)
         # Stack2 at 1: 36/1 = 36 basis functions (monthly detail)
         "n_freq_downsample": {"values": [[[6], [1]]]},
-        # MaxPool preserves spike magnitudes — critical for zero-inflated data
+        # MaxPool preserves spike magnitudes — for zero-inflated data
         # where AvgPool dilutes the rare non-zero signals.
         "max_pool_1d": {"values": [True]},
         "activation": {"values": ["ReLU"]},
@@ -167,8 +166,8 @@ def get_sweep_config():
         # is safe. Widen floor to let Bayes explore less amplification.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.4,
-            "max": 0.8,
+            "min": 0.5,
+            "max": 0.9,
         },
         # ── beta (asymmetry strength) ─────────────────
         # Under-predicting real conflict costs (1+beta)x more than over-predicting.
@@ -184,7 +183,7 @@ def get_sweep_config():
         # the low end (kappa<10 is too smooth to help discrimination).
         "kappa": {
             "distribution": "uniform",
-            "min": 10.0,
+            "min": 8.0,
             "max": 16.0,
         },
         # ── delta (huber threshold) ───────────────────
@@ -194,7 +193,7 @@ def get_sweep_config():
         # Center around best run with room to explore upward.
         "delta": {
             "distribution": "uniform",
-            "min": 0.8,
+            "min": 0.5,
             "max": 2.0,
         },
         # ── gamma (temporal weight) ───────────────────
@@ -203,8 +202,8 @@ def get_sweep_config():
         # penalty is redundant and constrains the fine stack.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.02,
-            "max": 0.08,
+            "min": 0.05,
+            "max": 0.4,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
