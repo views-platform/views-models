@@ -14,10 +14,23 @@ def generate():
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
+
+    .with_column(
+        Column("lr_pop_totl_splag", from_loa="country_year", from_column="wdi_sp_pop_totl")
+            .transform.missing.fill()
+            .transform.missing.replace_na()
+            .transform.spatial.countrylag(1, 1, 0, 0)
+            )
             
     .with_column(Column('lr_vdem_v2x_libdem', from_loa='country_year', from_column='vdem_v2x_libdem')
             .transform.missing.fill()
             .transform.missing.replace_na()
+            )
+    .with_column(
+        Column("lr_vdem_v2x_libdem_splag", from_loa="country_year", from_column="vdem_v2x_libdem")
+            .transform.missing.fill()
+            .transform.missing.replace_na()
+            .transform.spatial.countrylag(1, 1, 0, 0)
             )
     )
     return queryset

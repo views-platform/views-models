@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "buffalo_baseline", 
-        "algorithm": "TSMixerModel",
+        "algorithm": "NHiTSModel",
         "level": "cm",
         "targets": ["lr_gdp_pcap"],
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
