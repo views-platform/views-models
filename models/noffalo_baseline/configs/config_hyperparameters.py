@@ -13,10 +13,10 @@ def get_hp_config():
         "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
-                "conversion": "sum",
+                "conversion": "average",
             }
         },
-        'window_months': 18,
+        'window_months': 36,
         'output_chunk_length': 36,
     }
     return hyperparameters

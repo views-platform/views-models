@@ -10,7 +10,6 @@ def get_meta_config():
     meta_config = {
         "name": "noffalo_baseline", 
         "algorithm": "AverageModel",
-        "months": 18,
         "level": "cm",
         "targets": ["lr_gdp_pcap"],
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
