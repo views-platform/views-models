@@ -47,8 +47,9 @@ def get_hp_config():
             "weight_decay": 1e-3,
         },
 
+        # Loss: SpotlightLoss (log-scaled w_mag + batch norm + overshoot reg)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.504,
+        "alpha": 0.1,
         "beta": 0.0,
         "kappa": 10.0,
         "delta": 1.5,
