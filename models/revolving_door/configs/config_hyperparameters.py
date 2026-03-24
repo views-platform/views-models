@@ -29,7 +29,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.00012167435464868012,
-        "weight_decay": 5e-6,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 2.0,
 
         # LR Scheduler
@@ -44,15 +44,15 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.00012167435464868012,
-            "weight_decay": 5e-6,
+            "weight_decay": 1e-3,
         },
 
         # Loss: SpotlightLoss (scale-invariant: Huber on relative error)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.0,
-        "beta": 0.0,
-        "kappa": 10.0,
-        "delta": 1.0,
+        "alpha": 0.504,
+        "beta": 0.388,
+        "kappa": 9.45,
+        "delta": 0.502,
         "gamma": 0.0,
 
         # Scaling
@@ -105,15 +105,17 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        "num_stacks": 2,
+        # 3 stacks: coarse (3:1), medium (2:1), fine (1:1) — limits interpolation leverage.
+        # Average pooling + higher dropout suppress outlier-driven extrapolation.
+        "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 256,
-        "pooling_kernel_sizes": [[6], [1]],
-        "n_freq_downsample": [[6], [1]],
-        "max_pool_1d": True,
+        "layer_widths": 128,
+        "pooling_kernel_sizes": [[6], [3], [1]],
+        "n_freq_downsample": [[6], [3], [1]],
+        "max_pool_1d": False,
         "activation": "ReLU",
-        "dropout": 0.1318711003004354,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": False,
 
