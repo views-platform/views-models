@@ -29,7 +29,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.00012167435464868012,
-        "weight_decay": 1e-3,
+        "weight_decay": 5e-3,
         "gradient_clip_val": 2.0,
 
         # LR Scheduler
@@ -44,16 +44,16 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.00012167435464868012,
-            "weight_decay": 1e-3,
+            "weight_decay": 5e-3,
         },
 
-        # Loss: SpotlightLoss (log-scaled w_mag + batch norm + overshoot reg)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.1,
+        "alpha": 0.15,
         "beta": 0.0,
         "kappa": 10.0,
-        "delta": 1.5,
-        "gamma": 0.0,
+        "delta": 20.0,
+        "gamma": 0.15,
+        "zeta": 1.0,
 
         # Scaling
         "feature_scaler": None,
