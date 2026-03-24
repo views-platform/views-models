@@ -47,12 +47,11 @@ def get_hp_config():
             "weight_decay": 1e-3,
         },
 
-        # Loss: SpotlightLoss (scale-invariant: Huber on relative error)
         "loss_function": "SpotlightLoss",
         "alpha": 0.504,
-        "beta": 0.388,
-        "kappa": 9.45,
-        "delta": 0.502,
+        "beta": 0.0,
+        "kappa": 10.0,
+        "delta": 1.5,
         "gamma": 0.0,
 
         # Scaling
