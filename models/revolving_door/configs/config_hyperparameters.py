@@ -1,12 +1,11 @@
 def get_hp_config():
     """
-    Contains the hyperparameter configurations for model training.
-    This configuration is "operational" so modifying these settings will impact the model's behavior during the training.
+    N-HiTS hyperparameters from v2 SpotlightLoss sweep best run.
 
     Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
+    - hyperparameters (dict): Training configuration dictionary.
     """
-    
+
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -14,106 +13,53 @@ def get_hp_config():
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
-        
+
         # Inference
         "num_samples": 1,
         "mc_dropout": True,
         "n_jobs": -1,
-        
+
         # Training
         "batch_size": 64,
-        "n_epochs": 200,
-        "early_stopping_patience": 30,
+        "n_epochs": 300,
+        "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.0001,
         "force_reset": True,
-        
+
         # Optimizer
-        "optimizer_cls": "Adam",
-        "lr": 0.00016112813049684902,
-        "weight_decay": 0.000001,
-        "gradient_clip_val": 1.5,
-        
+        "optimizer_cls": "AdamW",
+        "lr": 0.00012167435464868012,
+        "weight_decay": 5e-6,
+        "gradient_clip_val": 2.0,
+
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 25,
-        "lr_scheduler_T_mult": 1,
-        "lr_scheduler_eta_min": 0.000001,
+        "lr_scheduler_T_0": 30,
+        "lr_scheduler_T_mult": 2,
+        "lr_scheduler_eta_min": 1e-6,
         "lr_scheduler_kwargs": {
-            "T_0": 25,
-            "T_mult": 1,
-            "eta_min": 0.000001,
+            "T_0": 30,
+            "T_mult": 2,
+            "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.00016112813049684902,
-            "weight_decay": 0.000001,
+            "lr": 0.00012167435464868012,
+            "weight_decay": 5e-6,
         },
-        
-        # Loss: MagnitudeAwareQuantileLoss
-        "loss_function": "MagnitudeAwareQuantileLoss",
-        "tau": 0.45214108890315474,
-        "zero_threshold": 2.09,
-        "non_zero_weight": 35.20259257390748,
-        
+
+        # Loss: SpotlightLoss
+        "loss_function": "SpotlightLoss",
+        "alpha": 0.5638908536906942,
+        "beta": 0.5146863837252185,
+        "kappa": 12.962033042756794,
+        "delta": 1.0349858658624012,
+        "gamma": 0.3698515020624298,
+
         # Scaling
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "MinMaxScaler": [
-                "lr_wdi_sl_tlf_totl_fe_zs",
-                "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_urb_totl_in_zs",
-                "lr_vdem_v2x_horacc",
-                "lr_vdem_v2xnp_client",
-                "lr_vdem_v2x_veracc",
-                "lr_vdem_v2x_divparctrl",
-                "lr_vdem_v2xpe_exlpol",
-                "lr_vdem_v2x_diagacc",
-                "lr_vdem_v2xpe_exlgeo",
-                "lr_vdem_v2xpe_exlgender",
-                "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_ex_party",
-                "lr_vdem_v2x_genpp",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty",
-                "lr_vdem_v2xeg_eqprotec",
-                "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2xcl_dmove",
-                "lr_vdem_v2x_clphy",
-                "lr_vdem_v2xnp_regcorr",
-                "lr_topic_ste_theta0",
-                "lr_topic_ste_theta1",
-                "lr_topic_ste_theta2",
-                "lr_topic_ste_theta3",
-                "lr_topic_ste_theta4",
-                "lr_topic_ste_theta5",
-                "lr_topic_ste_theta6",
-                "lr_topic_ste_theta7",
-                "lr_topic_ste_theta8",
-                "lr_topic_ste_theta9",
-                "lr_topic_ste_theta10",
-                "lr_topic_ste_theta11",
-                "lr_topic_ste_theta12",
-                "lr_topic_ste_theta13",
-                "lr_topic_ste_theta14",
-                "lr_topic_ste_theta0_stock_t1_splag",
-                "lr_topic_ste_theta1_stock_t1_splag",
-                "lr_topic_ste_theta2_stock_t1_splag",
-                "lr_topic_ste_theta3_stock_t1_splag",
-                "lr_topic_ste_theta4_stock_t1_splag",
-                "lr_topic_ste_theta5_stock_t1_splag",
-                "lr_topic_ste_theta6_stock_t1_splag",
-                "lr_topic_ste_theta7_stock_t1_splag",
-                "lr_topic_ste_theta8_stock_t1_splag",
-                "lr_topic_ste_theta9_stock_t1_splag",
-                "lr_topic_ste_theta10_stock_t1_splag",
-                "lr_topic_ste_theta11_stock_t1_splag",
-                "lr_topic_ste_theta12_stock_t1_splag",
-                "lr_topic_ste_theta13_stock_t1_splag",
-                "lr_topic_ste_theta14_stock_t1_splag",
-            ],
             "AsinhTransform": [
-                "lr_acled_sb",
-                "lr_acled_os",
                 "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
                 "lr_wdi_nv_agr_totl_kn",
@@ -122,6 +68,9 @@ def get_hp_config():
                 "lr_splag_1_ged_os",
             ],
             "StandardScaler": [
+                "lr_ged_sb_delta",
+                "lr_ged_ns_delta",
+                "lr_ged_os_delta",
                 "lr_wdi_sm_pop_netm",
                 "lr_wdi_dt_oda_odat_pc_zs",
                 "lr_wdi_sp_pop_grow",
@@ -130,19 +79,48 @@ def get_hp_config():
                 "lr_wdi_sh_sta_stnt_zs",
                 "lr_wdi_sh_sta_maln_zs",
             ],
+            "MinMaxScaler": [
+                "lr_wdi_sl_tlf_totl_fe_zs",
+                "lr_wdi_se_enr_prim_fm_zs",
+                "lr_wdi_sp_urb_totl_in_zs",
+                "lr_vdem_v2x_horacc",
+                "lr_vdem_v2x_veracc",
+                "lr_vdem_v2x_diagacc",
+                "lr_vdem_v2xnp_client",
+                "lr_vdem_v2xnp_regcorr",
+                "lr_vdem_v2xpe_exlpol",
+                "lr_vdem_v2xpe_exlgeo",
+                "lr_vdem_v2xpe_exlgender",
+                "lr_vdem_v2xpe_exlsocgr",
+                "lr_vdem_v2x_divparctrl",
+                "lr_vdem_v2x_ex_party",
+                "lr_vdem_v2x_ex_military",
+                "lr_vdem_v2x_genpp",
+                "lr_vdem_v2xeg_eqdr",
+                "lr_vdem_v2xcl_prpty",
+                "lr_vdem_v2xeg_eqprotec",
+                "lr_vdem_v2xcl_dmove",
+                "lr_vdem_v2x_clphy",
+            ],
         },
-        
+
         # N-HiTS Architecture
         "num_stacks": 2,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 512,
-        "pooling_kernel_sizes": [[8], [1]],
-        "n_freq_downsample": [[4], [1]],
+        "layer_widths": 256,
+        "pooling_kernel_sizes": [[6], [1]],
+        "n_freq_downsample": [[6], [1]],
         "max_pool_1d": True,
         "activation": "ReLU",
-        "dropout": 0.15,
+        "dropout": 0.1318711003004354,
+        "use_static_covariates": True,
         "use_reversible_instance_norm": False,
+
+        # Temporal Encodings
+        "add_encoders": {
+            "position": {"past": ["relative"], "future": ["relative"]},
+        },
     }
 
     return hyperparameters
