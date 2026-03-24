@@ -47,13 +47,13 @@ def get_hp_config():
             "weight_decay": 5e-6,
         },
 
-        # Loss: SpotlightLoss (power-law magnitude weight: w = (1 + |y_true|)^alpha)
+        # Loss: SpotlightLoss (scale-invariant: Huber on relative error)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.50,
+        "alpha": 0.0,
         "beta": 0.0,
         "kappa": 10.0,
         "delta": 1.0,
-        "gamma": 0.05,
+        "gamma": 0.0,
 
         # Scaling
         "feature_scaler": None,
