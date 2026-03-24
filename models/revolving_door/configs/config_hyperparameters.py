@@ -48,12 +48,11 @@ def get_hp_config():
         },
 
         "loss_function": "SpotlightLoss",
-        "alpha": 0.5,
+        "alpha": 0.15,
         "beta": 0.0,
         "kappa": 10.0,
         "delta": 20.0,
         "gamma": 0.15,
-        "zeta": 1.0,
 
         # Scaling
         "feature_scaler": None,
@@ -111,8 +110,8 @@ def get_hp_config():
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "pooling_kernel_sizes": [[6], [3], [1]],
-        "n_freq_downsample": [[6], [3], [1]],
+        "pooling_kernel_sizes": [[3], [2], [1]],
+        "n_freq_downsample": [[3], [2], [1]],
         "max_pool_1d": False,
         "activation": "ReLU",
         "dropout": 0.25,
