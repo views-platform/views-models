@@ -47,12 +47,12 @@ def get_hp_config():
             "weight_decay": 5e-6,
         },
 
-        # Loss: SpotlightLoss
+        # Loss: SpotlightLoss (adaptive delta: effective δ_i = delta * (1 + |y_true|))
         "loss_function": "SpotlightLoss",
         "alpha": 0.10,
         "beta": 0.0,
         "kappa": 10.0,
-        "delta": 2.0,
+        "delta": 1.0,
         "gamma": 0.0,
 
         # Scaling
