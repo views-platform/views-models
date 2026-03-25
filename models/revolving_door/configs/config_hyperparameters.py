@@ -52,7 +52,7 @@ def get_hp_config():
         "beta": 0.5,
         "kappa": 1.0,
         "delta": 2.0,
-        "gamma": 0.1,
+        "gamma": 0.15,
 
         # Scaling
         "feature_scaler": None,
