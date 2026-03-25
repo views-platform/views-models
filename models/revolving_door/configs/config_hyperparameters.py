@@ -109,17 +109,20 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # 3 stacks with REDUCED interpolation: max 3:1 (was 6:1).
-        # The coarse stack now produces 12 basis coefficients (was 6),
-        # halving the leverage that any single coefficient has on the output.
-        # Higher dropout (0.35) prevents extreme mappings.
-        # Avg pooling (max_pool_1d=False) is smoother than max pooling.
+        # 3 stacks with multi-scale INPUT pooling but NO output interpolation.
+        # pooling_kernel_sizes [[3],[2],[1]] gives each stack a different
+        # temporal receptive field on the input (multi-scale features).
+        # n_freq_downsample [[1],[1],[1]] means each stack outputs 36 direct
+        # coefficients — no basis interpolation. This eliminates the mechanism
+        # where a slight upward slope in a few basis coefficients gets
+        # interpolated across multiple output steps, then exponentially
+        # amplified by sinh() inverse transform.
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
         "pooling_kernel_sizes": [[3], [2], [1]],
-        "n_freq_downsample": [[3], [2], [1]],
+        "n_freq_downsample": [[1], [1], [1]],
         "max_pool_1d": False,
         "activation": "ReLU",
         "dropout": 0.35,
