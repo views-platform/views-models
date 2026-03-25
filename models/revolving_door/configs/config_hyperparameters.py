@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.00012167435464868012,
         "weight_decay": 5e-3,
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 1.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -48,15 +48,15 @@ def get_hp_config():
             "weight_decay": 5e-3,
         },
 
-        # Loss: SpotlightLoss (symmetric, no kappa)
-        # alpha=0.3: cosh(0.3*9)~7.5x for conflict, detached-max auto-punishes overshoot
+        # Loss: SpotlightLoss (symmetric, ground-truth-only magnitude weight)
+        # alpha=0.3: cosh(0.3*9)~7.5x for conflict
         # beta=0.4: symmetric +36% amplification on conflict targets
-        # delta=5.0: Huber linear regime for |e|>5 — bounds gradients for extreme errors
-        # gamma=0.1: temporal gradient for dynamics/seasonality
+        # delta=1.0: Huber linear regime for |e|>1 — tight gradient bound
+        # gamma=0.1: magnitude-weighted temporal gradient (1st + 2nd order)
         "loss_function": "SpotlightLoss",
         "alpha": 0.3,
         "beta": 0.4,
-        "delta": 5.0,
+        "delta": 1.0,
         "gamma": 0.1,
 
         # Scaling
