@@ -30,7 +30,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.00012167435464868012,
         "weight_decay": 5e-3,
-        "gradient_clip_val": 2.0,
+        "gradient_clip_val": 5.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -47,12 +47,12 @@ def get_hp_config():
             "weight_decay": 5e-3,
         },
 
-        "loss_function": "SpotlightLoss",
-        "alpha": 0.15,
-        "beta": 0.0,
-        "kappa": 10.0,
-        "delta": 20.0,
-        "gamma": 0.15,
+        "loss_function": "SentinelLoss",
+        "alpha": 1.5,
+        "beta": 0.5,
+        "kappa": 1.0,
+        "delta": 2.0,
+        "gamma": 0.1,
 
         # Scaling
         "feature_scaler": None,
@@ -110,8 +110,8 @@ def get_hp_config():
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "pooling_kernel_sizes": [[3], [2], [1]],
-        "n_freq_downsample": [[3], [2], [1]],
+        "pooling_kernel_sizes": [[6], [3], [1]],
+        "n_freq_downsample": [[6], [3], [1]],
         "max_pool_1d": False,
         "activation": "ReLU",
         "dropout": 0.25,
