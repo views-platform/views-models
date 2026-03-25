@@ -127,7 +127,7 @@ def get_hp_config():
         "activation": "ReLU",
         "dropout": 0.35,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
 
         # Temporal Encodings
         "add_encoders": {
