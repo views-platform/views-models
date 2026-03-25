@@ -1,6 +1,7 @@
 def get_hp_config():
     """
-    N-HiTS hyperparameters from v2 SpotlightLoss sweep best run.
+    N-HiTS hyperparameters — SpotlightLoss (symmetric) with conservative
+    architecture to prevent OOD extrapolation via basis interpolation.
 
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
@@ -47,12 +48,16 @@ def get_hp_config():
             "weight_decay": 5e-3,
         },
 
-        "loss_function": "SentinelLoss",
-        "alpha": 1.5,
-        "beta": 0.5,
-        "kappa": 1.0,
-        "delta": 2.0,
-        "gamma": 0.15,
+        # Loss: SpotlightLoss (symmetric, no kappa)
+        # alpha=0.3: cosh(0.3*9)~7.5x for conflict, detached-max auto-punishes overshoot
+        # beta=0.4: symmetric +36% amplification on conflict targets
+        # delta=5.0: Huber linear regime for |e|>5 — bounds gradients for extreme errors
+        # gamma=0.1: temporal gradient for dynamics/seasonality
+        "loss_function": "SpotlightLoss",
+        "alpha": 0.3,
+        "beta": 0.4,
+        "delta": 5.0,
+        "gamma": 0.1,
 
         # Scaling
         "feature_scaler": None,
@@ -104,17 +109,20 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # 3 stacks: coarse (3:1), medium (2:1), fine (1:1) — limits interpolation leverage.
-        # Average pooling + higher dropout suppress outlier-driven extrapolation.
+        # 3 stacks with REDUCED interpolation: max 3:1 (was 6:1).
+        # The coarse stack now produces 12 basis coefficients (was 6),
+        # halving the leverage that any single coefficient has on the output.
+        # Higher dropout (0.35) prevents extreme mappings.
+        # Avg pooling (max_pool_1d=False) is smoother than max pooling.
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "pooling_kernel_sizes": [[6], [3], [1]],
-        "n_freq_downsample": [[6], [3], [1]],
+        "pooling_kernel_sizes": [[3], [2], [1]],
+        "n_freq_downsample": [[3], [2], [1]],
         "max_pool_1d": False,
         "activation": "ReLU",
-        "dropout": 0.25,
+        "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": False,
 
