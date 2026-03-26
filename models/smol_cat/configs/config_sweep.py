@@ -1,5 +1,3 @@
-from views_r2darts2.infrastructure.encoders import month_sin, month_cos
-
 def get_sweep_config():
     """
     meow
@@ -213,14 +211,7 @@ def get_sweep_config():
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "add_encoders": {
-            "values": [
-                {
-                    "custom": {"past": [month_sin, month_cos], "future": [month_sin, month_cos]},
-                    "position": {"past": ["relative"], "future": ["relative"]},
-                }
-            ]
-        },
+        "use_cyclic_encoders": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters

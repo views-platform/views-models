@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -51,7 +51,7 @@ def get_sweep_config():
         "lr_scheduler_eta_min": {"values": [1e-6]},
         # Transformers benefit from moderate clipping — attention can
         # produce gradient spikes, but too tight kills long-range signal.
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -148,43 +148,44 @@ def get_sweep_config():
         # ── alpha (magnitude expansion rate) ──────────
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 0.8,
+            "min": 0.10,
+            "max": 0.80,
         },
+        
         # ── beta (asymmetry strength) ─────────────────
+        # Extra multiplier for FN, gated by magnitude.
+        #   0.3: FN costs 1.3x FP (on events)
+        #   0.7: FN costs 1.7x FP (on events)
+        # Range is conservative because magnitude weights already 
+        # heavily favor FN recall.
         "beta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
+            "min": 0.0,
+            "max": 0.3,
         },
+        
         # ── kappa (sigmoid sharpness) ─────────────────
+        # Controls transition smoothness between FP/FN regimes.
+        #   5.0: Smooth transition.
+        #   15.0: Sharp, almost binary transition.
         "kappa": {
             "distribution": "uniform",
-            "min": 5.0,
+            "min": 8.0,
             "max": 15.0,
         },
-        # ── delta (huber threshold) ───────────────────
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
-        },
         # ── gamma (temporal weight) ───────────────────
+        # Weight for the temporal gradient alignment term.
+        #   0.05: Light timing guidance.
+        #   0.2: Strong timing guidance.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
+            "min": 0.0,
             "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "add_encoders": {
-            "values": [
-                {
-                    "position": {"past": ["relative"], "future": ["relative"]},
-                }
-            ]
-        },
+        "use_cyclic_encoders": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters

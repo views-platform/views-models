@@ -1,4 +1,3 @@
-from views_r2darts2.infrastructure.encoders import month_sin, month_cos
 
 def get_sweep_config():
     """
@@ -219,17 +218,9 @@ def get_sweep_config():
             "min": 0.0,
             "max": 0.2,
         },
-        # ==============================================================================
-        # TEMPORAL ENCODINGS
-        # ==============================================================================
-        "add_encoders": {
-            "values": [
-                {
-                    "custom": {"past": [month_sin, month_cos], "future": [month_sin, month_cos]},
-                    "position": {"past": ["relative"], "future": ["relative"]},
-                }
-            ]
-        },
+        # ModelCatalog builds the encoder dict from this flag at model-build
+        # time, selecting functions based on config["level"] — JSON-safe.
+        "use_cyclic_encoders": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters
