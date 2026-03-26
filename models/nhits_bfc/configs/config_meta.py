@@ -8,11 +8,11 @@ def get_meta_config():
     """
     
     meta_config = {
-        "name": "buffalo_baseline", 
+        "name": "nhits_bfc", 
         "algorithm": "NHiTSModel",
         "level": "cm",
         "targets": ["lr_gdp_pcap"],
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "creator": "Borbála",
+        "metrics": ["CRPS", "MSE", "MSLE"],
+        "creator": "Xiaolong",
     }
     return meta_config

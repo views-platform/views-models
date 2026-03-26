@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'buffalo_baseline'
+        'name': 'nhits_bfc'
     }
 
     # Example metric setup:

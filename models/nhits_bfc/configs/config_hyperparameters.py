@@ -68,8 +68,14 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
             "AsinhTransform": [
+                "lr_ged_sb",
+                "lr_ged_os",
+                "lr_ged_ns",
                 "lr_pop_totl",
                 "lr_pop_totl_splag",
+                "lr_ged_sb_splag",
+                "lr_ged_os_splag",
+                "lr_ged_ns_splag",
             ],
             "MinMaxScaler": [
                 "lr_vdem_v2x_libdem",
@@ -91,6 +97,7 @@ def get_hp_config():
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "average",
+                "regressor_col": "lr_ged_sb",
             },
         },
     }
