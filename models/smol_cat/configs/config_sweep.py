@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v25_cm_msle",
+        "name": "smol_cat_tide_spotlight_v26_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -153,7 +153,7 @@ def get_sweep_config():
             "max": 0.20,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -174,7 +174,7 @@ def get_sweep_config():
         # Fixed < 1.0 to prevent explosion without internal clamping.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
+            "min": 0.1,
             "max": 0.8,
         },
         
@@ -186,8 +186,8 @@ def get_sweep_config():
         # heavily favor FN recall.
         "beta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
+            "min": 0.0,
+            "max": 0.2,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
@@ -196,26 +196,16 @@ def get_sweep_config():
         #   15.0: Sharp, almost binary transition.
         "kappa": {
             "distribution": "uniform",
-            "min": 5.0,
+            "min": 8.0,
             "max": 15.0,
         },
-        
-        # ── delta (huber threshold) ───────────────────
-        # Transition point for quadratic->linear.
-        # Sweeping 0.5 to 1.5 allows finding the optimal robustness.
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
-        },
-        
         # ── gamma (temporal weight) ───────────────────
         # Weight for the temporal gradient alignment term.
         #   0.05: Light timing guidance.
         #   0.2: Strong timing guidance.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
+            "min": 0.0,
             "max": 0.2,
         },
         # ==============================================================================
