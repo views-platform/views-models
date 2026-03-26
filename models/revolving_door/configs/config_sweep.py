@@ -1,3 +1,5 @@
+from views_r2darts2.infrastructure.encoders import month_sin, month_cos
+
 def get_sweep_config():
     """
     N-HiTS + SpotlightLoss Sweep Configuration
@@ -6,18 +8,29 @@ def get_sweep_config():
     Data: ~200 country time series, 68 features (conflict + WDI + V-Dem),
     3 targets (lr_ged_sb/ns/os), 86-94% zeros, 36-month horizon.
 
-    N-HiTS is feedforward (no BPTT) — SpotlightLoss alpha can be used freely.
-    Same loss config approach as smol_cat (TiDE), adapted for N-HiTS architecture.
+    N-HiTS is feedforward (no BPTT) — no gradient attenuation across time.
 
     Architecture (Challu et al. 2022):
     - 2 stacks: structural trends (pooled) + monthly dynamics (raw)
-    - MaxPool preserves spike magnitudes in zero-inflated data
-    - Hierarchical interpolation combines coarse + fine forecasts
+    - AvgPool preferred over MaxPool for zero-inflated data (MaxPool amplifies
+      sparse spikes into pooling representation, distorting coarse stack gradients)
+    - RevIN ON: empirically required — without it, sinh inversion on OOD predictions
+      causes multi-billion-scale outputs. RevIN's sigma-scaling bounds outputs to
+      each series' historical variance. Incompatible with SpotlightLoss in principle
+      (see notes) but necessary for numerical stability at inference.
+
+    SpotlightLoss parameter constraints (from empirical OOD history):
+    - alpha >  0.20 caused OOD explosions even with gradient clipping
+    - gamma >= 0.05 is the primary OOD driver via temporal gradient compounding;
+      second-order curvature term has been removed from the loss entirely
+    - kappa >= 10 creates a near-binary asymmetry gate; combined with beta > 0
+      causes systematic overshooting of conflict cells into shared N-HiTS weights
+    - delta does NOT exist in SpotlightLoss (was a WeightedPenaltyHuber param)
     """
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v3_msle",
+        "name": "revolving_door_nhits_spotlight_v5_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -27,7 +40,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -53,7 +66,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 5e-4,
         },
-        "weight_decay": {"values": [5e-6]},
+        "weight_decay": {"values": [5e-6, 5e-3]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -63,8 +76,9 @@ def get_sweep_config():
         # settle into finer optima in later cycles.
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Best run hit ceiling at 3.0. With alpha~0.6, cosh(0.6*9)≈45x
-        # amplification needs gradient headroom. Drop 1.0 (too restrictive).
+        # With alpha <= 0.20, max cosh contribution at asinh(10000)=9.9 is
+        # cosh(0.20*9.9)≈3.8. Tanh gradient is bounded at ±1. Effective max
+        # gradient ≈ 3.8 — clip of 2.0 is sufficient. 5.0 provides no protection.
         "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
@@ -123,25 +137,24 @@ def get_sweep_config():
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
-        "num_stacks": {"values": [2]},
-        "num_blocks": {"values": [1]},
-        "num_layers": {"values": [2]},
-        # layer_widths: N-HiTS paper default is 512. 256 also viable for
-        # ~200 series. Simple FC architecture handles wide layers well.
-        "layer_widths": {"values": [256, 512]},
-        # pooling_kernel_sizes: Multi-scale temporal aggregation.
-        # Format: [[stack1_block1], [stack2_block1]]
-        # Option 1: [4,1] — stack1 pools quarterly trends, stack2 raw monthly
-        # Option 2: [6,1] — stack1 pools semi-annual, stack2 raw monthly
-        "pooling_kernel_sizes": {"values": [[[4], [1]], [[6], [1]]]},
-        # n_freq_downsample: Output resolution per stack.
-        # Stack1 at 6: 36/6 = 6 basis functions (slow structural trends)
-        # Stack2 at 1: 36/1 = 36 basis functions (monthly detail)
-        "n_freq_downsample": {"values": [[[6], [1]]]},
-        # MaxPool preserves spike magnitudes — for zero-inflated data
-        # where AvgPool dilutes the rare non-zero signals.
-        "max_pool_1d": {"values": [True]},
-        "activation": {"values": ["ReLU"]},
+        # 3 stacks: coarse (semi-annual) + intermediate (quarterly) + fine (monthly).
+        # Pooling kernel rationale (icl=36):
+        #   kernel=8 → ~quarterly aggregation over the input window
+        #   kernel=4 → semi-annual aggregation
+        #   kernel=1 → raw monthly (fine stack always)
+        # n_freq_downsample rationale (ocl=36):
+        #   fd=6 → 36/6 = 6 basis functions  (slow structural trends)
+        #   fd=3 → 36/3 = 12 basis functions (quarterly detail)
+        #   fd=1 → 36/1 = 36 basis functions (full monthly)
+        "num_stacks": {"values": [3]},
+        "pooling_kernel_sizes": {"values": [[[8], [4], [1]]]},
+        "n_freq_downsample": {"values": [[[6], [3], [1]]]},
+        # AvgPool: for zero-inflated data, MaxPool selects the single largest
+        # value in each kernel window, making the coarse stack representation
+        # dominated by rare spikes. AvgPool produces a smoother structural
+        # trend signal that better represents the underlying conflict trajectory.
+        "max_pool_1d": {"values": [False, True]},
+        "activation": {"values": ["GELU"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
@@ -153,7 +166,10 @@ def get_sweep_config():
             "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        # RevIN must be True: empirically, turning it off caused >15B predictions.
+        # RevIN's inverse() rescales outputs by each series' own historical sigma,
+        # bounding OOD extrapolation relative to observed history.
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -162,48 +178,46 @@ def get_sweep_config():
         # for cosh magnitude weighting.
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # Best run: 0.618, well-centered. N-HiTS is feedforward — cosh
-        # is safe. Widen floor to let Bayes explore less amplification.
+        # Empirical ceiling: alpha=0.20 + gamma=0.05 caused 15B OOD without
+        # RevIN. With RevIN ON, higher alpha is bounded by sigma-scaling, but
+        # the gradient amplification still distorts shared weights during training.
+        # cosh(0.20 * 9.9) ≈ 3.8x amplification — sufficient to discriminate
+        # conflict cells without encoding runaway escalation patterns.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 0.9,
+            "min": 0.10,
+            "max": 0.80,
         },
+        
         # ── beta (asymmetry strength) ─────────────────
-        # Under-predicting real conflict costs (1+beta)x more than over-predicting.
-        # Conservative range because alpha already heavily favors rare events.
+        # Extra multiplier for FN, gated by magnitude.
+        #   0.3: FN costs 1.3x FP (on events)
+        #   0.7: FN costs 1.7x FP (on events)
+        # Range is conservative because magnitude weights already 
+        # heavily favor FN recall.
         "beta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
+            "min": 0.0,
+            "max": 0.3,
         },
+        
         # ── kappa (sigmoid sharpness) ─────────────────
-        # Best run: 13.34, near ceiling. N-HiTS's MaxPool preserves spike
-        # magnitudes so sharp FP/FN switching works. Raise ceiling, drop
-        # the low end (kappa<10 is too smooth to help discrimination).
+        # Controls transition smoothness between FP/FN regimes.
+        #   5.0: Smooth transition.
+        #   15.0: Sharp, almost binary transition.
         "kappa": {
             "distribution": "uniform",
             "min": 8.0,
-            "max": 16.0,
-        },
-        # ── delta (huber threshold) ───────────────────
-        # Best run: 1.377, hit 92% of ceiling. Higher delta gives the coarse
-        # stack full quadratic gradient for larger errors — MaxPool +
-        # hierarchical interpolation smooth the noise, so it's safe.
-        # Center around best run with room to explore upward.
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "max": 15.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # Best run: 0.059, at floor. N-HiTS's coarse stack already produces
-        # smooth forecasts via low-frequency basis functions — extra temporal
-        # penalty is redundant and constrains the fine stack.
+        # Weight for the temporal gradient alignment term.
+        #   0.05: Light timing guidance.
+        #   0.2: Strong timing guidance.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.4,
+            "min": 0.0,
+            "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
@@ -211,6 +225,7 @@ def get_sweep_config():
         "add_encoders": {
             "values": [
                 {
+                    "custom": {"past": [month_sin, month_cos], "future": [month_sin, month_cos]},
                     "position": {"past": ["relative"], "future": ["relative"]},
                 }
             ]

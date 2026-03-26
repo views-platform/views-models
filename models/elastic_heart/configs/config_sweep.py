@@ -1,10 +1,12 @@
+from views_r2darts2.infrastructure.encoders import month_sin, month_cos
+
 def get_sweep_config():
     """
     meow
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v3_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v4_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +16,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -140,7 +142,7 @@ def get_sweep_config():
             "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -152,37 +154,39 @@ def get_sweep_config():
         # Lower alpha reduces disparity: 0.4→18x, 0.3→7.5x.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.9,
+            "min": 0.10,
+            "max": 0.80,
         },
+        
         # ── beta (asymmetry strength) ─────────────────
-        # With lower alpha, beta takes over as primary anti-underprediction
-        # lever. Wider ceiling lets Bayes push harder if needed.
+        # Extra multiplier for FN, gated by magnitude.
+        #   0.3: FN costs 1.3x FP (on events)
+        #   0.7: FN costs 1.7x FP (on events)
+        # Range is conservative because magnitude weights already 
+        # heavily favor FN recall.
         "beta": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.8,
+            "min": 0.0,
+            "max": 0.3,
         },
+        
         # ── kappa (sigmoid sharpness) ─────────────────
-        # v1 best: 13.48 (85% of range). kappa<10 wastes budget.
+        # Controls transition smoothness between FP/FN regimes.
+        #   5.0: Smooth transition.
+        #   15.0: Sharp, almost binary transition.
         "kappa": {
             "distribution": "uniform",
-            "min": 10.0,
-            "max": 16.0,
-        },
-        # ── delta (huber threshold) ───────────────────
-        # v1 best: 1.476 (98% ceiling). With lower alpha, wider
-        # quadratic zone picks up magnitude discrimination work.
-        "delta": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
+            "min": 8.0,
+            "max": 15.0,
         },
         # ── gamma (temporal weight) ───────────────────
+        # Weight for the temporal gradient alignment term.
+        #   0.05: Light timing guidance.
+        #   0.2: Strong timing guidance.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.4,
+            "min": 0.0,
+            "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
@@ -190,6 +194,7 @@ def get_sweep_config():
         "add_encoders": {
             "values": [
                 {
+                    "custom": {"past": [month_sin, month_cos], "future": [month_sin, month_cos]},
                     "position": {"past": ["relative"], "future": ["relative"]},
                 }
             ]

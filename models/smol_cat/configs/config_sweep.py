@@ -1,10 +1,12 @@
+from views_r2darts2.infrastructure.encoders import month_sin, month_cos
+
 def get_sweep_config():
     """
     meow
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v26_cm_msle",
+        "name": "smol_cat_tide_spotlight_v27_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -174,8 +176,8 @@ def get_sweep_config():
         # Fixed < 1.0 to prevent explosion without internal clamping.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.1,
-            "max": 0.8,
+            "min": 0.10,
+            "max": 0.80,
         },
         
         # ── beta (asymmetry strength) ─────────────────
@@ -187,7 +189,7 @@ def get_sweep_config():
         "beta": {
             "distribution": "uniform",
             "min": 0.0,
-            "max": 0.2,
+            "max": 0.3,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
@@ -214,6 +216,7 @@ def get_sweep_config():
         "add_encoders": {
             "values": [
                 {
+                    "custom": {"past": [month_sin, month_cos], "future": [month_sin, month_cos]},
                     "position": {"past": ["relative"], "future": ["relative"]},
                 }
             ]
