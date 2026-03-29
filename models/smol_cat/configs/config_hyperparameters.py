@@ -16,18 +16,18 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 512,
+        "hidden_size": 256,
         "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 128,
+        "temporal_decoder_hidden": 256,
         "temporal_width_past": 12,
         "temporal_width_future": 36,
         "temporal_hidden_size_past": 64,
         "temporal_hidden_size_future": 64,
-        "num_encoder_layers": 2,
-        "num_decoder_layers": 2,
+        "num_encoder_layers": 1,
+        "num_decoder_layers": 3,
         "use_layer_norm": True,
         "use_reversible_instance_norm": False,
-        "dropout": 0.1621494987181681,
+        "dropout": 0.14553213915789748,
         "use_static_covariates": True,
 
         # Training
@@ -38,7 +38,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0000940859962599547,
+        "lr": 0.000030430804224905937,
         "weight_decay": 0.000005,
 
         # LR Scheduler
@@ -48,17 +48,16 @@ def get_hp_config():
         "lr_scheduler_eta_min": 0.000001,
 
         # Trainer
-        "gradient_clip_val": 2,
+        "gradient_clip_val": 3,
         "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.0001,
 
         # Loss
         "loss_function": "SpotlightLoss",
-        "alpha": 0.503844326371114,
-        "beta": 0.3877159906340525,
-        "kappa": 9.446615718364312,
-        "delta": 0.5020482268329057,
-        "gamma": 0.05094439224655861,
+        "alpha": 0.38723450371755985,
+        "beta": 0.23550867726497013,
+        "kappa": 12.486948159474515,
+        "gamma": 0.1288880350112033,
 
         # Prediction
         "likelihood": None,
@@ -115,9 +114,7 @@ def get_hp_config():
         },
 
         # Encoders
-        "add_encoders": {
-            "position": {"past": ["relative"], "future": ["relative"]},
-        },
+        "use_cyclic_encoders": True,
     }
 
     return hyperparameters
