@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v1_msle",
+        "name": "teenage_dirtbag_tcn_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -15,9 +15,10 @@ def get_sweep_config():
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
         # TCN requires input_chunk_length > output_chunk_length (hard constraint
-        # from dilated causal convolutions). icl=48 gives 12 months of lookback
-        # beyond the forecast horizon.
-        "input_chunk_length": {"values": [48]},
+        # from dilated causal convolutions). icl=72 gives 36 months of lookback
+        # beyond the forecast horizon and fits RF ≤ 63 for all valid (k, layers)
+        # combinations in this sweep.
+        "input_chunk_length": {"values": [72]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -52,7 +53,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -112,22 +113,23 @@ def get_sweep_config():
         # ==============================================================================
         # kernel_size: Small kernels better for sparse signals (Bai et al., 2018).
         # Each kernel sees fewer timesteps, reducing zero-dilution.
-        "kernel_size": {"values": [3, 5]},
+        # k=5 excluded: with num_layers=[4,5] gives RF=125/253 >> icl=72.
+        "kernel_size": {"values": [3]},
         # num_filters: Number of convolutional filters per layer. 64-128 is
         # moderate capacity for ~200 series — avoids overfitting to dominant
         # zeros while giving enough representational power.
-        "num_filters": {"values": [64, 128, 256]},
+        "num_filters": {"values": [32, 64, 128]},
         # dilation_base: Standard exponential dilation (powers of 2).
         "dilation_base": {"values": [2]},
-        # num_layers: Controls receptive field.
-        # RF = 1 + (k-1) × Σ(d^i). With k=3, d=2:
-        #   5 layers: RF = 1 + 2×(1+2+4+8+16) = 63 months
-        #   6 layers: RF = 1 + 2×(1+2+4+8+16+32) = 127 months
-        # Both comfortably cover the 36-month horizon.
-        "num_layers": {"values": [4, 5, 6]},
+        # num_layers: Controls receptive field. Constraint is RF ≤ icl (not RF ≥ ocl).
+        # RF = 1 + (k-1) × Σ_{i=0}^{L-1}(d^i). With k=3, d=2, icl=72:
+        #   4 layers: RF = 1 + 2×(1+2+4+8)      = 31  months  (RF < icl ✓)
+        #   5 layers: RF = 1 + 2×(1+2+4+8+16)   = 63  months  (RF < icl ✓)
+        #   6 layers: RF = 1 + 2×(1+2+4+8+16+32)= 127 months  (RF > icl ✗ — excluded)
+        "num_layers": {"values": [4, 5]},
         # weight_norm: Essential for TCN stability — better than batch_norm
         # for sparse gradients in zero-inflated data.
-        "weight_norm": {"values": [True]},
+        "weight_norm": {"values": [True, False]},
         # use_reversible_instance_norm: Normalizes input, reverses on output.
         # Helps with distribution shift across countries.
         "use_reversible_instance_norm": {"values": [True, False]},

@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v1_msle",
+        "name": "new_rules_nbeats_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -47,8 +47,8 @@ def get_sweep_config():
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
-        "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "lr_scheduler_eta_min": {"values": [0.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -109,14 +109,14 @@ def get_sweep_config():
         # generic_architecture: True uses generic basis (learnable), False
         # uses interpretable trend+seasonality decomposition. Generic is
         # more flexible for conflict data which lacks clean seasonality.
-        "generic_architecture": {"values": [True, False]},
+        "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
         "num_stacks": {"values": [2, 3]},
         # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack
         # for generic. Keep at 1 — increasing stacks is more effective
         # than increasing blocks, and 2 blocks doubles params per stack.
-        "num_blocks": {"values": [1]},
+        "num_blocks": {"values": [2, 4]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
         "num_layers": {"values": [2, 3]},
@@ -124,18 +124,18 @@ def get_sweep_config():
         # input_chunk_length * n_features into a single vector (~36×40=1440
         # dims), so layers must be wide enough to avoid crushing that signal.
         # 512-768 keeps compression ratio manageable (~2-3x).
-        "layer_widths": {"values": [256, 512, 768]},
+        "layer_widths": {"values": [64, 128, 256]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Controls expressiveness of the
         # learned basis functions. 5 is paper default, 32 is richer.
-        "expansion_coefficient_dim": {"values": [16, 32]},
+        "expansion_coefficient_dim": {"values": [16, 32, 64]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default. LeakyReLU prevents
         # dead neurons on sparse targets.
         "activation": {"values": ["ReLU", "LeakyReLU"]},
-        "use_static_covariates": {"values": [True, False]},
+        "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
@@ -166,7 +166,7 @@ def get_sweep_config():
         "beta": {
             "distribution": "uniform",
             "min": 0.0,
-            "max": 0.3,
+            "max": 0.8,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
@@ -185,7 +185,7 @@ def get_sweep_config():
         "gamma": {
             "distribution": "uniform",
             "min": 0.0,
-            "max": 0.2,
+            "max": 0.3,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
