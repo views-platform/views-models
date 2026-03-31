@@ -8,13 +8,7 @@ def generate():
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
-            
-    .with_column(
-        Column("lr_gdp_pcap_splag", from_loa="country_year", from_column="wdi_ny_gdp_pcap_kd")
-            .transform.missing.fill()
-            .transform.missing.replace_na()
-            .transform.spatial.countrylag(1, 1, 0, 0)
-            )
+
 
     .with_column(
         Column("lr_pop_totl", from_loa="country_year", from_column="wdi_sp_pop_totl")

@@ -61,8 +61,8 @@ def get_hp_config():
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)
         "kappa": 0.0,  # unused when beta=0, but required by constructor
-        "delta": 10.0,  # Huber threshold
-        "gamma": 0.0,  # temporal gradient penalty — prevents flat predictions with RevIN
+        # "delta": 10.0,  # Huber threshold
+        "gamma": 0.35,  # temporal gradient penalty — prevents flat predictions with RevIN
         # Scaling
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
@@ -76,7 +76,6 @@ def get_hp_config():
                 "lr_ged_sb_splag",
                 "lr_ged_os_splag",
                 "lr_ged_ns_splag",
-                "lr_gdp_pcap_splag",
             ],
             "MinMaxScaler": [
                 "lr_vdem_v2x_libdem",
@@ -98,7 +97,7 @@ def get_hp_config():
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "average",
-                # "regressor_col": "lr_ged_sb",
+                "regressor_col": "lr_ged_sb",
             },
         },
     }
