@@ -1,6 +1,7 @@
 import os
 import importlib.util
 import logging
+import tempfile
 logging.basicConfig(
     level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
 )
@@ -149,8 +150,13 @@ def update_readme_with_tables(
         content, "ENSEMBLE_TABLE", ensemble_table
     )
 
-    with open(readme_path, "w") as file:
-        file.write(content)
+    dir_name = os.path.dirname(os.path.abspath(readme_path))
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=dir_name, suffix=".tmp", delete=False
+    ) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    os.replace(tmp_path, readme_path)
 
 
 def replace_table_in_section(content, section_name, new_table):

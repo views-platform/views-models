@@ -3,7 +3,7 @@
 **Last updated:** 2026-04-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 34 (30 concerns + 4 disagreements)  
-**Concerns:** Open 12 | Mitigated 6 | Resolved 9 | Accepted 3  
+**Concerns:** Open 11 | Mitigated 6 | Resolved 10 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -233,8 +233,8 @@
 | **Tier** | 3 |
 | **Trigger** | `create_catalogs.py` crashes between reading and writing `README.md` |
 | **Source** | test-review (Feathers), expert-code-review (Martin) |
-| **Status** | Open |
-| **Notes** | The `__main__` block reads README.md, modifies it in memory, and writes it back without transactional safety. If the script crashes mid-write, README could be corrupted. The CI workflow `update_catalogs.yml` auto-commits the result. Should write to temp file then atomically rename. |
+| **Status** | Resolved |
+| **Notes** | `update_readme_with_tables()` now writes to a `NamedTemporaryFile` in the same directory, then calls `os.replace()` for an atomic rename (2026-04-06). A crash mid-write leaves only the temp file; the original README is untouched. |
 
 ---
 
