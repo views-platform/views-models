@@ -40,10 +40,10 @@ These ADRs define system philosophy and governance:
 ## Project-Specific ADRs (010+)
 
 - **[ADR-010](010_technical_risk_register.md)** — Technical Risk Register as a Governance Artifact
+- **[ADR-011](011_partition_semantics.md)** — Partition Boundary Semantics
 
 Candidates for future ADRs:
 
-- Partition Boundary Semantics — ViewsMonth 121 = Jan 1990, 444 = Dec 2016, 492 = Dec 2020, 540 = Dec 2024; rationale for these split points is undocumented (C-21)
 - CM-before-PGM Ensemble Ordering
 - Config Key Evolution Policy (how to add new required keys)
 - Model Naming Convention and Governance

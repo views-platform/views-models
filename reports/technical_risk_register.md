@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 32 (28 concerns + 4 disagreements)  
-**Concerns:** Open 14 | Mitigated 5 | Resolved 6 | Accepted 3  
+**Total entries:** 34 (30 concerns + 4 disagreements)  
+**Concerns:** Open 13 | Mitigated 5 | Resolved 9 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -17,8 +17,8 @@
 | **Tier** | 1 |
 | **Trigger** | A decision is made to change calibration, validation, or forecasting partition boundaries |
 | **Source** | repo-assimilation |
-| **Status** | Open |
-| **Notes** | ADR-002 mandates self-contained configs (intentional duplication). `test_config_partitions.py` detects drift. The coordination cost is the price of model independence. A migration tool could reduce risk but does not exist. |
+| **Status** | Mitigated |
+| **Notes** | `meta/partitions.json` is now the single source of truth. `scripts/update_partitions.py` rewrites all 73 files from it. `test_config_partitions.py` reads canonical values from the same source and covers models, ensembles, extractors, and postprocessors. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations. Full resolution would require `views_pipeline_core` to support centralized partition loading. See ADR-011. |
 
 ---
 
@@ -257,8 +257,8 @@
 | **Tier** | 3 |
 | **Trigger** | A new contributor or auditor asks "why 121? why 444?" and finds no answer |
 | **Source** | expert-code-review (Kleppmann) |
-| **Status** | Mitigated |
-| **Notes** | ViewsMonth-to-date mapping added as comment in `models/adolecent_slob/configs/config_partitions.py` and in `docs/ADRs/README.md` ADR-011 candidate description (2026-04-06). Full rationale for split points still pending as a future ADR. |
+| **Status** | Resolved |
+| **Notes** | ADR-011 documents ViewsMonth-to-date mapping, split point rationale, invariants, override mechanism, and migration procedure (2026-04-06). `meta/partitions.json` serves as the canonical reference. |
 
 ---
 
@@ -343,6 +343,30 @@
 | **Source** | tech-debt-cleanup |
 | **Status** | Resolved |
 | **Notes** | `.github/workflows/update_catalogs.yml` used `$?` which only captured `update_readme.py` exit code. A `create_catalogs.py` crash was silently ignored. Fixed by adding `set -e` to the run block and removing the redundant `$?` check (2026-04-06). Also removed stale `create_catalogs_01` test branch from triggers. |
+
+---
+
+### C-29 — Dead root-level `config_partitions.py` in `rude_boy` with stale boundaries
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A contributor or tool reads the wrong `config_partitions.py` and assumes `(121, 396)` boundaries are correct |
+| **Source** | tech-debt-cleanup (C-01 investigation) |
+| **Status** | Resolved |
+| **Notes** | `ensembles/rude_boy/config_partitions.py` (root level) had boundaries `(121, 396)/(397, 444)` — 4.5 years shorter calibration window than standard. Framework always loads from `configs/` (which had correct values). Root file was dead code from copy-paste chain (Dylan Aug 2025 → xiaolongsun revert Oct 2025). Deleted (2026-04-06). |
+
+---
+
+### C-30 — `ucdp_extractor` had non-standard partition boundaries from copy-paste error
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | `ucdp_extractor` runs with boundaries `(121, 396)` and forecasting offset `-2`, training on a 4.5-year shorter window than all other models |
+| **Source** | tech-debt-cleanup (C-01 investigation) |
+| **Status** | Resolved |
+| **Notes** | `extractors/ucdp_extractor/configs/config_partitions.py` used `(121, 396)/(397, 444)` boundaries and offset `-2`. Root cause: smellycloud (Nov 2025, commit `901ec1e`) copied from `rude_boy`'s deviant root file instead of using the standard template. Extractor was in `shadow` status, excluded from all CI/testing, so the deviation was never caught. Fixed to standard values (2026-04-06). Test coverage extended to include extractors and postprocessors. |
 
 ---
 
