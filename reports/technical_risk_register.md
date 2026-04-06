@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 30 (26 concerns + 4 disagreements)  
-**Concerns:** Open 17 | Mitigated 4 | Resolved 3 | Accepted 3  
+**Total entries:** 32 (28 concerns + 4 disagreements)  
+**Concerns:** Open 14 | Mitigated 5 | Resolved 6 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -319,6 +319,30 @@
 | **Source** | test-review (Leveson) |
 | **Status** | Open |
 | **Notes** | The `--level` filter shells out to Python with `2>/dev/null`. If `config_meta.py` is broken, the model is silently excluded from the filtered set. A broken model escapes testing because the test runner can't classify it, and no one is notified. CIC documents this as a known deviation. |
+
+---
+
+### C-27 — Missing `requirements.txt` for `rude_boy` ensemble
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Dependency tooling or tests assume all ensembles have a `requirements.txt` |
+| **Source** | tech-debt-cleanup |
+| **Status** | Resolved |
+| **Notes** | `ensembles/rude_boy/` was the only ensemble missing `requirements.txt`. Created with `views-pipeline-core>=2.0.0,<3.0.0` matching all other ensembles (2026-04-06). |
+
+---
+
+### C-28 — CI workflow only checks last script exit code
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `create_catalogs.py` fails but `update_readme.py` succeeds; CI auto-commits corrupted output |
+| **Source** | tech-debt-cleanup |
+| **Status** | Resolved |
+| **Notes** | `.github/workflows/update_catalogs.yml` used `$?` which only captured `update_readme.py` exit code. A `create_catalogs.py` crash was silently ignored. Fixed by adding `set -e` to the run block and removing the redundant `$?` check (2026-04-06). Also removed stale `create_catalogs_01` test branch from triggers. |
 
 ---
 
