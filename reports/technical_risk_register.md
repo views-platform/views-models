@@ -65,8 +65,8 @@
 | **Tier** | 3 |
 | **Trigger** | A stepshifter or baseline model is created with missing hyperparameters |
 | **Source** | repo-assimilation |
-| **Status** | Open |
-| **Notes** | `test_darts_reproducibility.py` validates DARTS models against a canonical parameter list, but stepshifter (~20 models) and baseline (~6 models) have no equivalent check. A missing hyperparameter surfaces only at training time. |
+| **Status** | Open (cross-repo) |
+| **Notes** | Requires upstream changes. Feature branches `feature/reproducibilitygate` created in both `views-stepshifter` and `views-baseline` with story docs proposing `ReproducibilityGate` equivalents (2026-04-06). Once implemented upstream, views-models can add validation tests following the `test_darts_reproducibility.py` pattern. A patch approach (hardcoding required keys in views-models tests) was rejected as unsustainable — the source of truth for required params must live in the algorithm packages. |
 
 ---
 
