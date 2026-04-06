@@ -3,7 +3,7 @@
 **Last updated:** 2026-04-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 34 (30 concerns + 4 disagreements)  
-**Concerns:** Open 11 | Mitigated 6 | Resolved 10 | Accepted 3  
+**Concerns:** Open 9 | Mitigated 7 | Resolved 11 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -89,8 +89,8 @@
 | **Tier** | 3 |
 | **Trigger** | A `views_pipeline_core` template update changes scaffold output, causing newly created models to fail existing tests |
 | **Source** | repo-assimilation |
-| **Status** | Open |
-| **Notes** | `build_model_scaffold.py` and `build_ensemble_scaffold.py` generate the initial structure for all new models. No test validates that scaffold output satisfies `test_model_structure.py` or `test_config_completeness.py`. |
+| **Status** | Mitigated |
+| **Notes** | `test_scaffold_builders.py` added (2026-04-06) with 7 AST-based tests verifying injection seams and 2 functional tests (skipped without `views_pipeline_core`). Injection seams (`input_fn`, `get_version_fn`, `pipeline_config`) allow mocked testing of `build_model_scripts()`. Remaining gap: no test validates that generated scaffold output satisfies structural tests. |
 
 ---
 
@@ -221,8 +221,8 @@
 | **Tier** | 3 |
 | **Trigger** | Any attempt to write automated tests for `ModelScaffoldBuilder` or `EnsembleScaffoldBuilder` |
 | **Source** | test-review (Beck), expert-code-review (Martin, Ousterhout) |
-| **Status** | Open |
-| **Notes** | `build_model_scripts()` uses `input()` directly for user prompts and makes network calls to GitHub API. No dependency injection seam exists. The class cannot be instantiated in a test without monkey-patching stdin. This is the root cause of C-07 (scaffold builder untested). |
+| **Status** | Resolved |
+| **Notes** | `build_model_scripts()` now accepts optional `input_fn` and `get_version_fn` keyword arguments (2026-04-06). Defaults to `input()` and `PackageManager.get_latest_release_version_from_github()` — backward compatible. `EnsembleScaffoldBuilder.build_model_scripts()` accepts optional `pipeline_config`. Tests pass mock callables to avoid stdin/network. Also fixed `== False` to `not` in package validation. CICs updated. |
 
 ---
 
