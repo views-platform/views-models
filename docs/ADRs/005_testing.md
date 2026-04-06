@@ -25,12 +25,12 @@ We adopt a three-team testing taxonomy:
 |------|---------|----------------------|
 | **Green** (Correctness) | Verify the system works as intended | `test_config_completeness.py` — required keys exist, values are valid |
 | **Beige** (Convention) | Catch configuration drift and convention violations | `test_model_structure.py` — naming, file presence; `test_config_partitions.py` — delegation to shared module; `test_cli_pattern.py` — CLI import consistency |
-| **Red** (Adversarial) | Expose failure modes by testing edge cases | Not yet implemented — future work |
+| **Red** (Adversarial) | Expose failure modes by testing edge cases | `test_failure_modes.py` — config loading error paths |
 
 ### Test Design Principles
 
 1. **Tests must run without ML dependencies** — Tests parse source code and use `importlib.util` to load config modules, avoiding dependency on `views_pipeline_core`, `ingester3`, or algorithm packages.
-2. **Tests are parametrized over all models** — Every test runs against all ~66 models, catching drift immediately.
+2. **Tests are parametrized over all models** — Every test runs against all 66 models, catching drift immediately.
 3. **Tests run fast** — The full suite completes in ~2 seconds.
 
 ### Current Test Suite
@@ -42,6 +42,10 @@ We adopt a three-team testing taxonomy:
 | `tests/test_model_structure.py` | Beige | Naming convention, required files, config directory structure |
 | `tests/test_cli_pattern.py` | Beige | New CLI import pattern, no explicit `wandb.login()` |
 | `tests/test_catalogs.py` | Green | No `exec()` usage, markdown generation correctness |
+| `tests/test_ensemble_configs.py` | Green | Ensemble structure, required keys, constituent model existence and level consistency |
+| `tests/test_darts_reproducibility.py` | Green | DARTS reproducibility gate parameter completeness (skipped without `views_r2darts2`) |
+| `tests/test_algorithm_coherence.py` | Beige | Algorithm-to-package mapping, requirements.txt consistency with main.py imports |
+| `tests/test_failure_modes.py` | Red | Config loading error paths: syntax errors, missing functions, non-existent files |
 
 ### Test Requirements for Changes
 
@@ -53,11 +57,11 @@ We adopt a three-team testing taxonomy:
 
 ## Known Gaps
 
-- No red-team (adversarial) tests yet
 - Catalog generation function tests require `views_pipeline_core` (skipped in most dev environments)
-- No cross-validation between `config_meta.algorithm` and `main.py` manager import
-- No ensemble config tests
-- Tests are not wired into CI (`.github/workflows/`)
+- DARTS reproducibility tests require `views_r2darts2` (skipped without it); no equivalent for stepshifter or baseline
+- Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03
+- No static validation of queryset correctness — see Risk Register C-02
+- Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime behavior
 
 ---
 

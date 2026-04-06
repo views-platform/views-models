@@ -1,6 +1,6 @@
 # Instantiation Checklist
 
-Completed during initial adoption of governance docs for views-models.
+Completed during initial adoption (2026-03-15) and updated (2026-04-05) with governance expansion.
 
 ---
 
@@ -8,19 +8,20 @@ Completed during initial adoption of governance docs for views-models.
 
 ### All adopted ADRs
 - [x] Update Status from template to Accepted
-- [x] Fill in Date (2026-03-15), Deciders (Simon), Informed (All contributors)
+- [x] Fill in Date, Deciders (Project maintainers), Informed (All contributors)
 
 ### Per-ADR adaptation notes
 - [x] **ADR-000:** Path set to `docs/ADRs/`
-- [x] **ADR-001:** Ontology categories mapped to views-models entities (models, configs, ensembles, tooling, etc.)
+- [x] **ADR-001:** Ontology categories mapped to views-models entities (68 models, 5 ensembles, configs, tooling, etc.)
 - [x] **ADR-002:** Dependency direction defined (models → external packages, self-contained configs)
 - [x] **ADR-003:** Fail-loud examples adapted to config validation and partition consistency
-- [x] **ADR-004:** Deferred (evolution/stability rules not yet needed)
+- [x] **ADR-004:** Activated (2026-04-05) — three-tier stability classification (Stable/Conventional/Volatile)
 - [x] **ADR-005:** Testing taxonomy mapped to existing test suite (green/beige categories)
-- [x] **ADR-006:** Intent contracts identified for 4 entities
+- [x] **ADR-006:** Intent contracts identified for 5 entities
 - [x] **ADR-007:** Silicon agent constraints adapted for bulk config operations
 - [x] **ADR-008:** Observability grounded in current logging patterns and known deviations
 - [x] **ADR-009:** Boundary contracts mapped to config validation tests
+- [x] **ADR-010:** Technical risk register ADR created, register seeded with 11 risks from repo-assimilation
 
 ---
 
@@ -29,8 +30,9 @@ Completed during initial adoption of governance docs for views-models.
 - [x] Replace placeholder active contracts list in `CICs/README.md`
 - [x] Create `ModelScaffoldBuilder.md`
 - [x] Create `EnsembleScaffoldBuilder.md`
-- [x] Create `CommonPartitions.md`
 - [x] Create `CatalogExtractor.md`
+- [x] Create `PackageScaffoldBuilder.md` (2026-04-05)
+- [x] Create `IntegrationTestRunner.md` (2026-04-05)
 
 ---
 
@@ -45,7 +47,14 @@ Completed during initial adoption of governance docs for views-models.
 ## Standards
 
 - [x] Adapt `logging_and_observability_standard.md` to current patterns and known deviations
-- [ ] Physical architecture standard — skipped (not applicable to this repo's architecture)
+- [x] Adapt `physical_architecture_standard.md` as default heuristic (not strict enforcement) (2026-04-05)
+
+---
+
+## Risk Register
+
+- [x] Create `reports/technical_risk_register.md` seeded with 11 concerns from repo-assimilation (2026-04-05)
+- [x] Create governing ADR-010 (2026-04-05)
 
 ---
 
@@ -54,4 +63,4 @@ Completed during initial adoption of governance docs for views-models.
 - [x] No files still have Status `--template--`
 - [x] No phantom references to non-existent files
 - [x] All cross-ADR references resolve correctly
-- [ ] Run `validate_docs.sh` to check internal consistency
+- [x] Run `validate_docs.sh` to check internal consistency
