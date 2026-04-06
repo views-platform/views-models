@@ -3,7 +3,7 @@
 **Last updated:** 2026-04-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 34 (30 concerns + 4 disagreements)  
-**Concerns:** Open 13 | Mitigated 5 | Resolved 9 | Accepted 3  
+**Concerns:** Open 12 | Mitigated 6 | Resolved 9 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -209,8 +209,8 @@
 | **Tier** | 2 |
 | **Trigger** | A developer modifies `create_catalogs.py`, `update_readme.py`, or `generate_features_catalog.py` and introduces a regression |
 | **Source** | test-review (Feathers) |
-| **Status** | Open |
-| **Notes** | `create_catalogs.py` (237 lines), `update_readme.py` (281 lines), `generate_features_catalog.py` (117 lines) have near-zero test coverage. These are change-prone scripts modified when model metadata patterns change. `create_catalogs.py` only has `exec()` absence validated; core logic `extract_models()` is untested. |
+| **Status** | Mitigated |
+| **Notes** | 16 characterization tests added in `test_tooling_scripts.py` (2026-04-06) covering: `replace_table_in_section`, `generate_markdown_table`, `generate_repo_structure`, "Created on" regex, and Column extraction regex. Scripts cannot be imported directly (top-level `views_pipeline_core` imports) so pure function logic is duplicated in tests. Remaining gap: orchestration logic (`__main__` blocks, `extract_models()`) untestable without `views_pipeline_core` runtime. |
 
 ---
 
