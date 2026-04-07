@@ -10,7 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'submodels_to_train': 100,
+        'submodels_to_train': 5,
         'pred_samples': 5,
         'log_target': False,
         'draw_dist': 'Lognormal',
