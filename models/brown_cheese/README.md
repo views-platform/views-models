@@ -1,3 +1,58 @@
-# Model README
-## Model name: brown_cheese
-## Created on: 2024-11-01 13:54:11.339215
+# Brown Cheese 
+## Overview
+
+
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | XGBRFRegressor                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  brown_cheese   |
+| **Feature Description**       |  Fatalities conflict history, cm level Predicting fatalities using conflict predictors, ultrashort    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Deployment Status**       |  shadow    |
+
+## Repository Structure
+
+```
+Brown Cheese
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
+
+## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
+```
+
+

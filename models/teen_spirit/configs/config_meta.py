@@ -9,11 +9,13 @@ def get_meta_config():
     
     meta_config = {
         "name": "teen_spirit", 
-        "algorithm": "RandomForestModel",
-        "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "algorithm": "XGBRFRegressor",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_faoprices",
         "level": "cm",
-        "creator": "Marina"
+        "creator": "Marina",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

@@ -9,11 +9,13 @@ def get_meta_config():
     
     meta_config = {
         "name": "bittersweet_symphony", 
-        "algorithm": "XGBModel",
-        "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
-        "queryset": " fatalities003_all_features",
+        "algorithm": "XGBRegressor",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
+        "queryset": "fatalities003_all_features",
         "level": "cm",
-        "creator": "Marina"
+        "creator": "Marina",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

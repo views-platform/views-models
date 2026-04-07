@@ -1,0 +1,6 @@
+Single Model Name: hot_stream
+Single Model Timestamp: 20260218_171218
+Data Generation Timestamp: 20260218_171915
+Data Fetch Timestamp: 20260218_142905
+Deployment Status: shadow
+

@@ -1,70 +1,77 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
 
 def generate():
     
-    qs_natsoc = (Queryset('fatalities003_pgm_natsoc','priogrid_month')
+    qs_natsoc = (Queryset(f'{model_name}','priogrid_month')
                  
-                .with_column(Column('ln_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
-                    .transform.missing.replace_na()
-                    .transform.ops.ln()
-                    )
+                #  .with_column(Column('raw_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
 
-                .with_column(Column('ln_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
-                    .transform.ops.ln()
+                #  .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi'))
+                 
+                # .with_column(Column('lr_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                #     .transform.missing.replace_na()
+                #     # .transform.ops.ln()
+                #     )
+
+                .with_column(Column('lr_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                    # .transform.ops.ln()
                     .transform.missing.fill()
                     )
 
-                .with_column(Column('imr_mean', from_loa='priogrid_year', from_column='imr_mean')
-                    .transform.missing.fill()
-                    .transform.missing.replace_na()
-                    )
-
-                .with_column(Column('mountains_mean', from_loa='priogrid_year', from_column='mountains_mean')
-                    .transform.missing.fill()
-                    .transform.missing.replace_na()
-                    )
-
-                .with_column(Column('dist_diamsec', from_loa='priogrid', from_column='dist_diamsec_s_wgs')
+                .with_column(Column('lr_imr_mean', from_loa='priogrid_year', from_column='imr_mean')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('dist_petroleum', from_loa='priogrid', from_column='dist_petroleum_s_wgs')
+                .with_column(Column('lr_mountains_mean', from_loa='priogrid_year', from_column='mountains_mean')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('agri_ih', from_loa='priogrid_year', from_column='agri_ih')
+                .with_column(Column('lr_dist_diamsec', from_loa='priogrid', from_column='dist_diamsec_s_wgs')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('barren_ih', from_loa='priogrid_year', from_column='barren_ih')
+                .with_column(Column('lr_dist_petroleum', from_loa='priogrid', from_column='dist_petroleum_s_wgs')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('forest_ih', from_loa='priogrid_year', from_column='forest_ih')
+                .with_column(Column('lr_agri_ih', from_loa='priogrid_year', from_column='agri_ih')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('pasture_ih', from_loa='priogrid_year', from_column='pasture_ih')
+                .with_column(Column('lr_barren_ih', from_loa='priogrid_year', from_column='barren_ih')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('savanna_ih', from_loa='priogrid_year', from_column='savanna_ih')
+                .with_column(Column('lr_forest_ih', from_loa='priogrid_year', from_column='forest_ih')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('shrub_ih', from_loa='priogrid_year', from_column='shrub_ih')
+                .with_column(Column('lr_pasture_ih', from_loa='priogrid_year', from_column='pasture_ih')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('urban_ih', from_loa='priogrid_year', from_column='urban_ih')
+                .with_column(Column('lr_savanna_ih', from_loa='priogrid_year', from_column='savanna_ih')
+                    .transform.missing.fill()
+                    .transform.missing.replace_na()
+                    )
+
+                .with_column(Column('lr_shrub_ih', from_loa='priogrid_year', from_column='shrub_ih')
+                    .transform.missing.fill()
+                    .transform.missing.replace_na()
+                    )
+
+                .with_column(Column('lr_urban_ih', from_loa='priogrid_year', from_column='urban_ih')
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
@@ -99,13 +106,13 @@ def generate():
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('greq_1_excluded', from_loa='priogrid_year', from_column='excluded')
+                .with_column(Column('lr_greq_1_excluded', from_loa='priogrid_year', from_column='excluded')
                     .transform.bool.gte(1)
                     .transform.missing.fill()
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('decay_ged_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                .with_column(Column('lr_decay_ged_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                     .transform.missing.replace_na()
                     .transform.bool.gte(1)
                     .transform.temporal.time_since()
@@ -113,7 +120,7 @@ def generate():
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('decay_ged_sb_25', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                .with_column(Column('lr_decay_ged_sb_25', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                     .transform.missing.replace_na()
                     .transform.bool.gte(25)
                     .transform.temporal.time_since()
@@ -121,7 +128,7 @@ def generate():
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('decay_ged_os_1', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi')
+                .with_column(Column('lr_decay_ged_os_1', from_loa='priogrid_month', from_column='ged_os_best_sum_nokgi')
                     .transform.missing.replace_na()
                     .transform.bool.gte(1)
                     .transform.temporal.time_since()
@@ -129,7 +136,7 @@ def generate():
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('splag_1_1_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                .with_column(Column('lr_splag_1_1_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                     .transform.missing.replace_na()
                     .transform.bool.gte(1)
                     .transform.temporal.time_since()
@@ -138,7 +145,7 @@ def generate():
                     .transform.missing.replace_na()
                     )
 
-                .with_column(Column('splag_1_decay_ged_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                .with_column(Column('lr_splag_1_decay_ged_sb_1', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                     .transform.missing.replace_na()
                     .transform.bool.gte(1)
                     .transform.temporal.time_since()
@@ -150,7 +157,7 @@ def generate():
                 .with_theme('fatalities')
                 .describe("""Fatalities natural and social geography, pgm level
 
-                                    Predicting ln(fatalities) using natural and social geography features
+                                    Predicting fatalities using natural and social geography features
 
                                     """)
                 )

@@ -9,10 +9,11 @@ def get_meta_config():
     meta_config = {
         "name": "cruel_summer",
         "models": ["bittersweet_symphony", "brown_cheese"],
-        "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep", 
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"], 
         "level": "cm", 
         "aggregation": "median", 
-        "creator": "Xiaolong" 
+        "creator": "Xiaolong",
+        "reconciliation": None
     }
     return meta_config

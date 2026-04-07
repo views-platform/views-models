@@ -1,0 +1,6 @@
+Single Model Name: new_rules
+Single Model Timestamp: 20260317_045321
+Data Generation Timestamp: 20260317_045344
+Data Fetch Timestamp: 20260317_045106
+Deployment Status: shadow
+

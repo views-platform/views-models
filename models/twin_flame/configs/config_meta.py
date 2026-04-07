@@ -10,12 +10,14 @@ def get_meta_config():
     meta_config = {
         "name": "twin_flame", 
         "algorithm": "HurdleModel",
-        "model_clf": "LightGBMModel",
-        "model_reg": "LightGBMModel",
-        "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "model_clf": "LGBMClassifier",
+        "model_reg": "LGBMRegressor",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_topics",
         "level": "cm",
-        "creator": "Borbála"
+        "creator": "Borbála",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

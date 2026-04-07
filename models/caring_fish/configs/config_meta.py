@@ -9,11 +9,13 @@ def get_meta_config():
     
     meta_config = {
         "name": "caring_fish", 
-        "algorithm": "XGBModel",
-        "metrics": ["RMSLE", "CRPS"],
-        "depvar": "ln_ged_sb_dep",
+        "algorithm": "XGBRegressor",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_pgm_conflict_history",
         "level": "pgm",
-        "creator": "Xiaolong"
+        "creator": "Xiaolong",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

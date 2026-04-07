@@ -1,11 +1,21 @@
 from viewser import Queryset, Column
+from views_pipeline_core.managers.model import ModelPathManager
+
+model_name = ModelPathManager.get_model_name_from_path(__file__)
+
 
 def generate():
 
-    qs_conflict_history = (Queryset('fatalities003_pgm_conflict_history','priogrid_month')
+    qs_conflict_history = (Queryset(f'{model_name}','priogrid_month')
                            
-                        .with_column(Column('ln_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
-                            .transform.ops.ln()
+                        # .with_column(Column('raw_ged_sb_dep', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi'))
+
+                        # .with_column(Column('raw_ged_ns', from_loa='priogrid_month', from_column='ged_ns_best_count_nokgi'))
+
+                        # .with_column(Column('raw_ged_os', from_loa='priogrid_month', from_column='ged_os_best_count_nokgi'))
+                           
+                        .with_column(Column('lr_ged_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                            # .transform.ops.ln()
                             .transform.missing.fill()
                             )
 
@@ -45,37 +55,37 @@ def generate():
                             .transform.missing.fill()
                             )
 
-                        .with_column(Column('mov_avg_6_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_avg_6_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_average(6)
                             )
 
-                        .with_column(Column('mov_avg_12_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_avg_12_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_average(12)
                             )
 
-                        .with_column(Column('mov_avg_36_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_avg_36_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_average(36)
                             )
 
-                        .with_column(Column('mov_sum_6_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_sum_6_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_sum(6)
                             )
 
-                        .with_column(Column('mov_sum_12_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_sum_12_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_sum(12)
                             )
 
-                        .with_column(Column('mov_sum_36_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
+                        .with_column(Column('ln_mov_sum_36_ged_best_sb', from_loa='priogrid_month', from_column='ged_sb_best_sum_nokgi')
                             .transform.ops.ln()
                             .transform.missing.fill()
                             .transform.temporal.moving_sum(36)
@@ -206,7 +216,7 @@ def generate():
                         .with_theme('fatalities')
                         .describe("""Fatalities conflict history
 
-                                                Predicting ln(fatalities) using conflict predictors
+                                                Predicting fatalities using conflict predictors
 
                                                 """)
                         )
