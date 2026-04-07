@@ -144,7 +144,12 @@ class TestEnsembleScaffoldInjectionSeams:
 # ---------------------------------------------------------------------------
 
 class TestModelScaffoldBuilderFunctional:
-    """Functional tests using the injection seams. Skipped without views_pipeline_core."""
+    """Functional tests using the injection seams. Skipped without views_pipeline_core.
+
+    NOTE: These tests access private attributes (_model._model_dir, _model_algorithm)
+    because ModelScaffoldBuilder has no public API for overriding the model directory.
+    Changes to ModelPathManager internals in views_pipeline_core could break these tests.
+    """
 
     @pytest.fixture(autouse=True)
     def _skip_without_vpc(self):

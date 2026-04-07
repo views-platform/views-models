@@ -276,3 +276,90 @@ qs_test = (Queryset("test_queryset", "priogrid_month")
         source = "x = 42\nno columns here\n"
         matches = COLUMN_PATTERN.findall(source)
         assert matches == []
+
+
+# ---------------------------------------------------------------------------
+# Characterization: scripts/update_partitions.py :: update_file
+# ---------------------------------------------------------------------------
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+from update_partitions import update_file, OVERRIDE_MARKER
+
+
+SAMPLE_PARTITION_FILE = '''\
+from ingester3.ViewsMonth import ViewsMonth
+
+def generate(steps: int = 36) -> dict:
+    def forecasting_train_range():
+        month_last = ViewsMonth.now().id - 1
+        return (121, month_last)
+
+    def forecasting_test_range(steps):
+        month_last = ViewsMonth.now().id - 1
+        return (month_last + 1, month_last + 1 + steps)
+
+    return {
+        "calibration": {
+            "train": (121, 444),
+            "test": (445, 492),
+        },
+        "validation": {
+            "train": (121, 492),
+            "test": (493, 540),
+        },
+        "forecasting": {
+            "train": forecasting_train_range(),
+            "test": forecasting_test_range(steps=steps),
+        },
+    }
+'''
+
+CANONICAL = {
+    "calibration": {"train": [121, 444], "test": [445, 492]},
+    "validation": {"train": [121, 492], "test": [493, 540]},
+    "forecasting_offset": -1,
+}
+
+
+class TestUpdatePartitionsUpdateFile:
+    def test_already_current(self, tmp_path):
+        f = tmp_path / "config_partitions.py"
+        f.write_text(SAMPLE_PARTITION_FILE)
+        assert update_file(f, CANONICAL, dry_run=False) == "already_current"
+
+    def test_updates_stale_values(self, tmp_path):
+        stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
+        stale = stale.replace("(445, 492)", "(397, 444)")
+        f = tmp_path / "config_partitions.py"
+        f.write_text(stale)
+        assert update_file(f, CANONICAL, dry_run=False) == "updated"
+        result = f.read_text()
+        assert "(121, 444)" in result
+        assert "(445, 492)" in result
+        assert "(121, 396)" not in result
+
+    def test_dry_run_does_not_write(self, tmp_path):
+        stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
+        f = tmp_path / "config_partitions.py"
+        f.write_text(stale)
+        assert update_file(f, CANONICAL, dry_run=True) == "updated"
+        assert "(121, 396)" in f.read_text()  # unchanged on disk
+
+    def test_skips_override(self, tmp_path):
+        overridden = f"{OVERRIDE_MARKER} special model\n" + SAMPLE_PARTITION_FILE
+        f = tmp_path / "config_partitions.py"
+        f.write_text(overridden)
+        assert update_file(f, CANONICAL, dry_run=False) == "skipped_override"
+
+    def test_updates_forecasting_offset(self, tmp_path):
+        stale = SAMPLE_PARTITION_FILE.replace("ViewsMonth.now().id - 1",
+                                              "ViewsMonth.now().id - 2")
+        f = tmp_path / "config_partitions.py"
+        f.write_text(stale)
+        assert update_file(f, CANONICAL, dry_run=False) == "updated"
+        assert "ViewsMonth.now().id - 1" in f.read_text()
+
+    def test_error_on_missing_file(self, tmp_path):
+        f = tmp_path / "nonexistent.py"
+        assert update_file(f, CANONICAL, dry_run=False) == "error"
