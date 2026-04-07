@@ -153,9 +153,9 @@ class TestModelScaffoldBuilderFunctional:
     def test_build_model_scripts_uses_injected_input(self, tmp_path):
         from build_model_scaffold import ModelScaffoldBuilder
 
-        builder = ModelScaffoldBuilder("test_scaffold_model")
+        builder = ModelScaffoldBuilder("fake_model")
         # Override the model directory to tmp_path
-        builder._model._model_dir = tmp_path / "models" / "test_scaffold_model"
+        builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
 
@@ -176,8 +176,8 @@ class TestModelScaffoldBuilderFunctional:
     def test_build_model_scripts_github_failure_graceful(self, tmp_path):
         from build_model_scaffold import ModelScaffoldBuilder
 
-        builder = ModelScaffoldBuilder("test_scaffold_model2")
-        builder._model._model_dir = tmp_path / "models" / "test_scaffold_model2"
+        builder = ModelScaffoldBuilder("fake_model")
+        builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
 

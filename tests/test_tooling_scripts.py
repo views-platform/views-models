@@ -7,6 +7,8 @@ characterization tests — pinning the current behavior so regressions are caugh
 
 If the algorithm in the source script changes, these tests must be updated
 to match. The source of truth is the script; the test documents the contract.
+When syncing, search for the function name in the source file to find the
+current line range — line numbers in section headers are approximate.
 """
 import re
 from pathlib import Path

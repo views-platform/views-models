@@ -48,47 +48,55 @@ def update_file(path: Path, canonical: dict, dry_run: bool) -> str:
 
     Returns: 'updated', 'skipped_override', 'already_current', or 'error'.
     """
-    source = path.read_text()
+    try:
+        source = path.read_text()
+    except OSError as e:
+        print(f"  ERROR: Could not read {path}: {e}")
+        return "error"
 
     if OVERRIDE_MARKER in source:
         return "skipped_override"
 
     new_source = source
 
-    replacements = {
-        "calibration": {
-            "train": tuple(canonical["calibration"]["train"]),
-            "test": tuple(canonical["calibration"]["test"]),
-        },
-        "validation": {
-            "train": tuple(canonical["validation"]["train"]),
-            "test": tuple(canonical["validation"]["test"]),
-        },
-    }
+    try:
+        replacements = {
+            "calibration": {
+                "train": tuple(canonical["calibration"]["train"]),
+                "test": tuple(canonical["calibration"]["test"]),
+            },
+            "validation": {
+                "train": tuple(canonical["validation"]["train"]),
+                "test": tuple(canonical["validation"]["test"]),
+            },
+        }
 
-    for section, keys in replacements.items():
-        # Match the entire section block to scope replacements
-        section_pattern = rf'("{section}":\s*\{{)(.*?)(\}})'
-        section_match = re.search(section_pattern, new_source, re.DOTALL)
-        if not section_match:
-            continue
-        block = section_match.group(2)
-        new_block = block
-        for key, (start, end) in keys.items():
-            key_pattern = rf'("{key}":\s*\()\d+,\s*\d+(\))'
-            new_block = re.sub(key_pattern, rf"\g<1>{start}, {end}\2", new_block)
-        new_source = (
-            new_source[:section_match.start(2)]
-            + new_block
-            + new_source[section_match.end(2):]
+        for section, keys in replacements.items():
+            # Match the entire section block to scope replacements
+            section_pattern = rf'("{section}":\s*\{{)(.*?)(\}})'
+            section_match = re.search(section_pattern, new_source, re.DOTALL)
+            if not section_match:
+                continue
+            block = section_match.group(2)
+            new_block = block
+            for key, (start, end) in keys.items():
+                key_pattern = rf'("{key}":\s*\()\d+,\s*\d+(\))'
+                new_block = re.sub(key_pattern, rf"\g<1>{start}, {end}\2", new_block)
+            new_source = (
+                new_source[:section_match.start(2)]
+                + new_block
+                + new_source[section_match.end(2):]
+            )
+
+        offset = abs(canonical["forecasting_offset"])
+        new_source = re.sub(
+            r'(ViewsMonth\.now\(\)\.id\s*-\s*)\d+',
+            rf'\g<1>{offset}',
+            new_source,
         )
-
-    offset = abs(canonical["forecasting_offset"])
-    new_source = re.sub(
-        r'(ViewsMonth\.now\(\)\.id\s*-\s*)\d+',
-        rf'\g<1>{offset}',
-        new_source,
-    )
+    except Exception as e:
+        print(f"  ERROR: Failed to process {path}: {e}")
+        return "error"
 
     if new_source == source:
         return "already_current"
