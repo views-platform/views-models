@@ -158,6 +158,8 @@ class TestModelScaffoldBuilderFunctional:
         builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        # requirements_path is normally set by build_model_directory()
+        builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
         responses = iter(["XGBModel", "views-stepshifter"])
         def mock_input(prompt):
@@ -180,6 +182,8 @@ class TestModelScaffoldBuilderFunctional:
         builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        # requirements_path is normally set by build_model_directory()
+        builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
         responses = iter(["XGBModel", "views-stepshifter"])
 
