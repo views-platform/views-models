@@ -91,6 +91,7 @@ builder = EnsembleScaffoldBuilder("purple_alien")  # Fails — model already exi
 ## 11. Evolution Notes
 
 - Currently uses `self.requirements_path` from parent class, which is set during `build_model_directory()`. This coupling between directory creation and attribute state could be made more explicit.
+- `build_model_scripts()` accepts an optional `pipeline_config` keyword argument for dependency injection. Defaults to `PipelineConfig()`. Tests can pass a mock config to avoid runtime dependency on pipeline configuration.
 
 ---
 

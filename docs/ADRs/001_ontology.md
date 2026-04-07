@@ -20,7 +20,7 @@ The repository recognizes the following ontological categories:
 ### Domain Entities
 | Category | Location | Description |
 |----------|----------|-------------|
-| **Models** | `models/*/` | Individual forecasting model launchers (~66). Each is a thin `main.py` + config directory that delegates to an external architecture package. |
+| **Models** | `models/*/` | Individual forecasting model launchers (66 active). Each is a thin `main.py` + config directory that delegates to an external architecture package. |
 | **Ensembles** | `ensembles/*/` | Ensemble aggregation launchers (5). Aggregate predictions from constituent models. |
 
 ### Configuration Entities

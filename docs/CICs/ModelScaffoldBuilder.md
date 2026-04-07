@@ -107,7 +107,7 @@ builder = ModelScaffoldBuilder("HappyKitten")  # Fails validation
 
 ## 11. Evolution Notes
 
-- The builder currently prompts for user input interactively. A non-interactive mode would improve CI/scripting use cases.
+- `build_model_scripts()` accepts optional `input_fn` and `get_version_fn` keyword arguments for dependency injection. Defaults to `input()` and `PackageManager.get_latest_release_version_from_github()`. Tests can pass mock callables to avoid stdin and network dependencies.
 - Template generation logic lives in `views_pipeline_core`, not in this repo. Changes to templates require coordinating across repos.
 
 ---

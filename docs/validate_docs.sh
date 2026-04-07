@@ -55,10 +55,6 @@ while IFS= read -r ref; do
     file=$(echo "$ref" | cut -d: -f1)
     adr_num=$(echo "$ref" | grep -oP 'ADR-00\K[0-9]' | head -1)
     if [ -n "$adr_num" ]; then
-        # Skip ADR-004 (intentionally deferred)
-        if [ "$adr_num" = "4" ]; then
-            continue
-        fi
         match_count=$(find ADRs -name "00${adr_num}_*.md" 2>/dev/null | wc -l)
         if [ "$match_count" -eq 0 ]; then
             echo "  ERROR: $file references ADR-00${adr_num} but no matching file found"
@@ -66,6 +62,21 @@ while IFS= read -r ref; do
         fi
     fi
 done < <(grep -rn 'ADR-00[0-9]' --include='*.md' . 2>/dev/null || true)
+
+# 3b. Cross-ADR reference integrity (project-specific: 010+)
+echo "--- Checking cross-ADR references (project-specific: 010+) ---"
+while IFS= read -r ref; do
+    [[ -z "$ref" ]] && continue
+    file=$(echo "$ref" | cut -d: -f1)
+    adr_num=$(echo "$ref" | grep -oP 'ADR-0\K[0-9]{2}' | head -1)
+    if [ -n "$adr_num" ] && [ "$adr_num" -ge 10 ]; then
+        match_count=$(find ADRs -name "0${adr_num}_*.md" 2>/dev/null | wc -l)
+        if [ "$match_count" -eq 0 ]; then
+            echo "  ERROR: $file references ADR-0${adr_num} but no matching file found"
+            errors=$((errors + 1))
+        fi
+    fi
+done < <(grep -rn 'ADR-0[0-9][0-9]' --include='*.md' . 2>/dev/null || true)
 
 # 4. Check that referenced protocol files exist
 echo "--- Checking protocol file references ---"

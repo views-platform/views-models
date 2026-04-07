@@ -1,12 +1,9 @@
-import warnings
 from pathlib import Path
 from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
 
 # Import your model manager class here
 from views_hydranet.manager.hydranet_manager import HydranetManager
-
-warnings.filterwarnings("ignore")
 
 try:
     model_path = ModelPathManager(Path(__file__))
@@ -25,7 +22,9 @@ except Exception as e:
 if __name__ == "__main__":
     args = ForecastingModelArgs.parse_args()
     
+    manager = HydranetManager(model_path=model_path)
+
     if args.sweep:
-        HydranetManager(model_path=model_path).execute_sweep_run(args)
+        manager.execute_sweep_run(args)
     else:
-         HydranetManager(model_path=model_path).execute_single_run(args)
+        manager.execute_single_run(args)

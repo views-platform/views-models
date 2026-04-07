@@ -2,7 +2,6 @@ name: Update Model Catalogs
 on:
   push:
     branches:
-      - create_catalogs_01 # for testing on this branch
       - main
       - development
     paths:
@@ -33,13 +32,10 @@ jobs:
 
       - name: Generate catalog if models directory has changed
         run: |
-          python create_catalogs.py  
+          set -e
+          python create_catalogs.py
           python update_readme.py
-          if [ $? -ne 0 ]; then
-            echo "Generating catalogs failed."
-            exit 1
-          fi
-          echo "Model catalog is updated. Model READMEs are updated."           
+          echo "Model catalog is updated. Model READMEs are updated."
           git status
 
       - name: Configure Git
