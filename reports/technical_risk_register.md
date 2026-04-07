@@ -1,6 +1,6 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-06  
+**Last updated:** 2026-04-07  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 34 (30 concerns + 4 disagreements)  
 **Concerns:** Open 9 | Mitigated 7 | Resolved 11 | Accepted 3  
@@ -65,8 +65,8 @@
 | **Tier** | 3 |
 | **Trigger** | A stepshifter or baseline model is created with missing hyperparameters |
 | **Source** | repo-assimilation |
-| **Status** | Open (cross-repo, partially resolved) |
-| **Notes** | **Baseline: done.** `views-baseline` now has a `ReproducibilityGate` (ADR-014, CIC, 13 tests) on `feature/reproducibilitygate` branch — covers all 5 algorithms with `CORE_GENOME` + `ALGORITHM_GENOMES`, runtime enforcement in `BaselineForecastingModelManager`, and importable contract for views-models tests. Pending package release. **Stepshifter: open.** `views-stepshifter` has a story doc on `feature/reproducibilitygate` but no implementation yet. Once both packages release, views-models can add validation tests following the `test_darts_reproducibility.py` pattern. |
+| **Status** | Open (cross-repo, pending releases) |
+| **Notes** | **Baseline: done.** `views-baseline` has a `ReproducibilityGate` (ADR-014, CIC, 13 tests) on `feature/reproducibilitygate` — covers all 5 algorithms with `CORE_GENOME` + `ALGORITHM_GENOMES`, runtime enforcement in `BaselineForecastingModelManager`, importable contract. **Stepshifter: done.** `views-stepshifter` has a `ReproducibilityGate` (ADR-001, CIC, 17 tests) on `feature/reproducibilitygate` — covers all 5 algorithms with `CORE_GENOME` + `ALGORITHM_GENOMES` (split into `parameter_keys`/`config_keys` for nested params), runtime enforcement in `StepshifterManager._train_model_artifact()`, importable contract. **Remaining:** Both branches pending merge and package release. Once released, views-models can add validation tests following the `test_darts_reproducibility.py` pattern. All three algorithm packages (r2darts2, stepshifter, baseline) will then expose canonical HP contracts. |
 
 ---
 
