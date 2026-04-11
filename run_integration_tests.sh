@@ -297,7 +297,7 @@ for model in "${MODELS[@]}"; do
 
         start_time=$(date +%s)
 
-        timeout "$TIMEOUT" bash -c "
+        timeout --foreground "$TIMEOUT" bash -c "
             eval \"\$(conda shell.bash hook)\"
             conda activate '$CONDA_ENV'
             cd '$MODELS_DIR/$model'
