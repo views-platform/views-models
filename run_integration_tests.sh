@@ -278,9 +278,7 @@ TOTAL_RUNS=$(( RUNNABLE_COUNT * $(echo $PARTITIONS | wc -w) ))
 
 for model in "${MODELS[@]}"; do
     [ "$INTERRUPTED" -eq 1 ] && break
-#    if [[ -n "${DEPRECATED_SET[$model]:-}" ]]; then
-#
-        if [[ -v "DEPRECATED_SET[$model]" ]]; then
+    if [[ -v "DEPRECATED_SET[$model]" ]]; then
         echo -e "${YELLOW}SKIP${NC} ${BOLD}${model}${NC} — deployment_status=deprecated"
         for partition in $PARTITIONS; do
             RESULTS["${model}__${partition}"]="DEPRECATED"
