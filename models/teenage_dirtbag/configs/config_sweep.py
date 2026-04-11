@@ -133,7 +133,6 @@ def get_sweep_config():
         # use_reversible_instance_norm: Normalizes input, reverses on output.
         # Helps with distribution shift across countries.
         "use_reversible_instance_norm": {"values": [True, False]},
-        "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================

@@ -10,6 +10,8 @@ def get_hp_config():
     hyperparameters = {
         # Steps
         "steps": [*range(1, 36 + 1, 1)],
+        "time_steps": 36,  # Checksum: Must match len(steps)
+        "rolling_origin_stride": 1,
         "n_jobs": -1,
 
         # TiDE Architecture
@@ -115,6 +117,9 @@ def get_hp_config():
 
         # Encoders
         "use_cyclic_encoders": True,
+
+        # Prediction output format
+        "prediction_format": "dataframe",
     }
 
     return hyperparameters
