@@ -67,6 +67,20 @@ class TestModelFiles:
     def test_run_sh_exists(self, model_dir):
         assert (model_dir / "run.sh").exists()
 
+    def test_readme_md_tracked(self, model_dir):
+        """README.md must be tracked in git. ModelPathManager._initialize_scripts
+        (views-pipeline-core/.../model_path.py:475) validates its existence at
+        runtime; a missing file crashes on fresh clone. Checked against the git
+        index, not the filesystem, so a local-only file can't mask a broken
+        scaffold (same reason TestModelDirectoryStructure uses git ls-files).
+        """
+        rel_path = (model_dir / "README.md").relative_to(REPO_ROOT)
+        assert _git_tracks_path(rel_path), (
+            f"{model_dir.name} has no tracked README.md — the file is validated "
+            f"at runtime by ModelPathManager and its absence crashes on fresh "
+            f"clone. Create an (even empty) README.md and git-add it."
+        )
+
     def test_configs_directory_exists(self, model_dir):
         assert (model_dir / "configs").is_dir()
 
