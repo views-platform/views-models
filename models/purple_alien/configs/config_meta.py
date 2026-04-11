@@ -21,20 +21,17 @@ def get_meta_config():
 
         "prediction_format": "prediction_frame", #"dataframe",
         # "prediction_format": "dataframe",
-        "skip_predictions_delivery": True,  # Suspend Track B parquet delivery (OOM mitigation)
-      
-
         # ============================================================
         # diagnostic settings
         # ============================================================
-        "diagnostic_visualizations": False, #True,
+        "diagnostic_visualizations": True,
 
         # ============================================================
         # evaluation settings 
         # ============================================================
-        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample"],
+        "regression_sample_metrics": ["CRPS", "QS_sample", "MCR_sample"],
+        "classification_sample_metrics": ["Brier_cls_sample"],
         "evaluation_profile": "hydranet_ucdp",
-        "classification_point_metrics": ["AP"],
         "rolling_origin_stride": 1,
     }
     return meta_config 
