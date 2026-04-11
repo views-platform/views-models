@@ -118,6 +118,15 @@ class ModelScaffoldBuilder:
                     logging.error(f"Error creating subdirectory: {subdir}. {e}")
             else:
                 logging.info(f"Subdirectory already exists: {subdir}. Skipping.")
+            # Ensure git tracks the directory by placing a .gitkeep immediately.
+            # Without this, empty subdirs are lost on fresh clones and downstream
+            # ModelPathManager calls crash with cryptic NoneType errors.
+            # Guard on subdir.exists() so a failed mkdir above doesn't turn the
+            # logged-and-continue path into an unhandled FileNotFoundError.
+            if subdir.exists():
+                gitkeep_path = subdir / ".gitkeep"
+                if not gitkeep_path.exists():
+                    gitkeep_path.touch()
 
         # Create README.md and requirements.txt
         readme_path = self._model.model_dir / "README.md"
@@ -280,7 +289,7 @@ class ModelScaffoldBuilder:
         return assessment
 
     # Add a .gitkeep file to empty directories and remove it from non-empty directories
-    def update_gitkeep_empty_directories(self, delete_gitkeep=True):
+    def update_gitkeep_empty_directories(self, delete_gitkeep=False):
         """
         Updates the .gitkeep files in empty directories within the specified subdirectories.
 
@@ -289,7 +298,9 @@ class ModelScaffoldBuilder:
         - If the subdirectory is not empty and delete_gitkeep is True, it removes the .gitkeep file if it exists.
 
         Args:
-            delete_gitkeep (bool): If True, removes .gitkeep files from non-empty directories. Default is True.
+            delete_gitkeep (bool): If True, removes .gitkeep files from non-empty directories. Default is False —
+                gitignored data files (e.g. *.parquet, *.pkl) count as "non-empty" but leave the dir empty
+                from git's perspective, so deleting .gitkeep recreates the bug it was added to fix.
 
         Logs:
             - Creation of .gitkeep files in empty directories.
