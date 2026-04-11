@@ -43,6 +43,22 @@ YELLOW='\033[0;33m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# ── Interrupt handling ───────────────────────────────────────────────
+#
+# Bash's default for-loop behavior on SIGINT is "child died by signal,
+# continue to next iteration" — so a single Ctrl-C only kills the current
+# model and the script marches on. Install a trap that sets a flag; the
+# run loop checks the flag at the top of each iteration and breaks out
+# cleanly, writing a partial summary before exiting.
+
+INTERRUPTED=0
+on_interrupt() {
+    INTERRUPTED=1
+    echo "" >&2
+    echo -e "${YELLOW}${BOLD}Interrupt received${NC} — finishing current run accounting and aborting..." >&2
+}
+trap on_interrupt INT
+
 # ── Parse arguments ───────────────────────────────────────────────────
 
 while [[ $# -gt 0 ]]; do
@@ -211,7 +227,14 @@ if [ "${#CLASSIFICATION_ERRORS[@]}" -gt 0 ]; then
     exit 2
 fi
 
-DEPRECATED_COUNT=${#DEPRECATED_SET[@]}
+# DEPRECATED_COUNT=${#DEPRECATED_SET[@]}
+
+if declare -p DEPRECATED_SET >/dev/null 2>&1; then
+    DEPRECATED_COUNT=$(printf '%s\n' "${!DEPRECATED_SET[@]}" | sed '/^$/d' | wc -l)
+else
+    DEPRECATED_COUNT=0
+fi
+
 
 TOTAL_MODELS=${#MODELS[@]}
 RUNNABLE_COUNT=$(( TOTAL_MODELS - DEPRECATED_COUNT ))
@@ -249,11 +272,15 @@ declare -A RESULTS
 PASS_COUNT=0
 FAIL_COUNT=0
 TIMEOUT_COUNT=0
+ABORTED_COUNT=0
 RUN_INDEX=0
 TOTAL_RUNS=$(( RUNNABLE_COUNT * $(echo $PARTITIONS | wc -w) ))
 
 for model in "${MODELS[@]}"; do
-    if [[ -n "${DEPRECATED_SET[$model]:-}" ]]; then
+    [ "$INTERRUPTED" -eq 1 ] && break
+#    if [[ -n "${DEPRECATED_SET[$model]:-}" ]]; then
+#
+        if [[ -v "DEPRECATED_SET[$model]" ]]; then
         echo -e "${YELLOW}SKIP${NC} ${BOLD}${model}${NC} — deployment_status=deprecated"
         for partition in $PARTITIONS; do
             RESULTS["${model}__${partition}"]="DEPRECATED"
@@ -261,6 +288,7 @@ for model in "${MODELS[@]}"; do
         continue
     fi
     for partition in $PARTITIONS; do
+        [ "$INTERRUPTED" -eq 1 ] && break
         RUN_INDEX=$((RUN_INDEX + 1))
         model_log="$LOG_DIR/$partition/${model}.log"
         result_key="${model}__${partition}"
@@ -280,7 +308,12 @@ for model in "${MODELS[@]}"; do
         end_time=$(date +%s)
         duration=$((end_time - start_time))
 
-        if [ "$exit_code" -eq 0 ]; then
+        if [ "$INTERRUPTED" -eq 1 ]; then
+            echo -e "${YELLOW}ABORTED${NC} (Ctrl-C, ${duration}s)"
+            RESULTS[$result_key]="ABORTED"
+            ABORTED_COUNT=$((ABORTED_COUNT + 1))
+            echo "=== ABORTED by user (Ctrl-C) after ${duration}s ===" >> "$model_log"
+        elif [ "$exit_code" -eq 0 ]; then
             echo -e "${GREEN}PASS${NC} (${duration}s)"
             RESULTS[$result_key]="PASS"
             PASS_COUNT=$((PASS_COUNT + 1))
@@ -319,7 +352,7 @@ for model in "${MODELS[@]}"; do
         result="${RESULTS[$result_key]:-SKIPPED}"
         if [ "$result" = "PASS" ]; then
             printf "${GREEN}%-15s${NC}" "$result"
-        elif [ "$result" = "DEPRECATED" ]; then
+        elif [ "$result" = "DEPRECATED" ] || [ "$result" = "ABORTED" ] || [ "$result" = "SKIPPED" ]; then
             printf "${YELLOW}%-15s${NC}" "$result"
         else
             printf "${RED}%-15s${NC}" "$result"
@@ -332,8 +365,13 @@ echo ""
 echo -e "  ${GREEN}Passed:${NC}     $PASS_COUNT"
 echo -e "  ${RED}Failed:${NC}     $FAIL_COUNT"
 [ "$TIMEOUT_COUNT" -gt 0 ] && echo -e "  ${RED}Timeout:${NC}    $TIMEOUT_COUNT"
+[ "$ABORTED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Aborted:${NC}    $ABORTED_COUNT (Ctrl-C)"
 [ "$DEPRECATED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Deprecated:${NC} $DEPRECATED_COUNT (skipped by design)"
 echo "  Total:      $TOTAL_RUNS"
+if [ "$INTERRUPTED" -eq 1 ]; then
+    echo ""
+    echo -e "${YELLOW}${BOLD}⚠ Run aborted by user at ${RUN_INDEX}/${TOTAL_RUNS}.${NC} Partial summary above."
+fi
 echo ""
 
 # ── Write summary log ────────────────────────────────────────────────
@@ -364,6 +402,9 @@ echo ""
 echo "Full summary: $LOG_DIR/summary.log"
 echo "Per-model logs: $LOG_DIR/{partition}/{model}.log"
 
+if [ "$INTERRUPTED" -eq 1 ]; then
+    exit 130
+fi
 if [ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
     exit 1
 fi
