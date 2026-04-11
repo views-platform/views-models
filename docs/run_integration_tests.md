@@ -79,10 +79,12 @@ When `--library` is set, the script checks each model's `requirements.txt` for a
 
 ### 4. Execution
 
-For each model, for each partition, the script runs:
+Before the run loop, the script classifies each model by `deployment_status` (loaded from `configs/config_deployment.py`). Models with `deployment_status == "deprecated"` are skipped — they are expected to fail by design, and running them would clutter the `FAIL` column. They appear in the summary as `DEPRECATED` instead. If `config_deployment.py` fails to load for any model, the script fails fast with exit code 2 before running anything (same behavior as a broken `config_meta.py` under `--level` filtering).
+
+For each runnable model, for each partition, the script runs:
 
 ```bash
-timeout $TIMEOUT bash -c "
+timeout --foreground $TIMEOUT bash -c "
     eval \"\$(conda shell.bash hook)\"
     conda activate '$CONDA_ENV'
     cd '$MODELS_DIR/$model'
@@ -93,7 +95,8 @@ timeout $TIMEOUT bash -c "
 Key points:
 - Each run gets its **own subshell** — a model crash cannot kill the runner.
 - **All stdout and stderr** are captured to a log file, not printed to the terminal.
-- The terminal shows only: `[N/TOTAL] model_name (partition)... PASS/FAIL/TIMEOUT (duration)`.
+- The terminal shows only: `[N/TOTAL] model_name (partition)... PASS/FAIL/TIMEOUT/ABORTED (duration)`.
+- `timeout --foreground` keeps the child process tree in the script's process group so that terminal `Ctrl-C` reaches the running model directly (see §Cancelling a run).
 
 ### 5. Result Classification
 
@@ -101,7 +104,21 @@ Key points:
 |-----------|--------|---------|
 | `0` | `PASS` | Model trained and evaluated successfully. |
 | `124` | `TIMEOUT` | Model exceeded the per-run timeout and was killed. |
+| `130` | `ABORTED` | User pressed `Ctrl-C`; the current run was killed and remaining runs skipped. |
+| n/a | `DEPRECATED` | Model's `deployment_status` is `deprecated`; no run attempted. |
 | anything else | `FAIL(code)` | Model crashed. The exit code is recorded. |
+
+### 5a. Cancelling a run
+
+The script traps `SIGINT` (`Ctrl-C`). A single `Ctrl-C` will:
+
+1. Kill the currently-running model (python dies via the shared process group).
+2. Label its slot in the summary as `ABORTED`.
+3. Skip all remaining models and partitions.
+4. Print the partial summary table showing what had run.
+5. Exit with code `130` (standard `Ctrl-C` exit code).
+
+You do **not** need to hit `Ctrl-C` repeatedly. A single press is enough. This relies on `timeout --foreground` keeping the child tree in the script's process group; without that flag, `Ctrl-C` would reach only the parent script and the child would run to natural completion.
 
 ### 6. Summary Output
 
@@ -113,9 +130,11 @@ Model                         calibration    validation
 bad_blood                     PASS           PASS
 bouncy_organ                  FAIL(1)        PASS
 counting_stars                PASS           TIMEOUT
+electric_relaxation           DEPRECATED     DEPRECATED
+invisible_string              ABORTED        SKIPPED
 ```
 
-The same table (without colors) is written to `summary.log`.
+`PASS` is green. `FAIL(code)` and `TIMEOUT` are red. `DEPRECATED`, `ABORTED`, and `SKIPPED` are yellow so a glance distinguishes "something broke" from "skipped by design or by user". The same table (without colors) is written to `summary.log`.
 
 
 ## Logs

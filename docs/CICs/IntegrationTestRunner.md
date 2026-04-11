@@ -27,13 +27,15 @@
 
 ## 3. Responsibilities and Guarantees
 
-- Guarantees that every matched model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase*; classification errors during `--level` filtering are surfaced before the run phase begins, see exit code 2 below)
+- Guarantees that every matched, runnable model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase from model failures*; classification errors during `--level` or `deployment_status` filtering are surfaced before the run phase begins, see exit code 2 below; user `Ctrl-C` aborts the run phase and is reported distinctly, see exit code 130 below)
 - Guarantees crash isolation: each model runs in its own subshell (`bash -c "..."`)
-- Guarantees per-model timeout enforcement via `timeout` command (default: 1800 seconds)
-- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`
+- Guarantees per-model timeout enforcement via `timeout --foreground` command (default: 1800 seconds). The `--foreground` flag keeps the child process tree in the script's process group so terminal signals (`Ctrl-C`) propagate to the running model; the trade-off is that grandchildren spawned by the model are not timed out when the timer fires (acceptable because `main.py` is a single-process entry point)
+- Guarantees that models with `deployment_status == "deprecated"` are skipped before any subshell is spawned, classified as `DEPRECATED`, and do not count toward `FAIL`/`TIMEOUT` totals
+- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`, `DEPRECATED`, `ABORTED`, or `SKIPPED` (the latter when a `Ctrl-C` abort prevents a run from being attempted at all)
+- Guarantees that `SIGINT` (terminal `Ctrl-C`) is handled: the currently-running model is killed immediately via process-group signal, its slot is labeled `ABORTED`, remaining runs are skipped, a partial summary is printed, and the script exits 130. A single `Ctrl-C` is sufficient — the user does not need to press it repeatedly.
 - Guarantees that per-model stdout/stderr is captured to `$LOG_DIR/$partition/$model.log`
 - Guarantees a structured summary log at `$LOG_DIR/summary.log`
-- Guarantees exit code 0 only if all runs pass; exit code 1 if any fail or timeout; exit code 2 if any model in the candidate set cannot be classified by the `--level` filter (fail-fast before any model runs)
+- Guarantees exit codes: `0` (all runs passed); `1` (at least one `FAIL` or `TIMEOUT`); `2` (at least one model in the candidate set failed classification by `--level` filter *or* `deployment_status` pre-flight — fail-fast before any model runs); `130` (user interrupted with `Ctrl-C`)
 
 ---
 
@@ -78,12 +80,15 @@
 |---|---|
 | Model training crashes | Captured in log; classified as `FAIL(exit_code)`; script continues |
 | Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues |
+| Model `deployment_status` is `deprecated` | Skipped before any subshell is spawned; classified as `DEPRECATED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
+| User presses `Ctrl-C` (`SIGINT`) | Trap fires; currently-running model killed via shared process group (`timeout --foreground`); slot labeled `ABORTED` (yellow); remaining runs labeled `SKIPPED`; partial summary printed; script exits 130. A single `Ctrl-C` is sufficient. |
 | No models match filters | Prints "No models found to test"; exits 1 |
 | Conda environment doesn't exist | Activation fails inside subshell; model classified as `FAIL` |
 | `config_meta.py` unloadable (during `--level` filter) | Python stderr captured; error printed to stderr with model name + last traceback line; model collected in `CLASSIFICATION_ERRORS`; script exits 2 before running any models |
+| `config_deployment.py` unloadable (during deployment_status pre-flight) | Same fail-fast pattern as `config_meta.py`: stderr captured, error printed, model collected, script exits 2 before running any models |
 | Unknown CLI flag | Prints error; exits 1 |
 
-The runner itself never fails silently. Individual model failures are captured and reported, not swallowed.
+The runner itself never fails silently. Individual model failures are captured and reported, not swallowed. User interruption is clearly distinguished from model failure via the `ABORTED` result class and exit code 130.
 
 ---
 
@@ -93,9 +98,11 @@ The runner itself never fails silently. Individual model failures are captured a
 |---|---|---|
 | `models/*/main.py` | Invokes | Subprocess via `python main.py -r $partition -t -e` |
 | `models/*/configs/config_meta.py` | Reads (for `--level` filter) | `importlib.util` from Python |
+| `models/*/configs/config_deployment.py` | Reads (for `deployment_status` pre-flight) | `importlib.util` from Python |
 | `models/*/requirements.txt` | Reads (for `--library` filter) | `grep` for package name |
 | Conda | Activates | `conda activate $ENV` in subshell |
 | `logs/` | Writes | Timestamped log directories |
+| Terminal `SIGINT` | Receives | `trap on_interrupt INT` sets a flag that the run loop checks; relies on `timeout --foreground` to keep the child tree in the script's process group |
 
 Does **not** interact with: ensemble directories, APIs, extractors, postprocessors, or the pytest test suite.
 
