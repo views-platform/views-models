@@ -6,8 +6,9 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
-# Integration test logs
-logs/
+# Integration test logs (allow .gitkeep through to preserve empty log dirs)
+logs/*
+!logs/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

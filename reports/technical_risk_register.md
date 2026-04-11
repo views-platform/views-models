@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-07  
+**Last updated:** 2026-04-11  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 34 (30 concerns + 4 disagreements)  
-**Concerns:** Open 9 | Mitigated 7 | Resolved 11 | Accepted 3  
+**Total entries:** 38 (34 concerns + 4 disagreements)  
+**Concerns:** Open 9 | Mitigated 9 | Resolved 13 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -42,7 +42,7 @@
 | **Trigger** | A model breaks at training time but all CI checks pass |
 | **Source** | repo-assimilation |
 | **Status** | Open |
-| **Notes** | `run_integration_tests.sh` is the only mechanism testing actual model training/evaluation. It runs locally and takes hours. The CI pytest workflow (`run_tests.yml`) only runs fast structural tests. A model can be merged broken. |
+| **Notes** | `run_integration_tests.sh` is the only mechanism testing actual model training/evaluation. It runs locally and takes hours. The CI pytest workflow (`run_tests.yml`) only runs fast structural tests. A model can be merged broken. **2026-04-10:** Incident confirms this risk — a `df.applymap()` → `df.map()` change in views-stepshifter (commit `06e73a9`) broke all stepshifter model evaluation. Surfaced only by manual integration test, not by CI. See C-31. |
 
 ---
 
@@ -245,8 +245,8 @@
 | **Tier** | 2 |
 | **Trigger** | The VIEWS database is slow or unreachable during model training |
 | **Source** | expert-code-review (Nygard) |
-| **Status** | Open |
-| **Notes** | Models fetch data via `viewser.Queryset.publish()` with no timeout, retry limit, or fallback. A database outage hangs every model indefinitely during normal operation. The only timeout is the external `timeout` command in `run_integration_tests.sh` (1800s), which only applies during integration testing. |
+| **Status** | Open (cross-repo) |
+| **Notes** | Models fetch data via `viewser.Queryset.publish()` with no timeout, retry limit, or fallback. A database outage hangs every model indefinitely during normal operation. The only timeout is the external `timeout` command in `run_integration_tests.sh` (1800s), which only applies during integration testing. **Cross-repo location (verified 2026-04-11):** `views-models` only *defines* querysets in each model's `config_queryset.py`. The actual `publish()` calls live in `views-pipeline-core/views_pipeline_core/modules/dataloaders/dataloaders.py:1027,1052` (`get_data()` and the no-drift backup path) plus two metadata-cache call sites in `handlers.py:1691,2124`. Fix must be implemented in `views-pipeline-core` — either by passing a `timeout` parameter to `publish()` (if `viewser.Queryset` accepts one) or by wrapping `get_data()` in a `concurrent.futures` timeout context. Escalate as a `views-pipeline-core` task. |
 
 ---
 
@@ -317,8 +317,8 @@
 | **Tier** | 3 |
 | **Trigger** | A model's `config_meta.py` has a syntax error; `--level cm` filtering silently skips it |
 | **Source** | test-review (Leveson) |
-| **Status** | Open |
-| **Notes** | The `--level` filter shells out to Python with `2>/dev/null`. If `config_meta.py` is broken, the model is silently excluded from the filtered set. A broken model escapes testing because the test runner can't classify it, and no one is notified. CIC documents this as a known deviation. |
+| **Status** | Resolved |
+| **Notes** | Fixed in `run_integration_tests.sh:109-153` (2026-04-11). The `--level` filter loop now captures Python stderr to a temp file, checks the subprocess exit code, and on failure: (1) prints `ERROR classifying <model>: config_meta.py failed to load` plus the last line of the traceback to stderr, (2) collects the model in a `CLASSIFICATION_ERRORS` array, (3) **fails fast with `exit 2`** before running any integration tests, listing every unclassifiable model. Manually verified with a synthetic broken `config_meta.py` (`SyntaxError: '(' was never closed`) — script aborts at exit 2 with the model name and traceback line surfaced. Real models still classify cleanly with no regression. The `--library` filter (lines 128-137) uses `grep -q` on `requirements.txt` and does not have the same silent-failure mode. |
 
 ---
 
@@ -367,6 +367,54 @@
 | **Source** | tech-debt-cleanup (C-01 investigation) |
 | **Status** | Resolved |
 | **Notes** | `extractors/ucdp_extractor/configs/config_partitions.py` used `(121, 396)/(397, 444)` boundaries and offset `-2`. Root cause: smellycloud (Nov 2025, commit `901ec1e`) copied from `rude_boy`'s deviant root file instead of using the standard template. Extractor was in `shadow` status, excluded from all CI/testing, so the deviation was never caught. Fixed to standard values (2026-04-06). Test coverage extended to include extractors and postprocessors. |
+
+---
+
+### C-31 — Upstream algorithm package API changes break views-models silently
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A views-stepshifter, views-r2darts2, views-baseline, or views-hydranet maintainer "modernizes" a deprecated API call (e.g., pandas, numpy, sklearn) and merges to development without verifying the views-models environment supports the new API |
+| **Source** | incident response (2026-04-10) |
+| **Status** | Mitigated |
+| **Notes** | views-models has no contract test that validates upstream packages still work in its installation environment. **Concrete incident:** views-stepshifter commit `06e73a9` (`chore: clean tech debt`) changed `df.applymap()` → `df.map()` claiming "deprecated API fix (pandas 2.0+)". `DataFrame.map()` was actually only added in **pandas 2.1.0**, and the production environment runs **pandas 1.5.3**. All stepshifter model evaluation broke at the `_get_standardized_df` boundary. Caught only by a manual integration test for `bittersweet_symphony`. Fix: revert to `applymap()` (works in all versions). The deeper problem: **views-models is installed against a frozen environment, but its dependencies are continuously developed against newer environments.** A boundary contract test (e.g., a smoke test that imports the manager and runs a 1-step prediction on a tiny synthetic dataset) would catch this in CI. Related: C-03 (no integration tests in CI), C-08 (requirements coherence — but that's package name, not API surface). |
+
+---
+
+### C-32 — Scaffold builder does not persist empty standard directories in Git
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A new model is scaffolded via `build_model_scaffold.py` and committed before all standard subdirectories contain files, or an existing model with latent gaps is cloned to a fresh server environment |
+| **Source** | manual (2026-04-11) |
+| **Status** | Mitigated |
+| **Notes** | **Original framing was incomplete.** `update_gitkeep_empty_directories()` already existed at `build_model_scaffold.py:283` and was already called in `__main__`. Investigation on 2026-04-11 revealed the actual root cause: `.gitignore` line 10 (`logs/`) — a repo-wide rule for "Integration test logs" — silently swallowed `models/*/logs/.gitkeep` files even when the scaffold created them. The ranger_* hotfix worked only because the .gitkeep files were force-added (`git add -f`). Downstream managers crashed with `TypeError: unsupported operand type(s) for /: 'NoneType' and 'str'` from `ModelPathManager` path resolution. **Mitigation (2026-04-11):** (1) `.gitignore` changed from `logs/` to `logs/*` + `!logs/.gitkeep` to allow the directory placeholder through while preserving the "ignore log file contents" intent; (2) `build_model_directory()` now creates `.gitkeep` inline immediately after each `subdir.mkdir()` call, so the invariant holds from the moment the directory is created; (3) `update_gitkeep_empty_directories(delete_gitkeep=False)` default flipped — the previous `True` default removed `.gitkeep` from "non-empty" dirs, but gitignored data files (`*.parquet`, `*.pkl`) count as non-empty, so the deletion behavior was a latent footgun that re-introduced the bug; (4) backfilled `logs/.gitkeep` for 4 affected models: `old_money`, `orange_pasta`, `wildest_dream`, `yellow_pikachu`. Related to C-07 (scaffold builder testing gap), C-33 (regression gate now in place). |
+
+---
+
+### C-33 — No CI gate for model directory completeness
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A PR adds or modifies a model such that one of the standard subdirectories (`artifacts/`, `data/raw/`, `data/generated/`, `logs/`) is absent on fresh clone, and the PR merges without the hollow state being flagged |
+| **Source** | manual (2026-04-11) |
+| **Status** | Resolved |
+| **Notes** | `TestModelDirectoryStructure` added to `tests/test_model_structure.py` (2026-04-11). The class uses the existing `model_dir` fixture (`tests/conftest.py:72`, parametrized over `ALL_MODEL_DIRS`) and asserts every model contains the four runtime-critical subdirectories: `artifacts/`, `data/raw/`, `data/generated/`, `logs/` — exactly the set the baseline/stepshifter `ModelPathManager` resolves at runtime. Coverage: 71 models × 4 subdirs = 284 assertions, all passing. Scope decision: models only (not ensembles), matching the existing convention in `test_model_structure.py` since ensembles legitimately lack `data/raw/`. See also C-32 (root cause now mitigated), C-07 (scaffold builder testing), C-16 (CIC class testing gaps). |
+
+---
+
+### C-34 — `--library` filter in `run_integration_tests.sh` silently excludes models lacking `requirements.txt`
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A user runs `bash run_integration_tests.sh --library baseline` and one of the eligible models is missing `requirements.txt` (or the file is unreadable); the model is excluded from the run with no warning |
+| **Source** | code-review (2026-04-11) — discovered during C-26 fix in Sprint 2 |
+| **Status** | Open |
+| **Notes** | `run_integration_tests.sh:128-137` uses `if [ -f "$req_file" ] && grep -q "views-${FILTER_LIBRARY}" "$req_file"`. A missing or unreadable `requirements.txt` causes silent exclusion — the same class of bug C-26 had in the `--level` filter, but in the `--library` filter. C-26's Sprint 2 fix added the `CLASSIFICATION_ERRORS` fail-fast pattern (lines 109-153) for level classification only; the library filter was left untouched because it does not crash and the legitimate "model declares no matching library" case must remain a silent skip. The remaining gap: a model that lacks `requirements.txt` entirely cannot be distinguished from one that declares a different library. **Recommended fix:** when `requirements.txt` does not exist for a model in the candidate set, emit a `WARNING: cannot classify <model> by library: missing requirements.txt` to stderr and exclude it explicitly (don't fail fast — this is milder than C-26 because it doesn't indicate a broken file). After C-08 (requirements coherence test) and C-27 (rude_boy backfill), this gap is mostly future-protection — it would re-emerge if a new model is added without `requirements.txt` and `--library` filtering is used before C-08 catches the omission. See also C-26 (same pattern, resolved 2026-04-11), C-08 (requirements coherence — mitigated), C-27 (rude_boy `requirements.txt` — resolved). |
 
 ---
 

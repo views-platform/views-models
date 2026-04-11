@@ -105,21 +105,50 @@ else
 fi
 
 # ── Filter by level (cm/pgm) if requested ────────────────────────────
+#
+# Classification failures (broken config_meta.py) used to be silently swallowed
+# by `2>/dev/null`, hiding broken models from --level testing. Now we capture
+# stderr, surface the error, and fail fast before running any models.
 
 if [ -n "$FILTER_LEVEL" ]; then
     FILTERED=()
+    CLASSIFICATION_ERRORS=()
     for model in "${MODELS[@]}"; do
+        cls_stderr_file=$(mktemp)
         level=$(python3 -c "
 import importlib.util
 spec = importlib.util.spec_from_file_location('m', '$MODELS_DIR/$model/configs/config_meta.py')
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 print(mod.get_meta_config().get('level', ''))
-" 2>/dev/null)
+" 2>"$cls_stderr_file")
+        cls_exit=$?
+        cls_stderr=$(cat "$cls_stderr_file")
+        rm -f "$cls_stderr_file"
+
+        if [ "$cls_exit" -ne 0 ]; then
+            echo -e "${RED}ERROR${NC} classifying ${BOLD}${model}${NC}: config_meta.py failed to load" >&2
+            last_err_line=$(echo "$cls_stderr" | grep -v '^$' | tail -1)
+            [ -n "$last_err_line" ] && echo "  $last_err_line" >&2
+            CLASSIFICATION_ERRORS+=("$model")
+            continue
+        fi
+
         if [ "$level" = "$FILTER_LEVEL" ]; then
             FILTERED+=("$model")
         fi
     done
+
+    if [ "${#CLASSIFICATION_ERRORS[@]}" -gt 0 ]; then
+        echo "" >&2
+        echo -e "${RED}${BOLD}Aborting:${NC} ${#CLASSIFICATION_ERRORS[@]} model(s) could not be classified by --level filter:" >&2
+        for m in "${CLASSIFICATION_ERRORS[@]}"; do
+            echo "  - $m" >&2
+        done
+        echo "Fix the broken config_meta.py file(s) and re-run." >&2
+        exit 2
+    fi
+
     MODELS=("${FILTERED[@]}")
 fi
 

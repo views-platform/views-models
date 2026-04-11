@@ -16,6 +16,10 @@ REQUIRED_CONFIG_FILES = [
     "config_queryset.py",
 ]
 
+# Subdirectories that ModelPathManager resolves at runtime in baseline/stepshifter
+# managers. A missing directory here causes a TypeError on fresh clones.
+REQUIRED_SUBDIRS = ["artifacts", "data/raw", "data/generated", "logs"]
+
 
 class TestModelNaming:
     @pytest.mark.parametrize("name", MODEL_NAMES)
@@ -41,4 +45,14 @@ class TestModelFiles:
         cfg_path = model_dir / "configs" / config_file
         assert cfg_path.exists(), (
             f"{model_dir.name} missing config file: {config_file}"
+        )
+
+
+class TestModelDirectoryStructure:
+    @pytest.mark.parametrize("subdir", REQUIRED_SUBDIRS)
+    def test_required_subdirectory_exists(self, model_dir, subdir):
+        path = model_dir / subdir
+        assert path.is_dir(), (
+            f"{model_dir.name} missing required subdirectory: {subdir}. "
+            f"Add a .gitkeep file to track empty directories in git."
         )

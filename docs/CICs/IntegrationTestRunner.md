@@ -3,7 +3,7 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-04-05  
+**Last reviewed:** 2026-04-11  
 **Related ADRs:** ADR-004, ADR-005, ADR-008, ADR-009  
 
 ---
@@ -27,13 +27,13 @@
 
 ## 3. Responsibilities and Guarantees
 
-- Guarantees that every matched model is executed for every requested partition, regardless of prior failures (no early abort)
+- Guarantees that every matched model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase*; classification errors during `--level` filtering are surfaced before the run phase begins, see exit code 2 below)
 - Guarantees crash isolation: each model runs in its own subshell (`bash -c "..."`)
 - Guarantees per-model timeout enforcement via `timeout` command (default: 1800 seconds)
 - Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`
 - Guarantees that per-model stdout/stderr is captured to `$LOG_DIR/$partition/$model.log`
 - Guarantees a structured summary log at `$LOG_DIR/summary.log`
-- Guarantees exit code 0 only if all runs pass; exit code 1 if any fail or timeout
+- Guarantees exit code 0 only if all runs pass; exit code 1 if any fail or timeout; exit code 2 if any model in the candidate set cannot be classified by the `--level` filter (fail-fast before any model runs)
 
 ---
 
@@ -80,7 +80,7 @@
 | Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues |
 | No models match filters | Prints "No models found to test"; exits 1 |
 | Conda environment doesn't exist | Activation fails inside subshell; model classified as `FAIL` |
-| `config_meta.py` unloadable (during `--level` filter) | Model silently excluded from filtered set (Python stderr to /dev/null) |
+| `config_meta.py` unloadable (during `--level` filter) | Python stderr captured; error printed to stderr with model name + last traceback line; model collected in `CLASSIFICATION_ERRORS`; script exits 2 before running any models |
 | Unknown CLI flag | Prints error; exits 1 |
 
 The runner itself never fails silently. Individual model failures are captured and reported, not swallowed.
@@ -158,9 +158,9 @@ bash run_integration_tests.sh --exclude "new_model"
 ## 12. Known Deviations
 
 - **Not in CI:** The only behavioral test mechanism is manual (Risk Register C-03). A model can be merged broken.
-- **`--level` filter silences errors:** `2>/dev/null` on the Python subprocess means if `config_meta.py` is broken, the model is silently excluded from `--level`-filtered runs rather than flagged.
 - **`--exclude` replaces defaults:** Documented in `--help` but surprising — passing `--exclude "foo"` removes the default `purple_alien` exclusion.
 - **No ensemble coverage:** The runner only discovers models in `models/`; ensembles in `ensembles/` are not tested by this mechanism.
+- **`--library` filter silently excludes models lacking `requirements.txt`:** A model without a `requirements.txt` cannot be classified by the `--library` filter and is silently dropped from the filtered set. Tracked as Risk Register C-34.
 
 ---
 
