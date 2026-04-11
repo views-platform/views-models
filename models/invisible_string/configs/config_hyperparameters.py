@@ -13,6 +13,7 @@ def get_hp_config():
         "time_steps": 36,
         'parameters': {
             'n_estimators': 200,
+            'n_jobs': 12,
         }
     }
     return hyperparameters

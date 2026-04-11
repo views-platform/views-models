@@ -43,6 +43,22 @@ YELLOW='\033[0;33m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# ── Interrupt handling ───────────────────────────────────────────────
+#
+# Bash's default for-loop behavior on SIGINT is "child died by signal,
+# continue to next iteration" — so a single Ctrl-C only kills the current
+# model and the script marches on. Install a trap that sets a flag; the
+# run loop checks the flag at the top of each iteration and breaks out
+# cleanly, writing a partial summary before exiting.
+
+INTERRUPTED=0
+on_interrupt() {
+    INTERRUPTED=1
+    echo "" >&2
+    echo -e "${YELLOW}${BOLD}Interrupt received${NC} — finishing current run accounting and aborting..." >&2
+}
+trap on_interrupt INT
+
 # ── Parse arguments ───────────────────────────────────────────────────
 
 while [[ $# -gt 0 ]]; do
@@ -165,7 +181,63 @@ if [ -n "$FILTER_LIBRARY" ]; then
     MODELS=("${FILTERED[@]}")
 fi
 
+# ── Classify by deployment_status (skip deprecated models) ──────────
+#
+# Deprecated models' main.py is expected to fail; running them wastes time
+# and clutters the FAIL column. Classify up front and render them as
+# DEPRECATED in the summary instead of running them. Uses the same
+# stderr-capture + fail-fast pattern as the --level filter so a broken
+# config_deployment.py surfaces before any training starts.
+
+declare -A DEPRECATED_SET
+CLASSIFICATION_ERRORS=()
+for model in "${MODELS[@]}"; do
+    cls_stderr_file=$(mktemp)
+    deployment_status=$(python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('d', '$MODELS_DIR/$model/configs/config_deployment.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print(mod.get_deployment_config().get('deployment_status', ''))
+" 2>"$cls_stderr_file")
+    cls_exit=$?
+    cls_stderr=$(cat "$cls_stderr_file")
+    rm -f "$cls_stderr_file"
+
+    if [ "$cls_exit" -ne 0 ]; then
+        echo -e "${RED}ERROR${NC} classifying ${BOLD}${model}${NC}: config_deployment.py failed to load" >&2
+        last_err_line=$(echo "$cls_stderr" | grep -v '^$' | tail -1)
+        [ -n "$last_err_line" ] && echo "  $last_err_line" >&2
+        CLASSIFICATION_ERRORS+=("$model")
+        continue
+    fi
+
+    if [ "$deployment_status" = "deprecated" ]; then
+        DEPRECATED_SET[$model]=1
+    fi
+done
+
+if [ "${#CLASSIFICATION_ERRORS[@]}" -gt 0 ]; then
+    echo "" >&2
+    echo -e "${RED}${BOLD}Aborting:${NC} ${#CLASSIFICATION_ERRORS[@]} model(s) could not be classified by deployment_status:" >&2
+    for m in "${CLASSIFICATION_ERRORS[@]}"; do
+        echo "  - $m" >&2
+    done
+    echo "Fix the broken config_deployment.py file(s) and re-run." >&2
+    exit 2
+fi
+
+# DEPRECATED_COUNT=${#DEPRECATED_SET[@]}
+
+if declare -p DEPRECATED_SET >/dev/null 2>&1; then
+    DEPRECATED_COUNT=$(printf '%s\n' "${!DEPRECATED_SET[@]}" | sed '/^$/d' | wc -l)
+else
+    DEPRECATED_COUNT=0
+fi
+
+
 TOTAL_MODELS=${#MODELS[@]}
+RUNNABLE_COUNT=$(( TOTAL_MODELS - DEPRECATED_COUNT ))
 if [ "$TOTAL_MODELS" -eq 0 ]; then
     echo "No models found to test."
     exit 1
@@ -184,6 +256,7 @@ echo -e "${BOLD}  views-models integration test${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo "  Conda env:  $CONDA_ENV"
 echo "  Models:     $TOTAL_MODELS"
+[ "$DEPRECATED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Deprecated:${NC} $DEPRECATED_COUNT (will be skipped)"
 [ -n "$FILTER_LEVEL" ] && echo "  Level:      $FILTER_LEVEL"
 [ -n "$FILTER_LIBRARY" ] && echo "  Library:    $FILTER_LIBRARY"
 echo "  Excluded:   $EXCLUDE_MODELS"
@@ -199,11 +272,21 @@ declare -A RESULTS
 PASS_COUNT=0
 FAIL_COUNT=0
 TIMEOUT_COUNT=0
+ABORTED_COUNT=0
 RUN_INDEX=0
-TOTAL_RUNS=$(( TOTAL_MODELS * $(echo $PARTITIONS | wc -w) ))
+TOTAL_RUNS=$(( RUNNABLE_COUNT * $(echo $PARTITIONS | wc -w) ))
 
 for model in "${MODELS[@]}"; do
+    [ "$INTERRUPTED" -eq 1 ] && break
+    if [[ -v "DEPRECATED_SET[$model]" ]]; then
+        echo -e "${YELLOW}SKIP${NC} ${BOLD}${model}${NC} — deployment_status=deprecated"
+        for partition in $PARTITIONS; do
+            RESULTS["${model}__${partition}"]="DEPRECATED"
+        done
+        continue
+    fi
     for partition in $PARTITIONS; do
+        [ "$INTERRUPTED" -eq 1 ] && break
         RUN_INDEX=$((RUN_INDEX + 1))
         model_log="$LOG_DIR/$partition/${model}.log"
         result_key="${model}__${partition}"
@@ -212,7 +295,7 @@ for model in "${MODELS[@]}"; do
 
         start_time=$(date +%s)
 
-        timeout "$TIMEOUT" bash -c "
+        timeout --foreground "$TIMEOUT" bash -c "
             eval \"\$(conda shell.bash hook)\"
             conda activate '$CONDA_ENV'
             cd '$MODELS_DIR/$model'
@@ -223,7 +306,12 @@ for model in "${MODELS[@]}"; do
         end_time=$(date +%s)
         duration=$((end_time - start_time))
 
-        if [ "$exit_code" -eq 0 ]; then
+        if [ "$INTERRUPTED" -eq 1 ]; then
+            echo -e "${YELLOW}ABORTED${NC} (Ctrl-C, ${duration}s)"
+            RESULTS[$result_key]="ABORTED"
+            ABORTED_COUNT=$((ABORTED_COUNT + 1))
+            echo "=== ABORTED by user (Ctrl-C) after ${duration}s ===" >> "$model_log"
+        elif [ "$exit_code" -eq 0 ]; then
             echo -e "${GREEN}PASS${NC} (${duration}s)"
             RESULTS[$result_key]="PASS"
             PASS_COUNT=$((PASS_COUNT + 1))
@@ -262,6 +350,8 @@ for model in "${MODELS[@]}"; do
         result="${RESULTS[$result_key]:-SKIPPED}"
         if [ "$result" = "PASS" ]; then
             printf "${GREEN}%-15s${NC}" "$result"
+        elif [ "$result" = "DEPRECATED" ] || [ "$result" = "ABORTED" ] || [ "$result" = "SKIPPED" ]; then
+            printf "${YELLOW}%-15s${NC}" "$result"
         else
             printf "${RED}%-15s${NC}" "$result"
         fi
@@ -270,10 +360,16 @@ for model in "${MODELS[@]}"; do
 done
 
 echo ""
-echo -e "  ${GREEN}Passed:${NC}   $PASS_COUNT"
-echo -e "  ${RED}Failed:${NC}   $FAIL_COUNT"
-[ "$TIMEOUT_COUNT" -gt 0 ] && echo -e "  ${RED}Timeout:${NC}  $TIMEOUT_COUNT"
-echo "  Total:    $TOTAL_RUNS"
+echo -e "  ${GREEN}Passed:${NC}     $PASS_COUNT"
+echo -e "  ${RED}Failed:${NC}     $FAIL_COUNT"
+[ "$TIMEOUT_COUNT" -gt 0 ] && echo -e "  ${RED}Timeout:${NC}    $TIMEOUT_COUNT"
+[ "$ABORTED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Aborted:${NC}    $ABORTED_COUNT (Ctrl-C)"
+[ "$DEPRECATED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Deprecated:${NC} $DEPRECATED_COUNT (skipped by design)"
+echo "  Total:      $TOTAL_RUNS"
+if [ "$INTERRUPTED" -eq 1 ]; then
+    echo ""
+    echo -e "${YELLOW}${BOLD}⚠ Run aborted by user at ${RUN_INDEX}/${TOTAL_RUNS}.${NC} Partial summary above."
+fi
 echo ""
 
 # ── Write summary log ────────────────────────────────────────────────
@@ -304,6 +400,9 @@ echo ""
 echo "Full summary: $LOG_DIR/summary.log"
 echo "Per-model logs: $LOG_DIR/{partition}/{model}.log"
 
+if [ "$INTERRUPTED" -eq 1 ]; then
+    exit 130
+fi
 if [ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
     exit 1
 fi

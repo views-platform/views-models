@@ -36,6 +36,7 @@ ALGORITHM_TO_PACKAGE = {
     "AverageModel": "views_baseline",
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
+    "ConflictologyModel": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }

@@ -1,4 +1,3 @@
-import wandb
 from pathlib import Path
 from views_graphdb.manager.extractor import UCDPExtractorManager
 from views_graphdb.manager.extractor import ExtractorPathManager

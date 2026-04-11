@@ -79,12 +79,13 @@ def get_hp_config():
         # ============================================================
         # Loss Functions
         # ============================================================
-        'loss_reg': 'b',
-        'loss_class': 'b',
+        'loss_reg': 'shrinkage',
+        'loss_class': 'focal',
         'loss_reg_a': 258,
         'loss_reg_c': 0.001,
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
+        'onset_bias_init': -7.0,  # Dilution study: no penalty for deeper bias; -7.0 universal default
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)

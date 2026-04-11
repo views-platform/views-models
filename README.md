@@ -336,7 +336,7 @@ As of now, the only implemented model architecture is the [stepshifter model](ht
 ## Integration Testing
 <a name="integration-testing"></a>
 
-The repository includes an integration test runner that verifies models haven't been broken by changes in this repo or in upstream/downstream packages. It trains and evaluates every model end-to-end on calibration and validation partitions, running them sequentially in a single shared conda environment, and produces a summary table of PASS/FAIL/TIMEOUT results with per-model logs.
+The repository includes an integration test runner that verifies models haven't been broken by changes in this repo or in upstream/downstream packages. It trains and evaluates every runnable model end-to-end on calibration and validation partitions, running them sequentially in a single shared conda environment, and produces a summary table of `PASS`/`FAIL`/`TIMEOUT`/`DEPRECATED`/`ABORTED` results with per-model logs. A single `Ctrl-C` cleanly aborts a run and prints a partial summary.
 
 ```bash
 # Run all models (calibration + validation)

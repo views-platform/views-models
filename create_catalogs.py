@@ -2,15 +2,14 @@ import os
 import importlib.util
 import logging
 import tempfile
-logging.basicConfig(
-    level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
-)
-
-
 from pathlib import Path
 
 from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
+
+logging.basicConfig(
+    level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
+)
 
 
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 

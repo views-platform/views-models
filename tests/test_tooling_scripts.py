@@ -282,9 +282,9 @@ qs_test = (Queryset("test_queryset", "priogrid_month")
 # Characterization: scripts/update_partitions.py :: update_file
 # ---------------------------------------------------------------------------
 
-import sys
+import sys  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from update_partitions import update_file, OVERRIDE_MARKER
+from update_partitions import update_file, OVERRIDE_MARKER  # noqa: E402
 
 
 SAMPLE_PARTITION_FILE = '''\
