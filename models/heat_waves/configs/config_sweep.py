@@ -132,8 +132,8 @@ def get_sweep_config():
         # processing before VSN. Should be <= hidden_size. With hidden_size
         # capped at 128, 32-64 is the right range.
         "hidden_continuous_size": {"values": [32, 64]},
-        # categorical_embedding_sizes: None for pure continuous features.
-        "categorical_embedding_sizes": {"values": [None]},
+        # categorical_embedding_sizes: empty dict for pure continuous features.
+        "categorical_embedding_sizes": {"values": [{}]},
         # add_relative_index: Injects position information into attention.
         "add_relative_index": {"values": [True]},
         # skip_interpolation: Skip the interpolation in decoder output.
