@@ -115,7 +115,10 @@ def get_hp_config():
         "normalize_before": True,
         "dropout": 0.11739982293531824,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        # RevIN disabled: for deescalating series the window mean is dominated
+        # by the historical conflict level, causing denormalized outputs to
+        # anchor near the conflict peak even when recent months have low fatalities.
+        "use_reversible_instance_norm": False,
 
         "use_cyclic_encoders": True,
 

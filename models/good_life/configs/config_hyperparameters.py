@@ -101,7 +101,10 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
-        "use_reversible_instance_norm": True,
+        # RevIN disabled: for deescalating series the window mean is dominated
+        # by the historical conflict level, causing denormalized outputs to
+        # anchor near the conflict peak even when recent months have low fatalities.
+        "use_reversible_instance_norm": False,
         "weight_decay": 0.000005,
 
         # Encoders

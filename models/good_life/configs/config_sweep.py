@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v1_msle",
+        "name": "good_life_transformer_spotlight_v2_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -140,22 +140,29 @@ def get_sweep_config():
             "min": 0.15,
             "max": 0.35,
         },
-        "use_reversible_instance_norm": {"values": [False, True]},
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
+        # ── alpha (magnitude exponent) ────────────────
+        # v1 used cosh(alpha * |y|) which is exponential — caused OOD
+        # blowups in the tail. Now uses power-law (1 + |y|)^alpha which is
+        # concave — stronger than cosh at low-to-moderate conflict, softer
+        # in the extreme tail. alpha is now a power exponent:
+        #   0.3: gentle (2.3x max weight at 50k fatalities)
+        #   0.5: sqrt (3.5x max) — recommended starting point
+        #   0.7: aggressive (5.5x max)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.80,
+            "min": 0.3,
+            "max": 0.7,
         },
         
         # ── beta (asymmetry strength) ─────────────────
         # Extra multiplier for FN, gated by magnitude.
+        #   0.05: FN costs 1.05x FP (on events)
         #   0.3: FN costs 1.3x FP (on events)
-        #   0.7: FN costs 1.7x FP (on events)
         # Range is conservative because magnitude weights already 
         # heavily favor FN recall.
         "beta": {
@@ -166,21 +173,28 @@ def get_sweep_config():
         
         # ── kappa (sigmoid sharpness) ─────────────────
         # Controls transition smoothness between FP/FN regimes.
-        #   5.0: Smooth transition.
-        #   15.0: Sharp, almost binary transition.
+        # v1 used 8-15 (near-binary switch), which trained the
+        # Transformer to be categorically afraid of under-prediction.
+        # Softened to 2-6 for a smooth ramp.
+        #   2.0: Gradual transition.
+        #   4.0: Moderate (recommended).
+        #   6.0: Fairly sharp but still smooth.
         "kappa": {
             "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
+            "min": 2.0,
+            "max": 6.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # Weight for the temporal gradient alignment term.
-        #   0.05: Light timing guidance.
-        #   0.2: Strong timing guidance.
+        # Weight for the first-order temporal gradient term.
+        # Second-order (curvature) was removed — compounded escalation
+        # during rollout. Reduced range since first-order alone is
+        # sufficient for dynamics matching.
+        #   0.01: Very light timing guidance.
+        #   0.08: Moderate timing guidance.
         "gamma": {
             "distribution": "uniform",
             "min": 0.0,
-            "max": 0.2,
+            "max": 0.08,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
