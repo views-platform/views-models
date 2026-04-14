@@ -50,9 +50,9 @@ def get_hp_config():
             "weight_decay": 5e-6,
         },
 
-        # Loss: SpotlightLoss
+        # Loss: SpotlightLoss (power-law magnitude weighting)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.19552798273612648,
+        "alpha": 0.5,
         "beta": 0.07586076941722188,
         "kappa": 4.0,
         "gamma": 0.03,

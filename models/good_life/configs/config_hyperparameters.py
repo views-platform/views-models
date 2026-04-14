@@ -73,7 +73,7 @@ def get_hp_config():
         "gradient_clip_val": 3,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLoss",
-        "alpha": 0.23359669187867377,
+        "alpha": 0.5,
         "beta": 0.08080596090224723,
         "gamma": 0.03,
         "kappa": 4.0,
