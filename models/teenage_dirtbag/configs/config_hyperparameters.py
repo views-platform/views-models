@@ -10,6 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
 
         # "batch_size": 1024,
         # "delta": 4.296149099765397,
@@ -55,6 +56,16 @@ def get_hp_config():
         "weight_decay": 0.00003613582849676987,
         "weight_norm": False,
         "zero_threshold": 0.05638024262912267,
+
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+
+        "random_state": 1,
+        "optimizer_cls": "Adam",
+        "lr_scheduler_factor": 0.46,
+        "lr_scheduler_patience": 7,
+        "lr_scheduler_min_lr": 1e-05,
+        "early_stopping_min_delta": 0.01,
 
         "num_samples": 1,
         "mc_dropout": True,

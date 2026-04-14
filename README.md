@@ -9,6 +9,20 @@ This repository contains all of the necesary components for creating new models 
 
 ---
 
+## .env Template
+
+```
+# .env
+cm_path=""
+pgm_path=""
+month_to_update=[]
+
+APPWRITE_ENDPOINT=""
+APPWRITE_DATASTORE_PROJECT_ID=""
+```
+
+---
+
 ## Table of contents
 
 <!-- toc -->
@@ -25,6 +39,7 @@ This repository contains all of the necesary components for creating new models 
 - [Ensemble scripts](#ensemble-scripts)
 - [Ensemble filesystem](#ensemble-filesystem)
 - [Running an ensemble](#running-an-ensemble)
+- [Integration Testing](#integration-testing)
 - [Implemented Models](#implemented-models)
 - [Model Catalogs](#catalogs)
     - [Country-Month Models](#country-month-model-catalog)
@@ -318,6 +333,41 @@ Consequently, in order to train a model and generate predictions, execute either
 As of now, the only implemented model architecture is the [stepshifter model](https://github.com/views-platform/views-stepshifter/blob/main/README.md). Experienced users have the possibility to develop their own model architecture including their own model class manager. Head over to [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) for further information on the model class manager and on how to develop new model architectures. 
 
 
+## Integration Testing
+<a name="integration-testing"></a>
+
+The repository includes an integration test runner that verifies models haven't been broken by changes in this repo or in upstream/downstream packages. It trains and evaluates every model end-to-end on calibration and validation partitions, running them sequentially in a single shared conda environment, and produces a summary table of PASS/FAIL/TIMEOUT results with per-model logs.
+
+```bash
+# Run all models (calibration + validation)
+bash run_integration_tests.sh
+
+# Run only country-month models
+bash run_integration_tests.sh --level cm
+
+# Run only baseline models
+bash run_integration_tests.sh --library baseline
+
+# Run specific models with a custom timeout
+bash run_integration_tests.sh --models "counting_stars bad_blood" --timeout 3600
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--models "m1 m2"` | all models | Run only these models |
+| `--level` `cm` or `pgm` | no filter | Run only models at this level of analysis |
+| `--library NAME` | no filter | Run only models using this library (baseline/stepshifter/r2darts2/hydranet) |
+| `--exclude "m1 m2"` | `"purple_alien"` | Skip these models (replaces the default, does not append) |
+| `--partitions "p1 p2"` | `"calibration validation"` | Partitions to test |
+| `--timeout SECONDS` | `1800` | Max wall-clock time per model run |
+| `--env NAME` | `views_pipeline` | Conda environment to activate |
+
+Logs are written to `logs/integration_test_<timestamp>/` with a `summary.log` and per-model logs under `{partition}/{model}.log`.
+
+For the full guide — including how model discovery works, how to read failure logs, and important caveats — see [docs/run_integration_tests.md](docs/run_integration_tests.md).
+
+---
+
 ## Implemented Models
 
 In addition to the possibility of easily creating new models and ensembles, in order to maintain an organized and structured overview over all of the implemented models, the views-models repository also contains model catalogs containing all of the information about individual models. This information is collected from the metadata of each model and entails:
@@ -352,27 +402,40 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 <!-- CM_TABLE_START -->
 | Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------- | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
-| bittersweet_symphony | XGBRegressor | ln_ged_sb_dep | - [ fatalities003_all_features](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_queryset.py) | - [hyperparameters bittersweet_symphony](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| brown_cheese | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_baseline](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_queryset.py) | - [hyperparameters brown_cheese](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| car_radio | XGBRegressor | ln_ged_sb_dep | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/car_radio/configs/config_queryset.py) | - [hyperparameters car_radio](https://github.com/views-platform/views-models/blob/main/models/car_radio/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| counting_stars | XGBRegressor | ln_ged_sb_dep | - [fatalities003_conflict_history_long](https://github.com/views-platform/views-models/blob/main/models/counting_stars/configs/config_queryset.py) | - [hyperparameters counting_stars](https://github.com/views-platform/views-models/blob/main/models/counting_stars/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| demon_days | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_faostat](https://github.com/views-platform/views-models/blob/main/models/demon_days/configs/config_queryset.py) | - [hyperparameters demon_days](https://github.com/views-platform/views-models/blob/main/models/demon_days/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| electric_relaxation | RandomForestRegressor | ged_sb_dep | - [escwa001_cflong](https://github.com/views-platform/views-models/blob/main/models/electric_relaxation/configs/config_queryset.py) | - [hyperparameters electric_relaxation](https://github.com/views-platform/views-models/blob/main/models/electric_relaxation/configs/config_hyperparameters.py) | None | deprecated | NA | Sara |
-| fast_car | HurdleModel | ln_ged_sb_dep | - [fatalities003_vdem_short](https://github.com/views-platform/views-models/blob/main/models/fast_car/configs/config_queryset.py) | - [hyperparameters fast_car](https://github.com/views-platform/views-models/blob/main/models/fast_car/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| fluorescent_adolescent | HurdleModel | ln_ged_sb_dep | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/fluorescent_adolescent/configs/config_queryset.py) | - [hyperparameters fluorescent_adolescent](https://github.com/views-platform/views-models/blob/main/models/fluorescent_adolescent/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| good_riddance | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/good_riddance/configs/config_queryset.py) | - [hyperparameters good_riddance](https://github.com/views-platform/views-models/blob/main/models/good_riddance/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| green_squirrel | HurdleModel | ln_ged_sb_dep | - [fatalities003_joint_broad](https://github.com/views-platform/views-models/blob/main/models/green_squirrel/configs/config_queryset.py) | - [hyperparameters green_squirrel](https://github.com/views-platform/views-models/blob/main/models/green_squirrel/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| heavy_rotation | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_joint_broad](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_queryset.py) | - [hyperparameters heavy_rotation](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| high_hopes | HurdleModel | ln_ged_sb_dep | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_queryset.py) | - [hyperparameters high_hopes](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| little_lies | HurdleModel | ln_ged_sb_dep | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_queryset.py) | - [hyperparameters little_lies](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| lovely_creature | ShurfModel | sb_best | - [uncertainty_broad_nolog](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_queryset.py) | - [hyperparameters lovely_creature](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
-| national_anthem | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_wdi_short](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_queryset.py) | - [hyperparameters national_anthem](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| ominous_ox | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_queryset.py) | - [hyperparameters ominous_ox](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| plastic_beach | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_aquastat](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_queryset.py) | - [hyperparameters plastic_beach](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| popular_monster | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/popular_monster/configs/config_queryset.py) | - [hyperparameters popular_monster](https://github.com/views-platform/views-models/blob/main/models/popular_monster/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| teen_spirit | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_faoprices](https://github.com/views-platform/views-models/blob/main/models/teen_spirit/configs/config_queryset.py) | - [hyperparameters teen_spirit](https://github.com/views-platform/views-models/blob/main/models/teen_spirit/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
-| twin_flame | HurdleModel | ln_ged_sb_dep | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/twin_flame/configs/config_queryset.py) | - [hyperparameters twin_flame](https://github.com/views-platform/views-models/blob/main/models/twin_flame/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
-| yellow_submarine | XGBRFRegressor | ln_ged_sb_dep | - [fatalities003_imfweo](https://github.com/views-platform/views-models/blob/main/models/yellow_submarine/configs/config_queryset.py) | - [hyperparameters yellow_submarine](https://github.com/views-platform/views-models/blob/main/models/yellow_submarine/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| average_cmbaseline | AverageModel | lr_ged_sb | None | - [hyperparameters average_cmbaseline](https://github.com/views-platform/views-models/blob/main/models/average_cmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
+| bittersweet_symphony | XGBRegressor | lr_ged_sb | - [ fatalities003_all_features](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_queryset.py) | - [hyperparameters bittersweet_symphony](https://github.com/views-platform/views-models/blob/main/models/bittersweet_symphony/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| brown_cheese | XGBRFRegressor | lr_ged_sb | - [fatalities003_baseline](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_queryset.py) | - [hyperparameters brown_cheese](https://github.com/views-platform/views-models/blob/main/models/brown_cheese/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| car_radio | XGBRegressor | lr_ged_sb | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/car_radio/configs/config_queryset.py) | - [hyperparameters car_radio](https://github.com/views-platform/views-models/blob/main/models/car_radio/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| cheap_thrills | ShurfModel | lr_sb_best | - [structural_brief_nolog](https://github.com/views-platform/views-models/blob/main/models/cheap_thrills/configs/config_queryset.py) | - [hyperparameters cheap_thrills](https://github.com/views-platform/views-models/blob/main/models/cheap_thrills/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| counting_stars | XGBRegressor | lr_ged_sb | - [fatalities003_conflict_history_long](https://github.com/views-platform/views-models/blob/main/models/counting_stars/configs/config_queryset.py) | - [hyperparameters counting_stars](https://github.com/views-platform/views-models/blob/main/models/counting_stars/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| demon_days | XGBRFRegressor | lr_ged_sb | - [fatalities003_faostat](https://github.com/views-platform/views-models/blob/main/models/demon_days/configs/config_queryset.py) | - [hyperparameters demon_days](https://github.com/views-platform/views-models/blob/main/models/demon_days/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| elastic_heart | TSMixerModel | ln_ged_sb_dep | None | - [hyperparameters elastic_heart](https://github.com/views-platform/views-models/blob/main/models/elastic_heart/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| electric_relaxation | RandomForestRegressor | lr_ged_sb | - [escwa001_cflong](https://github.com/views-platform/views-models/blob/main/models/electric_relaxation/configs/config_queryset.py) | - [hyperparameters electric_relaxation](https://github.com/views-platform/views-models/blob/main/models/electric_relaxation/configs/config_hyperparameters.py) | None | deprecated | NA | Sara |
+| fast_car | HurdleModel | lr_ged_sb | - [fatalities003_vdem_short](https://github.com/views-platform/views-models/blob/main/models/fast_car/configs/config_queryset.py) | - [hyperparameters fast_car](https://github.com/views-platform/views-models/blob/main/models/fast_car/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| fluorescent_adolescent | HurdleModel | lr_ged_sb | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/fluorescent_adolescent/configs/config_queryset.py) | - [hyperparameters fluorescent_adolescent](https://github.com/views-platform/views-models/blob/main/models/fluorescent_adolescent/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| fourtieth_symphony | ShurfModel | lr_sb_best | - [uncertainty_broad_nolog](https://github.com/views-platform/views-models/blob/main/models/fourtieth_symphony/configs/config_queryset.py) | - [hyperparameters fourtieth_symphony](https://github.com/views-platform/views-models/blob/main/models/fourtieth_symphony/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| good_riddance | XGBRFRegressor | lr_ged_sb | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/good_riddance/configs/config_queryset.py) | - [hyperparameters good_riddance](https://github.com/views-platform/views-models/blob/main/models/good_riddance/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| green_squirrel | HurdleModel | lr_ged_sb | - [fatalities003_joint_broad](https://github.com/views-platform/views-models/blob/main/models/green_squirrel/configs/config_queryset.py) | - [hyperparameters green_squirrel](https://github.com/views-platform/views-models/blob/main/models/green_squirrel/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| heavy_rotation | XGBRFRegressor | lr_ged_sb | - [fatalities003_joint_broad](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_queryset.py) | - [hyperparameters heavy_rotation](https://github.com/views-platform/views-models/blob/main/models/heavy_rotation/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| high_hopes | HurdleModel | lr_ged_sb | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_queryset.py) | - [hyperparameters high_hopes](https://github.com/views-platform/views-models/blob/main/models/high_hopes/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| little_lies | HurdleModel | lr_ged_sb | - [fatalities003_joint_narrow](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_queryset.py) | - [hyperparameters little_lies](https://github.com/views-platform/views-models/blob/main/models/little_lies/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| locf_cmbaseline | LocfModel | lr_ged_sb | None | - [hyperparameters locf_cmbaseline](https://github.com/views-platform/views-models/blob/main/models/locf_cmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
+| lovely_creature | ShurfModel | lr_sb_best | - [uncertainty_broad_nolog](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_queryset.py) | - [hyperparameters lovely_creature](https://github.com/views-platform/views-models/blob/main/models/lovely_creature/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| national_anthem | XGBRFRegressor | lr_ged_sb | - [fatalities003_wdi_short](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_queryset.py) | - [hyperparameters national_anthem](https://github.com/views-platform/views-models/blob/main/models/national_anthem/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| new_rules | NBEATSModel | ln_ged_sb_dep | None | - [hyperparameters new_rules](https://github.com/views-platform/views-models/blob/main/models/new_rules/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| ominous_ox | XGBRFRegressor | lr_ged_sb | - [fatalities003_conflict_history](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_queryset.py) | - [hyperparameters ominous_ox](https://github.com/views-platform/views-models/blob/main/models/ominous_ox/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| plastic_beach | XGBRFRegressor | lr_ged_sb | - [fatalities003_aquastat](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_queryset.py) | - [hyperparameters plastic_beach](https://github.com/views-platform/views-models/blob/main/models/plastic_beach/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| popular_monster | XGBRFRegressor | lr_ged_sb | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/popular_monster/configs/config_queryset.py) | - [hyperparameters popular_monster](https://github.com/views-platform/views-models/blob/main/models/popular_monster/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| purple_haze | ShurfModel | lr_sb_best | - [uncertainty_broad_nolog](https://github.com/views-platform/views-models/blob/main/models/purple_haze/configs/config_queryset.py) | - [hyperparameters purple_haze](https://github.com/views-platform/views-models/blob/main/models/purple_haze/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| teen_spirit | XGBRFRegressor | lr_ged_sb | - [fatalities003_faoprices](https://github.com/views-platform/views-models/blob/main/models/teen_spirit/configs/config_queryset.py) | - [hyperparameters teen_spirit](https://github.com/views-platform/views-models/blob/main/models/teen_spirit/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| teenage_dirtbag | TCNModel | ln_ged_sb_dep | None | - [hyperparameters teenage_dirtbag](https://github.com/views-platform/views-models/blob/main/models/teenage_dirtbag/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| thousand_miles | TiDEModel | ln_ged_sb_dep | None | - [hyperparameters thousand_miles](https://github.com/views-platform/views-models/blob/main/models/thousand_miles/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| thrift_shop | TFTModel | ln_ged_sb_dep | None | - [hyperparameters thrift_shop](https://github.com/views-platform/views-models/blob/main/models/thrift_shop/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| twin_flame | HurdleModel | lr_ged_sb | - [fatalities003_topics](https://github.com/views-platform/views-models/blob/main/models/twin_flame/configs/config_queryset.py) | - [hyperparameters twin_flame](https://github.com/views-platform/views-models/blob/main/models/twin_flame/configs/config_hyperparameters.py) | None | shadow | NA | Borbála |
+| wild_rose | ShurfModel | lr_sb_best | - [uncertainty_conflict_nolog](https://github.com/views-platform/views-models/blob/main/models/wild_rose/configs/config_queryset.py) | - [hyperparameters wild_rose](https://github.com/views-platform/views-models/blob/main/models/wild_rose/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| wuthering_heights | ShurfModel | lr_sb_best | - [uncertainty_deep_conflict_nolog](https://github.com/views-platform/views-models/blob/main/models/wuthering_heights/configs/config_queryset.py) | - [hyperparameters wuthering_heights](https://github.com/views-platform/views-models/blob/main/models/wuthering_heights/configs/config_hyperparameters.py) | None | shadow | NA | Håvard |
+| yellow_submarine | XGBRFRegressor | lr_ged_sb | - [fatalities003_imfweo](https://github.com/views-platform/views-models/blob/main/models/yellow_submarine/configs/config_queryset.py) | - [hyperparameters yellow_submarine](https://github.com/views-platform/views-models/blob/main/models/yellow_submarine/configs/config_hyperparameters.py) | None | shadow | NA | Marina |
+| zero_cmbaseline | ZeroModel | lr_ged_sb | None | - [hyperparameters zero_cmbaseline](https://github.com/views-platform/views-models/blob/main/models/zero_cmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
 
 <!-- CM_TABLE_END -->
 
@@ -383,19 +446,22 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 <!-- PGM_TABLE_START -->
 | Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------- | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
-| bad_blood | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_queryset.py) | - [hyperparameters bad_blood](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| blank_space | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_queryset.py) | - [hyperparameters blank_space](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| caring_fish | XGBRegressor | ln_ged_sb_dep | - [fatalities003_pgm_conflict_history](https://github.com/views-platform/views-models/blob/main/models/caring_fish/configs/config_queryset.py) | - [hyperparameters caring_fish](https://github.com/views-platform/views-models/blob/main/models/caring_fish/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| chunky_cat | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_conflictlong](https://github.com/views-platform/views-models/blob/main/models/chunky_cat/configs/config_queryset.py) | - [hyperparameters chunky_cat](https://github.com/views-platform/views-models/blob/main/models/chunky_cat/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| dark_paradise | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_conflictlong](https://github.com/views-platform/views-models/blob/main/models/dark_paradise/configs/config_queryset.py) | - [hyperparameters dark_paradise](https://github.com/views-platform/views-models/blob/main/models/dark_paradise/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| invisible_string | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_broad](https://github.com/views-platform/views-models/blob/main/models/invisible_string/configs/config_queryset.py) | - [hyperparameters invisible_string](https://github.com/views-platform/views-models/blob/main/models/invisible_string/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| lavender_haze | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_broad](https://github.com/views-platform/views-models/blob/main/models/lavender_haze/configs/config_queryset.py) | - [hyperparameters lavender_haze](https://github.com/views-platform/views-models/blob/main/models/lavender_haze/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| midnight_rain | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_escwa_drought](https://github.com/views-platform/views-models/blob/main/models/midnight_rain/configs/config_queryset.py) | - [hyperparameters midnight_rain](https://github.com/views-platform/views-models/blob/main/models/midnight_rain/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| old_money | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_escwa_drought](https://github.com/views-platform/views-models/blob/main/models/old_money/configs/config_queryset.py) | - [hyperparameters old_money](https://github.com/views-platform/views-models/blob/main/models/old_money/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| orange_pasta | LGBMRegressor | ln_ged_sb_dep | - [fatalities003_pgm_baseline](https://github.com/views-platform/views-models/blob/main/models/orange_pasta/configs/config_queryset.py) | - [hyperparameters orange_pasta](https://github.com/views-platform/views-models/blob/main/models/orange_pasta/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| average_pgmbaseline | AverageModel | lr_ged_sb | None | - [hyperparameters average_pgmbaseline](https://github.com/views-platform/views-models/blob/main/models/average_pgmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
+| bad_blood | LGBMRegressor | lr_ged_sb | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_queryset.py) | - [hyperparameters bad_blood](https://github.com/views-platform/views-models/blob/main/models/bad_blood/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| blank_space | HurdleModel | lr_ged_sb | - [fatalities003_pgm_natsoc](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_queryset.py) | - [hyperparameters blank_space](https://github.com/views-platform/views-models/blob/main/models/blank_space/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| caring_fish | XGBRegressor | lr_ged_sb | - [fatalities003_pgm_conflict_history](https://github.com/views-platform/views-models/blob/main/models/caring_fish/configs/config_queryset.py) | - [hyperparameters caring_fish](https://github.com/views-platform/views-models/blob/main/models/caring_fish/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| chunky_cat | LGBMRegressor | lr_ged_sb | - [fatalities003_pgm_conflictlong](https://github.com/views-platform/views-models/blob/main/models/chunky_cat/configs/config_queryset.py) | - [hyperparameters chunky_cat](https://github.com/views-platform/views-models/blob/main/models/chunky_cat/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| dark_paradise | HurdleModel | lr_ged_sb | - [fatalities003_pgm_conflictlong](https://github.com/views-platform/views-models/blob/main/models/dark_paradise/configs/config_queryset.py) | - [hyperparameters dark_paradise](https://github.com/views-platform/views-models/blob/main/models/dark_paradise/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| invisible_string | LGBMRegressor | lr_ged_sb | - [fatalities003_pgm_broad](https://github.com/views-platform/views-models/blob/main/models/invisible_string/configs/config_queryset.py) | - [hyperparameters invisible_string](https://github.com/views-platform/views-models/blob/main/models/invisible_string/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| lavender_haze | HurdleModel | lr_ged_sb | - [fatalities003_pgm_broad](https://github.com/views-platform/views-models/blob/main/models/lavender_haze/configs/config_queryset.py) | - [hyperparameters lavender_haze](https://github.com/views-platform/views-models/blob/main/models/lavender_haze/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| locf_pgmbaseline | LocfModel | lr_ged_sb | None | - [hyperparameters locf_pgmbaseline](https://github.com/views-platform/views-models/blob/main/models/locf_pgmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
+| midnight_rain | LGBMRegressor | lr_ged_sb | - [fatalities003_pgm_escwa_drought](https://github.com/views-platform/views-models/blob/main/models/midnight_rain/configs/config_queryset.py) | - [hyperparameters midnight_rain](https://github.com/views-platform/views-models/blob/main/models/midnight_rain/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| old_money | HurdleModel | lr_ged_sb | - [fatalities003_pgm_escwa_drought](https://github.com/views-platform/views-models/blob/main/models/old_money/configs/config_queryset.py) | - [hyperparameters old_money](https://github.com/views-platform/views-models/blob/main/models/old_money/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| orange_pasta | LGBMRegressor | lr_ged_sb | - [fatalities003_pgm_baseline](https://github.com/views-platform/views-models/blob/main/models/orange_pasta/configs/config_queryset.py) | - [hyperparameters orange_pasta](https://github.com/views-platform/views-models/blob/main/models/orange_pasta/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
 | purple_alien | HydraNet | ln_sb_best, ln_ns_best, ln_os_best, ln_sb_best_binarized, ln_ns_best_binarized, ln_os_best_binarized | - [escwa001_cflong](https://github.com/views-platform/views-models/blob/main/models/purple_alien/configs/config_queryset.py) | - [hyperparameters purple_alien](https://github.com/views-platform/views-models/blob/main/models/purple_alien/configs/config_hyperparameters.py) | None | shadow | NA | Simon |
-| wildest_dream | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_conflict_sptime_dist](https://github.com/views-platform/views-models/blob/main/models/wildest_dream/configs/config_queryset.py) | - [hyperparameters wildest_dream](https://github.com/views-platform/views-models/blob/main/models/wildest_dream/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| yellow_pikachu | HurdleModel | ln_ged_sb_dep | - [fatalities003_pgm_conflict_treelag](https://github.com/views-platform/views-models/blob/main/models/yellow_pikachu/configs/config_queryset.py) | - [hyperparameters yellow_pikachu](https://github.com/views-platform/views-models/blob/main/models/yellow_pikachu/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| wildest_dream | HurdleModel | lr_ged_sb | - [fatalities003_pgm_conflict_sptime_dist](https://github.com/views-platform/views-models/blob/main/models/wildest_dream/configs/config_queryset.py) | - [hyperparameters wildest_dream](https://github.com/views-platform/views-models/blob/main/models/wildest_dream/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| yellow_pikachu | HurdleModel | lr_ged_sb | - [fatalities003_pgm_conflict_treelag](https://github.com/views-platform/views-models/blob/main/models/yellow_pikachu/configs/config_queryset.py) | - [hyperparameters yellow_pikachu](https://github.com/views-platform/views-models/blob/main/models/yellow_pikachu/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| zero_pgmbaseline | ZeroModel | lr_ged_sb | None | - [hyperparameters zero_pgmbaseline](https://github.com/views-platform/views-models/blob/main/models/zero_pgmbaseline/configs/config_hyperparameters.py) | None | shadow | NA | Sonja |
 
 <!-- PGM_TABLE_END -->
 
@@ -406,10 +472,11 @@ The catalogs for all of the existing VIEWS models can be found below. The models
 <!-- ENSEMBLE_TABLE_START -->
 | Model Name | Algorithm | Targets | Input Features | Non-default Hyperparameters | Forecasting Type | Implementation Status | Implementation Date | Author |
 | ---------- | --------- | ------- | -------------- | --------------------------- | ---------------- | --------------------- | ------------------- | ------ |
-| cruel_summer |  | ln_ged_sb_dep | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| pink_ponyclub |  | ln_ged_sb_dep | None | - [hyperparameters pink_ponyclub](https://github.com/views-platform/views-models/blob/main/ensembles/pink_ponyclub/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| skinny_love |  | ln_ged_sb_dep | None | - [hyperparameters skinny_love](https://github.com/views-platform/views-models/blob/main/ensembles/skinny_love/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
-| white_mustang |  | ln_ged_sb_dep | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | None | deployed | NA | Xiaolong |
+| cruel_summer |  | lr_ged_sb | None | - [hyperparameters cruel_summer](https://github.com/views-platform/views-models/blob/main/ensembles/cruel_summer/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| pink_ponyclub |  | lr_ged_sb | None | - [hyperparameters pink_ponyclub](https://github.com/views-platform/views-models/blob/main/ensembles/pink_ponyclub/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| rude_boy |  | ln_ged_sb_dep | None | - [hyperparameters rude_boy](https://github.com/views-platform/views-models/blob/main/ensembles/rude_boy/configs/config_hyperparameters.py) | None | shadow | NA | Dylan |
+| skinny_love |  | lr_ged_sb | None | - [hyperparameters skinny_love](https://github.com/views-platform/views-models/blob/main/ensembles/skinny_love/configs/config_hyperparameters.py) | None | shadow | NA | Xiaolong |
+| white_mustang |  | lr_ged_sb | None | - [hyperparameters white_mustang](https://github.com/views-platform/views-models/blob/main/ensembles/white_mustang/configs/config_hyperparameters.py) | None | deployed | NA | Xiaolong |
 
 <!-- ENSEMBLE_TABLE_END -->
 

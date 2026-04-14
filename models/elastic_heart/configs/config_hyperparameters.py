@@ -10,6 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
         
         # classic-sweep-120
         "activation": "Tanh",
@@ -33,6 +34,19 @@ def get_hp_config():
         "target_scaler": "YeoJohnsonTransform",
         "weight_decay": 0.005893888408985461,
         "zero_threshold": 0.2163136317477652,
+
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": False,
+
+        "random_state": 1,
+        "optimizer_cls": "Adam",
+        "lr_scheduler_factor": 0.46,
+        "lr_scheduler_patience": 7,
+        "lr_scheduler_min_lr": 1e-05,
+        "early_stopping_min_delta": 0.01,
+        "gradient_clip_val": 1,
 
         "num_samples": 1,
         "mc_dropout": True,

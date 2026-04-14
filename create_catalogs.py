@@ -1,9 +1,10 @@
 import os
+import importlib.util
 import logging
+import tempfile
 logging.basicConfig(
     level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger(__name__)
 
 
 from pathlib import Path
@@ -38,7 +39,6 @@ def extract_models(model_class):
     """
     
     model_dict = {}
-    tmp_dict = {}
     config_meta = os.path.join(model_class.configs, 'config_meta.py')
     config_deployment = os.path.join(model_class.configs, 'config_deployment.py')
     config_hyperparameters = os.path.join(model_class.configs, 'config_hyperparameters.py')
@@ -46,19 +46,19 @@ def extract_models(model_class):
     
     if os.path.exists(config_meta):
         logging.info(f"Found meta config: {config_meta}")
-        with open(config_meta, 'r') as file:
-            code = file.read()
-            exec(code, {}, tmp_dict)
-        model_dict.update(tmp_dict['get_meta_config']())
+        spec = importlib.util.spec_from_file_location("config_meta", config_meta)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        model_dict.update(module.get_meta_config())
         model_dict['queryset'] = create_link(model_dict['queryset'], model_class.queryset_path) if 'queryset' in model_dict else 'None'
 
 
     if os.path.exists(config_deployment):
         logging.info(f"Found deployment config: {config_deployment}")
-        with open(config_deployment, 'r') as file:
-            code = file.read()
-            exec(code, {}, tmp_dict) 
-        model_dict.update(tmp_dict['get_deployment_config']())
+        spec = importlib.util.spec_from_file_location("config_deployment", config_deployment)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        model_dict.update(module.get_deployment_config())
 
     if os.path.exists(config_hyperparameters):
         logging.info(f"Found hyperparameters config: {config_hyperparameters}") 
@@ -150,8 +150,13 @@ def update_readme_with_tables(
         content, "ENSEMBLE_TABLE", ensemble_table
     )
 
-    with open(readme_path, "w") as file:
-        file.write(content)
+    dir_name = os.path.dirname(os.path.abspath(readme_path))
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=dir_name, suffix=".tmp", delete=False
+    ) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    os.replace(tmp_path, readme_path)
 
 
 def replace_table_in_section(content, section_name, new_table):
@@ -192,9 +197,6 @@ def replace_table_in_section(content, section_name, new_table):
 
 
 if __name__ == "__main__":
-    #import time
-    #start_time = time.time()
-
     models_list_cm = []
     models_list_pgm = []
     ensemble_list = []
@@ -224,20 +226,6 @@ if __name__ == "__main__":
             
 
 
-    # markdown_table_pgm = generate_markdown_table(models_list_pgm)
-    # with open('pgm_model_catalog.md', 'w') as f:
-    #     f.write(markdown_table_pgm)
-
-    # markdown_table_cm = generate_markdown_table(models_list_cm)
-    # with open('cm_model_catalog.md', 'w') as f:
-    #     f.write(markdown_table_cm)
-
-    # markdown_table_ensembles = generate_markdown_table(ensemble_list)
-    # with open('ensembles_catalog.md', 'w') as f:
-    #     f.write(markdown_table_ensembles)
-
-
-
 
 
     markdown_table_cm = generate_markdown_table(models_list_cm)
@@ -251,7 +239,4 @@ if __name__ == "__main__":
         markdown_table_pgm,
         markdown_table_ensembles,
     )
-
-
-    #print("--- %s seconds ---" % (time.time() - start_time))
 

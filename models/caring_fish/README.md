@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | XGBRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_conflict_history   |
-| **Feature Description**       |  Fatalities conflict history Predicting ln(fatalities) using conflict predictors    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  caring_fish   |
+| **Feature Description**       |  Fatalities conflict history Predicting fatalities using conflict predictors    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Caring Fish
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

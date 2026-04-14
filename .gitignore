@@ -6,6 +6,9 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
+# Integration test logs
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -39,6 +42,9 @@ __pycache__/
 
 # C extensions
 *.so
+
+# Misc.
+appwrite_cache/
 
 # Distribution / packaging
 .Python
@@ -83,6 +89,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
 cover/
 
 # Translations
@@ -247,3 +254,11 @@ cython_debug/
 # logs
 *.log
 *.log.*
+
+/models/emerging_principles/temp-views-r2darts2/
+/models/emerging_principles/output_non_sweep_00.md
+/models/emerging_principles/temp_output_sweep00.md
+
+# Un-ignore tracked files that match blanket rules above
+!**/requirements.txt
+!meta/partitions.json

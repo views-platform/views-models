@@ -50,7 +50,7 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         self._subdirs = self._model.get_directories().values()
         self._scripts = self._model.get_scripts().values()
 
-    def build_model_scripts(self):
+    def build_model_scripts(self, *, pipeline_config=None):
         """
         Generates the necessary model scripts for deployment, hyperparameters, and metadata configurations.
 
@@ -61,9 +61,15 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         - config_meta.py
         - main.py
 
+        Args:
+            pipeline_config: PipelineConfig instance for version range lookup.
+                Defaults to PipelineConfig().
+
         Raises:
             FileNotFoundError: If the model directory does not exist.
         """
+        pipeline_config = pipeline_config or PipelineConfig()
+
         if not self._model.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first. Aborting script generation."
@@ -80,7 +86,7 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         )
         template_main.generate(script_path=self._model.model_dir / "main.py")
         template_run_sh.generate(script_path=self._model.model_dir / "run.sh")
-        template_requirement_txt.generate(script_path=self.requirements_path, pipeline_core_version_range=PipelineConfig().views_pipeline_core_version_range)
+        template_requirement_txt.generate(script_path=self.requirements_path, pipeline_core_version_range=pipeline_config.views_pipeline_core_version_range)
 
 
 if __name__ == "__main__":

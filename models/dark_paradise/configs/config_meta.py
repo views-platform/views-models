@@ -12,10 +12,12 @@ def get_meta_config():
         "algorithm": "HurdleModel",
         "model_clf": "LGBMClassifier",
         "model_reg": "LGBMRegressor",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "targets": "ln_ged_sb_dep",
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_pgm_conflictlong",
         "level": "pgm",
-        "creator": "Xiaolong"
+        "creator": "Xiaolong",
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config

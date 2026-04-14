@@ -29,10 +29,10 @@ def get_meta_config():
             "twin_flame",
             "yellow_submarine",
         ],
-        "targets": "ln_ged_sb_dep",
+        "regression_targets": ["lr_ged_sb"],
         "level": "cm",
         "aggregation": "mean",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Xiaolong",
         "reconciliation": None,
     }

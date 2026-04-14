@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_conflictlong   |
-| **Feature Description**       |  fatalities longer conflict history, pgm level Predicting ln(ged_best_sb) using conflict predictors, longer version    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  chunky_cat   |
+| **Feature Description**       |  fatalities longer conflict history, pgm level Predicting lr_ged_sb using conflict predictors, longer version    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Chunky Cat
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

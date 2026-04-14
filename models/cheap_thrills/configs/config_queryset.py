@@ -13,16 +13,16 @@ def generate():
     # VIEWSER 6, Example configuration. Modify as needed.
 
     queryset = (Queryset('structural_brief_nolog','country_month')
-        .with_column(Column('gleditsch_ward', from_loa='country', from_column='gwcode')
+        .with_column(Column('lr_gleditsch_ward', from_loa='country', from_column='gwcode')
             )
 
-        .with_column(Column('sb_best', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
+        .with_column(Column('lr_sb_best', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()
             )
 
 
-        .with_column(Column('wdi_ny_gdp_mktp_kd', from_loa='country_year', from_column='wdi_ny_gdp_mktp_kd')
+        .with_column(Column('lr_wdi_ny_gdp_mktp_kd', from_loa='country_year', from_column='wdi_ny_gdp_mktp_kd')
             .transform.missing.fill()
             .transform.temporal.tlag(12)
             .transform.missing.fill()
@@ -30,7 +30,7 @@ def generate():
             )
 
 
-        .with_column(Column('vdem_v2x_libdem', from_loa='country_year', from_column='vdem_v2x_libdem')
+        .with_column(Column('lr_vdem_v2x_libdem', from_loa='country_year', from_column='vdem_v2x_libdem')
             .transform.missing.fill()
             .transform.temporal.tlag(12)
             .transform.missing.fill()
@@ -38,7 +38,7 @@ def generate():
             )
 
 
-        .with_column(Column('wdi_sp_pop_totl', from_loa='country_year', from_column='wdi_sp_pop_totl')
+        .with_column(Column('lr_wdi_sp_pop_totl', from_loa='country_year', from_column='wdi_sp_pop_totl')
             .transform.missing.fill()
             .transform.temporal.tlag(12)
             .transform.missing.fill()
@@ -48,7 +48,7 @@ def generate():
 
 
         .with_theme('uncertainty')
-        .describe("""Predicting ln(fatalities), cm level
+        .describe("""Predicting fatalities, cm level
         
                                 Queryset with a small number of structural features, no conflict history
         

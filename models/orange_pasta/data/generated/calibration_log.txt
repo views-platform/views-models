@@ -1,0 +1,6 @@
+Single Model Name: orange_pasta
+Single Model Timestamp: 20250218_200656
+Data Generation Timestamp: None
+Data Fetch Timestamp: 20250218_200217
+Deployment Status: shadow
+

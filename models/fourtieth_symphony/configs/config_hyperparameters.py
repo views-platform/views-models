@@ -10,9 +10,10 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'submodels_to_train': 100,
-        'pred_samples': 5,
-        'log_target': False,
+        "time_steps": 36,
+        'submodels_to_train': 20,
+        'pred_samples': 10,
+        'log_target': True,
         'draw_dist': 'Lognormal',
         'draw_sigma': 0.5,
         'geo_unit_samples': 1.0,

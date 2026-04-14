@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | LGBMRegressor                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  fatalities003_pgm_baseline   |
-| **Feature Description**       |  Fatalities conflict history, cm level Predicting ln(fatalities) using conflict predictors, ultrashort    |
-| **Metrics**       |  RMSLE, CRPS    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  orange_pasta   |
+| **Feature Description**       |  Fatalities conflict history, cm level Predicting fatalities using conflict predictors, ultrashort    |
+| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -26,6 +26,7 @@ Orange Pasta
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
+│   ├── config_partitions.py
 │   ├── config_queryset.py
 │   ├── config_sweep.py
 ├── data

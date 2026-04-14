@@ -1,4 +1,3 @@
-import importlib.util
 import os
 from pathlib import Path
 import re
@@ -6,12 +5,8 @@ from views_pipeline_core.managers.model import ModelManager, ModelPathManager
 from views_pipeline_core.managers.ensemble import  EnsembleManager, EnsemblePathManager
 
 
-## change working directory to views models - optional
 base_dir = os.getcwd()
-#new_dir = Path(base_dir+'/views-models')
-#os.chdir(new_dir)
 target_dir = Path(base_dir + "/models")
-target_dir
 
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
@@ -126,7 +121,7 @@ for subfolder in target_dir.iterdir():
         # Add created sessioin if it exists
 
         match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
-        if match==None:
+        if match is None:
             new_string=''
         else:
             created_section = match.group(1).strip()
@@ -228,7 +223,7 @@ for subfolder in target_ens_dir.iterdir():
         # Add created sessioin if it exists
 
         match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
-        if match==None:
+        if match is None:
             new_string=''
         else:
             created_section = match.group(1).strip()

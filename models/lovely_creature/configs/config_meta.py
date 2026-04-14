@@ -10,12 +10,14 @@ def get_meta_config():
     meta_config = {
         "name": "lovely_creature", 
         "algorithm": "ShurfModel",
-        "targets": ["lr_sb_best"],
+        "regression_targets": ["lr_sb_best"],
         "level": "cm",
         "creator": "Håvard",
+        "prediction_format": "dataframe",
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "queryset": "uncertainty_broad_nolog",
+        "rolling_origin_stride": 1,
     }
     return meta_config
