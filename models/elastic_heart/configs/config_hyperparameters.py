@@ -10,7 +10,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -19,7 +19,7 @@ def get_hp_config():
 
         # Inference
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": False,
         "n_jobs": -1,
 
         # Training
@@ -31,9 +31,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0002936211989631155,
+        "lr": 0.00020879749550013765,
         "weight_decay": 5e-6,
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 3,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -46,17 +46,16 @@ def get_hp_config():
             "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.0002936211989631155,
+            "lr": 0.00020879749550013765,
             "weight_decay": 5e-6,
         },
 
         # Loss: SpotlightLoss
         "loss_function": "SpotlightLoss",
-        "alpha": 0.4248553696733304,
-        "beta": 0.7210264346613511,
-        "kappa": 12.11630291952772,
-        "delta": 1.8144131362745577,
-        "gamma": 0.12783504728547823,
+        "alpha": 0.19552798273612648,
+        "beta": 0.07586076941722188,
+        "kappa": 8.703825419825785,
+        "gamma": 0.08167887229607856,
 
         # Scaling
         "feature_scaler": None,
@@ -114,9 +113,9 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.2006872109702084,
+        "dropout": 0.11739982293531824,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
 
         "use_cyclic_encoders": True,
 
