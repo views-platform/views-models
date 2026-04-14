@@ -54,8 +54,8 @@ def get_hp_config():
         "loss_function": "SpotlightLoss",
         "alpha": 0.19552798273612648,
         "beta": 0.07586076941722188,
-        "kappa": 8.703825419825785,
-        "gamma": 0.08167887229607856,
+        "kappa": 4.0,
+        "gamma": 0.03,
 
         # Scaling
         "feature_scaler": None,
