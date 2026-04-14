@@ -1,7 +1,6 @@
 def get_hp_config():
     """
-    N-HiTS hyperparameters — SpotlightLoss (symmetric) with conservative
-    architecture to prevent OOD extrapolation via basis interpolation.
+    N-HiTS hyperparameters from v2 SpotlightLoss sweep best run.
 
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
@@ -21,7 +20,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 64,
+        "batch_size": 128,
         "n_epochs": 300,
         "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.0001,
@@ -31,7 +30,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.00012167435464868012,
         "weight_decay": 5e-3,
-        "gradient_clip_val": 1.0,
+        "gradient_clip_val": 2.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -48,16 +47,11 @@ def get_hp_config():
             "weight_decay": 5e-3,
         },
 
-        # Loss: SpotlightLoss (symmetric, ground-truth-only magnitude weight)
-        # alpha=0.3: cosh(0.3*9)~7.5x for conflict
-        # beta=0.4: symmetric +36% amplification on conflict targets
-        # delta=1.0: Huber linear regime for |e|>1 — tight gradient bound
-        # gamma=0.1: magnitude-weighted temporal gradient (1st + 2nd order)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.3,
-        "beta": 0.4,
-        "delta": 1.0,
-        "gamma": 0.1,
+        "alpha": 0.12,
+        "beta": 0.0,
+        "kappa": 9.5,
+        "gamma": 0.04,
 
         # Scaling
         "feature_scaler": None,
@@ -109,30 +103,26 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # 2 stacks (was 3) — fewer additive sources of drift.
-        # N-HiTS sums stack outputs; each stack with even slight upward bias
-        # compounds into escalation that sinh() amplifies exponentially.
-        # Multi-scale INPUT pooling preserved (different receptive fields).
-        # n_freq_downsample [[1],[1]] — no output interpolation.
-        # RevIN enabled — normalizes input to zero mean/unit variance so the
-        # model predicts deviations, not absolute levels. Denormalization
-        # anchors output back to input statistics, preventing unbounded drift.
-        "num_stacks": 2,
+        # 3 stacks: coarse (6:1), medium (3:1), fine (1:1)
+        # Coarse stack n_freq_downsample=6 → 36//6=6 basis points.
+        # Pooling kernel 8 covers ~4 months per window on icl=36.
+        "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "pooling_kernel_sizes": [[3], [1]],
-        "n_freq_downsample": [[1], [1]],
+        "pooling_kernel_sizes": ((8,), (4,), (1,)),
+        "n_freq_downsample": ((6,), (3,), (1,)),
         "max_pool_1d": False,
         "activation": "ReLU",
-        "dropout": 0.35,
+        "dropout": 0.25,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
 
         # Temporal Encodings
-        "add_encoders": {
-            "position": {"past": ["relative"], "future": ["relative"]},
-        },
+        # ModelCatalog reads this flag and injects the appropriate cyclic
+        # encoder functions for the dataset temporal resolution, inferred
+        # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
+        "use_cyclic_encoders": True,
     }
 
     return hyperparameters
