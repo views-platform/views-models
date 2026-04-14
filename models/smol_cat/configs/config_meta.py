@@ -15,6 +15,6 @@ def get_meta_config():
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",
-        "regression_point_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson", "LevelRatio", "CGM"],
+        "regression_point_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
     }
     return meta_config

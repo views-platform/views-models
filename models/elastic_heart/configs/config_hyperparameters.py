@@ -14,6 +14,8 @@ def get_hp_config():
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+        "rolling_origin_stride": 1,
 
         # Inference
         "num_samples": 1,
@@ -116,9 +118,9 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": False,
 
-        # Temporal Encodings
-        "add_encoders": {
-            "position": {"past": ["relative"], "future": ["relative"]},
-        },
+        "use_cyclic_encoders": True,
+
+        # Prediction output format
+        "prediction_format": "dataframe",
     }
     return hyperparameters
