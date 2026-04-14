@@ -53,7 +53,7 @@ def get_hp_config():
         # Loss: SpotlightLoss (power-law magnitude weighting)
         "loss_function": "SpotlightLoss",
         "alpha": 0.5,
-        "beta": 0.07586076941722188,
+        "beta": 0.0,
         "kappa": 4.0,
         "gamma": 0.03,
 

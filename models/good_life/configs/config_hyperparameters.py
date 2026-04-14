@@ -74,7 +74,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "loss_function": "SpotlightLoss",
         "alpha": 0.5,
-        "beta": 0.08080596090224723,
+        "beta": 0.0,
         "gamma": 0.03,
         "kappa": 4.0,
         "lr": 0.00004161140068563459,
