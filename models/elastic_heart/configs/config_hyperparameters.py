@@ -50,12 +50,12 @@ def get_hp_config():
             "weight_decay": 5e-6,
         },
 
-        # Loss: SpotlightLoss (power-law magnitude weighting)
+        # Loss: SpotlightLoss (cosh magnitude weighting, smol_cat-neighbourhood)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.5,
-        "beta": 0.0,
-        "kappa": 4.0,
-        "gamma": 0.03,
+        "alpha": 0.387,
+        "beta": 0.236,
+        "kappa": 12.0,
+        "gamma": 0.13,
 
         # Scaling
         "feature_scaler": None,
@@ -115,10 +115,10 @@ def get_hp_config():
         "normalize_before": True,
         "dropout": 0.11739982293531824,
         "use_static_covariates": True,
-        # RevIN disabled: for deescalating series the window mean is dominated
-        # by the historical conflict level, causing denormalized outputs to
-        # anchor near the conflict peak even when recent months have low fatalities.
-        "use_reversible_instance_norm": False,
+        # RevIN enabled: TSMixer's inter-channel mixing requires normalised
+        # channel scales. Without RevIN the raw scale mismatch (asinh fatalities
+        # 0-10 vs GDP in trillions) amplifies through mixing blocks.
+        "use_reversible_instance_norm": True,
 
         "use_cyclic_encoders": True,
 

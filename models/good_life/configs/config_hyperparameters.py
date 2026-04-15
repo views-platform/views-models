@@ -73,10 +73,10 @@ def get_hp_config():
         "gradient_clip_val": 3,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLoss",
-        "alpha": 0.5,
-        "beta": 0.0,
-        "gamma": 0.03,
-        "kappa": 4.0,
+        "alpha": 0.387,
+        "beta": 0.236,
+        "gamma": 0.13,
+        "kappa": 12.0,
         "lr": 0.00004161140068563459,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 30,
@@ -101,10 +101,9 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
-        # RevIN disabled: for deescalating series the window mean is dominated
-        # by the historical conflict level, causing denormalized outputs to
-        # anchor near the conflict peak even when recent months have low fatalities.
-        "use_reversible_instance_norm": False,
+        # RevIN enabled: Transformer attention + FFN layers benefit from
+        # normalised channel scales, and sweep can disable if needed.
+        "use_reversible_instance_norm": True,
         "weight_decay": 0.000005,
 
         # Encoders

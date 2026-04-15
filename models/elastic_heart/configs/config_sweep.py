@@ -140,62 +140,51 @@ def get_sweep_config():
             "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
-        # TSMixer has no pooling to smooth cosh gradient disparity.
-        # v1-v3 used cosh(alpha * |y|) which is exponential — caused OOD
-        # blowups in the tail. v4+ uses power-law (1 + |y|)^alpha which is
-        # concave — stronger than cosh at low-to-moderate conflict, softer
-        # in the extreme tail. alpha is now a power exponent:
-        #   0.3: gentle (2.3x max weight at 50k fatalities)
-        #   0.5: sqrt (3.5x max) — recommended starting point
-        #   0.7: aggressive (5.5x max)
+        # ── alpha (cosh magnitude rate) ──────────────
+        # cosh(alpha * |y|): at alpha=0.4, Ukraine (asinh≈9.9) gets ~23×
+        # weight.  smol_cat best: 0.387.  Range tightly around that.
+        #   0.2: mild (cosh(2.0)≈3.8×)
+        #   0.4: sweet spot (~23×)  [smol_cat]
+        #   0.5: strong (cosh(5.0)≈74×)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.3,
-            "max": 0.7,
+            "min": 0.2,
+            "max": 0.5,
         },
         
         # ── beta (asymmetry strength) ─────────────────
-        # Extra multiplier for FN, gated by magnitude.
-        #   0.05: FN costs 1.05x FP (on events)
-        #   0.3: FN costs 1.3x FP (on events)
-        # Range is conservative because magnitude weights already 
-        # heavily favor FN recall.
+        # smol_cat best: 0.236.  Zero beta caused Ukraine collapse
+        # because the model freely under-predicted extreme cells.
+        #   0.1: FN costs 1.1× FP (on events)
+        #   0.3: FN costs 1.3× FP (on events)
         "beta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.3,
+            "min": 0.1,
+            "max": 0.4,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls transition smoothness between FP/FN regimes.
-        # v1-v3 used 8-15 (near-binary switch), which trained models
-        # to be categorically afraid of under-prediction. Softened to
-        # 2-6 for a smooth ramp that still penalises real FN.
-        #   2.0: Gradual transition.
-        #   4.0: Moderate (recommended).
-        #   6.0: Fairly sharp but still smooth.
+        # smol_cat best: 12.49.  Sharp is GOOD — clean binary
+        # switch between FN/FP regimes, no mushy gradient zone.
+        # The previous softening to 2-6 caused gradient confusion.
         "kappa": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 6.0,
+            "min": 8.0,
+            "max": 15.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # Weight for the first-order temporal gradient term.
-        # Second-order (curvature) was removed — compounded escalation
-        # during rollout. Reduced range since first-order alone is
-        # sufficient for dynamics matching.
-        #   0.01: Very light timing guidance.
-        #   0.08: Moderate timing guidance.
+        # smol_cat best: 0.129.  Strong temporal gradient matching
+        # constrains wild discontinuities between timesteps.
+        # The previous reduction to 0-0.08 removed this safety rail.
         "gamma": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.08,
+            "min": 0.05,
+            "max": 0.2,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
