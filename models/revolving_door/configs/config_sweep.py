@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v5_msle",
+        "name": "revolving_door_nhits_spotlight_v6_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -177,15 +177,20 @@ def get_sweep_config():
         # for cosh magnitude weighting.
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (magnitude expansion rate) ──────────
-        # Empirical ceiling: alpha=0.20 + gamma=0.05 caused 15B OOD without
-        # RevIN. With RevIN ON, higher alpha is bounded by sigma-scaling, but
-        # the gradient amplification still distorts shared weights during training.
-        # cosh(0.20 * 9.9) ≈ 3.8x amplification — sufficient to discriminate
-        # conflict cells without encoding runaway escalation patterns.
+        # Pre-Basu gate: alpha > 0.20 caused 15B OOD on NHiTS (shared basis
+        # contamination). Post-Basu gate: early-training amplification is
+        # suppressed (gate≈0.008 at z=5), so higher alpha is now safer to
+        # explore without contaminating shared basis functions.
+        # The gate fully opens at late training, so alpha still controls final
+        # late-training amplification. Cap at 0.50 to limit fully-converged
+        # weights: cosh(0.50*9.9)≈74× vs 2900× at alpha=0.80.
+        #   0.15: cosh(1.5)≈2.4×  (conservative, was the old safe ceiling)
+        #   0.35: cosh(3.5)≈17×   (moderate, smol_cat neighbourhood)
+        #   0.50: cosh(5.0)≈74×   (strong, upper safe limit with gate)
         "alpha": {
             "distribution": "uniform",
             "min": 0.10,
-            "max": 0.80,
+            "max": 0.50,
         },
         
         # ── beta (asymmetry strength) ─────────────────

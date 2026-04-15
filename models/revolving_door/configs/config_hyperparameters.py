@@ -52,6 +52,8 @@ def get_hp_config():
         "beta": 0.0,
         "kappa": 9.5,
         "gamma": 0.04,
+        # alpha=0.12: conservative — pre-Basu gate best run. The Basu gate
+        # now protects early training; next sweep (v6_basu) can explore up to 0.50.
 
         # Scaling
         "feature_scaler": None,

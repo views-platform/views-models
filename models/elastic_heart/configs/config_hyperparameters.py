@@ -118,7 +118,7 @@ def get_hp_config():
         # RevIN enabled: TSMixer's inter-channel mixing requires normalised
         # channel scales. Without RevIN the raw scale mismatch (asinh fatalities
         # 0-10 vs GDP in trillions) amplifies through mixing blocks.
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
 
         "use_cyclic_encoders": True,
 

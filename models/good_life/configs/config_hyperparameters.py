@@ -103,7 +103,7 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         # RevIN enabled: Transformer attention + FFN layers benefit from
         # normalised channel scales, and sweep can disable if needed.
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "weight_decay": 0.000005,
 
         # Encoders
