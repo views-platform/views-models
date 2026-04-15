@@ -158,18 +158,16 @@ def get_sweep_config():
         },
         
         # ── beta (asymmetry strength) ─────────────────
-        # smol_cat best: 0.236.  Zero beta caused Ukraine collapse
         # because the model freely under-predicted extreme cells.
         #   0.1: FN costs 1.1× FP (on events)
         #   0.3: FN costs 1.3× FP (on events)
         "beta": {
             "distribution": "uniform",
-            "min": 0.1,
+            "min": 0.0,
             "max": 0.4,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
-        # smol_cat best: 12.49.  Sharp is GOOD — clean binary
         # switch between FN/FP regimes, no mushy gradient zone.
         # The previous softening to 2-6 caused gradient confusion.
         "kappa": {
@@ -178,7 +176,6 @@ def get_sweep_config():
             "max": 15.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # smol_cat best: 0.129.  Strong temporal gradient matching
         # constrains wild discontinuities between timesteps.
         # The previous reduction to 0-0.08 removed this safety rail.
         "gamma": {

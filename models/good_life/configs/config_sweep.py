@@ -149,7 +149,7 @@ def get_sweep_config():
         # cosh(alpha * |y|): at alpha=0.4, Ukraine (asinh≈9.9) gets ~23×
         # weight.  smol_cat best: 0.387.  Range tightly around that.
         #   0.2: mild (cosh(2.0)≈3.8×)
-        #   0.4: sweet spot (~23×)  [smol_cat]
+        #   0.4: sweet spot (~23×)
         #   0.5: strong (cosh(5.0)≈74×)
         "alpha": {
             "distribution": "uniform",
@@ -158,16 +158,14 @@ def get_sweep_config():
         },
         
         # ── beta (asymmetry strength) ─────────────────
-        # smol_cat best: 0.236.  Zero beta caused Ukraine collapse
         # because the model freely under-predicted extreme cells.
         "beta": {
             "distribution": "uniform",
-            "min": 0.1,
+            "min": 0.0,
             "max": 0.4,
         },
         
         # ── kappa (sigmoid sharpness) ─────────────────
-        # smol_cat best: 12.49.  Sharp is GOOD — clean binary
         # switch between FN/FP regimes, no mushy gradient zone.
         "kappa": {
             "distribution": "uniform",
@@ -175,7 +173,6 @@ def get_sweep_config():
             "max": 15.0,
         },
         # ── gamma (temporal weight) ───────────────────
-        # smol_cat best: 0.129.  Strong temporal gradient matching
         # constrains wild discontinuities between timesteps.
         "gamma": {
             "distribution": "uniform",
