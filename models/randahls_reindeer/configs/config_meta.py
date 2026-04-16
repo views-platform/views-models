@@ -10,8 +10,8 @@ def get_meta_config():
     meta_config = {
         "name": "randahls_reindeer", 
         "algorithm": "MarkovModel",
-        "targets": ["lr_ged_sb_dep"],
-        "queryset": "fatalities003_joint_narrow",
+        "targets": ["ln_ged_sb_dep"],
+        "queryset": "markov_joint_narrow",
         "level": "cm",
         "creator": "Luuk Boekestein",
         "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
