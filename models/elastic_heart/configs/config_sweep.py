@@ -48,9 +48,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Best run hit ceiling at 3.0. Drop 1.0 (too restrictive with
-        # cosh amplification). Add 5.0 for headroom.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # Log-linear weights cap max gradient at ~20× (not 50×), so
+        # tight clipping is safe and prevents outlier batch spikes.
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -145,35 +145,38 @@ def get_sweep_config():
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (cosh magnitude rate) ──────────────
-        # cosh(alpha * |y|): at alpha=0.4, Ukraine (asinh≈9.9) gets ~23×
-        # weight.  smol_cat best: 0.387.  Range tightly around that.
-        #   0.2: mild (cosh(2.0)≈3.8×)
-        #   0.4: sweet spot (~23×)  [smol_cat]
-        #   0.5: strong (cosh(5.0)≈74×)
+        # ── alpha (power-law magnitude scale) ────────────
+        # w = 1 + alpha * |y|^p.  At p=0.5, |y|^0.5 ≈ 3.15 for Ukraine
+        # (asinh≈9.9), so alpha=3 → 10.4× weight.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.5,
+            "min": 2.0,
+            "max": 4.0,
         },
         
         # ── beta (asymmetry strength) ─────────────────
-        # Pinned to 0.0 — best run found 0.039 ≈ 0, and non-zero beta
-        # was the root cause of systematic overprediction.
-        # alpha/cosh magnitude weighting still emphasises conflict cells.
-        "beta": {"values": [0.0]},
+        "beta": {
+            "distribution": "uniform",
+            "min": 0.0,
+            "max": 0.5,
+        },
         
         # ── kappa (sigmoid sharpness) ─────────────────
-        # Dead parameter when beta=0; pinned for API compatibility.
+        # 10 = near-binary switch. Sweep lightly.
         "kappa": {"values": [10.0]},
         # ── gamma (temporal weight) ───────────────────
         # constrains wild discontinuities between timesteps.
-        # The previous reduction to 0-0.08 removed this safety rail.
         "gamma": {
             "distribution": "uniform",
             "min": 0.05,
             "max": 0.2,
         },
+        # ── p (concavity exponent) ────────────────────
+        # p < 1 compresses extreme spike influence.
+        #   0.5: square root — 50k/10k premium = 7.4%
+        #   0.75: mild compression — 50k/10k premium = 11%
+        #   1.0: linear (no compression) — 50k/10k premium = 15%
+        "p": {"values": [0.5, 0.75, 1.0]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
