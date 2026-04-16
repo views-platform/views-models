@@ -140,7 +140,7 @@ def get_sweep_config():
             "max": 0.25,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
