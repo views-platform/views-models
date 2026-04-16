@@ -30,6 +30,12 @@ def get_hp_config():
                 'subsample': 0.2,
                 'n_jobs': -2,
             }
+        },
+        "postprocessor": {
+            "stochastic_smoother": {
+                "option": 0,
+                "samples": 500
+            }
         }
     }
     return hyperparameters

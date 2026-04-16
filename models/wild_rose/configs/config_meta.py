@@ -16,7 +16,7 @@ def get_meta_config():
         "prediction_format": "dataframe",
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_sample_metrics": ["CRPS"],
         "queryset": "uncertainty_conflict_nolog",
         "rolling_origin_stride": 1,
     }
