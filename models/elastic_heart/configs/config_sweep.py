@@ -25,7 +25,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [64]},
+        "batch_size": {"values": [32, 64]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -40,7 +40,7 @@ def get_sweep_config():
             "min": 3e-5,
             "max": 5e-4,
         },
-        "weight_decay": {"values": [5e-6]},
+        "weight_decay": {"values": [0, 1e-5, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -137,7 +137,7 @@ def get_sweep_config():
         "dropout": {
             "distribution": "uniform",
             "min": 0.10,
-            "max": 0.25,
+            "max": 0.35,
         },
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False]},
@@ -153,7 +153,7 @@ def get_sweep_config():
         #   0.5: strong (cosh(5.0)≈74×)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.1,
+            "min": 0.2,
             "max": 0.5,
         },
         
