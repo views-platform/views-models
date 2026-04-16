@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v7_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v8_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -153,28 +153,19 @@ def get_sweep_config():
         #   0.5: strong (cosh(5.0)≈74×)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.2,
+            "min": 0.1,
             "max": 0.5,
         },
         
         # ── beta (asymmetry strength) ─────────────────
-        # because the model freely under-predicted extreme cells.
-        #   0.1: FN costs 1.1× FP (on events)
-        #   0.3: FN costs 1.3× FP (on events)
-        "beta": {
-            "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.4,
-        },
+        # Pinned to 0.0 — best run found 0.039 ≈ 0, and non-zero beta
+        # was the root cause of systematic overprediction.
+        # alpha/cosh magnitude weighting still emphasises conflict cells.
+        "beta": {"values": [0.0]},
         
         # ── kappa (sigmoid sharpness) ─────────────────
-        # switch between FN/FP regimes, no mushy gradient zone.
-        # The previous softening to 2-6 caused gradient confusion.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
-        },
+        # Dead parameter when beta=0; pinned for API compatibility.
+        "kappa": {"values": [10.0]},
         # ── gamma (temporal weight) ───────────────────
         # constrains wild discontinuities between timesteps.
         # The previous reduction to 0-0.08 removed this safety rail.
