@@ -31,9 +31,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.00020879749550013765,
+        "lr": 0.00009642846192677484,
         "weight_decay": 5e-6,
-        "gradient_clip_val": 3,
+        "gradient_clip_val": 2,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -46,16 +46,16 @@ def get_hp_config():
             "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.00020879749550013765,
+            "lr": 0.00009642846192677484,
             "weight_decay": 5e-6,
         },
 
         # Loss: SpotlightLoss (cosh magnitude weighting, smol_cat-neighbourhood)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.387,
-        "beta": 0.236,
-        "kappa": 12.0,
-        "gamma": 0.13,
+        "alpha": 0.291550572999765,
+        "beta": 0.03901082501768763,
+        "kappa": 11.438952529687707,
+        "gamma": 0.16182364579104397,
 
         # Scaling
         "feature_scaler": None,
@@ -109,16 +109,13 @@ def get_hp_config():
         # TSMixer Architecture
         "num_blocks": 3,
         "hidden_size": 128,
-        "ff_size": 256,
+        "ff_size": 512,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.11739982293531824,
+        "dropout": 0.21486487602643595,
         "use_static_covariates": True,
-        # RevIN enabled: TSMixer's inter-channel mixing requires normalised
-        # channel scales. Without RevIN the raw scale mismatch (asinh fatalities
-        # 0-10 vs GDP in trillions) amplifies through mixing blocks.
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
 
         "use_cyclic_encoders": True,
 
