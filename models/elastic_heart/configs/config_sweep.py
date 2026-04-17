@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v10_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v11_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -25,7 +25,7 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [32, 64]},
+        "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
         "early_stopping_patience": {"values": [40]},
         "early_stopping_min_delta": {"values": [0.0001]},
@@ -121,7 +121,7 @@ def get_sweep_config():
         "ff_size": {"values": [256, 512]},
         # normalize_before: Pre-norm (True) is more training-stable,
         # post-norm (False) can give slightly better final performance.
-        "normalize_before": {"values": [True]},
+        "normalize_before": {"values": [True, False]},
         # GELU only — smoother gradients than ReLU, no dead neurons.
         # v1 best run picked GELU.
         "activation": {"values": ["GELU"]},
@@ -134,11 +134,7 @@ def get_sweep_config():
         # Dropout: TSMixer has 3-5 MonteCarloDropout layers per block.
         # v1 best landed at 0.223 (86% of range). Raise floor since
         # Bayes clearly wants higher dropout for ~200 series.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.35,
-        },
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
@@ -150,27 +146,13 @@ def get_sweep_config():
         # 1 + log(cosh(alpha * |y|)) grows linearly for large |y|, so
         # higher alpha is safe — no exponential blow-up.  At 1.0 the
         # 50k-fatality cell gets ~12× weight vs peace after batch norm.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.5,
-            "max": 2.0,
-        },
-
-        # ── beta (bounded symmetric error amplification) ─
-        # tanh²-based: max amplification = 1 + beta * mag_ratio.
-        # At beta=1.0, mag_ratio=0.9: w_amp ≤ 1.9.  Safe to sweep wider
-        # since the amplifier is inherently bounded in [0, 1].
-        "beta": {
-            "distribution": "uniform",
-            "min": 0.0,
-            "max": 1.5,
-        },
-
+        "alpha": {"values": [0.2, 0.3, 0.4, 0.5]},
+        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── gamma (temporal gradient weight) ──────────
         "gamma": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
+            "min": 0.0,
+            "max": 1.5,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
