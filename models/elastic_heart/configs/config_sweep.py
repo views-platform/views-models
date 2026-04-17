@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v11_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v12_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -146,7 +146,11 @@ def get_sweep_config():
         # 1 + log(cosh(alpha * |y|)) grows linearly for large |y|, so
         # higher alpha is safe — no exponential blow-up.  At 1.0 the
         # 50k-fatality cell gets ~12× weight vs peace after batch norm.
-        "alpha": {"values": [0.2, 0.3, 0.4, 0.5]},
+        "alpha": {
+            "distribution": "uniform",
+            "min": 0.2,
+            "max": 0.5,
+        },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── gamma (temporal gradient weight) ──────────
         "gamma": {
