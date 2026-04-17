@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v9_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v10_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -48,9 +48,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Log-linear weights cap max gradient at ~20× (not 50×), so
-        # tight clipping is safe and prevents outlier batch spikes.
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        # Batch-normalised magnitude weights keep gradient scale bounded,
+        # so we can afford a wider clip range.
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -140,43 +140,38 @@ def get_sweep_config():
             "max": 0.35,
         },
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
+        # v11: log-cosh magnitude weights + tanh² bounded error amplification
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (power-law magnitude scale) ────────────
-        # w = 1 + alpha * |y|^p.  At p=0.5, |y|^0.5 ≈ 3.15 for Ukraine
-        # (asinh≈9.9), so alpha=3 → 10.4× weight.
+        # ── alpha (log-cosh magnitude rate) ──────────
+        # 1 + log(cosh(alpha * |y|)) grows linearly for large |y|, so
+        # higher alpha is safe — no exponential blow-up.  At 1.0 the
+        # 50k-fatality cell gets ~12× weight vs peace after batch norm.
         "alpha": {
             "distribution": "uniform",
-            "min": 2.0,
-            "max": 4.0,
+            "min": 0.5,
+            "max": 2.0,
         },
-        
-        # ── beta (asymmetry strength) ─────────────────
+
+        # ── beta (bounded symmetric error amplification) ─
+        # tanh²-based: max amplification = 1 + beta * mag_ratio.
+        # At beta=1.0, mag_ratio=0.9: w_amp ≤ 1.9.  Safe to sweep wider
+        # since the amplifier is inherently bounded in [0, 1].
         "beta": {
             "distribution": "uniform",
             "min": 0.0,
-            "max": 0.5,
+            "max": 1.5,
         },
-        
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # 10 = near-binary switch. Sweep lightly.
-        "kappa": {"values": [10.0]},
-        # ── gamma (temporal weight) ───────────────────
-        # constrains wild discontinuities between timesteps.
+
+        # ── gamma (temporal gradient weight) ──────────
         "gamma": {
             "distribution": "uniform",
             "min": 0.05,
             "max": 0.2,
         },
-        # ── p (concavity exponent) ────────────────────
-        # p < 1 compresses extreme spike influence.
-        #   0.5: square root — 50k/10k premium = 7.4%
-        #   0.75: mild compression — 50k/10k premium = 11%
-        #   1.0: linear (no compression) — 50k/10k premium = 15%
-        "p": {"values": [0.5, 0.75, 1.0]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
