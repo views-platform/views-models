@@ -53,7 +53,7 @@ def get_hp_config():
         # Loss: SpotlightLoss (cosh magnitude weighting, continuity dampener)
         "loss_function": "SpotlightLoss",
         "alpha": 0.3098545979721014,
-        "gamma": 1.4882758430232,
+        "gamma": 0.5,
         "non_zero_threshold": 0.88,
 
         # Scaling
