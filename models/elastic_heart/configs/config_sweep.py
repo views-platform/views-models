@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v12_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v13_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -66,6 +66,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns", 
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
