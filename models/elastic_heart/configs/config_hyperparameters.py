@@ -10,7 +10,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 36,
+        "input_chunk_length": 72,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -24,14 +24,14 @@ def get_hp_config():
 
         # Training
         "batch_size": 64,
-        "n_epochs": 300,
-        "early_stopping_patience": 40,
+        "n_epochs": 100,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.0001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.000430682415909742,
+        "lr": 0.0003,
         "weight_decay": 0,
         "gradient_clip_val": 3,
 
@@ -46,14 +46,15 @@ def get_hp_config():
             "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.000430682415909742,
+            "lr": 0.0003,
             "weight_decay": 0,
         },
 
-        # Loss: SpotlightLoss (cosh magnitude weighting, continuity dampener)
+        # Loss: SpotlightLoss v14 — asymmetric weight (cosh truth, safe_pred_weight pred)
+        # gamma=0.3: dynamics term active but well within safe [0.0, 0.7] ceiling
         "loss_function": "SpotlightLoss",
-        "alpha": 0.3098545979721014,
-        "gamma": 0.5,
+        "alpha": 0.31,
+        "gamma": 0.3,
         "non_zero_threshold": 0.88,
 
         # Scaling
