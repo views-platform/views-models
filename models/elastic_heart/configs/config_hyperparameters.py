@@ -1,7 +1,7 @@
 
 def get_hp_config():
     """
-    TSMixer hyperparameters from v2 SpotlightLoss sweep best run.
+    TSMixer hyperparameters from v13 SpotlightLoss sweep best run.
 
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
@@ -31,9 +31,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.00009642846192677484,
-        "weight_decay": 5e-6,
-        "gradient_clip_val": 2,
+        "lr": 0.000430682415909742,
+        "weight_decay": 0,
+        "gradient_clip_val": 3,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -46,16 +46,15 @@ def get_hp_config():
             "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.00009642846192677484,
-            "weight_decay": 5e-6,
+            "lr": 0.000430682415909742,
+            "weight_decay": 0,
         },
 
-        # Loss: SpotlightLoss (cosh magnitude weighting, smol_cat-neighbourhood)
+        # Loss: SpotlightLoss (cosh magnitude weighting, continuity dampener)
         "loss_function": "SpotlightLoss",
-        "alpha": 0.291550572999765,
-        "beta": 0.03901082501768763,
-        "kappa": 11.438952529687707,
-        "gamma": 0.16182364579104397,
+        "alpha": 0.3098545979721014,
+        "gamma": 1.4882758430232,
+        "non_zero_threshold": 0.88,
 
         # Scaling
         "feature_scaler": None,
@@ -68,6 +67,8 @@ def get_hp_config():
                 "lr_splag_1_ged_sb",
                 "lr_splag_1_ged_ns",
                 "lr_splag_1_ged_os",
+                "lr_ged_ns",
+                "lr_ged_os",
             ],
             "StandardScaler": [
                 "lr_ged_sb_delta",
@@ -107,13 +108,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 3,
+        "num_blocks": 2,
         "hidden_size": 128,
         "ff_size": 512,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.21486487602643595,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
