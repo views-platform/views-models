@@ -45,12 +45,18 @@ def get_hp_config():
         "optimizer_cls": "RAdam",
         "lr": 0.0003,
         "weight_decay": 0,
-        # v20 spectral loss: per-cell gradient hard-bounded at w(y)×1.0 ≤ 3.8.
-        # Clip at 5 for test run to avoid clipping event cells (max 3.8×).
-        # Tighten to 2-3 if overprediction observed.
-        "gradient_clip_val": 5,
+        # Clip at 2.0. History: alpha=0.3 + clip=5 → 2-8× overprediction in v19.
+        # Pointwise max gradient = w(y)×tanh(e/s) ≤ 3.8. clip=2.0 trims only the
+        # most extreme event cells — acceptable cost for stability.
+        "gradient_clip_val": 2.0,
 
-        # LR Scheduler
+        # LR Scheduler — CosineAnnealingWarmRestarts for production.
+        # Cycle lengths: 30 → 60 → 120 epochs (T_mult=2).
+        # Restarts escape local minima — important for ~200-series landscape
+        # where pointwise + spectral gradients can co-settle in mediocre basin.
+        # Patience=50 > cycle-1 length (30) so early stopping survives restart
+        # spike at epoch 30. With n_epochs=300 get ~2.5 complete cycles.
+        # (OneCycleLR is better for quick test; CAWR is better for production.)
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 30,
         "lr_scheduler_T_mult": 2,
@@ -66,14 +72,15 @@ def get_hp_config():
         },
 
         # Loss: SpotlightLoss v20 — truth-only 1+log_cosh(alpha*|y|) weight + multi-res spectral
-        # alpha=0.3: truth at max UCDP (asinh≈11.5) → 1+log_cosh(3.45)≈3.8× (truncated inv-density)
-        #            Saturating (linear growth): noisy 50k spike gets ~3.8×, not ~16×
+        # alpha=0.2: conservative start. v19 tuning showed alpha>0.22 → systematic 2-8×
+        #            overprediction. alpha=0.2 gives max weight ~2.5× (vs 3.8× at 0.3).
+        #            Raise to 0.25-0.3 only after confirming no overprediction.
         # delta=0.15: multi-resolution spectral matching (n_fft=6,12,24)
         #             Phase-insensitive: spike 1-mo early → ~zero penalty (Fourier shift theorem)
         #             n_fft=12 bin 1 captures 12-month annual seasonality directly
         #             Replaces TV — spectral catches oscillation + drift + seasonality
         "loss_function": "SpotlightLoss",
-        "alpha": 0.3,
+        "alpha": 0.2,
         "delta": 0.15,
         "non_zero_threshold": 0.88,
 
