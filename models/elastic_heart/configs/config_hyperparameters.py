@@ -1,7 +1,19 @@
 
 def get_hp_config():
     """
-    TSMixer hyperparameters from v13 SpotlightLoss sweep best run.
+    TSMixer hyperparameters for v20 SpotlightLoss test run.
+
+    SpotlightLoss v20 — 3 stages:
+      Stage 1 — truth-only weight: w(y) = 1+log_cosh(alpha*|y|)
+                alpha=0.3 → max weight ~3.8× at y=11.5 (max UCDP),
+                1.0× at y=0. Saturating (linear tail) — noisy 50k spike
+                can't hijack shared MLP weights. NO pred-side weight.
+      Stage 2 — 50/50 balanced mean across event/peace buckets.
+                Prevents 90% peace cells drowning 10% event gradient.
+      Stage 3 — multi-resolution STFT spectral matching (delta=0.15).
+                n_fft=(6,12,24), magnitude-only (phase discarded).
+                Replaces TV: catches oscillation + seasonal + slow drift.
+                Phase-invariant: onset 1-mo early ≈ zero spectral penalty.
 
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
@@ -30,10 +42,13 @@ def get_hp_config():
         "force_reset": True,
 
         # Optimizer
-        "optimizer_cls": "AdamW",
+        "optimizer_cls": "RAdam",
         "lr": 0.0003,
         "weight_decay": 0,
-        "gradient_clip_val": 3,
+        # v20 spectral loss: per-cell gradient hard-bounded at w(y)×1.0 ≤ 3.8.
+        # Clip at 5 for test run to avoid clipping event cells (max 3.8×).
+        # Tighten to 2-3 if overprediction observed.
+        "gradient_clip_val": 5,
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
@@ -50,11 +65,16 @@ def get_hp_config():
             "weight_decay": 0,
         },
 
-        # Loss: SpotlightLoss v14 — asymmetric weight (cosh truth, safe_pred_weight pred)
-        # gamma=0.3: dynamics term active but well within safe [0.0, 0.7] ceiling
+        # Loss: SpotlightLoss v20 — truth-only 1+log_cosh(alpha*|y|) weight + multi-res spectral
+        # alpha=0.3: truth at max UCDP (asinh≈11.5) → 1+log_cosh(3.45)≈3.8× (truncated inv-density)
+        #            Saturating (linear growth): noisy 50k spike gets ~3.8×, not ~16×
+        # delta=0.15: multi-resolution spectral matching (n_fft=6,12,24)
+        #             Phase-insensitive: spike 1-mo early → ~zero penalty (Fourier shift theorem)
+        #             n_fft=12 bin 1 captures 12-month annual seasonality directly
+        #             Replaces TV — spectral catches oscillation + drift + seasonality
         "loss_function": "SpotlightLoss",
-        "alpha": 0.31,
-        "gamma": 0.3,
+        "alpha": 0.3,
+        "delta": 0.15,
         "non_zero_threshold": 0.88,
 
         # Scaling
