@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_spotlight_v13_msle",
+        "name": "elastic_heart_tsmixer_spotlight_v20_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,12 +14,15 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        # 36 = 1× output_chunk_length (minimum sensible context).
+        # 36 = minimal (1× output). 48 = 4yr context for 3yr forecast.
+        # 72 = production default (2× output — sees a full conflict cycle before window).
+        "input_chunk_length": {"values": [36, 48, 72]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "mc_dropout": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW"]},
+        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -27,7 +30,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -35,12 +38,15 @@ def get_sweep_config():
         # ==============================================================================
         # TSMixer is a pure-MLP architecture — simpler gradient landscape
         # than TiDE/Transformers, so slightly wider LR range is safe.
+        # [5e-5, 1e-3]: anchor 3e-4 sits at ~66th percentile on log scale — symmetric enough
+        # for Bayes to explore both sides. Previous [3e-5, 5e-4] put anchor at 85th
+        # percentile: Bayes converged high immediately, never tried smaller LRs.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-5,
-            "max": 5e-4,
+            "min": 5e-5,
+            "max": 1e-3,
         },
-        "weight_decay": {"values": [0, 1e-5, 5e-5]},
+        "weight_decay": {"values": [0, 1e-5, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -48,9 +54,10 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Batch-normalised magnitude weights keep gradient scale bounded,
-        # so we can afford a wider clip range.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # Max per-cell pointwise gradient = w(y)×tanh ≤ 4.3 (alpha=0.35).
+        # clip=3.0 trims only the most extreme event cells. clip=5.0 dropped —
+        # effectively disables clipping and v19 showed clip=5 + alpha>0.22 → 2-8× overprediction.
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -141,24 +148,43 @@ def get_sweep_config():
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
-        # v11: log-cosh magnitude weights + tanh² bounded error amplification
+        # v20: truth-only 1+log_cosh(alpha*|y|) weight + balanced mean + multi-res spectral
+        # TV removed — spectral is a strict superset (oscillation + drift + seasonality + phase)
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (log-cosh magnitude rate) ──────────
-        # 1 + log(cosh(alpha * |y|)) grows linearly for large |y|, so
-        # higher alpha is safe — no exponential blow-up.  At 1.0 the
-        # 50k-fatality cell gets ~12× weight vs peace after batch norm.
+        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
+        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
+        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
+        # Weight at max UCDP (asinh≈11.5):
+        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
+        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
+        # spectral of gradient budget at low delta, causing it to be ignored.
+        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.5,
+            "min": 0.15,
+            "max": 0.35,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
-        # ── gamma (temporal gradient weight) ──────────
-        "gamma": {
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
+        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
+        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
+        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
+        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
+        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
+        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
+        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
+        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
+        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
+        # accuracy isn't starved — the model still needs to get cell values right.
+        "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 1.5,
+            "min": 0.08,
+            "max": 0.25,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
