@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v27_cm_msle",
+        "name": "smol_cat_tide_spotlight_v28_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,11 +14,11 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [36, 48, 72]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
-        "optimizer_cls": {"values": ["AdamW"]},
+        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
         "mc_dropout": {"values": [False]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
@@ -31,7 +31,7 @@ def get_sweep_config():
         # so 64 is appropriate.
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -41,10 +41,10 @@ def get_sweep_config():
         # range to accommodate different component balance regimes.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-5,
-            "max": 3e-4,
+            "min": 5e-5,
+            "max": 1e-3,
         },
-        "weight_decay": {"values": [5e-6]},
+        "weight_decay": {"values": [0, 1e-5, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -54,7 +54,7 @@ def get_sweep_config():
         "lr_scheduler_eta_min": {"values": [1e-6]},
         # MAAT: cosh weight is capped at w_max (default 100), and Huber base
         # limits gradient growth. Lower clip than raw JATLoss needed.
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -70,6 +70,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns", 
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -144,7 +146,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "use_layer_norm": {"values": [True]},
+        "use_layer_norm": {"values": [True, False]},
         # Dropout: Country-level has fewer training windows per series.
         # Slightly higher dropout ceiling to prevent overfitting on ~200 series.
         "dropout": {
@@ -166,47 +168,39 @@ def get_sweep_config():
         # Stability: w_max caps Jacobian weight. 99.9th-percentile per-sample
         # clamp inside loss. gradient_clip_val ≥ 1.0 externally.
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
-        # Controls cosh amplification. 
-        # Country-month data has high max values (asinh~9+).
-        #   0.5: cosh(0.5*9) ≈ 45x (Stable, moderate tail pressure)
-        #   0.8: cosh(0.8*9) ≈ 222x (Aggressive tail pressure)
-        # Fixed < 1.0 to prevent explosion without internal clamping.
+        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
+        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
+        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
+        # Weight at max UCDP (asinh≈11.5):
+        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
+        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
+        # spectral of gradient budget at low delta, causing it to be ignored.
+        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.80,
+            "min": 0.15,
+            "max": 0.35,
         },
-        
-        # ── beta (asymmetry strength) ─────────────────
-        # Extra multiplier for FN, gated by magnitude.
-        #   0.3: FN costs 1.3x FP (on events)
-        #   0.7: FN costs 1.7x FP (on events)
-        # Range is conservative because magnitude weights already 
-        # heavily favor FN recall.
-        "beta": {
+        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
+        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
+        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
+        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
+        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
+        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
+        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
+        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
+        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
+        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
+        # accuracy isn't starved — the model still needs to get cell values right.
+        "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.3,
-        },
-        
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls transition smoothness between FP/FN regimes.
-        #   5.0: Smooth transition.
-        #   15.0: Sharp, almost binary transition.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
-        },
-        # ── gamma (temporal weight) ───────────────────
-        # Weight for the temporal gradient alignment term.
-        #   0.05: Light timing guidance.
-        #   0.2: Strong timing guidance.
-        "gamma": {
-            "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.2,
+            "min": 0.08,
+            "max": 0.25,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
