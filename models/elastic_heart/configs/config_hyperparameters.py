@@ -22,7 +22,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 72,
+        "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -36,15 +36,15 @@ def get_hp_config():
 
         # Training
         "batch_size": 64,
-        "n_epochs": 100,
-        "early_stopping_patience": 20,
+        "n_epochs": 300,
+        "early_stopping_patience": 50,
         "early_stopping_min_delta": 0.0001,
         "force_reset": True,
 
         # Optimizer
-        "optimizer_cls": "RAdam",
-        "lr": 0.0003,
-        "weight_decay": 0,
+        "optimizer_cls": "AdamW",
+        "lr": 5.1997171017567475e-05,
+        "weight_decay": 1e-4,
         # Clip at 2.0. History: alpha=0.3 + clip=5 → 2-8× overprediction in v19.
         # Pointwise max gradient = w(y)×tanh(e/s) ≤ 3.8. clip=2.0 trims only the
         # most extreme event cells — acceptable cost for stability.
@@ -67,8 +67,8 @@ def get_hp_config():
             "eta_min": 1e-6,
         },
         "optimizer_kwargs": {
-            "lr": 0.0003,
-            "weight_decay": 0,
+            "lr": 5.1997171017567475e-05,
+            "weight_decay": 1e-4,
         },
 
         # Loss: SpotlightLoss v20 — truth-only 1+log_cosh(alpha*|y|) weight + multi-res spectral
@@ -80,8 +80,8 @@ def get_hp_config():
         #             n_fft=12 bin 1 captures 12-month annual seasonality directly
         #             Replaces TV — spectral catches oscillation + drift + seasonality
         "loss_function": "SpotlightLoss",
-        "alpha": 0.2,
-        "delta": 0.15,
+        "alpha": 0.2842281396642175,
+        "delta": 0.12283653588254542,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -136,13 +136,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 2,
+        "num_blocks": 3,
         "hidden_size": 128,
         "ff_size": 512,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
+        "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
