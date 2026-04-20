@@ -26,6 +26,11 @@ def get_sweep_config():
         "optimizer_cls": {"values": ["AdamW", "RAdam"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
+
+        "time_steps": {"values": [36]},  # Checksum: Must match len(steps)
+        "rolling_origin_stride": {"values": [1]},
+        "prediction_format": {"values": ["dataframe"]},
+
         # ==============================================================================
         # TRAINING
         # ==============================================================================
