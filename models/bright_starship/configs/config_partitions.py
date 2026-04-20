@@ -1,31 +1,41 @@
-from ingester3.ViewsMonth import ViewsMonth
+"""Partition definitions for bright_starship.
+
+Defines temporal boundaries for each run type. These are identical
+to all other VIEWS pgm models — the partitions are a platform
+convention, not model-specific.
+
+    calibration:  train 121-444, test 445-492  (Jan 1990 – Dec 2020)
+    validation:   train 121-492, test 493-540  (Jan 1990 – Dec 2024)
+    forecasting:  train 121-now,  test now+1 to now+steps  (dynamic)
+
+Month IDs use VIEWS encoding: month_id = (year - 1980) * 12 + month.
+"""
+
+from datetime import date
+
+
+def _current_month_id() -> int:
+    """VIEWS month_id for the current calendar month. Epoch: January 1980."""
+    today = date.today()
+    return (today.year - 1980) * 12 + today.month
 
 
 def generate(steps: int = 36) -> dict:
-    """
-    Generates partition configurations for different phases of model evaluation.
+    """Return partition dict with train/test month_id ranges.
+
+    Args:
+        steps: Forecast horizon in months (default 36 = 3 years).
 
     Returns:
-        dict: A dictionary with keys 'calibration', 'validation', and 'forecasting', each containing
-            'train' and 'test' tuples or callables specifying the index ranges for training and testing data.
-
-    Partition details:
-        - 'calibration': Uses fixed index ranges for training and testing.
-        - 'validation': Uses fixed index ranges for training and testing.
-        - 'forecasting': Uses callables that accept ViewsMonth (and optionally step) to dynamically determine
-          training and testing index ranges based on the current month.
-
-    Note:
-        - The 'forecasting' partition's 'train' and 'test' values are functions that require the ViewsMonth
-          object (and step for 'test') to compute the appropriate indices.
+        Dict with keys "calibration", "validation", "forecasting",
+        each containing {"train": (start, end), "test": (start, end)}.
     """
 
     def forecasting_train_range():
-        month_last = ViewsMonth.now().id - 1
-        return (121, month_last)
+        return (121, _current_month_id() - 1)
 
     def forecasting_test_range(steps):
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (month_last + 1, month_last + 1 + steps)
 
     return {
