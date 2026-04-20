@@ -149,11 +149,7 @@ def get_sweep_config():
         "use_layer_norm": {"values": [True, False]},
         # Dropout: Country-level has fewer training windows per series.
         # Slightly higher dropout ceiling to prevent overfitting on ~200 series.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.20,
-        },
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================

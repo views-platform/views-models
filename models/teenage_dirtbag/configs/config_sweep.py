@@ -141,11 +141,7 @@ def get_sweep_config():
         # Dropout: TCN applies spatial dropout between conv layers. With
         # weight_norm already regularizing, keep dropout low—too much kills
         # the rare-event neurons. 0.05-0.15 preserves conflict signal.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.15,
-        },
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
