@@ -31,7 +31,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},  # CAWR T_0=30: restart spikes LR at epoch 30, patience<50 fires before recovery
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -39,13 +39,15 @@ def get_sweep_config():
         # ==============================================================================
         # TCNs are convolution-based — can tolerate slightly higher LR than
         # attention models, but SpotlightLoss multi-component gradients need
-        # care. 3e-5 to 5e-4 covers safe range.
+        # care. 5e-5 to 1e-3 is log-centered around the ~3e-4 anchor.
         "lr": {
             "distribution": "log_uniform_values",
             "min": 5e-5,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [5e-6]},
+        # [0, 1e-5, 1e-4]: 1e-4 is the canonical AdamW value; 0 lets Bayes test no
+        # decay; a single value wastes a Bayes parameter slot on a fixed constant.
+        "weight_decay": {"values": [0, 1e-5, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -117,11 +119,13 @@ def get_sweep_config():
         # Each kernel sees fewer timesteps, reducing zero-dilution.
         # k=5 excluded: with num_layers=[4,5] gives RF=125/253 >> icl=72.
         "kernel_size": {"values": [3]},
-        # num_filters: Number of convolutional filters per layer. 64-128 is
-        # moderate capacity for ~200 series — avoids overfitting to dominant
-        # zeros while giving enough representational power.
+        # num_filters: 128 filters with num_layers=5 is survivable on ~6,500
+        # training windows IF weight_norm=True + dropout≥0.25 (TCN weight-sharing
+        # provides implicit regularization). weight_norm=False + dropout=0.15 +
+        # num_filters=128 is an overfit combo — Bayes will find it and discard it.
         "num_filters": {"values": [32, 64, 128]},
-        # dilation_base: Standard exponential dilation (powers of 2).
+        # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
+        # RF table in num_layers comment assumes d=2 — do not sweep without updating it.
         "dilation_base": {"values": [2]},
         # num_layers: Controls receptive field. Constraint is RF ≤ icl (not RF ≥ ocl).
         # RF = 1 + (k-1) × Σ_{i=0}^{L-1}(d^i). With k=3, d=2, icl=72:
@@ -138,9 +142,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: TCN applies spatial dropout between conv layers. With
-        # weight_norm already regularizing, keep dropout low—too much kills
-        # the rare-event neurons. 0.05-0.15 preserves conflict signal.
+        # Dropout: TCN applies spatial dropout between conv layers.
         "dropout": {"values": [0.15, 0.25, 0.35]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
