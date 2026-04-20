@@ -1,7 +1,7 @@
 # Bright Starship
 ## Overview
 
-Datafactory-powered variant of purple_alien. Same HydraNet architecture, same hyperparameters, same training loop. The only difference is the data source: instead of pulling from viewser, input data is pre-generated from views-datafactory via `generate_consumer_data.py`.
+Datafactory-powered variant of purple_alien. Same HydraNet architecture, same hyperparameters, same training loop. The only difference is the data source: instead of pulling from viewser, bright_starship fetches from the VIEWS data factory zarr store on Hetzner at runtime.
 
 This model exists to prove the datafactory consumer path works end-to-end with a real training script (v1.2 milestone M11).
 
@@ -46,6 +46,29 @@ To force a re-fetch, delete the cached parquet:
 
 ```bash
 rm data/raw/calibration_viewser_df.parquet
+```
+
+## Differences from purple_alien
+
+### Country identity (`c_id`)
+
+purple_alien's `c_id` uses Gleditsch & Ward / ETH C-Shapes codes — a **time-varying** country assignment where a grid cell's country can change across months (e.g., Sudan/South Sudan split in 2011). This conflates spatial identity with temporal political signal.
+
+bright_starship's `c_id` uses FAO GAUL codes — a **time-invariant** assignment where each grid cell maps to exactly one country code across all months. This separates identity from signal: `c_id` is metadata for grouping and tracing, not a feature the model should learn from.
+
+If temporal boundary information is needed as a predictive feature (e.g., sovereignty transitions), it should be constructed as an explicit, named feature — not carried implicitly through the identity column. See [ADR-025](https://github.com/views-platform/views-datafactory/blob/development/docs/ADRs/025_country_identity_gaul.md).
+
+### Event values
+
+Event columns (`lr_sb_best`, `lr_ns_best`, `lr_os_best`) show ~0.05-0.14% cell-level differences due to UCDP annual data versions — the factory uses v25.1, viewser uses an older version. This is a data freshness difference, not a pipeline bug. See `reports/consumer_parity_investigation.md` in views-datafactory.
+
+### Data audit
+
+Run `scripts/audit_data_parity.py` to compare bright_starship's Hetzner fetch against purple_alien's viewser data:
+
+```bash
+cd views-datafactory
+uv run python ../views-models/models/bright_starship/scripts/audit_data_parity.py
 ```
 
 ## Usage
