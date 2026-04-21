@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v2_msle",
+        "name": "good_life_transformer_spotlight_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,13 +14,13 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
-        "mc_dropout": {"values": [True]},
+        "mc_dropout": {"values": [False]},
         "detect_anomaly": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW"]},
+        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -28,7 +28,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -41,7 +41,7 @@ def get_sweep_config():
             "min": 1e-5,
             "max": 3e-4,
         },
-        "weight_decay": {"values": [5e-6]},
+        "weight_decay": {"values": [0, 1e-5, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -67,6 +67,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns", 
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -135,49 +137,45 @@ def get_sweep_config():
         # ==============================================================================
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.35,
-        },
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (cosh magnitude rate) ────────────────
-        # cosh(alpha * |y|): at alpha=0.4, Ukraine (asinh≈9.9) gets ~23×
-        # weight.  smol_cat best: 0.387.  Range tightly around that.
-        #   0.2: mild (cosh(2.0)≈3.8×)
-        #   0.4: sweet spot (~23×)
-        #   0.5: strong (cosh(5.0)≈74×)
+        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
+        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
+        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
+        # Weight at max UCDP (asinh≈11.5):
+        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
+        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
+        # spectral of gradient budget at low delta, causing it to be ignored.
+        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.2,
-            "max": 0.5,
+            "min": 0.15,
+            "max": 0.35,
         },
-        
-        # ── beta (asymmetry strength) ─────────────────
-        # because the model freely under-predicted extreme cells.
-        "beta": {
+        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
+        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
+        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
+        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
+        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
+        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
+        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
+        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
+        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
+        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
+        # accuracy isn't starved — the model still needs to get cell values right.
+        "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.4,
-        },
-        
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # switch between FN/FP regimes, no mushy gradient zone.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
-        },
-        # ── gamma (temporal weight) ───────────────────
-        # constrains wild discontinuities between timesteps.
-        "gamma": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
+            "min": 0.08,
+            "max": 0.25,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
