@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "good_life", 
         "algorithm": "TransformerModel",
         # Uncomment and modify the following lines as needed for additional metadata:
-        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
+        "regression_targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",

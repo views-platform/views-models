@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v3_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
+        "name": "good_life_transformer_spotlight_v4_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -20,7 +20,7 @@ def get_sweep_config():
         "random_state": {"values": [67]},
         "mc_dropout": {"values": [False]},
         "detect_anomaly": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -34,14 +34,15 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Transformers are notoriously sensitive to LR — the warmup from
-        # CosineAnnealing restarts helps, but the range must be conservative.
+        # Transformers are more LR-sensitive than MLPs. Anchor ~3e-4 sits at ~80th
+        # percentile on log scale of [1e-5, 5e-4] — conservative upper end while
+        # still giving Bayes room to explore the lower half.
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5,
-            "max": 3e-4,
+            "max": 5e-4,
         },
-        "weight_decay": {"values": [0, 1e-5, 1e-4]},
+        "weight_decay": {"values": [1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -49,9 +50,9 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Transformers benefit from moderate clipping — attention can
-        # produce gradient spikes, but too tight kills long-range signal.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # Max per-cell gradient = w(y)×tanh ≤ 4.3 (alpha=0.35). clip=5.0 never fires
+        # and was removed. clip=3.0 trims only the most extreme event-cell spikes.
+        "gradient_clip_val": {"values": [2.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -117,19 +118,19 @@ def get_sweep_config():
         "d_model": {"values": [128]},
         # nhead: 4 gives head_dim=32 (tight but stable), 2 gives 64 (rich).
         # Both valid with d_model=128. Avoids the 64/4=16 trap entirely.
-        "nhead": {"values": [2, 4]},
+        "nhead": {"values": [4]},
         # num_encoder_layers: 2-3 layers. ~200 series don't need deep
         # encoders; 2 is standard, 3 adds capacity for temporal complexity.
         "num_encoder_layers": {"values": [2, 3]},
         # num_decoder_layers: Match or slightly fewer than encoder.
         # Decoder complexity should mirror encoder for balanced attention.
-        "num_decoder_layers": {"values": [2, 3]},
+        "num_decoder_layers": {"values": [2]},
         # dim_feedforward: FF expansion factor. 2-4x d_model.
         # 256-512 for d_model=64-128. Controls capacity of position-wise FF.
-        "dim_feedforward": {"values": [256, 512]},
+        "dim_feedforward": {"values": [512]},
         # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
         # relu/gelu in recent Transformer literature (Shazeer 2020).
-        "activation": {"values": ["gelu", "SwiGLU"]},
+        "activation": {"values": ["SwiGLU"]},
         # norm_type: LayerNorm is standard and most stable.
         "norm_type": {"values": ["LayerNorm"]},
         # ==============================================================================
@@ -138,7 +139,12 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25, 0.35]},
-        "use_reversible_instance_norm": {"values": [True, False]},
+        # use_reversible_instance_norm: Fixed True. Country series span asinh≈0
+        # (Liechtenstein) to asinh≈11 (Syria). Without RevIN, Q/K/V magnitudes
+        # are dominated by high-conflict rows — attention collapses to attending
+        # only to Syria/Iraq regardless of the query series. RevIN normalizes
+        # each series to unit variance before the encoder, fixing this.
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -155,7 +161,7 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
+            "min": 0.10,
             "max": 0.35,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
