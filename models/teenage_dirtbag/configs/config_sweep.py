@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v4_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
+        "name": "teenage_dirtbag_tcn_spotlight_v5_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -21,12 +21,12 @@ def get_sweep_config():
         #       Violated by num_layers=5 + icl=48 (RF=63 > 48, but non-fatal).
         # With num_layers=5 fixed: icl=48 wastes ~15 time steps to padding (tolerable);
         # icl=72 satisfies both constraints cleanly (RF=63 ≤ 72, RF=63 ≥ 36).
-        "input_chunk_length": {"values": [48, 72]},
+        "input_chunk_length": {"values": [72]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "mc_dropout": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
 
@@ -55,7 +55,7 @@ def get_sweep_config():
         },
         # [0, 1e-5, 1e-4]: 1e-4 is the canonical AdamW value; 0 lets Bayes test no
         # decay; a single value wastes a Bayes parameter slot on a fixed constant.
-        "weight_decay": {"values": [0, 1e-5, 1e-4]},
+        "weight_decay": {"values": [1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -63,7 +63,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -130,7 +130,7 @@ def get_sweep_config():
         # num_filters: 32 filters is a 30:1 compression of the dilated conv stack on
         # sparse country-month data — not enough capacity to fit the rare-event signal.
         # 64-128 is the workable range with weight_norm constraining magnitudes.
-        "num_filters": {"values": [64, 128]},
+        "num_filters": {"values": [128]},
         # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
         # RF formula below assumes d=2 — do not sweep without updating the RF table.
         "dilation_base": {"values": [2]},
@@ -150,7 +150,7 @@ def get_sweep_config():
         "weight_norm": {"values": [True]},
         # use_reversible_instance_norm: Normalizes input, reverses on output.
         # Helps with distribution shift across countries.
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================

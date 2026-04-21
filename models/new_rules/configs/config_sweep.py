@@ -22,7 +22,7 @@ def get_sweep_config():
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "mc_dropout": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -41,7 +41,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [0, 1e-5, 1e-4]},
+        "weight_decay": {"values": [1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -49,7 +49,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -115,34 +115,33 @@ def get_sweep_config():
         "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
-        "num_stacks": {"values": [2, 3]},
+        "num_stacks": {"values": [2]},
         # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack for generic.
         # Keep low — each additional block adds a backcast path; the final block's
         # backcast is structurally discarded, and with 4 blocks per stack the
         # dead-backcast cascade can propagate backward. 1-2 avoids this.
-        "num_blocks": {"values": [1, 2]},
+        "num_blocks": {"values": [1]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
-        "num_layers": {"values": [2, 3]},
+        "num_layers": {"values": [2]},
         # layer_widths: Width of FC layers in each block. N-BEATS flattens
         # input_chunk_length * n_features into a single vector (~48×40≈1920
         # dims). layer_widths=64 is a 30:1 compression — sparse inputs mean
         # the conflict signal (5% of cells) gets averaged out at that bottleneck.
         # 256-512 keeps the compression ratio manageable (~4-8×) and preserves
         # peak values instead of pulling predictions toward the zero mean.
-        "layer_widths": {"values": [128, 256, 512]},
+        "layer_widths": {"values": [256, 512]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Controls expressiveness of the
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [5, 32, 64, 128]},
+        "expansion_coefficient_dim": {"values": [64]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default. LeakyReLU prevents
-        # dead neurons on sparse targets.
-        "activation": {"values": ["ReLU", "LeakyReLU"]},
+        # dead neurons on sparse targets.        "activation": {"values": ["LeakyReLU"]},
         # use_reversible_instance_norm: Fixed True — empirically required.
         # Country series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
         # RevIN=False: gradients average across scales → model converges to
@@ -172,7 +171,7 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
+            "min": 0.10,
             "max": 0.35,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
@@ -192,7 +191,7 @@ def get_sweep_config():
         "delta": {
             "distribution": "uniform",
             "min": 0.08,
-            "max": 0.25,
+            "max": 0.28,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
