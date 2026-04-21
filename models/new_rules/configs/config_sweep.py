@@ -45,7 +45,7 @@ def get_sweep_config():
         "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
-        "lr_scheduler_eta_min": {"values": [0.0]},
+        "lr_scheduler_eta_min": {"values": [1e-6]},
         "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
