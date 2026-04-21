@@ -45,7 +45,7 @@ def extract_models(model_class):
     
     if os.path.exists(config_meta):
         logging.info(f"Found meta config: {config_meta}")
-        spec = importlib.util.spec_from_file_location("config_meta", config_meta)
+        spec = importlib.util.spec_from_file_location(f"config_meta_{Path(config_meta).parent.parent.name}", config_meta)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_meta_config())
@@ -54,7 +54,7 @@ def extract_models(model_class):
 
     if os.path.exists(config_deployment):
         logging.info(f"Found deployment config: {config_deployment}")
-        spec = importlib.util.spec_from_file_location("config_deployment", config_deployment)
+        spec = importlib.util.spec_from_file_location(f"config_deployment_{Path(config_deployment).parent.parent.name}", config_deployment)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_deployment_config())

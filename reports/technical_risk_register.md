@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-20  
+**Last updated:** 2026-04-21  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 41 (37 concerns + 4 disagreements)  
-**Concerns:** Open 12 | Mitigated 9 | Resolved 13 | Accepted 3  
+**Total entries:** 42 (38 concerns + 4 disagreements)  
+**Concerns:** Open 10 | Mitigated 10 | Resolved 15 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -413,7 +413,7 @@
 | **Tier** | 3 |
 | **Trigger** | A PR modifies behavior of a CIC-governed class (anything in `docs/CICs/*.md`) — new guarantees, new failure modes, new inputs, new exit codes, new outputs — without updating the corresponding CIC file in the same PR, and merges without the drift being flagged |
 | **Source** | review-diff (2026-04-11) — discovered during PR review of `fix/hydranet_loss_hp` |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Notes** | ADR-006 requires CIC updates to follow behavioral changes ("Changes to intent must update this contract," quoted at the bottom of every CIC). The repo enforces this via social review, not automation: nothing in `.github/workflows/` or `tests/` verifies that CIC-governed files have not drifted from their CIC. **Concrete evidence (this PR):** three commits to `run_integration_tests.sh` (`97aeb38` added DEPRECATED skip + exit code 130; `cd668ea` unrelated but didn't touch the CIC; `1ea564c` added `--foreground` changing signal semantics) shipped before review-diff flagged that `docs/CICs/IntegrationTestRunner.md` sections 3 (guarantees), 6 (failure modes table), and 7 (boundaries) still described the pre-change behavior. Each commit passed all pytest checks and was individually reviewed, yet the CIC drift went uncaught for three iterations. The test suite (3312 passing) has zero cross-references between CIC content and code behavior. **Why this matters beyond this PR:** CICs are load-bearing documentation for onboarding, incident response, and upstream contract negotiation (e.g., the C-31 pandas incident relied on CICs to understand the boundary between views-models and views-stepshifter). Stale CICs give readers a confidently wrong mental model. The bigger the drift, the worse the misdirection. **Recommended fix (not in scope for this concern):** a CI check that, for every file under `docs/CICs/`, enforces "if the target code file(s) changed in this PR, the CIC must also have changed in this PR." The challenge is mapping CIC → target files; the CIC filename already names the class, and a one-line frontmatter field (e.g., `target: run_integration_tests.sh`) plus a 30-line `.github/workflows/cic_sync_check.yml` would suffice. Related: C-15 (zero CIC failure mode test coverage — specifically about testing declared failure modes), C-16 (zero direct unit tests on CIC classes — specifically about behavior coverage), C-07 (scaffold builder testing gap). This concern is distinct: it's about documentation drift, not test coverage. |
 
 ---
@@ -437,9 +437,9 @@
 | **Tier** | 3 |
 | **Trigger** | A Python runtime or future code change registers importlib-loaded modules in `sys.modules`; subsequent `extract_models()` calls return config data from the wrong model |
 | **Source** | review-diff (2026-04-20) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `create_catalogs.py:48,57` |
-| **Notes** | `spec_from_file_location("config_meta", config_meta)` reuses the literal name `"config_meta"` for every model's config file. Currently safe because `module_from_spec` + `exec_module` creates a fresh module object each call and the code never inserts into `sys.modules`. However, the pattern is fragile: any future instrumentation, import hook, or coverage tool that populates `sys.modules` would cause the second model's `extract_models()` to silently return the first model's config. The test fixture in `conftest.py:load_config_module` already uses unique names (`_cfg_{model}_{name}`) — `create_catalogs.py` should follow the same pattern. **Recommended fix:** change the first argument to `f"config_meta_{model_class.model_dir.name}"` (and similarly for `config_deployment`). One-line change per call site. See also C-17 (tooling scripts testing), C-19 (create_catalogs transactional write — resolved). |
+| **Notes** | `spec_from_file_location("config_meta", config_meta)` reused the literal name `"config_meta"` for every model's config file. Fixed (2026-04-21): module names now include the model directory name (`f"config_meta_{model_dir_name}"`), matching the `conftest.py:load_config_module` pattern. See also C-17, C-19. |
 
 ---
 
@@ -450,9 +450,22 @@
 | **Tier** | 3 |
 | **Trigger** | The `ViewsMonth` epoch or convention diverges from `(year - 1980) * 12 + month`, or a developer relies on `test_config_partitions.py` passing as proof that bright_starship's forecasting offset is correct |
 | **Source** | review-diff (2026-04-20) |
-| **Status** | Open |
+| **Status** | Mitigated |
 | **Location** | `models/bright_starship/configs/config_partitions.py:17-20,35` |
-| **Notes** | Every other model uses `from ingester3.ViewsMonth import ViewsMonth` and `ViewsMonth.now().id - 1` for the forecasting partition. bright_starship reimplements this as `_current_month_id()` using `datetime.date.today()` to avoid an `ingester3` dependency (datafactory consumer path). Two consequences: (1) `test_config_partitions.py::test_forecasting_offset` uses regex `ViewsMonth\.now\(\)\.id\s*-\s*(\d+)` which finds zero matches in bright_starship, so the offset assertion vacuously passes — the test verifies nothing for this model. (2) If `ViewsMonth` ever incorporates a non-trivial correction (leap-month adjustment, epoch shift), bright_starship will silently diverge. **Recommended fix:** either add `# PARTITION_OVERRIDE: uses _current_month_id() to avoid ingester3 dependency` so the test framework explicitly tracks this as a declared deviation, or use `ViewsMonth` like other models (the `ingester3` dependency is already available in the conda environment). See also C-01 (partition boundary management — mitigated), D-01 (config duplication rationale). |
+| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. Residual risk: if `ViewsMonth` ever diverges from `(year - 1980) * 12 + month`, bright_starship would silently compute different partitions. See also C-01, D-01. |
+
+---
+
+### C-38 — `datafactory_query` not installed in any environment that can run bright_starship
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer runs `python main.py -r calibration` in `views-hydranet-env` (or any env with `views_hydranet` + `views_pipeline_core`) without `datafactory_query` installed, and `calibration_viewser_df.parquet` is not cached |
+| **Source** | falsify (2026-04-21) |
+| **Status** | Open |
+| **Location** | `models/bright_starship/main.py:33` (`from configs.config_queryset import fetch_data`), `models/bright_starship/configs/config_queryset.py:96` (`from datafactory_query import load_dataset`) |
+| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation). |
 
 ---
 
