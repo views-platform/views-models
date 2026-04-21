@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v3_msle",
+        "name": "teenage_dirtbag_tcn_spotlight_v4_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,11 +14,14 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        # TCN requires input_chunk_length > output_chunk_length (hard constraint
-        # from dilated causal convolutions). icl=72 gives 36 months of lookback
-        # beyond the forecast horizon and fits RF ≤ 63 for all valid (k, layers)
-        # combinations in this sweep.
-        "input_chunk_length": {"values": [36, 48, 72]},
+        # There are TWO RF constraints that must both hold:
+        #   (1) RF ≥ ocl=36 — model must be able to condition all 36 forecast steps
+        #       on past observations. Violated by num_layers=4 (RF=31 < 36).
+        #   (2) RF ≤ icl    — model should not look past the input window into padding.
+        #       Violated by num_layers=5 + icl=48 (RF=63 > 48, but non-fatal).
+        # With num_layers=5 fixed: icl=48 wastes ~15 time steps to padding (tolerable);
+        # icl=72 satisfies both constraints cleanly (RF=63 ≤ 72, RF=63 ≥ 36).
+        "input_chunk_length": {"values": [48, 72]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -122,25 +125,29 @@ def get_sweep_config():
         # ==============================================================================
         # kernel_size: Small kernels better for sparse signals (Bai et al., 2018).
         # Each kernel sees fewer timesteps, reducing zero-dilution.
-        # k=5 excluded: with num_layers=[4,5] gives RF=125/253 >> icl=72.
+        # k=5 excluded: with num_layers=5 gives RF=125 >> icl=72.
         "kernel_size": {"values": [3]},
-        # num_filters: 128 filters with num_layers=5 is survivable on ~6,500
-        # training windows IF weight_norm=True + dropout≥0.25 (TCN weight-sharing
-        # provides implicit regularization). weight_norm=False + dropout=0.15 +
-        # num_filters=128 is an overfit combo — Bayes will find it and discard it.
-        "num_filters": {"values": [32, 64, 128]},
+        # num_filters: 32 filters is a 30:1 compression of the dilated conv stack on
+        # sparse country-month data — not enough capacity to fit the rare-event signal.
+        # 64-128 is the workable range with weight_norm constraining magnitudes.
+        "num_filters": {"values": [64, 128]},
         # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
-        # RF table in num_layers comment assumes d=2 — do not sweep without updating it.
+        # RF formula below assumes d=2 — do not sweep without updating the RF table.
         "dilation_base": {"values": [2]},
-        # num_layers: Controls receptive field. Constraint is RF ≤ icl (not RF ≥ ocl).
-        # RF = 1 + (k-1) × Σ_{i=0}^{L-1}(d^i). With k=3, d=2, icl=72:
-        #   4 layers: RF = 1 + 2×(1+2+4+8)      = 31  months  (RF < icl ✓)
-        #   5 layers: RF = 1 + 2×(1+2+4+8+16)   = 63  months  (RF < icl ✓)
-        #   6 layers: RF = 1 + 2×(1+2+4+8+16+32)= 127 months  (RF > icl ✗ — excluded)
-        "num_layers": {"values": [4, 5]},
-        # weight_norm: Essential for TCN stability — better than batch_norm
-        # for sparse gradients in zero-inflated data.
-        "weight_norm": {"values": [True, False]},
+        # num_layers: Controls receptive field. TWO constraints must both hold:
+        #   RF ≥ ocl=36 (can condition full forecast horizon on past observations)
+        #   RF ≤ icl    (no zero-padding waste)
+        # RF = 1 + (k-1) × Σ_{i=0}^{L-1}(d^i). With k=3, d=2:
+        #   4 layers: RF = 31  months  (RF < ocl=36 ✗ — can't condition full forecast)
+        #   5 layers: RF = 63  months  (RF ≥ ocl=36 ✓, RF ≤ icl=72 ✓)
+        #   6 layers: RF = 127 months  (RF > icl=72 ✗ — excluded)
+        # num_layers=4 was removed: RF=31 < ocl=36 means the model extrapolates blind
+        # for the last 5 forecast steps regardless of icl.
+        "num_layers": {"values": [5]},
+        # weight_norm: Fixed True — constrains filter magnitudes to 1 by construction.
+        # Without it, activation spikes from rare non-zero events propagate unboundedly
+        # through 5 dilated conv layers, causing the blowups observed in v3 sweep.
+        "weight_norm": {"values": [True]},
         # use_reversible_instance_norm: Normalizes input, reverses on output.
         # Helps with distribution shift across countries.
         "use_reversible_instance_norm": {"values": [True, False]},
