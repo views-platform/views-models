@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v3_msle",
+        "name": "new_rules_nbeats_spotlight_v4_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,10 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [48]},
+        # icl=48: 4yr context. icl=72: 2× output_chunk_length — N-BEATS flattens the
+        # full input window to one vector, so larger icl increases the non-zero fraction
+        # of that vector and gives the FC layers more conflict signal to compress.
+        "input_chunk_length": {"values": [48, 72]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -121,20 +124,30 @@ def get_sweep_config():
         # capture more complex patterns but risk overfitting on ~200 series.
         "num_layers": {"values": [2, 3]},
         # layer_widths: Width of FC layers in each block. N-BEATS flattens
-        # input_chunk_length * n_features into a single vector (~36×40=1440
-        # dims), so layers must be wide enough to avoid crushing that signal.
-        # 512-768 keeps compression ratio manageable (~2-3x).
-        "layer_widths": {"values": [64, 128, 256]},
+        # input_chunk_length * n_features into a single vector (~48×40≈1920
+        # dims). layer_widths=64 is a 30:1 compression — sparse inputs mean
+        # the conflict signal (5% of cells) gets averaged out at that bottleneck.
+        # 256-512 keeps the compression ratio manageable (~4-8×) and preserves
+        # peak values instead of pulling predictions toward the zero mean.
+        "layer_widths": {"values": [128, 256, 512]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Controls expressiveness of the
-        # learned basis functions. 5 is paper default, 32 is richer.
-        "expansion_coefficient_dim": {"values": [16, 32, 64]},
+        # learned basis functions. Conflict spikes are sharp and localized —
+        # need more basis components to represent them without undershooting.
+        # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
+        "expansion_coefficient_dim": {"values": [32, 64, 128]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default. LeakyReLU prevents
         # dead neurons on sparse targets.
         "activation": {"values": ["ReLU", "LeakyReLU"]},
+        # use_reversible_instance_norm: Normalizes each series independently before
+        # the model and inverts on output. Critical for N-BEATS on country-level
+        # conflict: series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
+        # Without RevIN, gradients average across scales and the model converges
+        # toward the cross-series mean (~0), systematically underpredicting peaks.
+        "use_reversible_instance_norm": {"values": [True, False]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
