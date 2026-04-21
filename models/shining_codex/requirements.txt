@@ -1,0 +1,2 @@
+views-r2darts2>=1.0.0,<2.0.0
+views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development

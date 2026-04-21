@@ -3,7 +3,9 @@ from pathlib import Path
 
 from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
-from views_hydranet.manager.hydranet_manager import HydranetManager
+from views_r2darts2 import DartsForecastingModelManager, apply_nbeats_patch
+
+apply_nbeats_patch()
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +45,15 @@ if __name__ == "__main__":
     _ensure_data(args.run_type)
 
     # Phase 1 workaround for views-pipeline-core C-51: get_data() hardcodes
-    # viewser as sole data source. bright_starship fetches from views-datafactory
-    # via _ensure_data(), so the parquet cache is already populated. Setting
-    # saved=True routes get_data() through the cache-read path (dataloaders.py:
-    # 1253-1257), bypassing _fetch_data_from_viewser() which would crash on our
-    # dict descriptor. Remove once Phase 2 lands (DataFetchStrategy dispatch).
+    # viewser as sole data source. _ensure_data() populates the parquet cache
+    # from views-datafactory, so saved=True routes around the viewser fetch.
+    # Remove once Phase 2 lands (DataFetchStrategy dispatch).
     args.saved = True
 
-    manager = HydranetManager(model_path=model_path)
+    manager = DartsForecastingModelManager(
+        model_path=model_path,
+        wandb_notifications=args.wandb_notifications,
+    )
 
     if args.sweep:
         manager.execute_sweep_run(args)

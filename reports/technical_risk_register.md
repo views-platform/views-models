@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-21  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 43 (39 concerns + 4 disagreements)  
-**Concerns:** Open 10 | Mitigated 10 | Resolved 16 | Accepted 3  
+**Total entries:** 44 (40 concerns + 4 disagreements)  
+**Concerns:** Open 11 | Mitigated 10 | Resolved 16 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -465,7 +465,7 @@
 | **Source** | falsify (2026-04-21) |
 | **Status** | Open |
 | **Location** | `models/bright_starship/main.py:33` (`from configs.config_queryset import fetch_data`), `models/bright_starship/configs/config_queryset.py:96` (`from datafactory_query import load_dataset`) |
-| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation). |
+| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation), C-40 (generate() contract mismatch). **Cross-repo:** views-pipeline-core C-51 (`get_data()` hardcodes viewser), C-52 (drift detection loss), C-53 (`use_saved` overload). |
 
 ---
 
@@ -479,6 +479,19 @@
 | **Status** | Resolved |
 | **Location** | `models/*/run.sh`, `ensembles/*/run.sh`, `apis/*/run.sh`, `extractors/*/run.sh`, `postprocessors/*/run.sh`, `models/execute_all.sh` (82 scripts total) |
 | **Notes** | **Resolved (2026-04-21).** All 79 `#!/bin/zsh` shebangs changed to `#!/usr/bin/env bash`. `models/execute_all.sh` line 10 changed from `zsh "$script"` to `"$script"` (delegates to shebang). 35 missing trailing newlines and 23 missing executable permissions also fixed. `scripts/audit_shell_health.sh` added to verify: 82 scripts, 490 checks, CLEAN verdict. No zsh-specific syntax was found in any script — all were plain POSIX/bash. |
+
+---
+
+### C-40 — `generate()` return type contract mismatch — dict vs Queryset, no validation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new model migrates to views-datafactory and its `config_queryset.generate()` returns a dict descriptor; `views-pipeline-core` calls `.publish()` on it and crashes |
+| **Source** | expert-code-review (2026-04-21) |
+| **Status** | Open |
+| **Location** | `models/bright_starship/configs/config_queryset.py` (returns dict), `views-pipeline-core/views_pipeline_core/data/model_path.py:691-692` (`get_queryset()` returns raw `generate()` output with no type checking) |
+| **Notes** | Standard viewser models return a `Queryset` object from `generate()`. bright_starship (first datafactory model) returns a plain dict with `"source": "views-datafactory"`, `"zarr_url"`, `"features"` keys. `get_queryset()` in views-pipeline-core performs no type checking — it calls `generate()` and returns whatever it gets. Downstream, `_fetch_data_from_viewser()` calls `.publish()` on the result, crashing with `AttributeError: 'dict' object has no attribute 'publish'`. The contract between views-models (config producer) and views-pipeline-core (config consumer) is entirely implicit. **Phase 1 workaround:** `args.saved = True` in bright_starship's `main.py` routes around the viewser path. **Phase 2 fix (views-pipeline-core):** type dispatch in `get_data()` based on descriptor type + `generate()` return type validation in `get_queryset()`. **Cross-repo:** views-pipeline-core C-51 (root cause — `get_data()` hardcodes viewser), C-42 (missing ViewsDataLoader CIC). See also C-06 (config_queryset external deps), C-38 (datafactory_query not installed). |
 
 ---
 
