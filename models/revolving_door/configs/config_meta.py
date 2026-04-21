@@ -12,10 +12,10 @@ def get_meta_config():
         "algorithm": "NHiTSModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         # "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
-        "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
+        "regression_targets": ["lr_ged_sb"],
+        # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Dylan",
-        # "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson", "LevelRatio"],
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar", "MTD", "BCD", "Pearson", "LevelRatio"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
     }
     return meta_config

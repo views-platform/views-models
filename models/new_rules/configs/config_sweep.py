@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v4_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
+        "name": "new_rules_nbeats_spotlight_v5_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -17,7 +17,7 @@ def get_sweep_config():
         # icl=48: 4yr context. icl=72: 2× output_chunk_length — N-BEATS flattens the
         # full input window to one vector, so larger icl increases the non-zero fraction
         # of that vector and gives the FC layers more conflict signal to compress.
-        "input_chunk_length": {"values": [48, 72]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -116,10 +116,11 @@ def get_sweep_config():
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
         "num_stacks": {"values": [2, 3]},
-        # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack
-        # for generic. Keep at 1 — increasing stacks is more effective
-        # than increasing blocks, and 2 blocks doubles params per stack.
-        "num_blocks": {"values": [2, 4]},
+        # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack for generic.
+        # Keep low — each additional block adds a backcast path; the final block's
+        # backcast is structurally discarded, and with 4 blocks per stack the
+        # dead-backcast cascade can propagate backward. 1-2 avoids this.
+        "num_blocks": {"values": [1, 2]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
         "num_layers": {"values": [2, 3]},
@@ -135,19 +136,19 @@ def get_sweep_config():
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [32, 64, 128]},
+        "expansion_coefficient_dim": {"values": [5, 32, 64, 128]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default. LeakyReLU prevents
         # dead neurons on sparse targets.
         "activation": {"values": ["ReLU", "LeakyReLU"]},
-        # use_reversible_instance_norm: Normalizes each series independently before
-        # the model and inverts on output. Critical for N-BEATS on country-level
-        # conflict: series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
-        # Without RevIN, gradients average across scales and the model converges
-        # toward the cross-series mean (~0), systematically underpredicting peaks.
-        "use_reversible_instance_norm": {"values": [True, False]},
+        # use_reversible_instance_norm: Fixed True — empirically required.
+        # Country series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
+        # RevIN=False: gradients average across scales → model converges to
+        # cross-series mean (~0), systematically underpredicting peaks. RevIN=False
+        # runs confirmed this in v4 sweep and waste Bayes budget on known failures.
+        "use_reversible_instance_norm": {"values": [True]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION

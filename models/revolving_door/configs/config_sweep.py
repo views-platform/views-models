@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v6_msle",
+        "name": "revolving_door_nhits_spotlight_v7_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -39,12 +39,12 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "mc_dropout": {"values": [False]},
-        "optimizer_cls": {"values": ["AdamW"]},
+        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
         # ==============================================================================
@@ -52,7 +52,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -63,9 +63,9 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 5e-5,
-            "max": 5e-4,
+            "max": 1e-3,
         },
-        "weight_decay": {"values": [5e-6, 5e-3]},
+        "weight_decay": {"values": [0, 1e-5, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -78,7 +78,7 @@ def get_sweep_config():
         # With alpha <= 0.20, max cosh contribution at asinh(10000)=9.9 is
         # cosh(0.20*9.9)≈3.8. Tanh gradient is bounded at ±1. Effective max
         # gradient ≈ 3.8 — clip of 2.0 is sufficient. 5.0 provides no protection.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -94,6 +94,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns", 
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -136,17 +138,17 @@ def get_sweep_config():
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
-        # 3 stacks: coarse (semi-annual) + intermediate (quarterly) + fine (monthly).
-        # Pooling kernel rationale (icl=36):
-        #   kernel=8 → ~quarterly aggregation over the input window
-        #   kernel=4 → semi-annual aggregation
-        #   kernel=1 → raw monthly (fine stack always)
-        # n_freq_downsample rationale (ocl=36):
-        #   fd=6 → 36/6 = 6 basis functions  (slow structural trends)
+        # 3 stacks: coarse (annual) + intermediate (quarterly) + fine (monthly).
+        # Pooling kernel rationale (icl=48):
+        #   kernel=12 → 48/12 = 4 annual groups  (coarse multi-year trends)
+        #   kernel=4  → 48/4  = 12 quarterly groups (conflict-cycle patterns)
+        #   kernel=1  → 48 raw monthly steps       (fine stack always unpooled)
+        # n_freq_downsample rationale (ocl=36, independent of icl):
+        #   fd=6 → 36/6 = 6 basis functions  (slow structural trends, semi-annual)
         #   fd=3 → 36/3 = 12 basis functions (quarterly detail)
         #   fd=1 → 36/1 = 36 basis functions (full monthly)
         "num_stacks": {"values": [3]},
-        "pooling_kernel_sizes": {"values": [[[8], [4], [1]]]},
+        "pooling_kernel_sizes": {"values": [[[12], [4], [1]]]},
         "n_freq_downsample": {"values": [[[6], [3], [1]]]},
         # AvgPool: for zero-inflated data, MaxPool selects the single largest
         # value in each kernel window, making the coarse stack representation
@@ -157,18 +159,12 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Best run hit ceiling (0.143/0.15). N-HiTS's pooling already
-        # regularizes, but wider FC layers benefit from more dropout.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.25,
-        },
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         # RevIN must be True: empirically, turning it off caused >15B predictions.
         # RevIN's inverse() rescales outputs by each series' own historical sigma,
         # bounding OOD extrapolation relative to observed history.
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -176,52 +172,29 @@ def get_sweep_config():
         # parameter philosophy as smol_cat (TiDE): alpha can be used freely
         # for cosh magnitude weighting.
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
-        # Pre-Basu gate: alpha > 0.20 caused 15B OOD on NHiTS (shared basis
-        # contamination). Post-Basu gate: early-training amplification is
-        # suppressed (gate≈0.008 at z=5), so higher alpha is now safer to
-        # explore without contaminating shared basis functions.
-        # The gate fully opens at late training, so alpha still controls final
-        # late-training amplification. Cap at 0.50 to limit fully-converged
-        # weights: cosh(0.50*9.9)≈74× vs 2900× at alpha=0.80.
-        #   0.15: cosh(1.5)≈2.4×  (conservative, was the old safe ceiling)
-        #   0.35: cosh(3.5)≈17×   (moderate, smol_cat neighbourhood)
-        #   0.50: cosh(5.0)≈74×   (strong, upper safe limit with gate)
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "min": 0.15,
+            "max": 0.30,
         },
-        
-        # ── beta (asymmetry strength) ─────────────────
-        # Extra multiplier for FN, gated by magnitude.
-        #   0.3: FN costs 1.3x FP (on events)
-        #   0.7: FN costs 1.7x FP (on events)
-        # Range is conservative because magnitude weights already 
-        # heavily favor FN recall.
-        "beta": {
+        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
+        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
+        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
+        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
+        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
+        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
+        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
+        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
+        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
+        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
+        # accuracy isn't starved — the model still needs to get cell values right.
+        "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.3,
-        },
-        
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls transition smoothness between FP/FN regimes.
-        #   5.0: Smooth transition.
-        #   15.0: Sharp, almost binary transition.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
-        },
-        # ── gamma (temporal weight) ───────────────────
-        # Weight for the temporal gradient alignment term.
-        #   0.05: Light timing guidance.
-        #   0.2: Strong timing guidance.
-        "gamma": {
-            "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.2,
+            "min": 0.08,
+            "max": 0.25,
         },
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
