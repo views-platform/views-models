@@ -3,7 +3,7 @@
 **Last updated:** 2026-04-21  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 43 (39 concerns + 4 disagreements)  
-**Concerns:** Open 11 | Mitigated 10 | Resolved 15 | Accepted 3  
+**Concerns:** Open 10 | Mitigated 10 | Resolved 16 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -476,9 +476,9 @@
 | **Tier** | 2 |
 | **Trigger** | Any `run.sh` is executed on a Linux server, Docker container, or CI runner where zsh is not installed (i.e., most deployment targets) |
 | **Source** | review-diff (2026-04-21) |
-| **Status** | Open |
-| **Location** | `models/*/run.sh` (all 70 files) |
-| **Notes** | Every `run.sh` in the repo uses `#!/bin/zsh` as the shebang. zsh is the default shell on macOS but is not installed on standard Linux servers, Docker images, or CI runners. None of the scripts use zsh-specific features — they are plain POSIX/bash shell. On any Linux target without zsh, execution fails immediately with `bad interpreter: /bin/zsh: no such file or directory`. This is a repo-wide issue inherited from initial project setup on macOS. **Fix:** change all 70 shebangs to `#!/bin/bash`. One-line sed: `sed -i '1s|#!/bin/zsh|#!/bin/bash|' models/*/run.sh`. Must be tested on macOS to confirm no zsh-specific syntax crept in. See also C-38 (bright_starship environment readiness). |
+| **Status** | Resolved |
+| **Location** | `models/*/run.sh`, `ensembles/*/run.sh`, `apis/*/run.sh`, `extractors/*/run.sh`, `postprocessors/*/run.sh`, `models/execute_all.sh` (82 scripts total) |
+| **Notes** | **Resolved (2026-04-21).** All 79 `#!/bin/zsh` shebangs changed to `#!/usr/bin/env bash`. `models/execute_all.sh` line 10 changed from `zsh "$script"` to `"$script"` (delegates to shebang). 35 missing trailing newlines and 23 missing executable permissions also fixed. `scripts/audit_shell_health.sh` added to verify: 82 scripts, 490 checks, CLEAN verdict. No zsh-specific syntax was found in any script — all were plain POSIX/bash. |
 
 ---
 
