@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-11  
+**Last updated:** 2026-04-20  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 39 (35 concerns + 4 disagreements)  
-**Concerns:** Open 10 | Mitigated 9 | Resolved 13 | Accepted 3  
+**Total entries:** 41 (37 concerns + 4 disagreements)  
+**Concerns:** Open 12 | Mitigated 9 | Resolved 13 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -427,6 +427,32 @@
 | **Source** | code-review (2026-04-11) — discovered during C-26 fix in Sprint 2 |
 | **Status** | Open |
 | **Notes** | `run_integration_tests.sh:128-137` uses `if [ -f "$req_file" ] && grep -q "views-${FILTER_LIBRARY}" "$req_file"`. A missing or unreadable `requirements.txt` causes silent exclusion — the same class of bug C-26 had in the `--level` filter, but in the `--library` filter. C-26's Sprint 2 fix added the `CLASSIFICATION_ERRORS` fail-fast pattern (lines 109-153) for level classification only; the library filter was left untouched because it does not crash and the legitimate "model declares no matching library" case must remain a silent skip. The remaining gap: a model that lacks `requirements.txt` entirely cannot be distinguished from one that declares a different library. **Recommended fix:** when `requirements.txt` does not exist for a model in the candidate set, emit a `WARNING: cannot classify <model> by library: missing requirements.txt` to stderr and exclude it explicitly (don't fail fast — this is milder than C-26 because it doesn't indicate a broken file). After C-08 (requirements coherence test) and C-27 (rude_boy backfill), this gap is mostly future-protection — it would re-emerge if a new model is added without `requirements.txt` and `--library` filtering is used before C-08 catches the omission. See also C-26 (same pattern, resolved 2026-04-11), C-08 (requirements coherence — mitigated), C-27 (rude_boy `requirements.txt` — resolved). |
+
+---
+
+### C-36 — `create_catalogs.py` uses fixed module names in `importlib` loading, risking stale module cache
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A Python runtime or future code change registers importlib-loaded modules in `sys.modules`; subsequent `extract_models()` calls return config data from the wrong model |
+| **Source** | review-diff (2026-04-20) |
+| **Status** | Open |
+| **Location** | `create_catalogs.py:48,57` |
+| **Notes** | `spec_from_file_location("config_meta", config_meta)` reuses the literal name `"config_meta"` for every model's config file. Currently safe because `module_from_spec` + `exec_module` creates a fresh module object each call and the code never inserts into `sys.modules`. However, the pattern is fragile: any future instrumentation, import hook, or coverage tool that populates `sys.modules` would cause the second model's `extract_models()` to silently return the first model's config. The test fixture in `conftest.py:load_config_module` already uses unique names (`_cfg_{model}_{name}`) — `create_catalogs.py` should follow the same pattern. **Recommended fix:** change the first argument to `f"config_meta_{model_class.model_dir.name}"` (and similarly for `config_deployment`). One-line change per call site. See also C-17 (tooling scripts testing), C-19 (create_catalogs transactional write — resolved). |
+
+---
+
+### C-37 — bright_starship `config_partitions.py` uses `_current_month_id()` instead of `ViewsMonth`, creating test blind spot
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | The `ViewsMonth` epoch or convention diverges from `(year - 1980) * 12 + month`, or a developer relies on `test_config_partitions.py` passing as proof that bright_starship's forecasting offset is correct |
+| **Source** | review-diff (2026-04-20) |
+| **Status** | Open |
+| **Location** | `models/bright_starship/configs/config_partitions.py:17-20,35` |
+| **Notes** | Every other model uses `from ingester3.ViewsMonth import ViewsMonth` and `ViewsMonth.now().id - 1` for the forecasting partition. bright_starship reimplements this as `_current_month_id()` using `datetime.date.today()` to avoid an `ingester3` dependency (datafactory consumer path). Two consequences: (1) `test_config_partitions.py::test_forecasting_offset` uses regex `ViewsMonth\.now\(\)\.id\s*-\s*(\d+)` which finds zero matches in bright_starship, so the offset assertion vacuously passes — the test verifies nothing for this model. (2) If `ViewsMonth` ever incorporates a non-trivial correction (leap-month adjustment, epoch shift), bright_starship will silently diverge. **Recommended fix:** either add `# PARTITION_OVERRIDE: uses _current_month_id() to avoid ingester3 dependency` so the test framework explicitly tracks this as a declared deviation, or use `ViewsMonth` like other models (the `ingester3` dependency is already available in the conda environment). See also C-01 (partition boundary management — mitigated), D-01 (config duplication rationale). |
 
 ---
 

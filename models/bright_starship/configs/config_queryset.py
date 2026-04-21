@@ -2,13 +2,23 @@
 
 This replaces the viewser Queryset pattern used in other models.
 Instead of connecting to PRIO's PostgreSQL via viewser, bright_starship
-fetches from the VIEWS data factory zarr store on Hetzner over HTTP.
+fetches from the VIEWS data factory via load_dataset().
+
+load_dataset() is a unified API that auto-detects the storage backend
+(local npy directory vs zarr store) from the path. The URL below
+points to a zarr store served over HTTP, but the function returns a
+pandas DataFrame — zarr is the storage format, DataFrame is the
+consumer interface.
+
+Data flow:
+  zarr store (HTTP) → numpy grid [T,H,W,C] → flatten + region filter
+  → DataFrame with MultiIndex (month_id, priogrid_gid)
 
 On first run, main.py calls fetch_data() which:
-  1. Downloads the requested partition from the remote zarr store
+  1. Calls load_dataset() — opens zarr, subsets by time + region
   2. Renames factory column names to VIEWSER convention
   3. Derives row/col grid coordinates from priogrid_gid
-  4. Fills NaN with 0.0
+  4. Fills NaN with 0.0 (defensive — see note below)
   5. Saves as {run_type}_viewser_df.parquet in data/raw/
 
 Subsequent runs use the cached parquet directly — delete it to re-fetch.
@@ -31,7 +41,8 @@ from views_pipeline_core.managers.model import ModelPathManager
 model_name = ModelPathManager.get_model_name_from_path(__file__)
 logger = logging.getLogger(__name__)
 
-# Hetzner zarr store — requires HTTP Basic Auth via ~/.netrc
+# Data source URL — load_dataset() detects zarr vs npy from the path.
+# Zarr over HTTP requires ~/.netrc credentials (see README.md).
 ZARR_URL = "http://204.168.219.108/grid.zarr"
 
 # 13,110 PRIO-GRID cells matching VIEWSER's Africa + Middle East coverage
@@ -74,9 +85,16 @@ def fetch_data(
     output_dir: Path,
     partitions: dict,
 ) -> Path:
-    """Fetch data from the Hetzner zarr store and save as parquet.
+    """Fetch data from the factory and save as VIEWSER-compatible parquet.
 
     Called by main.py's _ensure_data() when the cached parquet is missing.
+
+    Data flow:
+        1. load_dataset() opens the zarr store over HTTP
+        2. Subsets by time range (lazy — only requested months are downloaded)
+        3. Subsets by region (africa_me_legacy = 13,110 PRIO-GRID cells)
+        4. Returns DataFrame with MultiIndex (month_id, priogrid_gid)
+        5. This function renames columns, derives row/col, fills NaN, saves
 
     Args:
         run_type: "calibration", "validation", or "forecasting".
@@ -109,16 +127,20 @@ def fetch_data(
         start=start,
         end=end,
         features=FACTORY_FEATURES,
-        output_format="dataframe",
-        data_dir=ZARR_URL,
+        output_format="dataframe",  # also: "feature_frame" (numpy + identifiers)
+        data_dir=ZARR_URL,          # auto-detects zarr vs npy from path
     )
 
     df = df.rename(columns=FEATURE_RENAME)
 
+    # HydraNet expects row/col but the zarr store only has priogrid_gid.
+    # PRIO-GRID definition: row = (pgid-1)//720 + 1, col = (pgid-1)%720 + 1.
     pgids = df.index.get_level_values("priogrid_gid")
     df["row"] = ((pgids - 1) // NCOL + 1).astype(np.float64)
     df["col"] = ((pgids - 1) % NCOL + 1).astype(np.float64)
 
+    # Defensive: assembled grid has no NaN (events=0.0, admin=-1.0),
+    # but the VIEWSER parquet contract requires no NaN. Cheap insurance.
     df = df.fillna(0.0)
     df = df.sort_index()
 
