@@ -32,12 +32,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from datafactory_query.defaults import DEFAULT_REMOTE
+
 PURPLE_ALIEN_PARQUET = (
     Path(__file__).resolve().parents[2]
     / "purple_alien" / "data" / "raw" / "calibration_viewser_df.parquet"
 )
 
-ZARR_URL = "http://204.168.219.108/grid.zarr"
+ZARR_URL = DEFAULT_REMOTE.zarr_url
 REGION = "africa_me_legacy"
 FACTORY_FEATURES = ["ged_sb_best", "ged_ns_best", "ged_os_best", "gaul0_code"]
 FEATURE_RENAME = {

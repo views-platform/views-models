@@ -107,8 +107,8 @@ def get_hp_config():
         # ============================================================
         # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
         'n_posterior_samples': 64,
-        #'evalution_mode': "point", #'stochastic',
-        'evalution_mode': 'stochastic',
+        #'evaluation_mode': "point", #'stochastic',
+        'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         # 'run_type': 'calibration',
 

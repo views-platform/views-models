@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-21  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 42 (38 concerns + 4 disagreements)  
-**Concerns:** Open 10 | Mitigated 10 | Resolved 15 | Accepted 3  
+**Total entries:** 43 (39 concerns + 4 disagreements)  
+**Concerns:** Open 11 | Mitigated 10 | Resolved 15 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -466,6 +466,19 @@
 | **Status** | Open |
 | **Location** | `models/bright_starship/main.py:33` (`from configs.config_queryset import fetch_data`), `models/bright_starship/configs/config_queryset.py:96` (`from datafactory_query import load_dataset`) |
 | **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation). |
+
+---
+
+### C-39 — All 70 `run.sh` scripts use `#!/bin/zsh` — will fail on Linux servers and CI
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any `run.sh` is executed on a Linux server, Docker container, or CI runner where zsh is not installed (i.e., most deployment targets) |
+| **Source** | review-diff (2026-04-21) |
+| **Status** | Open |
+| **Location** | `models/*/run.sh` (all 70 files) |
+| **Notes** | Every `run.sh` in the repo uses `#!/bin/zsh` as the shebang. zsh is the default shell on macOS but is not installed on standard Linux servers, Docker images, or CI runners. None of the scripts use zsh-specific features — they are plain POSIX/bash shell. On any Linux target without zsh, execution fails immediately with `bad interpreter: /bin/zsh: no such file or directory`. This is a repo-wide issue inherited from initial project setup on macOS. **Fix:** change all 70 shebangs to `#!/bin/bash`. One-line sed: `sed -i '1s|#!/bin/zsh|#!/bin/bash|' models/*/run.sh`. Must be tested on macOS to confirm no zsh-specific syntax crept in. See also C-38 (bright_starship environment readiness). |
 
 ---
 

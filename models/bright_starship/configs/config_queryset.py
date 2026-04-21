@@ -36,6 +36,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from datafactory_query.defaults import DEFAULT_REMOTE
 from views_pipeline_core.managers.model import ModelPathManager
 
 model_name = ModelPathManager.get_model_name_from_path(__file__)
@@ -43,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 # Data source URL — load_dataset() detects zarr vs npy from the path.
 # Zarr over HTTP requires ~/.netrc credentials (see README.md).
-ZARR_URL = "http://204.168.219.108/grid.zarr"
+ZARR_URL = DEFAULT_REMOTE.zarr_url
 
 # 13,110 PRIO-GRID cells matching VIEWSER's Africa + Middle East coverage
 REGION = "africa_me_legacy"

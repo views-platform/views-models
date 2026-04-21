@@ -7,7 +7,7 @@ Findings: F-1 (hard), F-2 (hard), F-3 (soft)
 These tests document pre-flight blockers discovered before first run.
 They SHOULD fail until the blockers are resolved — that's the point.
 """
-import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -15,6 +15,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BRIGHT_STARSHIP = REPO_ROOT / "models" / "bright_starship"
+
+pytestmark = pytest.mark.skipif(
+    not shutil.which("conda"),
+    reason="local pre-flight check — requires conda environment",
+)
 
 
 class TestF1_DatafactoryQueryDependency:
