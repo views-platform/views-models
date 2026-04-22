@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-04-21  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 44 (40 concerns + 4 disagreements)  
-**Concerns:** Open 11 | Mitigated 10 | Resolved 16 | Accepted 3  
+**Total entries:** 45 (41 concerns + 4 disagreements)  
+**Concerns:** Open 12 | Mitigated 10 | Resolved 16 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -492,6 +492,19 @@
 | **Status** | Open |
 | **Location** | `models/bright_starship/configs/config_queryset.py` (returns dict), `models/shining_codex/configs/config_queryset.py` (returns dict), `views-pipeline-core/views_pipeline_core/data/model_path.py:691-692` (`get_queryset()` returns raw `generate()` output with no type checking) |
 | **Notes** | Standard viewser models return a `Queryset` object from `generate()`. bright_starship and shining_codex (datafactory models) return a plain dict with `"source": "views-datafactory"`, `"zarr_url"`, `"features"` keys. `get_queryset()` in views-pipeline-core performs no type checking — it calls `generate()` and returns whatever it gets. Downstream, `_fetch_data_from_viewser()` calls `.publish()` on the result, crashing with `AttributeError: 'dict' object has no attribute 'publish'`. The contract between views-models (config producer) and views-pipeline-core (config consumer) is entirely implicit. **Phase 1 workaround:** `args.saved = True` in bright_starship's `main.py` routes around the viewser path. **Phase 2 fix (views-pipeline-core):** type dispatch in `get_data()` based on descriptor type + `generate()` return type validation in `get_queryset()`. **Cross-repo:** views-pipeline-core C-51 (root cause — `get_data()` hardcodes viewser), C-42 (missing ViewsDataLoader CIC). See also C-06 (config_queryset external deps), C-38 (datafactory_query not installed). |
+
+---
+
+### C-41 — shining_codex has no readiness tests
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer clones the repo and runs `python main.py -r calibration` for shining_codex without the `views-r2darts2` environment and `datafactory_query` installed |
+| **Source** | tech-debt-cleanup (2026-04-21) |
+| **Status** | Open |
+| **Location** | `models/shining_codex/` (no `tests/` directory or test files) |
+| **Notes** | bright_starship has readiness tests (`test_bright_starship_readiness.py`) that verify environment prerequisites (conda env, `datafactory_query`, `DartsForecastingModelManager` import) and config structural validity. shining_codex, cloned from bright_starship, has no equivalent tests. Without readiness tests, failures will surface only at runtime with opaque error messages (e.g., `ModuleNotFoundError` for `datafactory_query` or `views_r2darts2`). See C-38 (datafactory_query not installed), C-03 (integration tests manual-only). |
 
 ---
 
