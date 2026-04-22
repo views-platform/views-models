@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v6_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
+        "name": "good_life_transformer_spotlight_v7_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -39,7 +39,7 @@ def get_sweep_config():
         # still giving Bayes room to explore the lower half.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
+            "min": 5e-5,
             "max": 5e-4,
         },
         "weight_decay": {"values": [1e-4]},
@@ -52,7 +52,7 @@ def get_sweep_config():
         "lr_scheduler_eta_min": {"values": [1e-6]},
         # Max per-cell gradient = w(y)×tanh ≤ 4.3 (alpha=0.35). clip=5.0 never fires
         # and was removed. clip=3.0 trims only the most extreme event-cell spikes.
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -114,13 +114,12 @@ def get_sweep_config():
         # ==============================================================================
         # d_model: Embedding dimension. Constrained jointly with nhead so
         # that head_dim = d_model / nhead >= 32 for stable attention.
-        # d_model=64 with nhead=2 → head_dim=32 (stable). Conservative bet
-        # for ~200 sparse series: smaller embedding reduces memorization,
-        # ~4× fewer params per layer than d_model=128.
-        "d_model": {"values": [64]},
-        # nhead: 2 heads with d_model=64 → head_dim=32 (minimum stable).
-        # Two attention patterns: "where was conflict?" + "what changed?"
-        # Sufficient for ~8 informative positions in a 48-step window.
+        # d_model=64, nhead=2 → head_dim=32 (minimum stable).
+        # d_model=128, nhead=2 → head_dim=64 (comfortable).
+        # nhead=4 excluded: valid for d_model=128 but gives head_dim=16 for
+        # d_model=64, which is unstable — W&B can't condition on d_model.
+        "d_model": {"values": [64, 128]},
+        # nhead=2 valid for both d_model values (head_dim ≥ 32 in both cases).
         "nhead": {"values": [2]},
         # num_encoder_layers: 2-3 layers. ~200 series don't need deep
         # encoders; 2 is standard, 3 adds capacity for temporal complexity.
@@ -129,8 +128,9 @@ def get_sweep_config():
         # Decoder complexity should mirror encoder for balanced attention.
         "num_decoder_layers": {"values": [2]},
         # dim_feedforward: FF expansion factor. 4× d_model raw, ~2× effective
-        # with SwiGLU gating. 256/64=4× keeps capacity proportional to d_model.
-        "dim_feedforward": {"values": [256]},
+        # with SwiGLU gating. 256=4× d_model=64, 512=4× d_model=128.
+        # Bayes will naturally pair 64→256 and 128→512.
+        "dim_feedforward": {"values": [256, 512]},
         # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
         # relu/gelu in recent Transformer literature (Shazeer 2020).
         "activation": {"values": ["SwiGLU"]},
@@ -164,8 +164,8 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.30,
+            "min": 0.15,
+            "max": 0.25,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -183,7 +183,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.08,
             "max": 0.25,
         },
         # ==============================================================================
