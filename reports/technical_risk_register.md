@@ -1,6 +1,6 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-21  
+**Last updated:** 2026-04-22  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 45 (41 concerns + 4 disagreements)  
 **Concerns:** Open 12 | Mitigated 10 | Resolved 16 | Accepted 3  
@@ -30,7 +30,7 @@
 | **Trigger** | A VIEWS database column is renamed or removed, or a queryset references a non-existent column |
 | **Source** | repo-assimilation |
 | **Status** | Open |
-| **Notes** | `config_queryset.py` is the most complex config file (up to 734 lines) with zero test coverage. Failures are runtime-only (data fetch phase). Validation would require access to the VIEWS database schema. |
+| **Notes** | `config_queryset.py` is the most complex config file (up to 734 lines) with zero test coverage. Failures are runtime-only (data fetch phase). Validation would require access to the VIEWS database schema. **2026-04-22 (test-review):** This gap was the root cause of the bright_starship `dict.publish()` crash — `generate()` returns a plain dict for datafactory models but no test validates return type or shape. Minimum viable test: verify `generate()` exists, returns correct type, and that datafactory descriptors contain required keys (`source`, `zarr_url`, `features`). See C-40 (return type contract mismatch). |
 
 ---
 
