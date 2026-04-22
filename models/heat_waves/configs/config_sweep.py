@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_spotlight_v1_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
+        "name": "heat_waves_tft_spotlight_v2_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -27,20 +27,21 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
         # TFT combines LSTM + attention — more complex gradient landscape
-        # than pure Transformers. Needs conservative LR.
+        # than pure Transformers. GRN gating dampens gradient magnitudes,
+        # so TFT tolerates a slightly broader LR range than vanilla Transformer.
         "lr": {
             "distribution": "log_uniform_values",
             "min": 1e-5,
-            "max": 3e-4,
+            "max": 5e-4,
         },
-        "weight_decay": {"values": [5e-6, 1e-4]},
+        "weight_decay": {"values": [1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -48,8 +49,10 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # TFT has both LSTM and attention gradients — moderate clipping.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # Max per-cell gradient = w(y)×tanh ≤ 4.3 (alpha=0.35). clip=5.0 never
+        # fires; 3.0 barely fires. TFT has LSTM gradients that compound through
+        # time — tighter clip prevents rare-event spikes from destabilising LSTM state.
+        "gradient_clip_val": {"values": [2.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -65,6 +68,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns",
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -109,29 +114,36 @@ def get_sweep_config():
         # ==============================================================================
         # hidden_size: Controls VSN, GRN, LSTM, and attention dimensions.
         # TFT is parameter-inefficient — hidden_size propagates into every
-        # sub-module (LSTM states, attention projections, GRN 2x expansion).
-        # 256 doubles the param count and will memorize ~200 series instantly.
-        # 64-128 is the viable range; 64/2=32 and 128/4=32 both satisfy
-        # the head_dim >= 32 constraint.
-        "hidden_size": {"values": [64, 128]},
+        # sub-module (LSTM 4×h², VSN features×h, GRN 2×h², attention 3×h²).
+        # At hidden=128: ~600K params on ~200 series = instant memorization.
+        # At hidden=64: ~150K params — tight but viable for sparse data.
+        # head_dim = hidden_size / nhead = 64/2 = 32 (minimum stable).
+        "hidden_size": {"values": [64]},
         # lstm_layers: 1 is standard (Lim et al. 2021). Attention handles
-        # long-range, LSTM provides local context. 2 layers doubles LSTM
-        # params — too much for ~200 series.
+        # long-range, LSTM provides local context. On 85% zero data, LSTM
+        # converges to a "peace" attractor — additional layers just deepen
+        # this attractor without adding new information.
         "lstm_layers": {"values": [1]},
-        # num_attention_heads: 2 for hidden=64 (head_dim=32), 4 for
-        # hidden=128 (head_dim=32). Both satisfy >= 32 constraint.
-        # Sweeping [2, 4] — Bayesian search pairs with hidden_size.
-        "num_attention_heads": {"values": [2, 4]},
+        # num_attention_heads: 2 heads with hidden_size=64 → head_dim=32
+        # (minimum stable softmax). Two attention patterns: "where was
+        # conflict?" + "what changed structurally?" — sufficient for ~8
+        # informative positions in a 48-step window.
+        "num_attention_heads": {"values": [2]},
         # full_attention: True = O(n²) over full encoder+decoder context.
-        # With 36-48 timesteps this is cheap and gives richer attention.
-        "full_attention": {"values": [True, False]},
+        # With icl=48 this is cheap (48²=2304). On sparse data, the rare
+        # non-zero positions are by definition far apart — the decoder needs
+        # full access to find them. Sparse attention risks masking the few
+        # informative positions.
+        "full_attention": {"values": [True]},
         # feed_forward: GatedResidualNetwork is TFT's native architecture.
-        # SwiGLU is a modern alternative worth testing.
+        # GLU gating provides implicit regularization on zero inputs — gate
+        # learns to close → skip connection dominates. A strength for sparse data.
         "feed_forward": {"values": ["GatedResidualNetwork"]},
-        # hidden_continuous_size: Dimensionality of continuous variable
-        # processing before VSN. Should be <= hidden_size. With hidden_size
-        # capped at 128, 32-64 is the right range.
-        "hidden_continuous_size": {"values": [32, 64]},
+        # hidden_continuous_size: Pre-VSN embedding dim for continuous features.
+        # With hidden_size=64, 32 = 2× compression before VSN. Sufficient
+        # projection dim — features carry most information in a few dimensions
+        # (conflict counts + deltas).
+        "hidden_continuous_size": {"values": [32]},
         # categorical_embedding_sizes: empty dict for pure continuous features.
         "categorical_embedding_sizes": {"values": [{}]},
         # add_relative_index: Injects position information into attention.
@@ -143,56 +155,49 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: TFT is the most parameter-heavy model in the catalog
-        # (VSN + GRN + LSTM + attention). Needs strong regularization
-        # with only ~200 series. Floor at 0.15 like Transformer.
-        "dropout": {
-            "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.35,
-        },
+        # Dropout: TFT applies dropout in LSTM, GRN, VSN, and attention — 4
+        # independent sites. Compound survival rate at dropout=d: (1-d)^4.
+        #   0.10 → 66% signal survives    0.15 → 52%    0.25 → 32%
+        # TFT's GRN gating already provides implicit regularization, so
+        # explicit dropout can be lower than pure Transformer.
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        # RevIN: Country series span asinh≈0 (Liechtenstein) to asinh≈11
+        # (Syria). Without RevIN, LSTM hidden state magnitudes diverge across
+        # scales → VSN gates open fully for high-conflict series, stay shut
+        # for peaceful ones → OOD inputs get arbitrary outputs.
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
+        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
+        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
+        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
+        # Weight at max UCDP (asinh≈11.5):
+        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
+        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        # [2:1, 6:1] across the full delta range.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.80,
+            "min": 0.15,
+            "max": 0.35,
         },
-        
-        # ── beta (asymmetry strength) ─────────────────
-        # Extra multiplier for FN, gated by magnitude.
-        #   0.3: FN costs 1.3x FP (on events)
-        #   0.7: FN costs 1.7x FP (on events)
-        # Range is conservative because magnitude weights already 
-        # heavily favor FN recall.
-        "beta": {
+        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
+        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
+        # Particularly valuable for TFT because the LSTM encoder has no explicit
+        # frequency bias — spectral loss is the only thing constraining its
+        # temporal structure.
+        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
+        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
+        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.3,
-        },
-        
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Controls transition smoothness between FP/FN regimes.
-        #   5.0: Smooth transition.
-        #   15.0: Sharp, almost binary transition.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 8.0,
-            "max": 15.0,
-        },
-        # ── gamma (temporal weight) ───────────────────
-        # Weight for the temporal gradient alignment term.
-        #   0.05: Light timing guidance.
-        #   0.2: Strong timing guidance.
-        "gamma": {
-            "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.2,
+            "min": 0.08,
+            "max": 0.25,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
