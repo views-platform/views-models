@@ -136,7 +136,7 @@ def get_sweep_config():
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [16]},
+        "expansion_coefficient_dim": {"values": [5, 16]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
