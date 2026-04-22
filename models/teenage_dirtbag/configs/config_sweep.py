@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v6_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
+        "name": "teenage_dirtbag_tcn_spotlight_v7_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -18,10 +18,12 @@ def get_sweep_config():
         #   (1) RF ≥ ocl=36 — model must be able to condition all 36 forecast steps
         #       on past observations. Violated by num_layers=4 (RF=31 < 36).
         #   (2) RF ≤ icl    — model should not look past the input window into padding.
-        #       Violated by num_layers=5 + icl=48 (RF=63 > 48, but non-fatal).
-        # With num_layers=5 fixed: icl=48 wastes ~15 time steps to padding (tolerable);
-        # icl=72 satisfies both constraints cleanly (RF=63 ≤ 72, RF=63 ≥ 36).
-        "input_chunk_length": {"values": [72]},
+        # With num_layers=5 fixed (k=3, d=2): RF=63.
+        #   icl=48: RF=63 > 48 — 15 steps zero-padded at window start (softly violated,
+        #   tolerable — padded zeros resemble peace, the base state for 85%+ of data).
+        #   icl=72 satisfies both cleanly but adds ~24 additional mostly-zero steps
+        #   that dilute the conflict signal in the input vector.
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -63,7 +65,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -130,7 +132,9 @@ def get_sweep_config():
         # num_filters: 32 filters is a 30:1 compression of the dilated conv stack on
         # sparse country-month data — not enough capacity to fit the rare-event signal.
         # 64-128 is the workable range with weight_norm constraining magnitudes.
-        "num_filters": {"values": [64]},
+        # 64: conservative, reduces overfitting risk on ~200 series.
+        # 128: more capacity for the ~10% conflict signal; Bayes decides.
+        "num_filters": {"values": [64, 128]},
         # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
         # RF formula below assumes d=2 — do not sweep without updating the RF table.
         "dilation_base": {"values": [2]},
@@ -139,8 +143,8 @@ def get_sweep_config():
         #   RF ≤ icl    (no zero-padding waste)
         # RF = 1 + (k-1) × Σ_{i=0}^{L-1}(d^i). With k=3, d=2:
         #   4 layers: RF = 31  months  (RF < ocl=36 ✗ — can't condition full forecast)
-        #   5 layers: RF = 63  months  (RF ≥ ocl=36 ✓, RF ≤ icl=72 ✓)
-        #   6 layers: RF = 127 months  (RF > icl=72 ✗ — excluded)
+        #   5 layers: RF = 63  months  (RF ≥ ocl=36 ✓, RF > icl=48 by 15 steps — tolerable)
+        #   6 layers: RF = 127 months  (RF >> icl=48 ✗ — excluded)
         # num_layers=4 was removed: RF=31 < ocl=36 means the model extrapolates blind
         # for the last 5 forecast steps regardless of icl.
         "num_layers": {"values": [5]},

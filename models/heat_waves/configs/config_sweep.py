@@ -5,7 +5,7 @@ def get_sweep_config():
     sweep_config = {
         "method": "bayes",
         "name": "heat_waves_tft_spotlight_v2_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
+        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
