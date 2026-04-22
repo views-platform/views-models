@@ -52,7 +52,7 @@ def get_sweep_config():
         # Max per-cell gradient = w(y)×tanh ≤ 4.3 (alpha=0.35). clip=5.0 never
         # fires; 3.0 barely fires. TFT has LSTM gradients that compound through
         # time — tighter clip prevents rare-event spikes from destabilising LSTM state.
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================

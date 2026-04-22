@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v7_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
+        "name": "new_rules_nbeats_spotlight_v8_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -49,7 +49,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
