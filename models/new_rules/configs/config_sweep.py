@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v5_msle",
+        "name": "new_rules_nbeats_spotlight_v7_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -130,18 +130,18 @@ def get_sweep_config():
         # the conflict signal (5% of cells) gets averaged out at that bottleneck.
         # 256-512 keeps the compression ratio manageable (~4-8×) and preserves
         # peak values instead of pulling predictions toward the zero mean.
-        "layer_widths": {"values": [256, 512]},
+        "layer_widths": {"values": [128, 256]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Controls expressiveness of the
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [64]},
+        "expansion_coefficient_dim": {"values": [32, 64]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
-        # activation: ReLU is N-BEATS paper default. LeakyReLU prevents
-        # dead neurons on sparse targets.        "activation": {"values": ["LeakyReLU"]},
+        # activation: ReLU is N-BEATS paper default.     
+        "activation": {"values": ["ReLU"]},
         # use_reversible_instance_norm: Fixed True — empirically required.
         # Country series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
         # RevIN=False: gradients average across scales → model converges to
@@ -154,7 +154,7 @@ def get_sweep_config():
         # ==============================================================================
         # Dropout: N-BEATS is a deep MLP — moderate dropout needed for
         # ~200 series. Paper uses 0.0 but they had much more data.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -171,7 +171,7 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.15,
             "max": 0.35,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
@@ -191,7 +191,7 @@ def get_sweep_config():
         "delta": {
             "distribution": "uniform",
             "min": 0.08,
-            "max": 0.28,
+            "max": 0.25,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

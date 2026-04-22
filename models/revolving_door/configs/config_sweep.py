@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v8_msle",
+        "name": "revolving_door_nhits_spotlight_v9_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -149,7 +149,14 @@ def get_sweep_config():
         #   fd=1 → 36/1 = 36 basis functions (full monthly)
         "num_stacks": {"values": [3]},
         "pooling_kernel_sizes": {"values": [[[12], [4], [1]]]},
-        "n_freq_downsample": {"values": [[[6], [3], [1]]]},
+        # n_freq_downsample: basis functions per stack = ocl / fd.
+        # Option A [[6],[3],[1]]: coarse=6 basis (semi-annual), intermediate=12, fine=36.
+        #   Risk: coarse stack has 4 pooled inputs → 6 outputs = underdetermined FC,
+        #   enabling spurious high-freq content that compounds across stacks → OOD.
+        # Option B [[12],[3],[1]]: coarse=3 basis (annual), intermediate=12, fine=36.
+        #   Safer: 4 inputs → 3 outputs = overdetermined FC, structurally constrains
+        #   coarse stack to annual-only resolution. Directly addresses y_hat inflation.
+        "n_freq_downsample": {"values": [[[12], [3], [1]]]},
         # AvgPool: for zero-inflated data, MaxPool selects the single largest
         # value in each kernel window, making the coarse stack representation
         # dominated by rare spikes. AvgPool produces a smoother structural

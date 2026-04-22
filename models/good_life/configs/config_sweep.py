@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v4_msle",
+        "name": "good_life_transformer_spotlight_v6_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -114,20 +114,23 @@ def get_sweep_config():
         # ==============================================================================
         # d_model: Embedding dimension. Constrained jointly with nhead so
         # that head_dim = d_model / nhead >= 32 for stable attention.
-        # 128/4=32 is the proven minimum; 128/2=64 gives richer heads.
-        "d_model": {"values": [128]},
-        # nhead: 4 gives head_dim=32 (tight but stable), 2 gives 64 (rich).
-        # Both valid with d_model=128. Avoids the 64/4=16 trap entirely.
-        "nhead": {"values": [4]},
+        # d_model=64 with nhead=2 → head_dim=32 (stable). Conservative bet
+        # for ~200 sparse series: smaller embedding reduces memorization,
+        # ~4× fewer params per layer than d_model=128.
+        "d_model": {"values": [64]},
+        # nhead: 2 heads with d_model=64 → head_dim=32 (minimum stable).
+        # Two attention patterns: "where was conflict?" + "what changed?"
+        # Sufficient for ~8 informative positions in a 48-step window.
+        "nhead": {"values": [2]},
         # num_encoder_layers: 2-3 layers. ~200 series don't need deep
         # encoders; 2 is standard, 3 adds capacity for temporal complexity.
         "num_encoder_layers": {"values": [2, 3]},
         # num_decoder_layers: Match or slightly fewer than encoder.
         # Decoder complexity should mirror encoder for balanced attention.
         "num_decoder_layers": {"values": [2]},
-        # dim_feedforward: FF expansion factor. 2-4x d_model.
-        # 256-512 for d_model=64-128. Controls capacity of position-wise FF.
-        "dim_feedforward": {"values": [512]},
+        # dim_feedforward: FF expansion factor. 4× d_model raw, ~2× effective
+        # with SwiGLU gating. 256/64=4× keeps capacity proportional to d_model.
+        "dim_feedforward": {"values": [256]},
         # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
         # relu/gelu in recent Transformer literature (Shazeer 2020).
         "activation": {"values": ["SwiGLU"]},
@@ -138,7 +141,7 @@ def get_sweep_config():
         # ==============================================================================
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         # use_reversible_instance_norm: Fixed True. Country series span asinh≈0
         # (Liechtenstein) to asinh≈11 (Syria). Without RevIN, Q/K/V magnitudes
         # are dominated by high-conflict rows — attention collapses to attending
@@ -161,7 +164,7 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.15,
             "max": 0.35,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
