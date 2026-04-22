@@ -136,7 +136,7 @@ def get_sweep_config():
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [32, 64]},
+        "expansion_coefficient_dim": {"values": [16]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
@@ -172,7 +172,7 @@ def get_sweep_config():
         "alpha": {
             "distribution": "uniform",
             "min": 0.15,
-            "max": 0.35,
+            "max": 0.30,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -190,7 +190,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
+            "min": 0.10,
             "max": 0.25,
         },
         # ==============================================================================
