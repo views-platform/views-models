@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v5_msle",
+        "name": "teenage_dirtbag_tcn_spotlight_v6_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -130,7 +130,7 @@ def get_sweep_config():
         # num_filters: 32 filters is a 30:1 compression of the dilated conv stack on
         # sparse country-month data — not enough capacity to fit the rare-event signal.
         # 64-128 is the workable range with weight_norm constraining magnitudes.
-        "num_filters": {"values": [128]},
+        "num_filters": {"values": [64]},
         # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
         # RF formula below assumes d=2 — do not sweep without updating the RF table.
         "dilation_base": {"values": [2]},
@@ -155,7 +155,7 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         # Dropout: TCN applies spatial dropout between conv layers.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -173,7 +173,7 @@ def get_sweep_config():
         "alpha": {
             "distribution": "uniform",
             "min": 0.15,
-            "max": 0.35,
+            "max": 0.30,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -191,7 +191,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
+            "min": 0.10,
             "max": 0.25,
         },
         # ==============================================================================

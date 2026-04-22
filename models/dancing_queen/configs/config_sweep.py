@@ -1,24 +1,20 @@
 def get_sweep_config():
     """
-    Key changes from v3:
-    - Wider FC decoder ([256], [128,64]) — v3's [64]/[128] had < 1 hidden unit
-      per output, killing target-specific discrimination.
-    - Higher beta [0.4, 0.8] — v3 network CAN discriminate (unlike v2's 1.9M
-      blob), so stronger asymmetry won't cause blanket over-prediction.
-    - Higher delta [2.0, 4.0] — with alpha≈0, delta IS the max gradient from
-      any error. v3's delta=1.0 capped Sudan's gradient = Chad's gradient.
-      This is why it chronically under-predicts large events.
-    - Sweep GRU vs LSTM — GRU's update gate may handle zero-heavy sequences
-      better than LSTM's forget gate (which aggressively zeros cell state
-      during long runs of zeros).
-    - Shorter input option [24, 36] — less zero-dilution of the hidden state.
-    - Dropped input_chunk=48 (36 BPTT steps is already the limit for stable
-      gradients with SpotlightLoss).
+    Key changes from v4:
+    - SpotlightLoss v20: removed dead params (beta, kappa, gamma).
+    - Tighter alpha/delta for BPTT safety: alpha [0.15,0.25], delta [0.10,0.22].
+    - Locked: GRU, n_rnn_layers=1, hidden_fc_sizes=[128], GELU, dropout=0.0.
+    - RevIN=True for zero-inflated input normalization.
+    - weight_decay=1e-4, gradient_clip_val=2.0, min_iter=50, patience=50.
+    - icl [36,48]: 36 for BPTT safety, 48 for full context.
+    - hidden_dim [64,128]: 64 is sufficient for ~200 series.
+    - Added lr_ged_ns/os to feature_scaler_map.
+    - use_cyclic_encoders=True replaces positional encoders.
     """
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v4_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
+        "name": "dancing_queen_blockrnn_spotlight_v5_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -27,10 +23,8 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        # Shorter input reduces zero-dilution of hidden state. 24 months
-        # still captures conflict escalation cycles while halving the BPTT
-        # path length (→ healthier gradients). 36 for full 3-year context.
-        "input_chunk_length": {"values": [24, 36]},
+        # 36 for BPTT safety, 48 for full context (Bayes decides).
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -43,7 +37,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},
+        "early_stopping_patience": {"values": [50]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -51,10 +45,10 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-4,
+            "min": 1e-5,
             "max": 5e-4,
         },
-        "weight_decay": {"values": [5e-6]},
+        "weight_decay": {"values": [1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -62,7 +56,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        "gradient_clip_val": {"values": [2.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -78,6 +72,8 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
+                        "lr_ged_ns",
+                        "lr_ged_os",
                     ],
                     "StandardScaler": [
                         "lr_ged_sb_delta",
@@ -120,84 +116,51 @@ def get_sweep_config():
         # ==============================================================================
         # BLOCKRNN ARCHITECTURE
         # ==============================================================================
-        # Sweep GRU vs LSTM: GRU's single update gate may handle zero-heavy
-        # sequences better — LSTM's forget gate learns to aggressively zero
-        # the cell state during long runs of zeros, biasing toward under-prediction.
+        # GRU locked: update gate handles zero-heavy sequences better than
+        # LSTM's forget gate (which aggressively zeros cell state).
         "rnn_type": {"values": ["GRU"]},
-        # hidden_dim: 128-192 for ~200 series. 1-layer keeps all params
+        # hidden_dim: 64-128 for ~200 series. Single layer keeps all params
         # reachable by gradient.
-        "hidden_dim": {"values": [128, 192]},
-        "n_rnn_layers": {"values": [1, 2]},
-        # hidden_fc_sizes: WIDE decoder. v3's [64]/[128] had less than 1
-        # hidden unit per output (108 = 36×3). The decoder must learn
-        # target-specific AND step-specific patterns:
-        # [256] — single wide layer, 2.4 units per output
-        # [128, 64] — two-layer decoder, progressive compression
-        "hidden_fc_sizes": {"values": [[256], [128, 64]]},
-        # GELU only — smoother gradients through the wider FC decoder.
-        # ReLU dead neurons are worse with higher delta/beta pushing
-        # gradient magnitudes up.
+        "hidden_dim": {"values": [64, 128]},
+        # Locked to 1: removes inter-layer dropout dead zone, halves BPTT
+        # memory, keeps all hidden state reachable by gradient.
+        "n_rnn_layers": {"values": [1]},
+        # Single 128-wide layer: 1.2 units per output (108 = 36×3).
+        # Enough for target-specific discrimination without OOD capacity.
+        "hidden_fc_sizes": {"values": [[128]]},
+        # GELU: smoother gradients through the FC decoder.
         "activation": {"values": ["GELU"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout for MC uncertainty via inter-layer RNN dropout.
-        # Only active when n_rnn_layers=2 (PyTorch applies dropout between
-        # layers only). Bayes will learn to pair n_rnn_layers=2 with
-        # dropout > 0 and n_rnn_layers=1 with dropout=0 (no-op anyway).
-        "dropout": {"values": [0.05, 0.10]},
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: SpotlightLoss v20
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (magnitude expansion rate) ──────────
-        # Near-zero for BPTT safety. 0.0 disables cosh weighting entirely.
-        # 0.1 gives cosh(0.1*9) ≈ 1.4x — negligible but lets Bayes test.
+        # ── alpha (magnitude weighting) ───────────────
+        # Tighter for BPTT: gradients compound across time steps.
+        # [0.15, 0.25] keeps cosh(0.25*11.5) ≈ 5.4x at max asinh value.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 0.8,
+            "min": 0.15,
+            "max": 0.25,
         },
-        # ── beta (asymmetry strength) ─────────────────
-        "beta": {
-            "distribution": "uniform",
-            "min": 0.4,
-            "max": 0.8,
-        },
-        # ── kappa (sigmoid sharpness) ─────────────────
-        # Moderate. Sharp transitions compound through BPTT.
-        "kappa": {
-            "distribution": "uniform",
-            "min": 5.0,
-            "max": 15.0,
-        },
-        # ── delta (huber threshold) ───────────────────
+        # ── delta (spectral resolution) ───────────────
+        # Tighter for BPTT: STFT gradients compound through unrolled steps.
         "delta": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 1.5,
+            "min": 0.10,
+            "max": 0.22,
         },
-        # ── gamma (temporal weight) ───────────────────
-        # Low — block model produces all 36 outputs at once, so temporal
-        # smoothness is less natural than for autoregressive models.
-        # Just enough to prevent wild step-to-step swings.
-        "gamma": {
-            "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.2,
-        },
+        # ── non_zero_threshold ────────────────────────
+        "non_zero_threshold": {"values": [0.88]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "add_encoders": {
-            "values": [
-                {
-                    "position": {"past": ["relative"], "future": ["relative"]},
-                }
-            ]
-        },
+        "use_cyclic_encoders": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters
