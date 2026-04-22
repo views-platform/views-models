@@ -17,7 +17,7 @@ def get_sweep_config():
         # icl=48: 4yr context. icl=72: 2× output_chunk_length — N-BEATS flattens the
         # full input window to one vector, so larger icl increases the non-zero fraction
         # of that vector and gives the FC layers more conflict signal to compress.
-        "input_chunk_length": {"values": [48]},
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
