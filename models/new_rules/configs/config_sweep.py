@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v9_msle_symmetric",
-        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},
+        "name": "new_rules_nbeats_spotlight_v10_msle_symmetric",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -14,9 +14,10 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        # icl=48: 4yr context. icl=72: 2× output_chunk_length — N-BEATS flattens the
-        # full input window to one vector, so larger icl increases the non-zero fraction
-        # of that vector and gives the FC layers more conflict signal to compress.
+        # icl=48: 4yr context. N-BEATS flattens the full input window to one vector,
+        # so larger icl increases the non-zero fraction of that vector and gives the
+        # FC layers more conflict signal to compress. icl=36 gives no lookback
+        # advantage over the output horizon — conflict persistence requires more context.
         "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
@@ -115,7 +116,7 @@ def get_sweep_config():
         "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
-        "num_stacks": {"values": [1, 2]},
+        "num_stacks": {"values": [2, 3]},
         # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack for generic.
         # Keep low — each additional block adds a backcast path; the final block's
         # backcast is structurally discarded, and with 4 blocks per stack the
@@ -123,14 +124,14 @@ def get_sweep_config():
         "num_blocks": {"values": [1, 2]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
-        "num_layers": {"values": [2]},
+        "num_layers": {"values": [2, 3]},
         # layer_widths: Width of FC layers in each block. N-BEATS flattens
         # input_chunk_length * n_features into a single vector (~48×40≈1920
-        # dims). layer_widths=64 is a 30:1 compression — sparse inputs mean
+        # dims). layer_widths=128 is an ~15:1 compression — sparse inputs mean
         # the conflict signal (5% of cells) gets averaged out at that bottleneck.
         # 256-512 keeps the compression ratio manageable (~4-8×) and preserves
         # peak values instead of pulling predictions toward the zero mean.
-        "layer_widths": {"values": [128, 256]},
+        "layer_widths": {"values": [128, 256, 512]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Must be ≤ ocl=36 to avoid overcomplete
         # basis (null space → OOD explosions). ed=16 covers 44% of R^36;
@@ -141,12 +142,12 @@ def get_sweep_config():
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.     
         "activation": {"values": ["ReLU"]},
-        # use_reversible_instance_norm: Fixed True — empirically required.
-        # Country series span asinh≈0 (Liechtenstein) to asinh≈11 (Syria).
-        # RevIN=False: gradients average across scales → model converges to
-        # cross-series mean (~0), systematically underpredicting peaks. RevIN=False
-        # runs confirmed this in v4 sweep and waste Bayes budget on known failures.
-        "use_reversible_instance_norm": {"values": [True]},
+        # use_reversible_instance_norm: Fixed False for this sweep.
+        # N-BEATS has no internal normalization in its residual path — pure FC →
+        # basis expansion. With dual_mean=False the upward gradient bias is gone,
+        # so RevIN=True no longer amplifies a DC offset. But without RevIN=False
+        # confirmed safe first, we keep it off. Re-introduce in v11 if v10 is clean.
+        "use_reversible_instance_norm": {"values": [False]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
@@ -192,16 +193,10 @@ def get_sweep_config():
             "min": 0.08,
             "max": 0.25,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
-        "event_weight": {
-            "values": [0.01], # Dummy value so genome won't yell at me.
-        },
+        # ── event_weight ──────────────────────────────────────────────────────────────
+        "event_weight": {"values": [0.5]},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [False]},
+        "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
