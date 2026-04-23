@@ -190,7 +190,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
+            "min": 0.10,
             "max": 0.25,
         },
         # ── event_weight ──────────────────────────────────────────────────────────────

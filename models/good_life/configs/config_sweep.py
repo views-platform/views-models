@@ -184,20 +184,11 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.01,
+            "min": 0.10,
             "max": 0.25,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # 0.50 = old 50/50 split (5.7× per-cell amplification → overpredicts).
-        # 0.25 = moderate boost (2.85×). 0.10 = natural prevalence (~1.0×).
-        # With v21's symmetric weight, false alarms already get corrective
-        # pressure — events may not need the full 50% budget.
-        "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
-        },
+        # ── event_weight ──────────────────────────────────────────────────────────────
+        "event_weight": {"values": [0.5]},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean (event_weight controls ratio).
         # False = plain per-cell mean (event_weight ignored).
