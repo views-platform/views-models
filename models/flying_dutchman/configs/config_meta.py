@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "flying_dutchman", 
         "algorithm": "MarkovModel",
-        "targets": ["ln_ged_sb_dep"],
+        "targets": ["lr_ged_sb_dep"],
         "queryset": "markov_joint_narrow",
         "level": "cm",
         "creator": "Luuk Boekestein",

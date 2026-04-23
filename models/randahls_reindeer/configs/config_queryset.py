@@ -16,15 +16,13 @@ def generate():
     qs_markov = (Queryset(f'{model_name}','country_month')
 
         # target variable
-        .with_column(Column("ln_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
-                .transform.ops.ln()
+        .with_column(Column("lr_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
                 .transform.missing.fill()
                 )
 
         # Baseline features:
         # lag of target variable
-        .with_column(Column("ln_ged_sb", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
-                .transform.ops.ln()
+        .with_column(Column("lr_ged_sb", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
                 .transform.missing.fill()
                 )
 
@@ -64,17 +62,15 @@ def generate():
                 )
 
         # More conflict history [hh20]
-        .with_column(Column("ln_ged_sb_tlag_1", from_loa="country_month",
+        .with_column(Column("lr_ged_sb_tlag_1", from_loa="country_month",
                         from_column="ged_sb_best_sum_nokgi")
-                .transform.ops.ln()
                 .transform.missing.fill()
                 .transform.temporal.tlag(1)
                 .transform.missing.fill()
                 )
 
-        .with_column(Column("ln_ged_sb_tlag_2", from_loa="country_month",
+        .with_column(Column("lr_ged_sb_tlag_2", from_loa="country_month",
                         from_column="ged_sb_best_sum_nokgi")
-                .transform.ops.ln()
                 .transform.missing.fill()
                 .transform.temporal.tlag(2)
                 .transform.missing.fill()

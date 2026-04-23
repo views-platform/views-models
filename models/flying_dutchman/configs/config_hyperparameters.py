@@ -10,7 +10,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        'markov_target': 'ln_ged_sb_dep',
+        'markov_target': 'lr_ged_sb_dep',
         'markov_threshold': 0,
         'markov_method': 'transition',
         'regression_method': 'single',
