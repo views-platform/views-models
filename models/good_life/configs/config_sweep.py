@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v8_msle_no_dualmean",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
+        "name": "good_life_transformer_spotlight_v9_msle_revin_off_dualmean",
+        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -142,12 +142,13 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: Fixed True. Country series span asinh≈0
-        # (Liechtenstein) to asinh≈11 (Syria). Without RevIN, Q/K/V magnitudes
-        # are dominated by high-conflict rows — attention collapses to attending
-        # only to Syria/Iraq regardless of the query series. RevIN normalizes
-        # each series to unit variance before the encoder, fixing this.
-        "use_reversible_instance_norm": {"values": [False, True]},
+        # use_reversible_instance_norm: Forced False in this sweep.
+        # Isolating whether RevIN is the multiplier that converts event_weight's
+        # additive asinh-space bias into multiplicative raw-space overprediction.
+        # Previous sweep (v8) found RevIN=True winning on MSLE — but MSLE rewards
+        # mild upward bias. This sweep tests dual_mean=True + no RevIN to see if
+        # event_weight [0.10, 0.50] is controllable without the amplification chain.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -193,12 +194,15 @@ def get_sweep_config():
         # With v21's symmetric weight, false alarms already get corrective
         # pressure — events may not need the full 50% budget.
         "event_weight": {
-            "values": [0.01],  # Dummy value so genome won't yell at me.
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean (event_weight controls ratio).
         # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [False]},
+        # RevIN forced off in this sweep to isolate its role in DC-offset amplification.
+        "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
