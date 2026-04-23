@@ -132,11 +132,10 @@ def get_sweep_config():
         # peak values instead of pulling predictions toward the zero mean.
         "layer_widths": {"values": [128, 256]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
-        # coefficients (generic mode). Controls expressiveness of the
-        # learned basis functions. Conflict spikes are sharp and localized —
-        # need more basis components to represent them without undershooting.
-        # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [5, 16, 128, 512]},
+        # coefficients (generic mode). Must be ≤ ocl=36 to avoid overcomplete
+        # basis (null space → OOD explosions). ed=16 covers 44% of R^36;
+        # ed=5 is an aggressive regularizer. Both well-conditioned.
+        "expansion_coefficient_dim": {"values": [5, 16]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},

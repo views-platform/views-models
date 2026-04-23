@@ -11,7 +11,7 @@ def get_hp_config():
     hyperparameters = {
         "steps": [*range(1, 36 + 1, 1)],
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": False,
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
         "rolling_origin_stride": 1,
@@ -20,9 +20,9 @@ def get_hp_config():
         "batch_size": 64,
         "d_model": 128,
         "dim_feedforward": 256,
-        "dropout": 0.2222401437543808,
+        "dropout": 0.25,
         "early_stopping_min_delta": 0.0001,
-        "early_stopping_patience": 40,
+        "early_stopping_patience": 50,
         "feature_scaler": None,
         "feature_scaler_map": {
             "MinMaxScaler": [
@@ -55,6 +55,8 @@ def get_hp_config():
                 "lr_splag_1_ged_sb",
                 "lr_splag_1_ged_ns",
                 "lr_splag_1_ged_os",
+                "lr_ged_ns",
+                "lr_ged_os",
             ],
             "StandardScaler": [
                 "lr_ged_sb_delta",
@@ -70,14 +72,13 @@ def get_hp_config():
             ],
         },
         "force_reset": True,
-        "gradient_clip_val": 3,
+        "gradient_clip_val": 10,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLoss",
-        "alpha": 0.387,
-        "beta": 0.236,
-        "gamma": 0.13,
-        "kappa": 12.0,
-        "lr": 0.00004161140068563459,
+        "alpha": 0.14809691460053717,
+        "delta": 0.1718080920987693,
+        "non_zero_threshold": 0.88,
+        "lr": 0.00005838561227257836,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 30,
         "lr_scheduler_T_mult": 2,
@@ -88,23 +89,21 @@ def get_hp_config():
             "eta_min": 0.000001,
         },
         "n_epochs": 300,
-        "nhead": 4,
+        "nhead": 2,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 2,
         "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 0.00004161140068563459,
-            "weight_decay": 0.000005,
+            "lr": 0.00005838561227257836,
+            "weight_decay": 0.0001,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
-        # RevIN enabled: Transformer attention + FFN layers benefit from
-        # normalised channel scales, and sweep can disable if needed.
-        "use_reversible_instance_norm": False,
-        "weight_decay": 0.000005,
+        "use_reversible_instance_norm": True,
+        "weight_decay": 0.0001,
 
         # Encoders
         "use_cyclic_encoders": True,
