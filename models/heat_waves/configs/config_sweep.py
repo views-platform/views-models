@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_spotlight_v2_msle",
+        "name": "heat_waves_tft_spotlight_v3_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -198,6 +198,13 @@ def get_sweep_config():
             "distribution": "uniform",
             "min": 0.08,
             "max": 0.25,
+        },
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

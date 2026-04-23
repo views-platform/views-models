@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v28_cm_msle",
+        "name": "smol_cat_tide_spotlight_v29_cm_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -197,6 +197,14 @@ def get_sweep_config():
             "distribution": "uniform",
             "min": 0.08,
             "max": 0.25,
+        },
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

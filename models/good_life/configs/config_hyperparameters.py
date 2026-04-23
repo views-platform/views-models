@@ -77,6 +77,7 @@ def get_hp_config():
         "loss_function": "SpotlightLoss",
         "alpha": 0.14809691460053717,
         "delta": 0.1718080920987693,
+        "event_weight": 0.5,
         "non_zero_threshold": 0.88,
         "lr": 0.00005838561227257836,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",

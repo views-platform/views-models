@@ -13,7 +13,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v5_msle",
+        "name": "dancing_queen_blockrnn_spotlight_v6_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -154,6 +154,14 @@ def get_sweep_config():
             "distribution": "uniform",
             "min": 0.10,
             "max": 0.22,
+        },
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # Tighter for BPTT: balanced-mean bias compounds through unrolled steps.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ── non_zero_threshold ────────────────────────
         "non_zero_threshold": {"values": [0.88]},

@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v7_msle_symmetric",
+        "name": "good_life_transformer_spotlight_v8_msle_symmetric",
         "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -147,7 +147,7 @@ def get_sweep_config():
         # are dominated by high-conflict rows — attention collapses to attending
         # only to Syria/Iraq regardless of the query series. RevIN normalizes
         # each series to unit variance before the encoder, fixing this.
-        "use_reversible_instance_norm": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -185,6 +185,17 @@ def get_sweep_config():
             "distribution": "uniform",
             "min": 0.01,
             "max": 0.25,
+        },
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # 0.50 = old 50/50 split (5.7× per-cell amplification → overpredicts).
+        # 0.25 = moderate boost (2.85×). 0.10 = natural prevalence (~1.0×).
+        # With v21's symmetric weight, false alarms already get corrective
+        # pressure — events may not need the full 50% budget.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

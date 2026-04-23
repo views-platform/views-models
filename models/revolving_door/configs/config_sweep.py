@@ -29,7 +29,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v9_msle",
+        "name": "revolving_door_nhits_spotlight_v10_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -202,6 +202,13 @@ def get_sweep_config():
             "distribution": "uniform",
             "min": 0.08,
             "max": 0.28,
+        },
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
         },
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.

@@ -82,6 +82,7 @@ def get_hp_config():
         "loss_function": "SpotlightLoss",
         "alpha": 0.2842281396642175,
         "delta": 0.12283653588254542,
+        "event_weight": 0.5,
         "non_zero_threshold": 0.88,
 
         # Scaling
