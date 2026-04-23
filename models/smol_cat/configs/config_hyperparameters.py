@@ -59,6 +59,7 @@ def get_hp_config():
         "alpha": 0.1898862281124,
         "delta": 0.2320212109290657,
         "event_weight": 0.5,
+        "dual_mean": True,
         "non_zero_threshold": 0.88, 
 
         # Prediction

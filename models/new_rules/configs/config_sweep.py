@@ -196,10 +196,12 @@ def get_sweep_config():
         # Fraction of gradient budget allocated to event cells in balanced mean.
         # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "values": [0.01], # Dummy value so genome won't yell at me.
         },
+        # ── dual_mean ─────────────────────────────────────────────────────────────────
+        # True = event/peace balanced mean (event_weight controls ratio).
+        # False = plain per-cell mean (event_weight ignored).
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

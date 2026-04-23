@@ -206,6 +206,10 @@ def get_sweep_config():
             "min": 0.10,
             "max": 0.50,
         },
+        # ── dual_mean ─────────────────────────────────────────────────────────────────
+        # True = event/peace balanced mean (event_weight controls ratio).
+        # False = plain per-cell mean (event_weight ignored).
+        "dual_mean": {"values": [True, False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

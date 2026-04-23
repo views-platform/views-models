@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v8_msle_symmetric",
-        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
+        "name": "good_life_transformer_spotlight_v8_msle_no_dualmean",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -141,7 +141,7 @@ def get_sweep_config():
         # ==============================================================================
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        "dropout": {"values": [0.15, 0.25]},
         # use_reversible_instance_norm: Fixed True. Country series span asinh≈0
         # (Liechtenstein) to asinh≈11 (Syria). Without RevIN, Q/K/V magnitudes
         # are dominated by high-conflict rows — attention collapses to attending
@@ -193,10 +193,12 @@ def get_sweep_config():
         # With v21's symmetric weight, false alarms already get corrective
         # pressure — events may not need the full 50% budget.
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "values": [0.01],  # Dummy value so genome won't yell at me.
         },
+        # ── dual_mean ─────────────────────────────────────────────────────────────────
+        # True = event/peace balanced mean (event_weight controls ratio).
+        # False = plain per-cell mean (event_weight ignored).
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
