@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v7_msle",
+        "name": "good_life_transformer_spotlight_v7_msle_symmetric",
         "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -164,8 +164,8 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.25,
+            "min": 0.10,
+            "max": 0.30,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -183,7 +183,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
+            "min": 0.01,
             "max": 0.25,
         },
         # ==============================================================================

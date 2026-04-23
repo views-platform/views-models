@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v8_msle",
+        "name": "new_rules_nbeats_spotlight_v8_msle_symmetric",
         "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -115,12 +115,12 @@ def get_sweep_config():
         "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
-        "num_stacks": {"values": [2]},
+        "num_stacks": {"values": [1, 2]},
         # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack for generic.
         # Keep low — each additional block adds a backcast path; the final block's
         # backcast is structurally discarded, and with 4 blocks per stack the
         # dead-backcast cascade can propagate backward. 1-2 avoids this.
-        "num_blocks": {"values": [1]},
+        "num_blocks": {"values": [1, 2]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
         "num_layers": {"values": [2]},
@@ -136,7 +136,7 @@ def get_sweep_config():
         # learned basis functions. Conflict spikes are sharp and localized —
         # need more basis components to represent them without undershooting.
         # Paper uses 512+ for complex signals; 64-128 is a reasonable middle ground.
-        "expansion_coefficient_dim": {"values": [5, 16]},
+        "expansion_coefficient_dim": {"values": [5, 16, 128, 512]},
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
@@ -190,7 +190,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.08,
             "max": 0.25,
         },
         # ==============================================================================
