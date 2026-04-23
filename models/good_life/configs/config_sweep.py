@@ -1,4 +1,3 @@
-import math
 
 def get_sweep_config():
     """

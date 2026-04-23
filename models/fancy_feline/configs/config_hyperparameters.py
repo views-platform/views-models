@@ -13,6 +13,7 @@ def get_hp_config():
     
         # --- Forecast horizon ---
         "steps": list(range(1, 36 + 1)),
+        "time_steps": 36,
     
         # --- Sampling ---
         "num_samples": 1,

@@ -39,8 +39,8 @@ class PackageScaffoldBuilder:
 
 if __name__ == "__main__":
 
-    package_name = str(input(f"Enter the name of the package: "))
-    while PackageManager.validate_package_name(package_name) == False:
+    package_name = str(input("Enter the name of the package: "))
+    while not PackageManager.validate_package_name(package_name):
         error = "Invalid input. Please use the format 'views-packagename' in lowercase, e.g., 'views-stepshifter'."
         logging.error(error)
         package_name = str(input("Enter the name of the package: "))

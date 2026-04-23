@@ -1,10 +1,6 @@
-import wandb
-import warnings
 from pathlib import Path
 from views_graphdb.manager.extractor import UCDPExtractorManager
 from views_graphdb.manager.extractor import ExtractorPathManager
-
-warnings.filterwarnings("ignore")
 
 try:
     extractor_path = ExtractorPathManager(Path(__file__))

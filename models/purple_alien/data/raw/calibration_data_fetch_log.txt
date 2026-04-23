@@ -1,3 +1,0 @@
-Single Model Name: purple_alien
-Data Fetch Timestamp: 20260219_124213
-

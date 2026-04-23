@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"

@@ -1,7 +1,6 @@
 from pathlib import Path
 import datetime
 import logging
-from views_pipeline_core.configs.pipeline import PipelineConfig
 from views_pipeline_core.templates.model import (
     template_config_deployment,
     template_config_hyperparameters,
@@ -118,6 +117,15 @@ class ModelScaffoldBuilder:
                     logging.error(f"Error creating subdirectory: {subdir}. {e}")
             else:
                 logging.info(f"Subdirectory already exists: {subdir}. Skipping.")
+            # Ensure git tracks the directory by placing a .gitkeep immediately.
+            # Without this, empty subdirs are lost on fresh clones and downstream
+            # ModelPathManager calls crash with cryptic NoneType errors.
+            # Guard on subdir.exists() so a failed mkdir above doesn't turn the
+            # logged-and-continue path into an unhandled FileNotFoundError.
+            if subdir.exists():
+                gitkeep_path = subdir / ".gitkeep"
+                if not gitkeep_path.exists():
+                    gitkeep_path.touch()
 
         # Create README.md and requirements.txt
         readme_path = self._model.model_dir / "README.md"
@@ -139,7 +147,7 @@ class ModelScaffoldBuilder:
         #     logging.error(f"Did not create requirements.txt: {requirements_path}")
         return self._model.model_dir
 
-    def build_model_scripts(self):
+    def build_model_scripts(self, *, input_fn=None, get_version_fn=None):
         """
         Generates various model configuration and script files required for the model.
 
@@ -155,9 +163,17 @@ class ModelScaffoldBuilder:
         9. Generates the main script for the model.
         10. Reminds the user to update the queryset file.
 
+        Args:
+            input_fn: Callable for user prompts. Defaults to builtin input().
+            get_version_fn: Callable(package_name) -> version string.
+                Defaults to PackageManager.get_latest_release_version_from_github.
+
         Raises:
             FileNotFoundError: If the model directory does not exist.
         """
+        input_fn = input_fn or input
+        get_version_fn = get_version_fn or PackageManager.get_latest_release_version_from_github
+
         if not self._model.model_dir.exists():
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first. Aborting script generation."
@@ -166,7 +182,7 @@ class ModelScaffoldBuilder:
             script_path=self._model.configs / "config_deployment.py"
         )
         self._model_algorithm = str(
-            input(
+            input_fn(
                 "Enter the algorithm of the model (e.g. XGBModel, LightGBMModel, HurdleModel, HydraNet): "
             )
         )
@@ -190,19 +206,18 @@ class ModelScaffoldBuilder:
         template_config_partitions.generate(script_path=self._model.configs / "config_partitions.py")
         template_main.generate(script_path=self._model.model_dir / "main.py")
 
-        self.package_name = str(input("Enter the name of the architecture package: "))
-        while (PackageManager.validate_package_name(self.package_name) == False):
+        self.package_name = str(input_fn("Enter the name of the architecture package: "))
+        while not PackageManager.validate_package_name(self.package_name):
             error = "Invalid input. Please use the format 'views-packagename' in lowercase, e.g., 'views-stepshifter'."
             logging.error(error)
-            self.package_name = str(input("Enter the name of the architecture package: "))
+            self.package_name = str(input_fn("Enter the name of the architecture package: "))
         template_run_sh.generate(script_path=self._model.model_dir / "run.sh", package_name=self.package_name)
         try:
-            _latest_package_release_version = PackageManager.get_latest_release_version_from_github(self.package_name)
+            _latest_package_release_version = get_version_fn(self.package_name)
         except Exception as e:
             logging.error(f"Error fetching latest release version for {self.package_name}: {e}. Using default version 0.1.0.")
             _latest_package_release_version = None
         template_requirement_txt.generate(script_path=self.requirements_path, package_name=self.package_name, package_version_range=_latest_package_release_version)
-
 
         print(f"\033[91m\033[1mRemember to update the queryset file at {self._model.queryset_path}!\033[0m")
 
@@ -273,7 +288,7 @@ class ModelScaffoldBuilder:
         return assessment
 
     # Add a .gitkeep file to empty directories and remove it from non-empty directories
-    def update_gitkeep_empty_directories(self, delete_gitkeep=True):
+    def update_gitkeep_empty_directories(self, delete_gitkeep=False):
         """
         Updates the .gitkeep files in empty directories within the specified subdirectories.
 
@@ -282,7 +297,9 @@ class ModelScaffoldBuilder:
         - If the subdirectory is not empty and delete_gitkeep is True, it removes the .gitkeep file if it exists.
 
         Args:
-            delete_gitkeep (bool): If True, removes .gitkeep files from non-empty directories. Default is True.
+            delete_gitkeep (bool): If True, removes .gitkeep files from non-empty directories. Default is False —
+                gitignored data files (e.g. *.parquet, *.pkl) count as "non-empty" but leave the dir empty
+                from git's perspective, so deleting .gitkeep recreates the bug it was added to fix.
 
         Logs:
             - Creation of .gitkeep files in empty directories.
