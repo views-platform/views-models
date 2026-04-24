@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v12_msle_revin_dualmean",
+        "name": "good_life_transformer_spotlight_v13_dcac_revin",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -142,10 +142,9 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: RevIN on. Class-level bias is controlled
-        # by dual_mean=True + event_weight pinned near natural prevalence (~0.10).
-        # At ew≈0.10, per-class amplification ≈1.0× → RevIN's σ multiplication
-        # amplifies ≈zero net bias. Attention collapse (Lesson 13.7) prevented.
+        # use_reversible_instance_norm: RevIN on. v25 DC/AC eliminates the DC
+        # bias that RevIN's σ multiplication used to amplify. No directional
+        # bias to amplify → RevIN is purely beneficial (zero-mean residuals).
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
@@ -153,17 +152,17 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLoss"]},
         # ── alpha (importance weight scale) ────────────────────────────────────────
         # 1+log_cosh(alpha*max(|y|,|ŷ_sg|)) — within-bucket magnitude priority.
-        # With dual_mean=True, alpha controls per-cell importance WITHIN each bucket
-        # (large wars > small wars inside the event budget). Does not affect
-        # cross-class bias — that's event_weight's job.
+        # v25 DC/AC: shape gradients sum to zero per series, so alpha only
+        # steepens within-class priority without directional bias. Safe to go
+        # higher than v12's 0.40 cap.
         # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
-        # Floor at 0.20: below this, 1-death events get w≈1.01 — no priority.
-        # Cap at 0.40: keeps pointwise-to-spectral gradient ratio manageable.
+        #   alpha=0.15 → ≈1.9×   alpha=0.30 → ≈3.8×   alpha=0.50 → ≈6.2×
+        # Floor at 0.15: mild priority — 1-death events get w≈1.01.
+        # Cap at 0.50: zero-sum constraint means no runaway even at high alpha.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.20,
-            "max": 0.40,
+            "min": 0.15,
+            "max": 0.50,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -186,23 +185,23 @@ def get_sweep_config():
         },
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────
         # Fraction of gradient budget allocated to event cells in balanced mean.
-        # Natural prevalence ≈ 0.10 (10% of cells are events). At ew=0.10,
-        # per-class amplification ≈1.0× → zero aggregate directional bias.
-        # RevIN's σ multiplication amplifies ≈zero → safe with RevIN=True.
-        # Sweeping [0.10, 0.20] lets Bayes explore mild event boost (up to 2×
-        # per-class amplification) without entering the overprediction zone.
-        # ew=0.25 was 2.85× — too high for Transformer+RevIN.
+        # v25 DC/AC: shape loss gradients sum to zero per series by construction,
+        # so event_weight no longer creates directional bias — it purely controls
+        # how much gradient budget goes to event-cell shape accuracy vs peace.
+        # Higher ew = more emphasis on getting war trajectories right.
+        # Level calibration handled independently by the level-matching term.
+        # Range [0.10, 0.40]: at 0.10 = natural prevalence (no class boost),
+        # at 0.40 = 4× class boost for event shape — safe because zero-sum.
         "event_weight": {
             "distribution": "uniform",
             "min": 0.10,
-            "max": 0.20,
+            "max": 0.50,
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean. event_weight controls the class budget
-        # ratio. At ew≈0.10, this cancels the implicit ~1.6× upward bias that
-        # the importance weight w creates in a plain mean (dual_mean=False).
-        # v11 showed dual_mean=False + RevIN=True still overpredicts — the plain
-        # mean has no knob to pin class budget at natural prevalence.
+        # ratio. v25 DC/AC eliminates DC offset structurally, but dual_mean still
+        # provides cleaner gradient allocation — explicit class budget control
+        # rather than implicit via importance weight distribution.
         "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
