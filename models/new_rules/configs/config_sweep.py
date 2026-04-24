@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v11_msle_symmetric",
+        "name": "new_rules_nbeats_spotlight_v12_msle_symmetric",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 50,
@@ -22,7 +22,7 @@ def get_sweep_config():
         # so larger icl increases the non-zero fraction of that vector and gives the
         # FC layers more conflict signal to compress. icl=36 gives no lookback
         # advantage over the output horizon — conflict persistence requires more context.
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -201,6 +201,7 @@ def get_sweep_config():
         },
         # ── event_weight ──────────────────────────────────────────────────────────────
         "event_weight": {"distribution": "uniform", "min": 0.10, "max": 0.50},
+        # "event_weight": {"values": [0.5]},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         "dual_mean": {"values": [True]},
         # ==============================================================================
