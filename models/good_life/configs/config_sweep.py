@@ -165,8 +165,8 @@ def get_sweep_config():
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.35,
+            "min": 0.20,
+            "max": 0.45,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
