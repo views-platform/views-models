@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v13_dcac_revin",
+        "name": "good_life_transformer_spotlight_v14_dcac_revin",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
