@@ -1,4 +1,3 @@
-
 def get_hp_config():
     """
     Contains the hyperparameter configurations for model training.
@@ -10,6 +9,7 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        'time_steps': 36,
         'markov_target': 'lr_ged_sb_dep',
         'markov_threshold': 0,
         'markov_method': 'transition',
