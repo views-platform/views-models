@@ -4,8 +4,12 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v10_msle_symmetric",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
+        "name": "new_rules_nbeats_spotlight_v11_msle_symmetric",
+        "early_terminate": {
+            "type": "hyperband",
+            "min_iter": 50,
+            "eta": 2,
+        },  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -42,7 +46,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -66,7 +70,7 @@ def get_sweep_config():
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
-                        "lr_ged_ns", 
+                        "lr_ged_ns",
                         "lr_ged_os",
                     ],
                     "StandardScaler": [
@@ -140,7 +144,7 @@ def get_sweep_config():
         # trend_polynomial_degree: Only used in interpretable mode.
         # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
-        # activation: ReLU is N-BEATS paper default.     
+        # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["ReLU"]},
         # use_reversible_instance_norm: Fixed False for this sweep.
         # N-BEATS has no internal normalization in its residual path — pure FC →
@@ -174,7 +178,9 @@ def get_sweep_config():
             "min": 0.15,
             "max": 0.35,
         },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        "non_zero_threshold": {
+            "values": [0.88]
+        },  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
         # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
         # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
@@ -190,11 +196,11 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.01,
             "max": 0.25,
         },
         # ── event_weight ──────────────────────────────────────────────────────────────
-        "event_weight": {"values": [0.5]},
+        "event_weight": {"distribution": "uniform", "min": 0.10, "max": 0.50},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         "dual_mean": {"values": [True]},
         # ==============================================================================

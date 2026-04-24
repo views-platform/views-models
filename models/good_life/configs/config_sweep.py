@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v9_msle_revin_off_dualmean",
+        "name": "good_life_transformer_spotlight_v10_msle_revin_off_dualmean",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -42,7 +42,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 5e-4,
         },
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -184,11 +184,15 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
+            "min": 0.01,
             "max": 0.25,
         },
         # ── event_weight ──────────────────────────────────────────────────────────────
-        "event_weight": {"values": [0.5]},
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.50,
+        },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean (event_weight controls ratio).
         # False = plain per-cell mean (event_weight ignored).
