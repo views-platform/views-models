@@ -5,7 +5,7 @@ def get_sweep_config():
     sweep_config = {
         "method": "bayes",
         "name": "good_life_transformer_spotlight_v12_msle_revin_dualmean",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -28,7 +28,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [50]},
+        "early_stopping_patience": {"values": [40]},  # > T_0=30 (survives CAWR restart spike); stalled runs exit ~epoch 70-90 before rung 1 at 150
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
