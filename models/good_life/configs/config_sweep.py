@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v11_msle_symmetric",
+        "name": "good_life_transformer_spotlight_v11_msle_no_dualmean",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -148,7 +148,7 @@ def get_sweep_config():
         # Previous sweep (v8) found RevIN=True winning on MSLE — but MSLE rewards
         # mild upward bias. This sweep tests dual_mean=True + no RevIN to see if
         # event_weight [0.10, 0.50] is controllable without the amplification chain.
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -188,17 +188,17 @@ def get_sweep_config():
             "max": 0.25,
         },
         # ── event_weight ──────────────────────────────────────────────────────────────
-        "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
-        },
-        # "event_weight": {"values": [0.5]},
+        # "event_weight": {
+        #     "distribution": "uniform",
+        #     "min": 0.10,
+        #     "max": 0.50,
+        # },
+        "event_weight": {"values": [0.5]}, # Placeholder. Won't do anything
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean (event_weight controls ratio).
         # False = plain per-cell mean (event_weight ignored).
         # RevIN forced off in this sweep to isolate its role in DC-offset amplification.
-        "dual_mean": {"values": [True]},
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
