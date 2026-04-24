@@ -10,10 +10,12 @@ def get_meta_config():
     meta_config = {
         "name": "randahls_reindeer", 
         "algorithm": "MarkovModel",
-        "targets": ["lr_ged_sb_dep"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_targets": ["lr_ged_sb_dep"],
         "queryset": "markov_joint_narrow",
         "level": "cm",
         "creator": "Luuk Boekestein",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
     }
     return meta_config
