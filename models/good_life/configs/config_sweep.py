@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v11_msle_no_dualmean",
+        "name": "good_life_transformer_spotlight_v12_msle_revin_dualmean",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # Rungs at 35,70,140,280 — 50% killed each → ~6% survive. 35 = 5 epochs post-CAWR spike (safe with clip=10)
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -142,31 +142,28 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: Forced False in this sweep.
-        # Isolating whether RevIN is the multiplier that converts event_weight's
-        # additive asinh-space bias into multiplicative raw-space overprediction.
-        # Previous sweep (v8) found RevIN=True winning on MSLE — but MSLE rewards
-        # mild upward bias. This sweep tests dual_mean=True + no RevIN to see if
-        # event_weight [0.10, 0.50] is controllable without the amplification chain.
+        # use_reversible_instance_norm: RevIN on. Class-level bias is controlled
+        # by dual_mean=True + event_weight pinned near natural prevalence (~0.10).
+        # At ew≈0.10, per-class amplification ≈1.0× → RevIN's σ multiplication
+        # amplifies ≈zero net bias. Attention collapse (Lesson 13.7) prevented.
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
-        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
-        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
+        # ── alpha (importance weight scale) ────────────────────────────────────────
+        # 1+log_cosh(alpha*max(|y|,|ŷ_sg|)) — within-bucket magnitude priority.
+        # With dual_mean=True, alpha controls per-cell importance WITHIN each bucket
+        # (large wars > small wars inside the event budget). Does not affect
+        # cross-class bias — that's event_weight's job.
         # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
-        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
-        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
-        # spectral of gradient budget at low delta, causing it to be ignored.
-        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
+        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
+        # Floor at 0.20: below this, 1-death events get w≈1.01 — no priority.
+        # Cap at 0.40: keeps pointwise-to-spectral gradient ratio manageable.
         "alpha": {
             "distribution": "uniform",
             "min": 0.20,
-            "max": 0.45,
+            "max": 0.40,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -180,25 +177,33 @@ def get_sweep_config():
         #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
         #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
         #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
+        # Floor at 0.05 so spectral is never noise. Cap at 0.20 so pointwise
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.25,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight ──────────────────────────────────────────────────────────────
-        # "event_weight": {
-        #     "distribution": "uniform",
-        #     "min": 0.10,
-        #     "max": 0.50,
-        # },
-        "event_weight": {"values": [0.5]}, # Placeholder. Won't do anything
+        # ── event_weight (balanced mean event/peace ratio) ────────────────────────
+        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # Natural prevalence ≈ 0.10 (10% of cells are events). At ew=0.10,
+        # per-class amplification ≈1.0× → zero aggregate directional bias.
+        # RevIN's σ multiplication amplifies ≈zero → safe with RevIN=True.
+        # Sweeping [0.10, 0.20] lets Bayes explore mild event boost (up to 2×
+        # per-class amplification) without entering the overprediction zone.
+        # ew=0.25 was 2.85× — too high for Transformer+RevIN.
+        "event_weight": {
+            "distribution": "uniform",
+            "min": 0.10,
+            "max": 0.20,
+        },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
-        # RevIN forced off in this sweep to isolate its role in DC-offset amplification.
-        "dual_mean": {"values": [False]},
+        # True = event/peace balanced mean. event_weight controls the class budget
+        # ratio. At ew≈0.10, this cancels the implicit ~1.6× upward bias that
+        # the importance weight w creates in a plain mean (dual_mean=False).
+        # v11 showed dual_mean=False + RevIN=True still overpredicts — the plain
+        # mean has no knob to pin class budget at natural prevalence.
+        "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
