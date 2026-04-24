@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v14_dcac_revin",
+        "name": "good_life_transformer_spotlight_v14_dcac_norevin",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -142,10 +142,13 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: RevIN on. v25 DC/AC eliminates the DC
-        # bias that RevIN's σ multiplication used to amplify. No directional
-        # bias to amplify → RevIN is purely beneficial (zero-mean residuals).
-        "use_reversible_instance_norm": {"values": [True]},
+        # use_reversible_instance_norm: Off. RevIN was the source of the
+        # mean-shift that required Stage 4 (level loss) in v25-v27.
+        # Removing RevIN removes the need for level compensation entirely.
+        # asinh-transformed targets + LayerNorm throughout the Transformer
+        # provide sufficient scale normalization without RevIN's
+        # training-window anchoring problem.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
@@ -185,23 +188,17 @@ def get_sweep_config():
         },
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────
         # Fraction of gradient budget allocated to event cells in balanced mean.
-        # v25 DC/AC: shape loss gradients sum to zero per series by construction,
-        # so event_weight no longer creates directional bias — it purely controls
-        # how much gradient budget goes to event-cell shape accuracy vs peace.
-        # Higher ew = more emphasis on getting war trajectories right.
-        # Level calibration handled independently by the level-matching term.
-        # Range [0.10, 0.40]: at 0.10 = natural prevalence (no class boost),
-        # at 0.40 = 4× class boost for event shape — safe because zero-sum.
+        # DC/AC decomposition means shape gradients sum to zero per series,
+        # so event_weight purely controls event-cell shape priority vs peace.
+        # Without RevIN's amplification, higher ew is safe.
+        # Sweep up to 0.50 (natural prevalence ~0.10, max boost ~5×).
         "event_weight": {
             "distribution": "uniform",
             "min": 0.10,
             "max": 0.50,
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean. event_weight controls the class budget
-        # ratio. v25 DC/AC eliminates DC offset structurally, but dual_mean still
-        # provides cleaner gradient allocation — explicit class budget control
-        # rather than implicit via importance weight distribution.
+        # True = event/peace balanced mean. Explicit class budget control.
         "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
