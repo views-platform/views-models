@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v8_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},
+        "name": "teenage_dirtbag_tcn_spotlight_v9_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -57,7 +57,7 @@ def get_sweep_config():
         },
         # [0, 1e-5, 1e-4]: 1e-4 is the canonical AdamW value; 0 lets Bayes test no
         # decay; a single value wastes a Bayes parameter slot on a fixed constant.
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -168,16 +168,16 @@ def get_sweep_config():
         # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
         # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
         # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
-        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.40
+        # (4.9× max weight) so the pointwise-to-spectral gradient ratio stays in
         # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
         # spectral of gradient budget at low delta, causing it to be ignored.
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.30,
+            "min": 0.20,
+            "max": 0.40,
         },
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
@@ -201,15 +201,11 @@ def get_sweep_config():
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
         # Fraction of gradient budget allocated to event cells in balanced mean.
         # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
-        "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
-        },
+        "event_weight": {"values": [0.5]},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean (event_weight controls ratio).
         # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [True, False]},
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

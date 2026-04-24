@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v12_msle_symmetric",
+        "name": "new_rules_nbeats_spotlight_v13_msle_symmetric",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 50,
@@ -167,16 +167,16 @@ def get_sweep_config():
         # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
         # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
         # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
-        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
+        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
+        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.40
+        # (4.9× max weight) so the pointwise-to-spectral gradient ratio stays in
         # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
         # spectral of gradient budget at low delta, causing it to be ignored.
         # Test run anchor: alpha=0.2, delta=0.15 → balanced.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.35,
+            "min": 0.20,
+            "max": 0.40,
         },
         "non_zero_threshold": {
             "values": [0.88]
@@ -200,10 +200,10 @@ def get_sweep_config():
             "max": 0.25,
         },
         # ── event_weight ──────────────────────────────────────────────────────────────
-        "event_weight": {"distribution": "uniform", "min": 0.10, "max": 0.50},
-        # "event_weight": {"values": [0.5]},
+        # "event_weight": {"distribution": "uniform", "min": 0.10, "max": 0.50},
+        "event_weight": {"values": [0.5]},
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        "dual_mean": {"values": [True]},
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
