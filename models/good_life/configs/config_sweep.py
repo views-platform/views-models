@@ -39,8 +39,8 @@ def get_sweep_config():
         # still giving Bayes room to explore the lower half.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 2e-4,  # raised from 5e-5: runs 2/3/4 (all below ~1.5e-4) failed with >3× train-val gap
-            "max": 5e-4,
+            "min": 3e-4,  # raised from 2e-4: run 6 (lr=1.80e-4, ff=1024) also failed — dead zone extends to ~2.8e-4
+            "max": 1e-3,  # raised from 5e-4: upper boundary unknown, run 1 (4.47e-4) sits at 33rd log-pct of [3e-4, 1e-3]
         },
         "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
@@ -111,28 +111,18 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        # d_model: Embedding dimension. Constrained jointly with nhead so
-        # that head_dim = d_model / nhead >= 32 for stable attention.
-        # d_model=128, nhead=2 → head_dim=64 ✓
-        # d_model=128, nhead=4 → head_dim=32 ✓ (minimum stable)
+        # d_model=256 fixed: runs 2/3/5 (all d_model=128) showed monotonically
+        # worse MSLE as lr increased — signature of capacity ceiling, not lr problem.
         # d_model=256, nhead=2 → head_dim=128 ✓
         # d_model=256, nhead=4 → head_dim=64 ✓
-        # d_model=64 dropped — all 64-dim runs were capacity-limited, not loss-limited.
-        "d_model": {"values": [128, 256]},
-        # nhead=4 now valid: smallest pairing is d_model=128/nhead=4 → head_dim=32.
+        "d_model": {"values": [256]},
         "nhead": {"values": [2, 4]},
-        # num_encoder_layers: Fixed at 2. Width (d_model, ff) is the binding
-        # capacity constraint — confirmed by all previous runs. Depth adds
-        # ~15% parameter count but halves the architecture search space.
-        # Re-introduce after d_model/ff sweep converges.
         "num_encoder_layers": {"values": [2]},
-        # num_decoder_layers: Match or slightly fewer than encoder.
-        # Decoder complexity should mirror encoder for balanced attention.
         "num_decoder_layers": {"values": [2]},
-        # dim_feedforward: FF expansion factor. 4× d_model raw, ~2× effective
-        # with SwiGLU gating. 512=4× d_model=128, 1024=4× d_model=256.
-        # 256 removed: with SwiGLU (effective ff/2), ff=256+d_model=256 is a
-        # bottleneck (128 < input dim), not an expansion. Degenerate pairing.
+        # dim_feedforward: with SwiGLU (effective ff/2), only ff=1024 gives a
+        # proper 2× expansion (effective 512 = 2×d_model=256). ff=512 is the
+        # degenerate identity case (effective 256 = 1×d_model); run 1 confirmed
+        # it still works, but ff=1024 is the untested higher-capacity pairing.
         "dim_feedforward": {"values": [512, 1024]},
         # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
         # relu/gelu in recent Transformer literature (Shazeer 2020).
