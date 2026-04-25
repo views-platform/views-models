@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v23_128revin",
-        "early_terminate": {"type": "hyperband", "min_iter": 40, "eta": 3},  # Rungs at 40,120,360 — 67% killed each rung. Floor is 40 not 35: measuring at epoch 35 = WarmupCAWR restart spike (lr jumps to peak, loss temporarily high → bad ranking signal).
+        "name": "good_life_transformer_prism_v24_256revin",
+        "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 3},  # Rungs at 25,75,225. No CAWR restart spike — ReduceLROnPlateau is monotone-decaying so early measurements are valid.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -26,34 +26,37 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [128]},
+        "batch_size": {"values": [256]},  # 256 stable for Transformer at d_model=256; larger batches improve gradient estimates and reduce steps/epoch, benign with AdamW.
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [30]},  # With WarmupCAWR: restart at epoch 35; if best at ep34, patience=30 fires at ep64 = T_cur=29/60 (lr 50%). Historical improvements by T_cur≈15-30 — clears with margin. Floor: don't go below 25 (would fire before second cycle mid-point).
+        "early_stopping_patience": {"values": [20]},  # ReduceLROnPlateau patience=10: floor = 2 full reduction cycles (20 epochs) before ES can fire; guarantees at least one meaningful lr decay is acted on.
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Transformers are more LR-sensitive than MLPs. With WarmupCAWR (5-epoch
-        # linear ramp), the floor can sit lower — warmup rescues early-training
-        # instability caused by CAWR starting at peak lr with random weights.
-        # Ceiling stays conservative: NaN failures (runs 7/10) were mid-second-
-        # cycle (epochs 52/62), not epoch-0 — warmup doesn't fix accumulated
-        # weight growth at wd=0, so we raise ceiling only modestly to 7e-4.
+        # ReduceLROnPlateau decays monotonically so NaN risk is confined to the
+        # first few epochs at peak lr. gradient_clip_val=10 + weight_decay guard
+        # the ceiling. Floor at 3e-4: below this, ReduceLROnPlateau can decay
+        # to min_lr too quickly, leaving < 20 effective epochs at useful lr.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 2e-4,  # lowered from 3e-4: warmup makes sub-3e-4 viable
-            "max": 7e-4,  # raised from 5e-4: warmup buys headroom; NaN risk managed by clipping + wd
+            "min": 3e-4,
+            "max": 1e-3,
         },
         "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
-        "lr_scheduler_cls": {"values": ["WarmupCAWR"]},
-        "lr_scheduler_warmup_epochs": {"values": [5]},  # linear ramp over first 5 epochs before CAWR cycle begins
-        "lr_scheduler_T_0": {"values": [30]},
-        "lr_scheduler_T_mult": {"values": [2]},
-        "lr_scheduler_eta_min": {"values": [1e-6]},
+        # ReduceLROnPlateau: reduce lr by factor when train_loss plateaus.
+        # patience=10: short enough to react quickly; 10 epochs of no ε=1e-4
+        # improvement is a reliable plateau signal at this batch size.
+        # factor=0.3: aggressive step-down — moves quickly through lr decades
+        # so each reduction opens a meaningfully different regime.
+        # min_lr=1e-6: practical floor below which updates are noise.
+        "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.3]},
+        "lr_scheduler_patience": {"values": [10]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
         # Max per-cell MSE gradient in log1p space ≈ 11 (log1p(50000)). clip=10 caps extreme outliers.
         "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
