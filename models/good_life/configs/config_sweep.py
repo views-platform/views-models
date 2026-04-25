@@ -153,21 +153,21 @@ def get_sweep_config():
         "loss_function": {"values": ["PrismLoss"]},
         "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
-        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
-        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
-        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
-        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.05 so spectral is never noise. Cap at 0.20 so pointwise
-        # accuracy isn't starved — the model still needs to get cell values right.
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. Phase-insensitive.
+        # n_fft=12 bin 1 = 12-month annual cycle. DC bin masked.
+        #
+        # GRADIENT BUDGET (v33/MSE): pointwise MSE gradients scale as e (up to ~11
+        # for large event cells). Spectral log_cosh gradient bounded at tanh ≤ 1.
+        # Ratio is ~5-10:1 pointwise/spectral before delta — spectral is naturally
+        # subordinate and won't dominate at any reasonable delta value.
+        #   delta=0.05 → very light temporal regularisation (~2-4% of gradient)
+        #   delta=0.10 → light (~4-8%)
+        #   delta=0.20 → moderate (~8-15%)
+        # Floor at 0.05: below this, spectral is noise relative to MSE signal.
+        # Cap at 0.20: spectral purpose is shape regularisation, not accuracy.
         "delta": {
             "distribution": "uniform",
-            "min": 0.1,
+            "min": 0.05,
             "max": 0.20,
         },
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────
