@@ -141,11 +141,12 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: v31 MSLE-native loss is RevIN-compatible.
-        # RevIN normalises cross-series scale heterogeneity (Syria vs Luxembourg)
-        # which helps attention. The log1p transform inside the loss handles
-        # mean calibration without competing with RevIN's denorm. Sweep both.
-        "use_reversible_instance_norm": {"values": [True, False]},
+        # use_reversible_instance_norm: Fixed off. RevIN bifurcates the loss
+        # surface — optimal lr/alpha/dropout differ in each branch, so Bayes
+        # models the average of two surfaces and converges poorly on both.
+        # log1p + LayerNorm already handles the scale range (~11 units vs
+        # ~50k raw). Test RevIN separately after sweep converges.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
