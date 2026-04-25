@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v21_capacity",
+        "name": "good_life_transformer_prism_v22",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -34,19 +34,23 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        # Transformers are more LR-sensitive than MLPs. Anchor ~3e-4 sits at ~80th
-        # percentile on log scale of [1e-5, 5e-4] — conservative upper end while
-        # still giving Bayes room to explore the lower half.
+        # Transformers are more LR-sensitive than MLPs. With WarmupCAWR (5-epoch
+        # linear ramp), the floor can sit lower — warmup rescues early-training
+        # instability caused by CAWR starting at peak lr with random weights.
+        # Ceiling stays conservative: NaN failures (runs 7/10) were mid-second-
+        # cycle (epochs 52/62), not epoch-0 — warmup doesn't fix accumulated
+        # weight growth at wd=0, so we raise ceiling only modestly to 7e-4.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-4,  # raised from 5e-5: everything below ~3e-4 is a dead zone (overfit or frozen)
-            "max": 5e-4,  # lowered from 1e-3: run 7 (5.88e-4) NaN'd; run 8 (9.73e-4) collapsed to peace attractor
+            "min": 2e-4,  # lowered from 3e-4: warmup makes sub-3e-4 viable
+            "max": 7e-4,  # raised from 5e-4: warmup buys headroom; NaN risk managed by clipping + wd
         },
         "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
-        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
+        "lr_scheduler_cls": {"values": ["WarmupCAWR"]},
+        "lr_scheduler_warmup_epochs": {"values": [5]},  # linear ramp over first 5 epochs before CAWR cycle begins
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
@@ -180,6 +184,11 @@ def get_sweep_config():
         # is NOT the MSLE minimum. Sweep both to test: False makes training loss
         # = MSLE exactly, eliminating the objective mismatch.
         "dual_mean": {"values": [False]},
+        # ── ohem_ratio (Online Hard Example Mining) ──────────────────────────────────
+        # Fraction of cells kept (by hardest MSE). 1.0 = disabled (plain mean).
+        # 0.3 = top 30%. Bypasses dual_mean — hard cells are overwhelmingly events.
+        # Sweep both disabled (1.0) and moderate (0.3) to test impact.
+        "ohem_ratio": {"values": [1.0, 0.3, 0.2, 0.1]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
