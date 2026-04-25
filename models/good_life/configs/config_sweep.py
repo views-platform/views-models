@@ -40,7 +40,7 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 3e-4,  # raised from 2e-4: run 6 (lr=1.80e-4, ff=1024) also failed — dead zone extends to ~2.8e-4
-            "max": 1e-3,  # raised from 5e-4: upper boundary unknown, run 1 (4.47e-4) sits at 33rd log-pct of [3e-4, 1e-3]
+            "max": 5e-4,  # raised from 5e-4: upper boundary unknown, run 1 (4.47e-4) sits at 33rd log-pct of [3e-4, 1e-3]
         },
         "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
@@ -128,7 +128,7 @@ def get_sweep_config():
         # relu/gelu in recent Transformer literature (Shazeer 2020).
         "activation": {"values": ["SwiGLU"]},
         # norm_type: LayerNorm is standard and most stable.
-        "norm_type": {"values": ["LayerNorm"]},
+        "norm_type": {"values": ["LayerNorm", "RMSNorm"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
