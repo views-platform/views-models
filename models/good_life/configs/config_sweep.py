@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v14_dcac_norevin",
+        "name": "good_life_transformer_spotlight_v16_log1p",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -50,18 +50,17 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Max per-cell gradient = w(y)×tanh ≤ 4.3 (alpha=0.35). clip=5.0 never fires
-        # and was removed. clip=3.0 trims only the most extreme event-cell spikes.
+        # Max per-cell gradient = (1+alpha)×tanh ≤ 4.0 (alpha=3.0). clip=10 gives headroom.
         "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates directly in MSLE space
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -142,32 +141,31 @@ def get_sweep_config():
         # Dropout: Transformers with ~200 series overfit fast. 0.15 is the
         # practical floor — below that, attention memorizes training windows.
         "dropout": {"values": [0.15, 0.25]},
-        # use_reversible_instance_norm: Off. RevIN was the source of the
-        # mean-shift that required Stage 4 (level loss) in v25-v27.
-        # Removing RevIN removes the need for level compensation entirely.
-        # asinh-transformed targets + LayerNorm throughout the Transformer
-        # provide sufficient scale normalization without RevIN's
-        # training-window anchoring problem.
-        "use_reversible_instance_norm": {"values": [False]},
+        # use_reversible_instance_norm: v31 MSLE-native loss is RevIN-compatible.
+        # RevIN normalises cross-series scale heterogeneity (Syria vs Luxembourg)
+        # which helps attention. The log1p transform inside the loss handles
+        # mean calibration without competing with RevIN's denorm. Sweep both.
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (importance weight scale) ────────────────────────────────────────
-        # 1+log_cosh(alpha*max(|y|,|ŷ_sg|)) — within-bucket magnitude priority.
-        # v25 DC/AC: shape gradients sum to zero per series, so alpha only
-        # steepens within-class priority without directional bias. Safe to go
-        # higher than v12's 0.40 cap.
-        # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈1.9×   alpha=0.30 → ≈3.8×   alpha=0.50 → ≈6.2×
-        # Floor at 0.15: mild priority — 1-death events get w≈1.01.
-        # Cap at 0.50: zero-sum constraint means no runaway even at high alpha.
+        # ── alpha (flat event boost) ────────────────────────────────────────────
+        # v31: events get (1 + alpha)× loss weight. Flat across all event
+        # magnitudes — the MSLE-native log1p transform already provides
+        # correct magnitude-awareness. Alpha purely addresses class imbalance
+        # (90% peace drowns 10% events).
+        #   alpha=0.5 → 1.5× boost (light)
+        #   alpha=1.5 → 2.5× boost (moderate)
+        #   alpha=3.0 → 4.0× boost (strong)
+        # Floor at 0.5 so events are never ignored. Cap at 3.0 to avoid
+        # overprediction from excessive event focus.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.50,
+            "min": 0.5,
+            "max": 3.0,
         },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
         # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
         # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
@@ -188,17 +186,15 @@ def get_sweep_config():
         },
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────
         # Fraction of gradient budget allocated to event cells in balanced mean.
-        # DC/AC decomposition means shape gradients sum to zero per series,
-        # so event_weight purely controls event-cell shape priority vs peace.
-        # Without RevIN's amplification, higher ew is safe.
-        # Sweep up to 0.50 (natural prevalence ~0.10, max boost ~5×).
+        # v31: less critical than v30 since log1p naturally flattens cross-magnitude
+        # gradient allocation. Sweep both dual_mean modes to test whether it helps.
         "event_weight": {
             "distribution": "uniform",
             "min": 0.10,
             "max": 0.50,
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean. Explicit class budget control.
+        # True = event/peace balanced mean. Sweep both — v31 may not need it.
         "dual_mean": {"values": [True]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
