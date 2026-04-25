@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v17_mse",
+        "name": "good_life_transformer_prism_v18_mse_symmetric",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -167,7 +167,7 @@ def get_sweep_config():
         # accuracy isn't starved — the model still needs to get cell values right.
         "delta": {
             "distribution": "uniform",
-            "min": 0.05,
+            "min": 0.1,
             "max": 0.20,
         },
         # ── event_weight (balanced mean event/peace ratio) ────────────────────────
@@ -177,7 +177,7 @@ def get_sweep_config():
         "event_weight": {
             "distribution": "uniform",
             "min": 0.10,
-            "max": 0.50,
+            "max": 0.30,
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
         # True = event/peace balanced mean. Sweep both — v31 may not need it.
