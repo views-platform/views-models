@@ -168,9 +168,9 @@ def get_sweep_config():
         # for peaceful ones → OOD inputs get arbitrary outputs.
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: PrismLoss
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["PrismLoss"]},
         # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
         # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
         # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.

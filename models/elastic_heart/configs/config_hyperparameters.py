@@ -71,7 +71,7 @@ def get_hp_config():
             "weight_decay": 1e-4,
         },
 
-        # Loss: SpotlightLoss v20 — truth-only 1+log_cosh(alpha*|y|) weight + multi-res spectral
+        # Loss: PrismLoss v20 — truth-only 1+log_cosh(alpha*|y|) weight + multi-res spectral
         # alpha=0.2: conservative start. v19 tuning showed alpha>0.22 → systematic 2-8×
         #            overprediction. alpha=0.2 gives max weight ~2.5× (vs 3.8× at 0.3).
         #            Raise to 0.25-0.3 only after confirming no overprediction.
@@ -79,8 +79,7 @@ def get_hp_config():
         #             Phase-insensitive: spike 1-mo early → ~zero penalty (Fourier shift theorem)
         #             n_fft=12 bin 1 captures 12-month annual seasonality directly
         #             Replaces TV — spectral catches oscillation + drift + seasonality
-        "loss_function": "SpotlightLoss",
-        "alpha": 0.2842281396642175,
+        "loss_function": "PrismLoss",
         "delta": 0.12283653588254542,
         "event_weight": 0.5,
         "dual_mean": True,

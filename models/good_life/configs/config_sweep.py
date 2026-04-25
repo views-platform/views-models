@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_spotlight_v16_log1p",
+        "name": "good_life_transformer_prism_v17_mse",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -50,7 +50,7 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        # Max per-cell gradient = (1+alpha)×tanh ≤ 4.0 (alpha=3.0). clip=10 gives headroom.
+        # Max per-cell MSE gradient in log1p space ≈ 11 (log1p(50000)). clip=10 caps extreme outliers.
         "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
@@ -148,21 +148,9 @@ def get_sweep_config():
         # ~50k raw). Test RevIN separately after sweep converges.
         "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: PrismLoss
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (symmetric flat event boost) ────────────────────────────────────
-        # Events and false-alarms get (1 + alpha)× weight. Flat across
-        # all event magnitudes — log1p space handles magnitude scaling.
-        # Old log_cosh weight gave 3.8× at alpha=0.3; flat boost needs
-        # higher alpha to match: alpha=2.0 gives 3.0× (comparable influence
-        # when combined with dual_mean at event_weight=0.25: 3×2.85=8.6×).
-        # No explosion risk — tanh gradient cap applies regardless of w.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.3,
-            "max": 2.0,
-        },
+        "loss_function": {"values": ["PrismLoss"]},
         "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
         # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by

@@ -137,9 +137,9 @@ def get_sweep_config():
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss v20
+        # LOSS FUNCTION: PrismLoss
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["PrismLoss"]},
         # ── alpha (magnitude weighting) ───────────────
         # Tighter for BPTT: gradients compound across time steps.
         # [0.15, 0.25] keeps cosh(0.25*11.5) ≈ 5.4x at max asinh value.

@@ -147,11 +147,11 @@ def get_sweep_config():
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: PrismLoss
         # v20: truth-only 1+log_cosh(alpha*|y|) weight + balanced mean + multi-res spectral
         # TV removed — spectral is a strict superset (oscillation + drift + seasonality + phase)
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["PrismLoss"]},
         # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
         # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
         # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.

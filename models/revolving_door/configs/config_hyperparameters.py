@@ -50,8 +50,7 @@ def get_hp_config():
             "weight_decay": 5e-3,
         },
 
-        "loss_function": "SpotlightLoss",
-        "alpha": 0.12,
+        "loss_function": "PrismLoss",
         "beta": 0.0,
         "kappa": 9.5,
         "event_weight": 0.5,

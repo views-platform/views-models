@@ -173,12 +173,12 @@ def get_sweep_config():
         # bounding OOD extrapolation relative to observed history.
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         # N-HiTS is feedforward — no BPTT attenuation. Same SpotlightLoss
         # parameter philosophy as smol_cat (TiDE): alpha can be used freely
         # for cosh magnitude weighting.
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["PrismLoss"]},
         "alpha": {
             "distribution": "uniform",
             "min": 0.10,

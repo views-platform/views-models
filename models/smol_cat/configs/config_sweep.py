@@ -153,7 +153,7 @@ def get_sweep_config():
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [False, True]},
         # ==============================================================================
-        # LOSS FUNCTION: SpotlightLoss
+        # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         # Four-component loss for asinh-transformed zero-inflated data:
         #   A. Magnitude-recovering weighted Huber (cosh Jacobian weight)
@@ -163,7 +163,7 @@ def get_sweep_config():
         #
         # Stability: w_max caps Jacobian weight. 99.9th-percentile per-sample
         # clamp inside loss. gradient_clip_val ≥ 1.0 externally.
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["PrismLoss"]},
         # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
         # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
         # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.

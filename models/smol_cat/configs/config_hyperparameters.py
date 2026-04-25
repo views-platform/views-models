@@ -55,8 +55,7 @@ def get_hp_config():
         "early_stopping_min_delta": 0.0001,
 
         # Loss
-        "loss_function": "SpotlightLoss",
-        "alpha": 0.1898862281124,
+        "loss_function": "PrismLoss",
         "delta": 0.2320212109290657,
         "event_weight": 0.5,
         "dual_mean": True,
