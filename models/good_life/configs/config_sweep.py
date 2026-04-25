@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v22",
-        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
+        "name": "good_life_transformer_prism_v23_128revin",
+        "early_terminate": {"type": "hyperband", "min_iter": 40, "eta": 3},  # Rungs at 40,120,360 — 67% killed each rung. Floor is 40 not 35: measuring at epoch 35 = WarmupCAWR restart spike (lr jumps to peak, loss temporarily high → bad ranking signal).
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -26,9 +26,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [64]},
+        "batch_size": {"values": [128]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [40]},  # > T_0=30 (survives CAWR restart spike); stalled runs exit ~epoch 70-90 before rung 1 at 150
+        "early_stopping_patience": {"values": [30]},  # With WarmupCAWR: restart at epoch 35; if best at ep34, patience=30 fires at ep64 = T_cur=29/60 (lr 50%). Historical improvements by T_cur≈15-30 — clears with margin. Floor: don't go below 25 (would fire before second cycle mid-point).
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -144,7 +144,7 @@ def get_sweep_config():
         # models the average of two surfaces and converges poorly on both.
         # log1p + LayerNorm already handles the scale range (~11 units vs
         # ~50k raw). Test RevIN separately after sweep converges.
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
@@ -188,7 +188,7 @@ def get_sweep_config():
         # Fraction of cells kept (by hardest MSE). 1.0 = disabled (plain mean).
         # 0.3 = top 30%. Bypasses dual_mean — hard cells are overwhelmingly events.
         # Sweep both disabled (1.0) and moderate (0.3) to test impact.
-        "ohem_ratio": {"values": [1.0, 0.3, 0.2, 0.1]},
+        # "ohem_ratio": {"values": [1.0, 0.3, 0.2, 0.1]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
