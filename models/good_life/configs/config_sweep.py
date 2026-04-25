@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v19_mse_symmetric_nodualmean_",
+        "name": "good_life_transformer_prism_v21_capacity",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -113,23 +113,27 @@ def get_sweep_config():
         # ==============================================================================
         # d_model: Embedding dimension. Constrained jointly with nhead so
         # that head_dim = d_model / nhead >= 32 for stable attention.
-        # d_model=64, nhead=2 → head_dim=32 (minimum stable).
-        # d_model=128, nhead=2 → head_dim=64 (comfortable).
-        # nhead=4 excluded: valid for d_model=128 but gives head_dim=16 for
-        # d_model=64, which is unstable — W&B can't condition on d_model.
-        "d_model": {"values": [64, 128]},
-        # nhead=2 valid for both d_model values (head_dim ≥ 32 in both cases).
-        "nhead": {"values": [2]},
-        # num_encoder_layers: 2-3 layers. ~200 series don't need deep
-        # encoders; 2 is standard, 3 adds capacity for temporal complexity.
-        "num_encoder_layers": {"values": [2, 3]},
+        # d_model=128, nhead=2 → head_dim=64 ✓
+        # d_model=128, nhead=4 → head_dim=32 ✓ (minimum stable)
+        # d_model=256, nhead=2 → head_dim=128 ✓
+        # d_model=256, nhead=4 → head_dim=64 ✓
+        # d_model=64 dropped — all 64-dim runs were capacity-limited, not loss-limited.
+        "d_model": {"values": [128, 256]},
+        # nhead=4 now valid: smallest pairing is d_model=128/nhead=4 → head_dim=32.
+        "nhead": {"values": [2, 4]},
+        # num_encoder_layers: Fixed at 2. Width (d_model, ff) is the binding
+        # capacity constraint — confirmed by all previous runs. Depth adds
+        # ~15% parameter count but halves the architecture search space.
+        # Re-introduce after d_model/ff sweep converges.
+        "num_encoder_layers": {"values": [2]},
         # num_decoder_layers: Match or slightly fewer than encoder.
         # Decoder complexity should mirror encoder for balanced attention.
         "num_decoder_layers": {"values": [2]},
         # dim_feedforward: FF expansion factor. 4× d_model raw, ~2× effective
-        # with SwiGLU gating. 256=4× d_model=64, 512=4× d_model=128.
-        # Bayes will naturally pair 64→256 and 128→512.
-        "dim_feedforward": {"values": [256, 512]},
+        # with SwiGLU gating. 512=4× d_model=128, 1024=4× d_model=256.
+        # 256 removed: with SwiGLU (effective ff/2), ff=256+d_model=256 is a
+        # bottleneck (128 < input dim), not an expansion. Degenerate pairing.
+        "dim_feedforward": {"values": [512, 1024]},
         # activation: Gated activations (GEGLU, SwiGLU) outperform vanilla
         # relu/gelu in recent Transformer literature (Shazeer 2020).
         "activation": {"values": ["SwiGLU"]},
