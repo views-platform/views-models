@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_spotlight_v9_msle",
+        "name": "teenage_dirtbag_tcn_prism_v10_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -70,11 +70,11 @@ def get_sweep_config():
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -134,7 +134,9 @@ def get_sweep_config():
         # 64-128 is the workable range with weight_norm constraining magnitudes.
         # 64: conservative, reduces overfitting risk on ~200 series.
         # 128: more capacity for the ~10% conflict signal; Bayes decides.
-        "num_filters": {"values": [64, 128]},
+        # num_filters: 64 is a ~30:1 compression of 43 features across dilated stack
+        # — confirmed capacity-limited floor. 128 minimum viable, 256 gives headroom.
+        "num_filters": {"values": [128, 256]},
         # dilation_base: Fixed at 2 (standard exponential dilation, Bai et al. 2018).
         # RF formula below assumes d=2 — do not sweep without updating the RF table.
         "dilation_base": {"values": [2]},
@@ -154,58 +156,34 @@ def get_sweep_config():
         "weight_norm": {"values": [True]},
         # use_reversible_instance_norm: Normalizes input, reverses on output.
         # Helps with distribution shift across countries.
-        "use_reversible_instance_norm": {"values": [True]},
+        # RevIN off: log1p space, peace series have σ≈0 → RevIN divides by σ → NaN.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
         # Dropout: TCN applies spatial dropout between conv layers.
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        "dropout": {"values": [0.15, 0.25]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         "loss_function": {"values": ["PrismLoss"]},
-        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
-        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
-        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
-        # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.40
-        # (4.9× max weight) so the pointwise-to-spectral gradient ratio stays in
-        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
-        # spectral of gradient budget at low delta, causing it to be ignored.
-        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.20,
-            "max": 0.40,
-        },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
-        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
-        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
-        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
-        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
-        # accuracy isn't starved — the model still needs to get cell values right.
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # MSE pointwise gradient scales as e (up to ~11). Spectral bounded at tanh ≤ 1.
+        # Floor 0.05 = spectral not noise vs MSE signal.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.25,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
-        "event_weight": {"values": [0.5]},
-        # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
+        # dual_mean=False: training loss = MSLE exactly. True caused false minimum.
         "dual_mean": {"values": [False]},
+        "event_weight": {
+            "values": [0.50], # not used
+        },
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

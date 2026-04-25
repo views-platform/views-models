@@ -1,35 +1,10 @@
 
 def get_sweep_config():
-    """
-    N-HiTS + SpotlightLoss Sweep Configuration
-    ============================================
-
-    Data: ~200 country time series, 68 features (conflict + WDI + V-Dem),
-    3 targets (lr_ged_sb/ns/os), 86-94% zeros, 36-month horizon.
-
-    N-HiTS is feedforward (no BPTT) — no gradient attenuation across time.
-
-    Architecture (Challu et al. 2022):
-    - 2 stacks: structural trends (pooled) + monthly dynamics (raw)
-    - AvgPool preferred over MaxPool for zero-inflated data (MaxPool amplifies
-      sparse spikes into pooling representation, distorting coarse stack gradients)
-    - RevIN ON: empirically required — without it, sinh inversion on OOD predictions
-      causes multi-billion-scale outputs. RevIN's sigma-scaling bounds outputs to
-      each series' historical variance. Incompatible with SpotlightLoss in principle
-      (see notes) but necessary for numerical stability at inference.
-
-    SpotlightLoss parameter constraints (from empirical OOD history):
-    - alpha >  0.20 caused OOD explosions even with gradient clipping
-    - gamma >= 0.05 is the primary OOD driver via temporal gradient compounding;
-      second-order curvature term has been removed from the loss entirely
-    - kappa >= 10 creates a near-binary asymmetry gate; combined with beta > 0
-      causes systematic overshooting of conflict cells into shared N-HiTS weights
-    - delta does NOT exist in SpotlightLoss (was a WeightedPenaltyHuber param)
-    """
+    """N-HiTS + PrismLoss v33 sweep configuration."""
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_spotlight_v10_msle",
+        "name": "revolving_door_nhits_prism_v11_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -65,7 +40,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -78,16 +53,16 @@ def get_sweep_config():
         # With alpha <= 0.20, max cosh contribution at asinh(10000)=9.9 is
         # cosh(0.20*9.9)≈3.8. Tanh gradient is bounded at ±1. Effective max
         # gradient ≈ 3.8 — clip of 2.0 is sufficient. 5.0 provides no protection.
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},  # MSE in log1p: max gradient ≈ 11 (log1p(50000)). clip=10 trims only extreme outliers.
         # ==============================================================================
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -149,29 +124,24 @@ def get_sweep_config():
         #   fd=1 → 36/1 = 36 basis functions (full monthly)
         "num_stacks": {"values": [3]},
         "pooling_kernel_sizes": {"values": [[[12], [4], [1]]]},
-        # n_freq_downsample: basis functions per stack = ocl / fd.
-        # Option A [[6],[3],[1]]: coarse=6 basis (semi-annual), intermediate=12, fine=36.
-        #   Risk: coarse stack has 4 pooled inputs → 6 outputs = underdetermined FC,
-        #   enabling spurious high-freq content that compounds across stacks → OOD.
-        # Option B [[12],[3],[1]]: coarse=3 basis (annual), intermediate=12, fine=36.
-        #   Safer: 4 inputs → 3 outputs = overdetermined FC, structurally constrains
-        #   coarse stack to annual-only resolution. Directly addresses y_hat inflation.
         "n_freq_downsample": {"values": [[[12], [3], [1]]]},
-        # AvgPool: for zero-inflated data, MaxPool selects the single largest
-        # value in each kernel window, making the coarse stack representation
-        # dominated by rare spikes. AvgPool produces a smoother structural
-        # trend signal that better represents the underlying conflict trajectory.
         "max_pool_1d": {"values": [False]},
         "activation": {"values": ["GELU"]},
+        # num_blocks/num_layers/layer_widths: Darts defaults are 1 block, 2 layers,
+        # 512 width per stack. Capacity sweep: 2 blocks gives each stack more
+        # representational power. layer_widths=256 confirmed too small; 512/1024 sweep.
+        "num_blocks": {"values": [1, 2]},
+        "num_layers": {"values": [3]},
+        "layer_widths": {"values": [512, 1024]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        # RevIN must be True: empirically, turning it off caused >15B predictions.
-        # RevIN's inverse() rescales outputs by each series' own historical sigma,
-        # bounding OOD extrapolation relative to observed history.
-        "use_reversible_instance_norm": {"values": [True]},
+        # RevIN off: log1p space, peace series have σ≈0 → RevIN divides by σ → NaN.
+        # OOD instability was from sinh inversion (asinh scaler), not from RevIN absence.
+        # With LogTransform + expm1 inversion, outputs are bounded without RevIN.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
@@ -179,41 +149,24 @@ def get_sweep_config():
         # parameter philosophy as smol_cat (TiDE): alpha can be used freely
         # for cosh magnitude weighting.
         "loss_function": {"values": ["PrismLoss"]},
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.30,
-        },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
-        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
-        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
-        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
-        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
-        # accuracy isn't starved — the model still needs to get cell values right.
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # MSE pointwise gradient scales as e (up to ~11). Spectral bounded at tanh ≤ 1.
+        # Ratio ~5-10:1 pointwise/spectral before delta. Floor 0.05 = spectral not noise.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
-            "max": 0.28,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # dual_mean=False: training loss = MSLE exactly. True caused false minimum
+        # (train_loss=0.28 vs MSLE_val=0.80 with different fixed points).
+        "dual_mean": {"values": [False]},
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "values": [0.50], # not used
         },
-        # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [True, False]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
         "use_cyclic_encoders": {"values": [True]},

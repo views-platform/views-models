@@ -4,8 +4,8 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_spotlight_v3_msle",
-        "early_terminate": {"type": "hyperband", "min_iter": 35, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
+        "name": "heat_waves_tft_prism_v4_msle",
+        "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},  # 50 > CAWR T_0=30 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -38,10 +38,10 @@ def get_sweep_config():
         # so TFT tolerates a slightly broader LR range than vanilla Transformer.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 5e-4,
+            "min": 5e-5,
+            "max": 1e-3,
         },
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -57,11 +57,11 @@ def get_sweep_config():
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -118,32 +118,18 @@ def get_sweep_config():
         # At hidden=128: ~600K params on ~200 series = instant memorization.
         # At hidden=64: ~150K params — tight but viable for sparse data.
         # head_dim = hidden_size / nhead = 64/2 = 32 (minimum stable).
-        "hidden_size": {"values": [64]},
-        # lstm_layers: 1 is standard (Lim et al. 2021). Attention handles
-        # long-range, LSTM provides local context. On 85% zero data, LSTM
-        # converges to a "peace" attractor — additional layers just deepen
-        # this attractor without adding new information.
+        # hidden_size: 64 is capacity-limited for conflict dynamics (head_dim=32 minimum
+        # at nhead=2). 128 doubles capacity. Both valid — Bayes picks the winner.
+        "hidden_size": {"values": [64, 128]},
         "lstm_layers": {"values": [1]},
-        # num_attention_heads: 2 heads with hidden_size=64 → head_dim=32
-        # (minimum stable softmax). Two attention patterns: "where was
-        # conflict?" + "what changed structurally?" — sufficient for ~8
-        # informative positions in a 48-step window.
+        # num_attention_heads: nhead=2 valid for both hidden sizes (head_dim≥32).
+        # nhead=4 valid for hidden=128 (head_dim=32) but invalid for hidden=64 (head_dim=16).
+        # Fixed at 2 to avoid degenerate hidden=64/nhead=4 pairing.
         "num_attention_heads": {"values": [2]},
-        # full_attention: True = O(n²) over full encoder+decoder context.
-        # With icl=48 this is cheap (48²=2304). On sparse data, the rare
-        # non-zero positions are by definition far apart — the decoder needs
-        # full access to find them. Sparse attention risks masking the few
-        # informative positions.
         "full_attention": {"values": [True]},
-        # feed_forward: GatedResidualNetwork is TFT's native architecture.
-        # GLU gating provides implicit regularization on zero inputs — gate
-        # learns to close → skip connection dominates. A strength for sparse data.
         "feed_forward": {"values": ["GatedResidualNetwork"]},
-        # hidden_continuous_size: Pre-VSN embedding dim for continuous features.
-        # With hidden_size=64, 32 = 2× compression before VSN. Sufficient
-        # projection dim — features carry most information in a few dimensions
-        # (conflict counts + deltas).
-        "hidden_continuous_size": {"values": [32]},
+        # hidden_continuous_size: Scale with hidden_size. 32=half of 64, 64=half of 128.
+        "hidden_continuous_size": {"values": [32, 64]},
         # categorical_embedding_sizes: empty dict for pure continuous features.
         "categorical_embedding_sizes": {"values": [{}]},
         # add_relative_index: Injects position information into attention.
@@ -155,61 +141,35 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: TFT applies dropout in LSTM, GRN, VSN, and attention — 4
-        # independent sites. Compound survival rate at dropout=d: (1-d)^4.
-        #   0.10 → 66% signal survives    0.15 → 52%    0.25 → 32%
-        # TFT's GRN gating already provides implicit regularization, so
-        # explicit dropout can be lower than pure Transformer.
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        # Dropout: TFT applies dropout at 4 sites (LSTM, GRN, VSN, attention).
+        # Compound survival (1-d)^4: 0.15 → 52% signal, 0.25 → 32% signal.
+        # GRN gating adds implicit regularisation so explicit dropout stays moderate.
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        # RevIN: Country series span asinh≈0 (Liechtenstein) to asinh≈11
-        # (Syria). Without RevIN, LSTM hidden state magnitudes diverge across
-        # scales → VSN gates open fully for high-conflict series, stay shut
-        # for peaceful ones → OOD inputs get arbitrary outputs.
-        "use_reversible_instance_norm": {"values": [True]},
+        # RevIN off: log1p space, peace series have σ≈0 → RevIN divides by σ → NaN.
+        # log1p + LayerNorm already handles scale range (~11 units vs ~50k raw).
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         "loss_function": {"values": ["PrismLoss"]},
-        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
-        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
-        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
-        # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
-        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
-        # [2:1, 6:1] across the full delta range.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.35,
-        },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # Particularly valuable for TFT because the LSTM encoder has no explicit
-        # frequency bias — spectral loss is the only thing constraining its
-        # temporal structure.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # MSE pointwise gradient scales as e (up to ~11). Spectral bounded at tanh ≤ 1.
+        # Particularly valuable for TFT — LSTM encoder has no explicit frequency bias.
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
-            "max": 0.25,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
+        # dual_mean=False: training loss = MSLE exactly. True caused false minimum.
+        "dual_mean": {"values": [False]},
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "values": [0.50], # not used
         },
-        # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [True, False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

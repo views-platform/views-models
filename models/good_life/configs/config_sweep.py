@@ -39,7 +39,7 @@ def get_sweep_config():
         # still giving Bayes room to explore the lower half.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
+            "min": 2e-4,  # raised from 5e-5: runs 2/3/4 (all below ~1.5e-4) failed with >3× train-val gap
             "max": 5e-4,
         },
         "weight_decay": {"values": [0, 1e-4]},

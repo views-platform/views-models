@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_spotlight_v29_cm_msle",
+        "name": "smol_cat_tide_prism_v30_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -18,7 +18,7 @@ def get_sweep_config():
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
-        "optimizer_cls": {"values": ["AdamW", "RAdam"]},
+        "optimizer_cls": {"values": ["AdamW"]},
         "mc_dropout": {"values": [False]},
         "num_samples": {"values": [1]},
         "n_jobs": {"values": [-1]},
@@ -44,7 +44,7 @@ def get_sweep_config():
             "min": 5e-5,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [0, 1e-5, 1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -54,16 +54,16 @@ def get_sweep_config():
         "lr_scheduler_eta_min": {"values": [1e-6]},
         # MAAT: cosh weight is capped at w_max (default 100), and Huber base
         # limits gradient growth. Lower clip than raw JATLoss needed.
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [10.0]},  # MSE in log1p: max gradient ≈ 11 (log1p(50000)). clip=10 trims only extreme outliers.
         # ==============================================================================
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -119,7 +119,7 @@ def get_sweep_config():
         "num_encoder_layers": {"values": [1, 2]},
         # Decoder layers: 2 or 3. Country series are smoother than PGM —
         # 2 layers may suffice, but 3 gives more capacity for diverse patterns.
-        "num_decoder_layers": {"values": [2, 3]},
+        "num_decoder_layers": {"values": [2]},  # Fixed: depth rarely decisive vs width. Saves search space.
         # decoder_output_dim: Dimensionality of the decoder output before
         # the temporal decoder. 32-64 is typical; 16 is the Darts default.
         "decoder_output_dim": {"values": [32, 64]},
@@ -132,7 +132,7 @@ def get_sweep_config():
         "temporal_width_past": {"values": [4, 12]},
         # temporal_width_future: Width of future covariate projection output.
         # Larger values capture richer future covariate interactions.
-        "temporal_width_future": {"values": [36, 48]},
+        "temporal_width_future": {"values": [36]},  # Fixed: matches output_chunk_length. 48 adds combos without clear benefit.
         # temporal_decoder_hidden: Width of the temporal decoder MLP.
         # Needs enough capacity to map decoder output to final predictions.
         "temporal_decoder_hidden": {"values": [128, 256]},
@@ -149,9 +149,10 @@ def get_sweep_config():
         "use_layer_norm": {"values": [True, False]},
         # Dropout: Country-level has fewer training windows per series.
         # Slightly higher dropout ceiling to prevent overfitting on ~200 series.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [False, True]},
+        # RevIN off permanently. log1p space: peace series have σ≈0 → RevIN divides by σ → NaN.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
@@ -164,49 +165,27 @@ def get_sweep_config():
         # Stability: w_max caps Jacobian weight. 99.9th-percentile per-sample
         # clamp inside loss. gradient_clip_val ≥ 1.0 externally.
         "loss_function": {"values": ["PrismLoss"]},
-        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
-        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
-        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
-        # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.15 → ≈2.1×   alpha=0.25 → ≈3.2×   alpha=0.35 → ≈4.3×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.35
-        # (4.3× max weight) so the pointwise-to-spectral gradient ratio stays in
-        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
-        # spectral of gradient budget at low delta, causing it to be ignored.
-        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.35,
-        },
-        "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly. No per-cell
+        # weighting needed — MSE's quadratic scaling naturally upweights large errors.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
-        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
-        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
-        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
-        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
-        # accuracy isn't starved — the model still needs to get cell values right.
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # MSE pointwise gradient scales as e (up to ~11). Spectral bounded at tanh ≤ 1.
+        # Ratio ~5-10:1 pointwise/spectral before delta — spectral is naturally subordinate.
+        #   delta=0.05 → ~2-4% of gradient   delta=0.10 → ~4-8%   delta=0.20 → ~8-15%
         "delta": {
             "distribution": "uniform",
-            "min": 0.08,
-            "max": 0.25,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # 0.50 = old 50/50 split (overpredicts). 0.25 = moderate. 0.10 = natural.
+        # dual_mean=False: plain per-cell mean = training loss is MSLE exactly.
+        # dual_mean=True caused false minimum (train_loss=0.28 vs MSLE_val=0.80
+        # because balanced-mean and MSLE have different fixed points).
+        "dual_mean": {"values": [False]},
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
+            "values": [0.50], # not used
         },
-        "dual_mean": {"values": [True, False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

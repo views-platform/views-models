@@ -1,19 +1,8 @@
 def get_sweep_config():
-    """
-    Key changes from v4:
-    - SpotlightLoss v20: removed dead params (beta, kappa, gamma).
-    - Tighter alpha/delta for BPTT safety: alpha [0.15,0.25], delta [0.10,0.22].
-    - Locked: GRU, n_rnn_layers=1, hidden_fc_sizes=[128], GELU, dropout=0.0.
-    - RevIN=True for zero-inflated input normalization.
-    - weight_decay=1e-4, gradient_clip_val=2.0, min_iter=50, patience=50.
-    - icl [36,48]: 36 for BPTT safety, 48 for full context.
-    - hidden_dim [64,128]: 64 is sufficient for ~200 series.
-    - Added lr_ged_ns/os to feature_scaler_map.
-    - use_cyclic_encoders=True replaces positional encoders.
-    """
+    """BlockRNN (GRU) + PrismLoss v33 sweep configuration."""
     sweep_config = {
         "method": "bayes",
-        "name": "dancing_queen_blockrnn_spotlight_v6_msle",
+        "name": "dancing_queen_blockrnn_prism_v7_msle",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -45,10 +34,10 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 5e-4,
+            "min": 5e-5,
+            "max": 1e-3,
         },
-        "weight_decay": {"values": [1e-4]},
+        "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -56,16 +45,16 @@ def get_sweep_config():
         "lr_scheduler_T_0": {"values": [30]},
         "lr_scheduler_T_mult": {"values": [2]},
         "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [2.0]},
+        "gradient_clip_val": {"values": [10.0]},  # MSE in log1p: max gradient ≈ 11 (log1p(50000)). clip=10 trims only extreme outliers.
         # ==============================================================================
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -119,56 +108,40 @@ def get_sweep_config():
         # GRU locked: update gate handles zero-heavy sequences better than
         # LSTM's forget gate (which aggressively zeros cell state).
         "rnn_type": {"values": ["GRU"]},
-        # hidden_dim: 64-128 for ~200 series. Single layer keeps all params
-        # reachable by gradient.
-        "hidden_dim": {"values": [64, 128]},
-        # Locked to 1: removes inter-layer dropout dead zone, halves BPTT
-        # memory, keeps all hidden state reachable by gradient.
+        # hidden_dim: 64 confirmed capacity-limited. 128 minimum viable, 256 adds headroom.
+        "hidden_dim": {"values": [128, 256]},
         "n_rnn_layers": {"values": [1]},
-        # Single 128-wide layer: 1.2 units per output (108 = 36×3).
-        # Enough for target-specific discrimination without OOD capacity.
-        "hidden_fc_sizes": {"values": [[128]]},
+        # hidden_fc_sizes: match hidden_dim. 128 is undersized as decoder for hidden=256.
+        "hidden_fc_sizes": {"values": [[128], [256]]},
         # GELU: smoother gradients through the FC decoder.
         "activation": {"values": ["GELU"]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [True]},
+        # RevIN off: log1p space, peace series have σ≈0 → RevIN divides by σ → NaN.
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         "loss_function": {"values": ["PrismLoss"]},
-        # ── alpha (magnitude weighting) ───────────────
-        # Tighter for BPTT: gradients compound across time steps.
-        # [0.15, 0.25] keeps cosh(0.25*11.5) ≈ 5.4x at max asinh value.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.15,
-            "max": 0.25,
-        },
-        # ── delta (spectral resolution) ───────────────
-        # Tighter for BPTT: STFT gradients compound through unrolled steps.
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        # BPTT compounds gradients across steps but MSE gradient (e) is linear
+        # and bounded — no special BPTT safety constraint needed.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
+        # ── delta (multi-resolution spectral weight) ─────────────────────────────────
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # Spectral operates on 36-step output vector only — does not compound through
+        # hidden state unrolling. No BPTT tightening needed.
         "delta": {
             "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.22,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # Tighter for BPTT: balanced-mean bias compounds through unrolled steps.
-        "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.50,
-        },
-        # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean (event_weight controls ratio).
-        # False = plain per-cell mean (event_weight ignored).
-        "dual_mean": {"values": [True, False]},
-        # ── non_zero_threshold ────────────────────────
-        "non_zero_threshold": {"values": [0.88]},
+        # dual_mean=False: training loss = MSLE exactly. True caused false minimum.
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

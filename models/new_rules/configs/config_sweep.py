@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_v13_msle_symmetric",
+        "name": "new_rules_nbeats_prism_v14_msle",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 50,
@@ -59,11 +59,11 @@ def get_sweep_config():
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["AsinhTransform"]},
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
         "feature_scaler_map": {
             "values": [
                 {
-                    "AsinhTransform": [
+                    "LogTransform": [
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -120,7 +120,9 @@ def get_sweep_config():
         "generic_architecture": {"values": [True]},
         # num_stacks: Number of stacks. Each stack processes the residual
         # from the previous. 2 is standard for generic, more adds capacity.
-        "num_stacks": {"values": [2, 3]},
+        # num_stacks: Fixed at 2. 3 adds ~50% params with marginal gain for
+        # conflict data — N-BEATS residual path saturates fast. Saves search space.
+        "num_stacks": {"values": [2]},
         # num_blocks: Blocks per stack. N-BEATS paper uses 1 per stack for generic.
         # Keep low — each additional block adds a backcast path; the final block's
         # backcast is structurally discarded, and with 4 blocks per stack the
@@ -128,14 +130,19 @@ def get_sweep_config():
         "num_blocks": {"values": [1, 2]},
         # num_layers: FC layers per block. 2-4 is standard. Deeper blocks
         # capture more complex patterns but risk overfitting on ~200 series.
-        "num_layers": {"values": [2, 3]},
+        # num_layers: Fixed at 3. Paper uses 4; 2 is capacity-limited for
+        # conflict dynamics. 3 is the right balance.
+        "num_layers": {"values": [3, 4]},
         # layer_widths: Width of FC layers in each block. N-BEATS flattens
         # input_chunk_length * n_features into a single vector (~48×40≈1920
         # dims). layer_widths=128 is an ~15:1 compression — sparse inputs mean
         # the conflict signal (5% of cells) gets averaged out at that bottleneck.
         # 256-512 keeps the compression ratio manageable (~4-8×) and preserves
         # peak values instead of pulling predictions toward the zero mean.
-        "layer_widths": {"values": [128, 256, 512]},
+        # layer_widths: 128 dropped — confirmed capacity-limited floor in all
+        # sweep runs. 256 is minimum viable, 512 gives headroom for diverse
+        # country trajectories.
+        "layer_widths": {"values": [256, 512]},
         # expansion_coefficient_dim: Dimensionality of basis expansion
         # coefficients (generic mode). Must be ≤ ocl=36 to avoid overcomplete
         # basis (null space → OOD explosions). ed=16 covers 44% of R^36;
@@ -158,52 +165,30 @@ def get_sweep_config():
         # ==============================================================================
         # Dropout: N-BEATS is a deep MLP — moderate dropout needed for
         # ~200 series. Paper uses 0.0 but they had much more data.
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        # Dropout: 0.10 is too low for ~200 series (paper used much more data).
+        "dropout": {"values": [0.15, 0.25]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
         "loss_function": {"values": ["PrismLoss"]},
-        # ── alpha (truth-only spotlight scale) ───────────────────────────────────────
-        # 1+log_cosh(alpha*|y|) — truncated-inverse-density weight (Liu & Lin 2022;
-        # Yang et al. 2021 LDS). No pred-side weight — gradient bounded by w(y)×tanh.
-        # Weight at max UCDP (asinh≈11.5):
-        #   alpha=0.20 → ≈2.6×   alpha=0.30 → ≈3.8×   alpha=0.40 → ≈4.9×
-        # GRADIENT BUDGET: alpha scales pointwise gradient magnitude. Capped at 0.40
-        # (4.9× max weight) so the pointwise-to-spectral gradient ratio stays in
-        # [2:1, 6:1] across the full delta range. alpha=0.5 was 6.1× — starved
-        # spectral of gradient budget at low delta, causing it to be ignored.
-        # Test run anchor: alpha=0.2, delta=0.15 → balanced.
-        "alpha": {
-            "distribution": "uniform",
-            "min": 0.20,
-            "max": 0.40,
-        },
-        "non_zero_threshold": {
-            "values": [0.88]
-        },  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
+        # alpha removed in PrismLoss v33. MSE in log1p = MSLE exactly.
+        # log_cosh+alpha was causing 10-16× gradient deficit via tanh saturation.
+        "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
-        # Spectral L1-magnitude matching (n_fft=6,12,24). Phase-insensitive by
-        # the Fourier shift theorem: onset 1-mo early → ~zero spectral penalty.
-        # n_fft=12 bin 1 = 12-month annual cycle — directly penalises missing seasonality.
-        # n_fft=24 catches slow monotonic drift (smooth hockey sticks TV couldn't detect).
-        # GRADIENT BUDGET: STFT accumulates ~48 gradient paths per time step across
-        # 3 resolutions (8+14+26 bins×frames) vs 1 for pointwise. After .mean()
-        # normalisation, spectral gradient norm is ~5-10× pointwise before delta.
-        #   delta=0.08 → spectral ≈10-15% of total gradient (light regularisation)
-        #   delta=0.15 → spectral ≈20-30% of total gradient (test run anchor)
-        #   delta=0.25 → spectral ≈35-45% of total gradient (heavy temporal shaping)
-        # Floor at 0.08 so spectral is never noise. Cap at 0.25 so pointwise
-        # accuracy isn't starved — the model still needs to get cell values right.
+        # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
+        # MSE pointwise gradient scales as e (up to ~11). Spectral bounded at tanh ≤ 1.
+        # Floor at 0.05: below this spectral is noise vs MSE signal.
         "delta": {
             "distribution": "uniform",
-            "min": 0.01,
-            "max": 0.25,
+            "min": 0.05,
+            "max": 0.20,
         },
-        # ── event_weight ──────────────────────────────────────────────────────────────
-        # "event_weight": {"distribution": "uniform", "min": 0.10, "max": 0.50},
-        "event_weight": {"values": [0.5]},
-        # ── dual_mean ─────────────────────────────────────────────────────────────────
+        # dual_mean=False: plain per-cell mean = training loss is MSLE exactly.
+        # True caused false minimum (train_loss=0.28 vs MSLE_val=0.80).
         "dual_mean": {"values": [False]},
+        "event_weight": {
+            "values": [0.50], # not used
+        },
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
