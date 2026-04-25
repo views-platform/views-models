@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v18_mse_symmetric",
+        "name": "good_life_transformer_prism_v19_mse_symmetric_nodualmean_",
         "early_terminate": {"type": "hyperband", "min_iter": 50, "eta": 3},  # Rungs at 50,150,450 — 67% killed each rung → ~11% survive to rung 1. eta=3 safe: tight 3-dim loss space.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -170,18 +170,22 @@ def get_sweep_config():
             "min": 0.05,
             "max": 0.20,
         },
-        # ── event_weight (balanced mean event/peace ratio) ────────────────────────
-        # Fraction of gradient budget allocated to event cells in balanced mean.
-        # v31: less critical than v30 since log1p naturally flattens cross-magnitude
-        # gradient allocation. Sweep both dual_mean modes to test whether it helps.
+        # ── event_weight (balanced mean active/peace ratio) ────────────────────────
+        # Only used when dual_mean=True.
+        # With MSE, natural event gradient share is already ~50% (10% cells × 9×
+        # squared error vs 90% cells × 1× squared error). event_weight above 0.25
+        # amplifies events beyond their natural MSE dominance → overprediction risk.
+        # v17 run (ew=0.20) still overpredicted (y_hat_bar=40). Keep upper end tight.
         "event_weight": {
-            "distribution": "uniform",
-            "min": 0.10,
-            "max": 0.30,
+            "values": [0.50], # not used
         },
         # ── dual_mean ─────────────────────────────────────────────────────────────────
-        # True = event/peace balanced mean. Sweep both — v31 may not need it.
-        "dual_mean": {"values": [True]},
+        # v17 run showed train_loss=0.28 vs MSLE_val=0.80 — 3× gap caused by
+        # balanced mean and MSLE having different fixed points. The model converged
+        # to the balanced-mean minimum (grad_norm/max=0.051 at CAWR restart) which
+        # is NOT the MSLE minimum. Sweep both to test: False makes training loss
+        # = MSLE exactly, eliminating the objective mismatch.
+        "dual_mean": {"values": [False]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
