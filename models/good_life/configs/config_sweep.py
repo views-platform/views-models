@@ -39,8 +39,8 @@ def get_sweep_config():
         # still giving Bayes room to explore the lower half.
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 3e-4,  # raised from 2e-4: run 6 (lr=1.80e-4, ff=1024) also failed — dead zone extends to ~2.8e-4
-            "max": 5e-4,  # raised from 5e-4: upper boundary unknown, run 1 (4.47e-4) sits at 33rd log-pct of [3e-4, 1e-3]
+            "min": 3e-4,  # raised from 5e-5: everything below ~3e-4 is a dead zone (overfit or frozen)
+            "max": 5e-4,  # lowered from 1e-3: run 7 (5.88e-4) NaN'd; run 8 (9.73e-4) collapsed to peace attractor
         },
         "weight_decay": {"values": [0, 1e-4]},
         # ==============================================================================
