@@ -150,20 +150,17 @@ def get_sweep_config():
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
-        # ── alpha (flat event boost) ────────────────────────────────────────────
-        # v31: events get (1 + alpha)× loss weight. Flat across all event
-        # magnitudes — the MSLE-native log1p transform already provides
-        # correct magnitude-awareness. Alpha purely addresses class imbalance
-        # (90% peace drowns 10% events).
-        #   alpha=0.5 → 1.5× boost (light)
-        #   alpha=1.5 → 2.5× boost (moderate)
-        #   alpha=3.0 → 4.0× boost (strong)
-        # Floor at 0.5 so events are never ignored. Cap at 3.0 to avoid
-        # overprediction from excessive event focus.
+        # ── alpha (symmetric flat event boost) ────────────────────────────────────
+        # Events and false-alarms get (1 + alpha)× weight. Flat across
+        # all event magnitudes — log1p space handles magnitude scaling.
+        # Old log_cosh weight gave 3.8× at alpha=0.3; flat boost needs
+        # higher alpha to match: alpha=2.0 gives 3.0× (comparable influence
+        # when combined with dual_mean at event_weight=0.25: 3×2.85=8.6×).
+        # No explosion risk — tanh gradient cap applies regardless of w.
         "alpha": {
             "distribution": "uniform",
-            "min": 0.5,
-            "max": 3.0,
+            "min": 0.3,
+            "max": 2.0,
         },
         "non_zero_threshold": {"values": [0.693]},  # log1p(1) ≈ 0.693, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
