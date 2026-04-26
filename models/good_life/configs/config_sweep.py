@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v24_1",
+        "name": "good_life_transformer_prism_v24_2",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 3},  # Rungs at 25,75,225. No CAWR restart spike — ReduceLROnPlateau is monotone-decaying so early measurements are valid.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -28,7 +28,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [256]},  # 256 stable for Transformer at d_model=256; larger batches improve gradient estimates and reduce steps/epoch, benign with AdamW.
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [20]},  # ReduceLROnPlateau patience=10: floor = 2 full reduction cycles (20 epochs) before ES can fire; guarantees at least one meaningful lr decay is acted on.
+        "early_stopping_patience": {"values": [30]},  # ReduceLROnPlateau patience=15: floor = 2 full reduction cycles (30 epochs) before ES can fire; guarantees at least one meaningful lr decay is acted on.
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -48,14 +48,15 @@ def get_sweep_config():
         # LR SCHEDULER
         # ==============================================================================
         # ReduceLROnPlateau: reduce lr by factor when train_loss plateaus.
-        # patience=10: short enough to react quickly; 10 epochs of no ε=1e-4
-        # improvement is a reliable plateau signal at this batch size.
-        # factor=0.3: aggressive step-down — moves quickly through lr decades
-        # so each reduction opens a meaningfully different regime.
+        # patience=15: loss CV≈0.20 means patience=10 fired on noise — run 1
+        # took 7 reductions in 76 epochs, reaching min_lr with 224 wasted epochs.
+        # patience=15 requires a genuine 15-epoch plateau before reducing.
+        # factor=0.5: halves lr each step instead of ÷3.3. Same number of
+        # reductions to reach min_lr but more useful training at each level.
         # min_lr=1e-6: practical floor below which updates are noise.
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
-        "lr_scheduler_factor": {"values": [0.3]},
-        "lr_scheduler_patience": {"values": [10]},
+        "lr_scheduler_factor": {"values": [0.5]},
+        "lr_scheduler_patience": {"values": [15]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         # gradient_clip_val=10 was too permissive: per-tensor gradient norms
         # hit 9.98 while median collapsed to 1e-14 — extreme bimodality caused
