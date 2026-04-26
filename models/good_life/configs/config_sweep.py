@@ -152,7 +152,7 @@ def get_sweep_config():
         # models the average of two surfaces and converges poorly on both.
         # log1p + LayerNorm already handles the scale range (~11 units vs
         # ~50k raw). Test RevIN separately after sweep converges.
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
