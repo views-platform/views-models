@@ -173,8 +173,8 @@ def get_sweep_config():
         # Cap at 0.20: spectral purpose is shape regularisation, not accuracy.
         "delta": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.20,
+            "min": 0.10,
+            "max": 0.25,
         },
         # ── event_weight (balanced mean active/peace ratio) ────────────────────────
         # Only used when dual_mean=True.

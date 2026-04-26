@@ -7,7 +7,7 @@ def get_sweep_config():
         "name": "new_rules_nbeats_prism_v14_msle",
         "early_terminate": {
             "type": "hyperband",
-            "min_iter": 50,
+            "min_iter": 25,
             "eta": 2,
         },  # 50 > CAWR T_0=30 — avoids pruning at restart spike edge
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
@@ -33,9 +33,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [64]},
+        "batch_size": {"values": [256]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [50]},
+        "early_stopping_patience": {"values": [30]},
         "early_stopping_min_delta": {"values": [0.0001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
@@ -43,34 +43,35 @@ def get_sweep_config():
         # ==============================================================================
         "lr": {
             "distribution": "log_uniform_values",
-            "min": 5e-5,
+            "min": 3e-4,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [0, 1e-4]},
+        "weight_decay": {"values": [0, 1e-4, 1e-3]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
-        "lr_scheduler_cls": {"values": ["CosineAnnealingWarmRestarts"]},
-        "lr_scheduler_T_0": {"values": [30]},
-        "lr_scheduler_T_mult": {"values": [2]},
-        "lr_scheduler_eta_min": {"values": [1e-6]},
-        "gradient_clip_val": {"values": [10.0]},
+        "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.5]},
+        "lr_scheduler_patience": {"values": [15]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
+        "gradient_clip_val": {"values": [1.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
         "feature_scaler": {"values": [None]},
-        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates in MSLE space. MSE in log1p = MSLE exactly.
+        "target_scaler": {"values": ["LogTransform"]},  # log1p(x): model operates directly in MSLE space
         "feature_scaler_map": {
             "values": [
                 {
                     "LogTransform": [
+                        "lr_wdi_sp_dyn_imrt_fe_in",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
                         "lr_splag_1_ged_sb",
                         "lr_splag_1_ged_ns",
                         "lr_splag_1_ged_os",
-                        "lr_ged_ns",
+                        "lr_ged_ns", 
                         "lr_ged_os",
                     ],
                     "StandardScaler": [
@@ -81,11 +82,10 @@ def get_sweep_config():
                         "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_sp_pop_grow",
                         "lr_wdi_ms_mil_xpnd_gd_zs",
-                        "lr_wdi_sp_dyn_imrt_fe_in",
-                        "lr_wdi_sh_sta_stnt_zs",
-                        "lr_wdi_sh_sta_maln_zs",
                     ],
                     "MinMaxScaler": [
+                        "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_sh_sta_maln_zs",
                         "lr_wdi_sl_tlf_totl_fe_zs",
                         "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
@@ -158,7 +158,7 @@ def get_sweep_config():
         # basis expansion. With dual_mean=False the upward gradient bias is gone,
         # so RevIN=True no longer amplifies a DC offset. But without RevIN=False
         # confirmed safe first, we keep it off. Re-introduce in v11 if v10 is clean.
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
@@ -180,8 +180,8 @@ def get_sweep_config():
         # Floor at 0.05: below this spectral is noise vs MSE signal.
         "delta": {
             "distribution": "uniform",
-            "min": 0.05,
-            "max": 0.20,
+            "min": 0.10,
+            "max": 0.25,
         },
         # dual_mean=False: plain per-cell mean = training loss is MSLE exactly.
         # True caused false minimum (train_loss=0.28 vs MSLE_val=0.80).
