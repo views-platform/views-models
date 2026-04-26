@@ -72,6 +72,7 @@ def get_sweep_config():
             "values": [
                 {
                     "LogTransform": [
+                        "lr_wdi_sp_dyn_imrt_fe_in",
                         "lr_wdi_sm_pop_refg_or",
                         "lr_wdi_ny_gdp_mktp_kd",
                         "lr_wdi_nv_agr_totl_kn",
@@ -89,11 +90,10 @@ def get_sweep_config():
                         "lr_wdi_dt_oda_odat_pc_zs",
                         "lr_wdi_sp_pop_grow",
                         "lr_wdi_ms_mil_xpnd_gd_zs",
-                        "lr_wdi_sp_dyn_imrt_fe_in",
-                        "lr_wdi_sh_sta_stnt_zs",
-                        "lr_wdi_sh_sta_maln_zs",
                     ],
                     "MinMaxScaler": [
+                        "lr_wdi_sh_sta_stnt_zs",
+                        "lr_wdi_sh_sta_maln_zs",
                         "lr_wdi_sl_tlf_totl_fe_zs",
                         "lr_wdi_se_enr_prim_fm_zs",
                         "lr_wdi_sp_urb_totl_in_zs",
