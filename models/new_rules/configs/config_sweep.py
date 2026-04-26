@@ -44,7 +44,7 @@ def get_sweep_config():
         "lr": {
             "distribution": "log_uniform_values",
             "min": 3e-4,
-            "max": 1e-3,
+            "max": 3e-3,
         },
         "weight_decay": {"values": [0, 1e-4, 1e-3]},
         # ==============================================================================
