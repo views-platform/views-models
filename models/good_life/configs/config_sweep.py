@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_prism_v24_256revin",
+        "name": "good_life_transformer_prism_v24_1",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 3},  # Rungs at 25,75,225. No CAWR restart spike — ReduceLROnPlateau is monotone-decaying so early measurements are valid.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [48]},
+        "input_chunk_length": {"values": [36, 48]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -43,7 +43,7 @@ def get_sweep_config():
             "min": 3e-4,
             "max": 1e-3,
         },
-        "weight_decay": {"values": [0, 1e-4]},
+        "weight_decay": {"values": [0, 1e-4, 1e-3]},  # wd=0 removed: weight max norm grew 20→42 in 29 epochs at wd=1e-4; need active regularisation. 1e-3 provides 10× stronger pull toward origin.
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -57,8 +57,12 @@ def get_sweep_config():
         "lr_scheduler_factor": {"values": [0.3]},
         "lr_scheduler_patience": {"values": [10]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
-        # Max per-cell MSE gradient in log1p space ≈ 11 (log1p(50000)). clip=10 caps extreme outliers.
-        "gradient_clip_val": {"values": [10.0]},
+        # gradient_clip_val=10 was too permissive: per-tensor gradient norms
+        # hit 9.98 while median collapsed to 1e-14 — extreme bimodality caused
+        # weight max norm to grow 20→42 in 29 epochs → overflow → NaN.
+        # clip=1.0 reduces max per-step weight change by 10×, throttling the
+        # runaway layers while preserving gradient direction for healthy ones.
+        "gradient_clip_val": {"values": [1.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -147,7 +151,7 @@ def get_sweep_config():
         # models the average of two surfaces and converges poorly on both.
         # log1p + LayerNorm already handles the scale range (~11 units vs
         # ~50k raw). Test RevIN separately after sweep converges.
-        "use_reversible_instance_norm": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # LOSS FUNCTION: PrismLoss
         # ==============================================================================
