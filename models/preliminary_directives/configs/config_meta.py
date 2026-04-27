@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "preliminary_directives", 
         "algorithm": "NBEATSModel",
-        "regression_targets": ["lr_ged_sb_dep"],
+        "regression_targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
         "creator": "Simon",
