@@ -17,7 +17,6 @@ def generate():
     # VIEWSER 6, Example configuration. Modify as needed.
 
     def _add_conflict_history(queryset: Queryset) -> Queryset:
-        print("Adding conflict history features...")
         return (
             queryset.with_column(
                 Column(
