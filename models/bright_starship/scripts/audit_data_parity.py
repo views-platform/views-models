@@ -173,7 +173,7 @@ def audit(factory: pd.DataFrame, viewser: pd.DataFrame) -> bool:
         # c_id is an identity column, not a training feature.
         f_consistency = f_sorted.groupby(level=1)["c_id"].nunique().max()
         v_consistency = v_sorted.groupby(level=1)["c_id"].nunique().max()
-        print(f"  Values differ (expected: different coding systems)")
+        print("  Values differ (expected: different coding systems)")
         print(f"  Factory: {f_consistency} c_id per pgid (GAUL, time-invariant)")
         print(f"  Viewser: {v_consistency} c_id per pgid (time-varying lookup)")
         print("  ACCEPTABLE — c_id is identity metadata, not a training feature")
@@ -205,10 +205,10 @@ def audit(factory: pd.DataFrame, viewser: pd.DataFrame) -> bool:
         print(f"    sum: factory={f_sum:,.1f}, viewser={v_sum:,.1f}")
 
         if pct_diff < 0.5:
-            print(f"    ACCEPTABLE — within expected UCDP annual version residual")
+            print("    ACCEPTABLE — within expected UCDP annual version residual")
             warnings.append(f"{col}: {pct_diff:.3f}% cells differ (annual version)")
         else:
-            print(f"    FAIL — exceeds 0.5% threshold")
+            print("    FAIL — exceeds 0.5% threshold")
             failures.append(f"{col}: {pct_diff:.3f}% cells differ")
 
     # ── 5. Dtype check ────────────────────────────────────────

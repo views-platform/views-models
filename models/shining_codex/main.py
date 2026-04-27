@@ -23,32 +23,8 @@ except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
 
 
-def _ensure_data(run_type: str) -> None:
-    """Fetch data from Hetzner zarr store if the parquet cache is missing."""
-    raw_dir = model_path.data_raw
-    parquet = raw_dir / f"{run_type}_viewser_df.parquet"
-    if parquet.exists():
-        logger.info("Using cached %s", parquet)
-        return
-
-    logger.info("Cache miss for %s — fetching from Hetzner", run_type)
-    from configs.config_queryset import fetch_data
-    from configs.config_partitions import generate as generate_partitions
-
-    partitions = generate_partitions()
-    fetch_data(run_type, raw_dir, partitions)
-
-
 if __name__ == "__main__":
     args = ForecastingModelArgs.parse_args()
-
-    _ensure_data(args.run_type)
-
-    # Phase 1 workaround for views-pipeline-core C-51: get_data() hardcodes
-    # viewser as sole data source. _ensure_data() populates the parquet cache
-    # from views-datafactory, so saved=True routes around the viewser fetch.
-    # Remove once Phase 2 lands (DataFetchStrategy dispatch).
-    args.saved = True
 
     manager = DartsForecastingModelManager(
         model_path=model_path,
