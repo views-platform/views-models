@@ -1,3 +1,0 @@
-Single Model Name: hot_stream
-Data Fetch Timestamp: 20260407_182912
-

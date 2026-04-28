@@ -1,3 +1,0 @@
-Single Model Name: party_princess
-Data Fetch Timestamp: 20260317_050733
-

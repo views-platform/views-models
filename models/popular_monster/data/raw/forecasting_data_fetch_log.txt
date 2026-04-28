@@ -1,3 +1,0 @@
-Single Model Name: popular_monster
-Data Fetch Timestamp: 20250218_232957
-
