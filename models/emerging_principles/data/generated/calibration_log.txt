@@ -1,6 +1,0 @@
-Single Model Name: emerging_principles
-Single Model Timestamp: 20260407_161506
-Data Generation Timestamp: 20260407_161557
-Data Fetch Timestamp: 20260407_161055
-Deployment Status: shadow
-

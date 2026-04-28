@@ -20,6 +20,7 @@ __pycache__/
 *.ckpt
 *.onnx
 *.pt
+*.pt.sha256
 *.pth
 *.bin
 *.json

@@ -1,6 +1,0 @@
-Single Model Name: party_princess
-Single Model Timestamp: 20260317_051207
-Data Generation Timestamp: 20260317_051850
-Data Fetch Timestamp: 20260317_050733
-Deployment Status: shadow
-

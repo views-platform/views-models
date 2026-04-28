@@ -1,3 +1,0 @@
-Single Model Name: plastic_beach
-Data Fetch Timestamp: 20250218_233215
-
