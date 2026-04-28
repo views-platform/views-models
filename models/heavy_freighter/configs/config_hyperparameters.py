@@ -23,10 +23,10 @@ def get_hp_config():
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
         'input_channels': 3, # Checksum: Must match len(features)
-        'row_offset': 87,
-        'col_offset': 310,
-        'height': 180,
-        'width': 180,
+        'row_offset': 0,
+        'col_offset': 0,
+        'height': 360,
+        'width': 720,
 
         # ============================================================
         # Model Architecture

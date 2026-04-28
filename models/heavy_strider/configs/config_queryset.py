@@ -23,9 +23,6 @@ ZARR_URL = DEFAULT_REMOTE.zarr_url
 # 64,818 PRIO-GRID land cells (global coverage, excluding water)
 REGION = "land"
 
-# UCDP field names as stored in the zarr store
-FACTORY_FEATURES = ["ged_sb_best", "ged_ns_best", "ged_os_best", "gaul0_code"]
-
 # Factory name → VIEWSER name (so downstream model code doesn't change)
 FEATURE_RENAME = {
     "ged_sb_best": "lr_sb_best",   # state-based fatalities (best estimate)

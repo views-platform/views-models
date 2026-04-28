@@ -23,9 +23,6 @@ ZARR_URL = DEFAULT_REMOTE.zarr_url
 # 13,110 PRIO-GRID cells matching VIEWSER's Africa + Middle East coverage
 REGION = "africa_me_legacy"
 
-# UCDP field names as stored in the zarr store
-FACTORY_FEATURES = ["ged_sb_best", "ged_ns_best", "ged_os_best", "gaul0_code"]
-
 # Factory name → VIEWSER name (so downstream model code doesn't change)
 FEATURE_RENAME = {
     "ged_sb_best": "lr_sb_best",   # state-based fatalities (best estimate)
