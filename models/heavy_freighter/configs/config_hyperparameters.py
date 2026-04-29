@@ -24,7 +24,7 @@ def get_hp_config():
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
         'input_channels': 3, # Checksum: Must match len(features)
         'row_offset': 1,
-        'col_offset': 1,
+        'col_offset': 1, # Global grid: 1-indexed priogrid → 0-based array
         'height': 360,
         'width': 720,
 
