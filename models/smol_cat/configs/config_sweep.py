@@ -70,6 +70,7 @@ def get_sweep_config():
         "feature_scaler": {"values": [None]},
         "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
+            "values": [{
             "MinMaxScaler": [
                 "lr_vdem_v2x_horacc",
                 "lr_vdem_v2x_veracc",
@@ -116,6 +117,7 @@ def get_sweep_config():
                 "lr_acled_sb_count",
                 "lr_acled_os",
             ],
+        }]
         },
         # ==============================================================================
         # TiDE ARCHITECTURE
