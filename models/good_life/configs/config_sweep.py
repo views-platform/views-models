@@ -148,17 +148,17 @@ def get_sweep_config():
         # calibration ever seen. d_model=256 generated excess capacity for 90%
         # zero-inflated data; 128 = 2.7× expansion from 48 features, sufficient.
         # d_model=128, nhead=4 → head_dim=32 ✓
-        "d_model": {"values": [64, 128, 256]},
+        "d_model": {"values": [128]}, 
         # nhead: locked at 4. With d_model=128, nhead=8 → head_dim=16 — too coarse.
         # Run 1 (nhead=8, icl=36): event_ratio=1.517 (52% overprediction). Each head
         # projects only 16 dims from 48 positions, creating noisy attention patterns
         # that amplify conflict signals rather than precisely attending to them.
         # nhead=4 → head_dim=32 gives sufficient resolution for lag-1 persistence,
         # lag-12 seasonality, and escalation onset patterns.
-        "nhead": {"values": [2, 4]},
+        "nhead": {"values": [4]},
         "num_encoder_layers": {"values": [2, 3]},
-        "dim_feedforward": {"values": [256, 512, 1024]},
-        "activation": {"values": ["GELU", "SwiGLU"]},
+        "dim_feedforward": {"values": [256, 512]},
+        "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm", "RMSNorm"]},
         # ==============================================================================
         # REGULARIZATION
