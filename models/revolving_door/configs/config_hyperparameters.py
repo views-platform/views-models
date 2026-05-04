@@ -138,7 +138,7 @@ def get_hp_config():
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
         "use_cyclic_encoders": True,
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
     }
 
     return hyperparameters

@@ -134,7 +134,7 @@ def get_hp_config():
 
         # Prediction output format
         "prediction_format": "dataframe",
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
     }
 
     return hyperparameters

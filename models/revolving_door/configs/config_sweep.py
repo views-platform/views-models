@@ -103,11 +103,12 @@ def get_sweep_config():
                     # Military % GDP: median ~1.5%, outliers at 10–25% (Saudi, NK).
                     # StandardScaler alone → 5–10σ activations for outlier countries.
                     "lr_wdi_ms_mil_xpnd_gd_zs",
-
-                    # Heavy-tailed counts, spatial lags, deltas: zero-inflated,
+                ],
+                "AsinhTransform->MaxAbsScaler": [
+                    # Conflict counts, spatial lags, deltas: zero-inflated,
                     # 2–5 orders of magnitude cross-country range. asinh compresses
-                    # the tail before StandardScaler centres. Handles negatives
-                    # (deltas, net migration) as an odd function.
+                    # the tail; MaxAbsScaler maps to [0,1] preserving zero=0 anchor
+                    # and full proportional tail discrimination (no mean-shift).
                     "lr_splag_1_ged_sb",
                     "lr_splag_1_ged_ns",
                     "lr_splag_1_ged_os",
