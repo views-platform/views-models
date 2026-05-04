@@ -5,7 +5,7 @@ def get_sweep_config():
     sweep_config = {
         "method": "bayes",
         "name": "smol_cat_tide_shadow_20260504",
-        "early_terminate": {"type": "hyperband", "min_iter": 15, "eta": 2},
+        "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
@@ -25,14 +25,14 @@ def get_sweep_config():
         # ==============================================================================
         # TRAINING
         # ==============================================================================
-        "batch_size": {"values": [128]},
+        "batch_size": {"values": [64]},
         "n_epochs": {"values": [300]},
         # ESP=35: allows ~4 LR reductions (patience=8 each) before triggering.
         # Each RLROP firing gives the optimizer a reset opportunity; 35 epochs of
         # continuous stagnation despite all reductions is a reliable stop signal.
         # Hyperband (min_iter=15) is the primary fast-kill for clearly bad runs.
         "early_stopping_patience": {"values": [35]},
-        "early_stopping_min_delta": {"values": [0.0001]},
+        "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
         # OPTIMIZER
@@ -63,7 +63,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.0]},
+        "gradient_clip_val": {"values": [1.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -223,10 +223,10 @@ def get_sweep_config():
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
         # RevIN denormalisation ŷ = ẑ·σ + μ. Safe even for sparse peace series.
         "use_reversible_instance_norm": {"values": [True]},
-        "loss_function": {"values": ["SpotlightLossLogcosh"]},
+        "loss_function": {"values": ["SpotlightLoss"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"values": [0.075, 0.10]},
+        "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
