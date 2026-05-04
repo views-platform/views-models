@@ -71,7 +71,7 @@ def get_sweep_config():
         "target_scaler": {"values": ["AsinhTransform"]},  # log1p(x): log-compresses targets, expm1 inverse
         "feature_scaler_map": {
             "values": [{
-                "AsinhTransform->StandardScaler": [
+                "AsinhTransform": [
                     # Heavy-tailed counts, spatial lags, deltas: zero-inflated,
                     # 2–5 orders of magnitude cross-country range. asinh compresses
                     # the tail before StandardScaler centres. Handles negatives
@@ -87,6 +87,8 @@ def get_sweep_config():
                     "lr_acled_sb",
                     "lr_acled_sb_count",
                     "lr_acled_os",
+                ],
+                "AsinhTransform->StandardScaler": [
                     # Macro volumes: 5+ order-of-magnitude cross-country difference.
                     # StandardScaler alone produces 50σ activations for large economies.
                     "lr_wdi_ny_gdp_mktp_kd",
