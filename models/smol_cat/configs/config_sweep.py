@@ -71,53 +71,77 @@ def get_sweep_config():
         "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [{
-            "MinMaxScaler": [
-                "lr_vdem_v2x_horacc",
-                "lr_vdem_v2x_veracc",
-                "lr_vdem_v2x_diagacc",
-                "lr_vdem_v2xnp_client",
-                "lr_vdem_v2xnp_regcorr",
-                "lr_vdem_v2xpe_exlpol",
-                "lr_vdem_v2xpe_exlgeo",
-                "lr_vdem_v2xpe_exlgender",
-                "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_divparctrl",
-                "lr_vdem_v2x_ex_party",
-                "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2x_genpp",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty",
-                "lr_vdem_v2xeg_eqprotec",
-                "lr_vdem_v2xcl_dmove",
-                "lr_vdem_v2x_clphy",
-                "lr_wdi_ms_mil_xpnd_gd_zs",
-                "lr_wdi_sh_sta_stnt_zs",
-                "lr_wdi_sh_sta_maln_zs",
-                "lr_wdi_sl_tlf_totl_fe_zs",
-                "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_dyn_imrt_fe_in",
-            ],
-            "AsinhTransform": [
-                "lr_splag_1_ged_sb",
-                "lr_splag_1_ged_ns",
-                "lr_splag_1_ged_os",
-                "lr_ged_ns",
-                "lr_ged_os",
-                "lr_ged_sb_delta",
-                "lr_ged_ns_delta",
-                "lr_ged_os_delta",
-                "lr_wdi_ny_gdp_mktp_kd",
-                "lr_wdi_nv_agr_totl_kn",
-                "lr_wdi_sm_pop_refg_or",
-                "lr_wdi_dt_oda_odat_pc_zs",
-                "lr_wdi_sp_pop_grow",
-                "lr_wdi_sp_urb_totl_in_zs",
-                "lr_wdi_sm_pop_netm",
-                "lr_acled_sb", 
-                "lr_acled_sb_count",
-                "lr_acled_os",
-            ],
-        }]
+                "AsinhTransform->StandardScaler": [
+                    # Macro volumes: 5+ order-of-magnitude cross-country difference.
+                    # StandardScaler alone produces 50σ activations for large economies.
+                    "lr_wdi_ny_gdp_mktp_kd",
+                    "lr_wdi_nv_agr_totl_kn",
+                    # Zero-inflated with heavy right tail.
+                    "lr_wdi_sm_pop_refg_or",
+                    "lr_wdi_dt_oda_odat_pc_zs",
+                    # Signed, heavy tails both directions.
+                    "lr_wdi_sm_pop_netm",
+                    # Military % GDP: median ~1.5%, outliers at 10–25% (Saudi, NK).
+                    # StandardScaler alone → 5–10σ activations for outlier countries.
+                    "lr_wdi_ms_mil_xpnd_gd_zs",
+                    # Infant mortality: Finland ~1.5, Chad ~90 — ~2 orders of magnitude.
+                    # Strongly conflict-predictive; tail compression is essential.
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    # Stunting/malnutrition 2–55%: asinh compresses 27× range to 3.3×.
+                    # Right-skewed and conflict-predictive — tail signal matters.
+                    "lr_wdi_sh_sta_stnt_zs",
+                    "lr_wdi_sh_sta_maln_zs",
+
+                    # Rates and ratios without extreme skew or multi-order range.
+                    # Pop growth: near-normal, signed. Female labour: bell-shaped ~35–50%.
+                    # Enrolment ratio: clusters near 100. Urbanisation: near-uniform 10–90%.
+                    "lr_wdi_sp_pop_grow",
+                    "lr_wdi_sl_tlf_totl_fe_zs",
+                    "lr_wdi_se_enr_prim_fm_zs",
+                    "lr_wdi_sp_urb_totl_in_zs",
+
+                    # Heavy-tailed counts, spatial lags, deltas: zero-inflated,
+                    # 2–5 orders of magnitude cross-country range. asinh compresses
+                    # the tail before StandardScaler centres. Handles negatives
+                    # (deltas, net migration) as an odd function.
+                    "lr_splag_1_ged_sb",
+                    "lr_splag_1_ged_ns",
+                    "lr_splag_1_ged_os",
+                    "lr_ged_ns",
+                    "lr_ged_os",
+                    "lr_ged_sb_delta",
+                    "lr_ged_ns_delta",
+                    "lr_ged_os_delta",
+                    "lr_acled_sb",
+                    "lr_acled_sb_count",
+                    "lr_acled_os",
+                ],
+                "MinMaxScaler": [
+                    # V-Dem [0,1] IRT indices: IRT construction places empirical range
+                    # near the full [0,1] interval across ~200 countries. Many are
+                    # bimodal or heavily skewed (e.g. v2x_ex_military: most near 0,
+                    # some near 1). StandardScaler destroys this structure; MinMaxScaler
+                    # maps to [0,1] matching the index construction.
+                    "lr_vdem_v2x_horacc",
+                    "lr_vdem_v2x_veracc",
+                    "lr_vdem_v2x_diagacc",
+                    "lr_vdem_v2xnp_client",
+                    "lr_vdem_v2xnp_regcorr",
+                    "lr_vdem_v2xpe_exlpol",
+                    "lr_vdem_v2xpe_exlgeo",
+                    "lr_vdem_v2xpe_exlgender",
+                    "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_divparctrl",
+                    "lr_vdem_v2x_ex_party",
+                    "lr_vdem_v2x_ex_military",
+                    "lr_vdem_v2x_genpp",
+                    "lr_vdem_v2xeg_eqdr",
+                    "lr_vdem_v2xcl_prpty",
+                    "lr_vdem_v2xeg_eqprotec",
+                    "lr_vdem_v2xcl_dmove",
+                    "lr_vdem_v2x_clphy",
+                ],
+            }]
         },
         # ==============================================================================
         # TiDE ARCHITECTURE
@@ -153,7 +177,7 @@ def get_sweep_config():
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
         # RevIN denormalisation ŷ = ẑ·σ + μ. Safe even for sparse peace series.
         "use_reversible_instance_norm": {"values": [True]},
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
