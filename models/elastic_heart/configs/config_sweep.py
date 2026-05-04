@@ -96,21 +96,13 @@ def get_sweep_config():
                     # Signed, heavy tails both directions.
                     "lr_wdi_sm_pop_netm",
                 
-                    # Infant mortality: Finland ~1.5, Chad ~90 — ~2 orders of magnitude.
-                    # Strongly conflict-predictive; tail compression is essential.
-                    "lr_wdi_sp_dyn_imrt_fe_in",  
-
-                    # Stunting/malnutrition 2–55%: asinh compresses 27× range to 3.3×.
-                    # Right-skewed and conflict-predictive — tail signal matters.
-                    "lr_wdi_sh_sta_stnt_zs",
-                    "lr_wdi_sh_sta_maln_zs",
                     "lr_wdi_dt_oda_odat_pc_zs",
 
                     # Military % GDP: median ~1.5%, outliers at 10–25% (Saudi, NK).
                     # StandardScaler alone → 5–10σ activations for outlier countries.
                     "lr_wdi_ms_mil_xpnd_gd_zs",
                 ],
-                "MinMaxScaler": [
+                "PassThrough": [
                     # V-Dem [0,1] IRT indices: IRT construction places empirical range
                     # near the full [0,1] interval across ~200 countries. Many are
                     # bimodal or heavily skewed (e.g. v2x_ex_military: most near 0,
@@ -134,14 +126,26 @@ def get_sweep_config():
                     "lr_vdem_v2xeg_eqprotec",
                     "lr_vdem_v2xcl_dmove",
                     "lr_vdem_v2x_clphy",
-                    # Rates and ratios without extreme skew or multi-order range.
-                    # Pop growth: near-normal, signed.
+                ],
+                "StandardScaler": [
+                    # Zero is a meaningful inflection (growth vs contraction): mean-centering
+                    # preserves directional contrast for channel-mixing MLPs.
+                    # sp_pop_grow is signed; MinMaxScaler squashes −2% and +2% symmetrically
+                    # away from 0, destroying the contraction-vs-expansion signal.
                     "lr_wdi_sp_pop_grow",
-                    # Female labour: bell-shaped ~35–50%.
-                    # Enrolment ratio: clusters near 100. Urbanisation: near-uniform 10–90%.
+                    # Bounded positives (labour, enrolment, urbanisation): StandardScaler
+                    # centres the distribution — MLP distinguishes low/high by sign of z-score.
                     "lr_wdi_sl_tlf_totl_fe_zs",
                     "lr_wdi_se_enr_prim_fm_zs",
                     "lr_wdi_sp_urb_totl_in_zs",
+                ],
+                "AsinhTransform->MinMaxScaler": [
+                    # Right-skewed ratios with no meaningful zero: asinh compresses
+                    # the tail; MinMaxScaler maps empirical [min, max] → [0, 1].
+                    # MaxAbsScaler wastes bottom range when min >> 0.
+                    "lr_wdi_sp_dyn_imrt_fe_in",   # infant mortality [1.5, 90]
+                    "lr_wdi_sh_sta_stnt_zs",       # stunting % [2, 55]
+                    "lr_wdi_sh_sta_maln_zs",       # malnutrition % [2, 45]
                 ],
             }]
         },
