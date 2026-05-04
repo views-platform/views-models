@@ -1,54 +1,121 @@
 
 def get_hp_config():
     """
-    Contains the hyperparameter configurations for model training.
-    This configuration is "operational" so modifying these settings will impact the model's behavior during the training.
-
-    Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
+    TSMixer hyperparameters
+    https://wandb.ai/views_pipeline/elastic_heart_tsmixer_spotlight_v1_5_sweep/runs/v18ej41v
     """
-    
-    hyperparameters = {
-        'steps': [*range(1, 36 + 1, 1)],
-        "time_steps": 36,
-        
-        # classic-sweep-120
-        "activation": "Tanh",
-        "batch_size": 256,
-        "delta": 3.789929511070176,
-        "dropout": 0.4,
-        "early_stopping_patience": 5,
-        "false_negative_weight": 5.643294881537305,
-        "false_positive_weight": 24.57766839638798,
-        "feature_scaler": None,
-        "ff_size": 256,
-        "hidden_size": 128,
-        "input_chunk_length": 36,
-        "loss_function": "WeightedPenaltyHuberLoss",
-        "lr": 0.0000548349633455129,
-        "n_epochs": 10,
-        "non_zero_weight": 17.16365112650754,
-        "norm_type": "LayerNormNoBias",
-        "normalize_before": False,
-        "num_blocks": 1,
-        "target_scaler": "YeoJohnsonTransform",
-        "weight_decay": 0.005893888408985461,
-        "zero_threshold": 0.2163136317477652,
 
+    hyperparameters = {
+        # Temporal
+        "steps": [*range(1, 36 + 1, 1)],
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+        "rolling_origin_stride": 1,
 
-        "random_state": 1,
-        "optimizer_cls": "Adam",
-        "lr_scheduler_factor": 0.46,
-        "lr_scheduler_patience": 7,
-        "lr_scheduler_min_lr": 1e-05,
-        "early_stopping_min_delta": 0.01,
-        "gradient_clip_val": 1,
-
+        # Inference
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": False,
+        "n_jobs": -1,
+
+        # Training
+        "batch_size": 128,
+        "n_epochs": 300,
+        "early_stopping_patience": 30,
+        "early_stopping_min_delta": 0.0001,
+        "force_reset": True,
+
+        # Optimizer
+        "optimizer_cls": "AdamW",
+        "lr": 0.00010401786384220833,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 1.5,
+
+        # LR Scheduler
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 10,
+        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_kwargs": {
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 10,
+            "min_lr": 1e-6,
+        },
+        "optimizer_kwargs": {
+            "lr": 0.00010401786384220833,
+            "weight_decay": 1e-4,
+        },
+        "loss_function": "SpotlightLoss",
+        "delta": 0.06626759490952949,
+        "non_zero_threshold": 0.88,
+
+        # Scaling
+        "feature_scaler": None,
+        "target_scaler": "AsinhTransform",
+        "feature_scaler_map": {
+            "AsinhTransform": [
+                "lr_wdi_sp_dyn_imrt_fe_in",
+                "lr_wdi_sm_pop_refg_or",
+                "lr_wdi_ny_gdp_mktp_kd",
+                "lr_wdi_nv_agr_totl_kn",
+                "lr_splag_1_ged_sb",
+                "lr_splag_1_ged_ns",
+                "lr_splag_1_ged_os",
+                "lr_ged_ns",
+                "lr_ged_os",
+                "lr_ged_sb_delta",
+                "lr_ged_ns_delta",
+                "lr_ged_os_delta",
+                "lr_wdi_sm_pop_netm",
+                "lr_wdi_dt_oda_odat_pc_zs",
+                "lr_wdi_sp_pop_grow",
+                "lr_wdi_ms_mil_xpnd_gd_zs",
+                "lr_wdi_sh_sta_stnt_zs",
+                "lr_wdi_sh_sta_maln_zs",
+                "lr_wdi_sl_tlf_totl_fe_zs",
+                "lr_wdi_se_enr_prim_fm_zs",
+                "lr_wdi_sp_urb_totl_in_zs",
+                "lr_vdem_v2x_horacc",
+                "lr_vdem_v2x_veracc",
+                "lr_vdem_v2x_diagacc",
+                "lr_vdem_v2xnp_client",
+                "lr_vdem_v2xnp_regcorr",
+                "lr_vdem_v2xpe_exlpol",
+                "lr_vdem_v2xpe_exlgeo",
+                "lr_vdem_v2xpe_exlgender",
+                "lr_vdem_v2xpe_exlsocgr",
+                "lr_vdem_v2x_divparctrl",
+                "lr_vdem_v2x_ex_party",
+                "lr_vdem_v2x_ex_military",
+                "lr_vdem_v2x_genpp",
+                "lr_vdem_v2xeg_eqdr",
+                "lr_vdem_v2xcl_prpty",
+                "lr_vdem_v2xeg_eqprotec",
+                "lr_vdem_v2xcl_dmove",
+                "lr_vdem_v2x_clphy",
+            ],
+        },
+
+        # TSMixer Architecture
+        "num_blocks": 3,
+        "hidden_size": 256,
+        "ff_size": 256,
+        "activation": "GELU",
+        "norm_type": "LayerNorm",
+        "normalize_before": True,
+        "dropout": 0.25,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
+
+        # Static covariate stats: transform to asinh space before injection
+        "static_covariate_stats": {"transform": "AsinhTransform"},
+
+        "use_cyclic_encoders": True,
+
+        # Prediction output format
+        "prediction_format": "dataframe",
     }
     return hyperparameters

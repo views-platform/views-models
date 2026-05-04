@@ -1,1 +1,1 @@
-views-r2darts2>=1.0.0,<2.0.0
+views-r2darts2==0.1.0

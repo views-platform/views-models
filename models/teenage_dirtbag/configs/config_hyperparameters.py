@@ -10,64 +10,34 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
-        "time_steps": 36,
 
-        # "batch_size": 1024,
-        # "delta": 4.296149099765397,
-        # "dilation_base": 4,
-        # "dropout": 0.4,
-        # "early_stopping_patience": 6,
-        # "false_negative_weight": 6.636201942047831,
-        # "false_positive_weight": 9.75477950433154,
-        # "feature_scaler": "MinMaxScaler",
-        # "gradient_clip_val": 0.2,
-        # "input_chunk_length": 60,
-        # "kernel_size": 2,
-        # "loss_function": "WeightedPenaltyHuberLoss",
-        # "lr": 0.00000156636499165135,
-        # "n_epochs": 300,
-        # "non_zero_weight": 3.211420217955327,
-        # "num_filters": 4,
-        # "target_scaler": None,
-        # "use_reversible_instance_norm": True,
-        # "weight_decay": 0.009257262851648228,
-        # "weight_norm": False,
-        # "zero_threshold": 0.2668203820837245,
-
-        # rare-sweep-27
-        "batch_size": 1024,
-        "delta": 2.6838245979469986,
-        "dilation_base": 3,
-        "dropout": 0.1,
-        "early_stopping_patience": 6,
-        "false_negative_weight": 11.396522481793252,
-        "false_positive_weight": 12.338182270300305,
-        "feature_scaler": "MinMaxScaler",
-        "gradient_clip_val": 1,
-        "input_chunk_length": 60,
-        "kernel_size": 6,
-        "loss_function": "WeightedPenaltyHuberLoss",
-        "lr": 0.0006380485804969655,
-        "n_epochs": 300,
-        "non_zero_weight": 12.28959993228442,
-        "num_filters": 3,
-        "target_scaler": "MaxAbsScaler",
-        "use_reversible_instance_norm": True,
-        "weight_decay": 0.00003613582849676987,
-        "weight_norm": False,
-        "zero_threshold": 0.05638024262912267,
-
-        "output_chunk_length": 36,
-        "output_chunk_shift": 0,
-
-        "random_state": 1,
-        "optimizer_cls": "Adam",
-        "lr_scheduler_factor": 0.46,
-        "lr_scheduler_patience": 7,
-        "lr_scheduler_min_lr": 1e-05,
-        "early_stopping_min_delta": 0.01,
+        "use_cyclic_encoders": True,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+        "rolling_origin_stride": 1,
+        "n_jobs": -1,
+        "prediction_format": "dataframe",
+        "static_covariate_stats": {"transform": "AsinhTransform"},
 
         "num_samples": 1,
-        "mc_dropout": True,
+        "mc_dropout": False,
+
+        # gradient_clip_val=1.0: was 5.0, which allowed the model to learn
+        # ẑ≈9 in normalized space for OOD high-conflict inputs (e.g. Ukraine).
+        # RevIN denorm (×log1p(σ)+μ) + sinh then amplifies this to billions.
+        # clip=1.0 keeps weight norms conservative so OOD inputs can't produce
+        # extreme activations through 5 dilated conv layers.
+        "gradient_clip_val": 1.0,
+
+        # CAWR T_mult=2: exponentially growing cycles (25→50→100→200 epochs).
+        # T_mult=1 fires 12 LR restarts in 300 epochs; each spike temporarily
+        # overwhelms weight_decay on the weight_norm g parameter → g grows →
+        # RevIN denorm + sinh blowup. T_mult=2 gives only 3 restarts total.
+        "lr_scheduler_T_mult": 2,
+
+        # early_stopping_patience must exceed the longest early cycle.
+        # With T_mult=2 and T_0=25, cycle 2 spans epochs 25–75 (50 epochs),
+        # cycle 3 spans 75–175 (100 epochs). Patience < 100 can fire mid-cycle
+        # during the warmup trough and kill a valid training run prematurely.
+        "early_stopping_patience": 100,
     }
     return hyperparameters
