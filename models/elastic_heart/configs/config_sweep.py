@@ -149,15 +149,7 @@ def get_sweep_config():
         # ==============================================================================
         # TSMIXER ARCHITECTURE
         # ==============================================================================
-        # num_blocks=3 was the decisive factor in the winning run (MSLE=0.378 vs 0.404).
-        # train_loss=0.283 (3 blocks) vs 0.903 (2 blocks) with same ff/hidden/lr — 3 blocks
-        # give ~3× more feature compression across the static/past/future covariate streams.
-        # The previous concern about "3× amplification" didn't materialize with dropout=0.35.
         "num_blocks": {"values": [2, 3]},
-        # hidden=128 + ff=512: all 3 winning runs used these values (no overprediction).
-        # The previous concern about ff>hidden causing amplification was from a higher-lr/
-        # no-dropout regime. With dropout=0.35 and clip=2, ff=512 is safe and necessary —
-        # the FC layers need capacity to mix 45 features across covariate streams.
         "hidden_size": {"values": [128, 192]},
         "ff_size": {"values": [256, 384]},
         "normalize_before": {"values": [True]},
@@ -184,7 +176,7 @@ def get_sweep_config():
         "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         
         # ==============================================================================
-        # LOSS FUNCTION: PrismLoss v34
+        # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLoss"]},
         "non_zero_threshold": {"values": [0.88]}, 
