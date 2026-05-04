@@ -51,12 +51,12 @@ def get_sweep_config():
         # each drop gives the optimizer a fresh shot before committing to stop.
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
-        "lr_scheduler_factor": {"values": [0.7]},
-        "lr_scheduler_patience": {"values": [10]},
+        "lr_scheduler_factor": {"values": [0.5]},
+        "lr_scheduler_patience": {"values": [8]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
-                                            "factor": 0.7, 
-                                            "patience": 10, 
+                                            "factor": 0.5, 
+                                            "patience": 8, 
                                             "min_lr": 1e-6, 
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
