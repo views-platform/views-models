@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -148,62 +148,16 @@ def get_sweep_config():
         # ==============================================================================
         # TiDE ARCHITECTURE
         # ==============================================================================
-        # Country-month: fewer series (~200) but richer temporal structure.
-        # Need sufficient capacity to model diverse country trajectories.
-        # num_encoder_layers: Das et al. (2023) TiDE paper uses N_e=2 as default.
-        # Single encoder compresses the full (icl×features) representation in one
-        # pass; a second layer creates a disentangled intermediate separating
-        # structural country state (slow) from conflict onset signal (spiky/rare).
-        # Bengio et al. (2013): deeper encoders produce more separable representations
-        # for co-occurring patterns.
-        # num_encoder_layers: Single layer compresses (icl×features) in one pass —
-        # cannot disentangle structural country state from conflict onset signal.
-        # 2–3 layers create an intermediate bottleneck where these separate.
         "num_encoder_layers": {"values": [2, 3]},
-        # num_decoder_layers: Shallow decoders produce smooth mean-reversion outputs.
-        # For ocl=36, generating conflict onsets (bursty) vs. sustained conflict
-        # vs. peace-return requires 3 layers to shape the full output trajectory.
         "num_decoder_layers": {"values": [2, 3]},
-        # decoder_output_dim: Dimensionality of the decoder output before
-        # the temporal decoder. 32-64 is typical; 16 is the Darts default.
-        # decoder_output_dim: Replicated across all ocl=36 output steps — temporal
-        # decoder input is (decoder_output_dim × 36). At dim=128: 4,608-dim input
-        # with ~200 training series → overfitting conflict-active window patterns.
-        # Das et al. use 32 on larger datasets; 64 is the practical ceiling here.
-        # decoder_output_dim: At dim=16, ocl=36: only 2.25 channels per timestep —
-        # insufficient to simultaneously encode event presence and event shape.
-        # 32 minimum viable; 64 gives headroom without overfitting (regularised
-        # by temporal_decoder_hidden bottleneck + dropout + weight_decay).
         "decoder_output_dim": {"values": [32, 64]},
-        # hidden_size: SWEPT. Country-level needs capacity for ~200 diverse
-        # trajectories. 256 is minimum viable, 512 gives headroom.
-        # 768 dropped: Kim et al. (2021) RevIN shows over-parameterized models in
-        # heterogeneous multi-series settings collapse to the dominant mode (~95%
-        # zeros). 512 is already generous; 768 adds parameters without additional
-        # training series to constrain them.
         "hidden_size": {"values": [256, 512]},
-        # temporal_width_past: Per-timestep projection of ~44 past features.
-        # 12 forces a 3.7:1 compression per timestep; conflict splag/delta features
-        # compete with structural features (V-Dem, WDI) for bandwidth. 24 doubles
-        # per-timestep capacity into the encoder, preserving more conflict signal.
-        # temporal_width_past: 44 features → 12 dims is 3.7:1 compression —
-        # conflict splag/delta signals compete with structural features for bandwidth.
-        # 24–36 preserves more conflict signal through the encoder.
+        # temporal_width_past: per‑timestep projection of ~44 features.
+        # 24 is a reasonable compression ratio for conflict features.
         "temporal_width_past": {"values": [24]},
-        # temporal_width_future: Future covariates = cyclic encoders only (~4 features).
-        # Projecting 4 features to 8 dims adds noise, not signal. Match input dim.
         "temporal_width_future": {"values": [4, 8]},
-        # temporal_decoder_hidden: MLP input = decoder_output_dim + temporal_width_future
-        # = at most 64+8=72 dims. 512 is a 7× expansion of a 72-dim input with 200 series.
-        # 128 is appropriate (1.8× expansion); 256 provides headroom for wider configs.
         "temporal_decoder_hidden": {"values": [128, 256]},
-        # temporal_hidden_size_past: ResBlock hidden for ~44 past features → temporal_width_past.
-        # 64 is a 1.5× expansion before compressing to 12-24; 128 provides more capacity.
-        # Sweep both: Bayes will select per hidden_size config.
         "temporal_hidden_size_past": {"values": [64, 128]},
-        # temporal_hidden_size_future: ResBlock hidden for ~4-8 cyclic future features.
-        # 128 is a 16-32× expansion of 4-8 features — vastly over-parameterized.
-        # Scale with feature count: 32-64 is appropriate.
         "temporal_hidden_size_future": {"values": [32]},
         # ==============================================================================
         # REGULARIZATION
