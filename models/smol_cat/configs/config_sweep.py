@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_shadow_20260504",
+        "name": "smol_cat_tide_shadow_20260504_B",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36]},
+        "input_chunk_length": {"values": [48]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -63,7 +63,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.0, 3.0, 5.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -100,16 +100,7 @@ def get_sweep_config():
                 
                     # Infant mortality: Finland ~1.5, Chad ~90 — ~2 orders of magnitude.
                     # Strongly conflict-predictive; tail compression is essential.
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    
-                    # Rates and ratios without extreme skew or multi-order range.
-                    # Pop growth: near-normal, signed.
-                    "lr_wdi_sp_pop_grow",
-                    # Female labour: bell-shaped ~35–50%.
-                    # Enrolment ratio: clusters near 100. Urbanisation: near-uniform 10–90%.
-                    "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs",
-                    "lr_wdi_sp_urb_totl_in_zs",
+                    "lr_wdi_sp_dyn_imrt_fe_in",  
 
                     # Stunting/malnutrition 2–55%: asinh compresses 27× range to 3.3×.
                     # Right-skewed and conflict-predictive — tail signal matters.
@@ -145,6 +136,14 @@ def get_sweep_config():
                     "lr_vdem_v2xeg_eqprotec",
                     "lr_vdem_v2xcl_dmove",
                     "lr_vdem_v2x_clphy",
+                    # Rates and ratios without extreme skew or multi-order range.
+                    # Pop growth: near-normal, signed.
+                    "lr_wdi_sp_pop_grow",
+                    # Female labour: bell-shaped ~35–50%.
+                    # Enrolment ratio: clusters near 100. Urbanisation: near-uniform 10–90%.
+                    "lr_wdi_sl_tlf_totl_fe_zs",
+                    "lr_wdi_se_enr_prim_fm_zs",
+                    "lr_wdi_sp_urb_totl_in_zs",
                 ],
             }]
         },
@@ -176,13 +175,13 @@ def get_sweep_config():
         # dropout: With Barron(1.5) providing stronger gradient flow than log_cosh,
         # lower dropout preserves conflict-onset gradient signal through the network.
         # 0.30 was tuned for log_cosh's saturating gradient; Barron tolerates less.
-        "dropout": {"values": [0.20, 0.30]},
+        "dropout": {"values": [0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
         # RevIN on: SpotlightLoss DC/AC decomposition zeroes out per-series shape
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
         # RevIN denormalisation ŷ = ẑ·σ + μ. Safe even for sparse peace series.
         "use_reversible_instance_norm": {"values": [True]},
-        "loss_function": {"values": ["SpotlightLossLogcosh"]},
+        "loss_function": {"values": ["SpotlightLoss"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
