@@ -91,7 +91,7 @@ def get_sweep_config():
                     "lr_acled_sb_count",
                     "lr_acled_os",
                 ],
-                None: [
+                "PassThrough": [
                     "lr_vdem_v2x_horacc",
                     "lr_vdem_v2x_veracc",
                     "lr_vdem_v2x_diagacc",
