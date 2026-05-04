@@ -11,7 +11,7 @@ def get_meta_config():
         "models": ["bad_romance", "cold_heart", "free_fallin"], # "revolving_door", "new_rules"
         "regression_targets": ["lr_ged_sb"],
         "level": "cm", 
-        "aggregation": "mean",
+        "aggregation": "concat",
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
