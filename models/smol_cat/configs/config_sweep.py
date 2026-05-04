@@ -71,7 +71,23 @@ def get_sweep_config():
         "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [{
-                "AsinhTransform->StandardScaler": [
+                "AsinhTransform->MaxAbsScaler": [
+                    # Conflict counts, spatial lags, deltas: zero-inflated,
+                    # 2–5 orders of magnitude cross-country range. asinh compresses
+                    # the tail; MaxAbsScaler maps to [0,1] preserving zero=0 anchor
+                    # and full proportional tail discrimination (no mean-shift).
+                    "lr_splag_1_ged_sb",
+                    "lr_splag_1_ged_ns",
+                    "lr_splag_1_ged_os",
+                    "lr_ged_ns",
+                    "lr_ged_os",
+                    "lr_ged_sb_delta",
+                    "lr_ged_ns_delta",
+                    "lr_ged_os_delta",
+                    "lr_acled_sb",
+                    "lr_acled_sb_count",
+                    "lr_acled_os",
+
                     # Macro volumes: 5+ order-of-magnitude cross-country difference.
                     # StandardScaler alone produces 50σ activations for large economies.
                     "lr_wdi_ny_gdp_mktp_kd",
@@ -104,23 +120,6 @@ def get_sweep_config():
                     # Military % GDP: median ~1.5%, outliers at 10–25% (Saudi, NK).
                     # StandardScaler alone → 5–10σ activations for outlier countries.
                     "lr_wdi_ms_mil_xpnd_gd_zs",
-                ],
-                "AsinhTransform->MaxAbsScaler": [
-                    # Conflict counts, spatial lags, deltas: zero-inflated,
-                    # 2–5 orders of magnitude cross-country range. asinh compresses
-                    # the tail; MaxAbsScaler maps to [0,1] preserving zero=0 anchor
-                    # and full proportional tail discrimination (no mean-shift).
-                    "lr_splag_1_ged_sb",
-                    "lr_splag_1_ged_ns",
-                    "lr_splag_1_ged_os",
-                    "lr_ged_ns",
-                    "lr_ged_os",
-                    "lr_ged_sb_delta",
-                    "lr_ged_ns_delta",
-                    "lr_ged_os_delta",
-                    "lr_acled_sb",
-                    "lr_acled_sb_count",
-                    "lr_acled_os",
                 ],
                 "MinMaxScaler": [
                     # V-Dem [0,1] IRT indices: IRT construction places empirical range
