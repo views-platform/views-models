@@ -4,7 +4,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_shadow_20260504_B",
+        "name": "revolving_door_nhits_shadow_20260504_C",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -62,7 +62,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [3.0, 5.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -149,39 +149,13 @@ def get_sweep_config():
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
-        # Pooling kernel rationale (icl=48):
-        #   kernel=4  → 48/4  = 12 quarterly groups (4 per annual cycle — cleanly
-        #              resolves annual seasonality by Nyquist; pool=6 gave only 2.67
-        #              points/cycle, barely Nyquist with misaligned phase)
-        #   kernel=2  → 48/2  = 24 bi-monthly groups (sub-quarterly detail)
-        #   kernel=1  → 48 raw monthly steps        (fine stack always unpooled)
-        # n_freq_downsample rationale (ocl=36, independent of icl):
-        #   fd=3 → 36/3 = 12 basis functions (trend + 5 harmonics + conflict patterns;
-        #          fd=6 left only 4 slots after DC+trend — no room for conflict dynamics)
-        #   fd=2 → 36/2 = 18 basis functions (sub-quarterly detail)
-        #   fd=1 → 36/1 = 36 basis functions (full monthly)
         "num_stacks": {"values": [3]},
-        "pooling_kernel_sizes": {"values": [[[4],[2],[1]]]},
-        "n_freq_downsample": {"values": [[[3],[2],[1]]]},  # Darts requires fd[-1][-1]==1. Fine stack is full-rank; regularization via dropout/wd/width instead.
-        "max_pool_1d": {"values": [False]},  # True causes spike propagation via max-pooling on sparse conflict data (confirmed Run 2)
+        "pooling_kernel_sizes": {"values": [[[4],[2],[1]], [[6],[3],[1]]]},
+        "n_freq_downsample": {"values": [[[3],[2],[1]], [[6],[3],[1]]]},
+        "max_pool_1d": {"values": [False]}, 
         "activation": {"values": ["GELU"]},
-        # num_blocks/num_layers/layer_widths: Darts defaults are 1 block, 2 layers,
-        # 512 width per stack. num_blocks fixed at 1: zero-inflation is addressed by
-        # SpotlightLoss+AsinhTransform, not within-stack depth. num_blocks=2 requires
-        # paired pooling/downsampling tuples per stack and overfits sparse peace series.
-        # Capacity is swept via layer_widths instead.
-        # num_blocks fixed at 1: Bayes sweeps pick num_blocks and
-        # pooling_kernel_sizes independently. num_blocks=2 requires paired tuples
-        # per stack (e.g. [[6,6],[3,3],[1,1]]) — incompatible with [[6],[3],[1]].
-        # Architecturally: within-stack depth is redundant here; SpotlightLoss +
-        # AsinhTransform handle zero-inflation. Capacity is swept via layer_widths.
         "num_blocks": {"values": [1]},
-        # num_layers: Pinned at 3. Width is the primary capacity knob; sweeping
-        # both width and depth creates an interaction Bayes can't resolve efficiently.
-        "num_layers": {"values": [3]},
-        # layer_widths: 768 gives ~5M params for ~48K training samples (14:1 ratio)
-        # → severe overfitting risk. 256–512 is the right range with RevIN fixing
-        # the mean bias, reducing the capacity needed to correct overprediction.
+        "num_layers": {"values": [3, 4]},
         "layer_widths": {"values": [256, 512]},
         # ==============================================================================
         # REGULARIZATION
@@ -195,7 +169,7 @@ def get_sweep_config():
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},

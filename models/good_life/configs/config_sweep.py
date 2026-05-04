@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_shadow_202605034_A",
+        "name": "good_life_transformer_shadow_202605034_C",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},  # Rungs at 30,90,270. min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -56,7 +56,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.0, 2.0]},
+        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -143,20 +143,9 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        # d_model=128 confirmed: broke the v26 event_ratio=0.58 plateau.
-        # Run 3 (d_model=128, nhead=4, icl=48, ReLU): event_ratio=0.878 — best
-        # calibration ever seen. d_model=256 generated excess capacity for 90%
-        # zero-inflated data; 128 = 2.7× expansion from 48 features, sufficient.
-        # d_model=128, nhead=4 → head_dim=32 ✓
         "d_model": {"values": [128]}, 
-        # nhead: locked at 4. With d_model=128, nhead=8 → head_dim=16 — too coarse.
-        # Run 1 (nhead=8, icl=36): event_ratio=1.517 (52% overprediction). Each head
-        # projects only 16 dims from 48 positions, creating noisy attention patterns
-        # that amplify conflict signals rather than precisely attending to them.
-        # nhead=4 → head_dim=32 gives sufficient resolution for lag-1 persistence,
-        # lag-12 seasonality, and escalation onset patterns.
         "nhead": {"values": [4]},
-        "num_encoder_layers": {"values": [2, 3]},
+        "num_encoder_layers": {"values": [2, 3, 4]},
         "dim_feedforward": {"values": [256, 512]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm", "RMSNorm"]},
@@ -168,7 +157,7 @@ def get_sweep_config():
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLossLogcosh
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},

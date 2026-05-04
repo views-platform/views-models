@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260504_B",
+        "name": "new_rules_nbeats_shadow_20260504_C",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -66,7 +66,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [3.0, 5.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -199,7 +199,7 @@ def get_sweep_config():
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss v36 (DRO)
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         # "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},

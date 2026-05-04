@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_shadow_20260504_B",
+        "name": "smol_cat_tide_shadow_20260504_C",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -63,7 +63,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -181,7 +181,7 @@ def get_sweep_config():
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
         # RevIN denormalisation ŷ = ẑ·σ + μ. Safe even for sparse peace series.
         "use_reversible_instance_norm": {"values": [True]},
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},

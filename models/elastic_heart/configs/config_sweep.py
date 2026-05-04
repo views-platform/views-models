@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260504_B",
+        "name": "elastic_heart_tsmixer_shadow_20260504_C",
         "early_terminate": {
             "type": "hyperband",
             # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
@@ -150,8 +150,11 @@ def get_sweep_config():
         # TSMIXER ARCHITECTURE
         # ==============================================================================
         "num_blocks": {"values": [2, 3]},
-        "hidden_size": {"values": [128, 192]},
-        "ff_size": {"values": [256, 384]},
+        "hidden_size": {"values": [128, 192, 256]},
+        # ff_size <= hidden_size: ratio > 1 expands activations in feature-mix FFN.
+        # With 90% zeros, GELU asymmetrically amplifies conflict tokens → overprediction.
+        # Ratio=1 routes features without expanding; sufficient for conflict pattern routing.
+        "ff_size": {"values": [128, 192, 256]},
         "normalize_before": {"values": [True]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
@@ -161,7 +164,7 @@ def get_sweep_config():
         # ==============================================================================
         # dropout=0.35 won both top runs. Values below 0.30 are underfitting for 200 series;
         # 0.15/0.20 dropped from search space as confirmed suboptimal.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.25, 0.35, 0.45]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         
@@ -169,16 +172,18 @@ def get_sweep_config():
         # STATIC COVARIATE STATS
         # ==============================================================================
         # Per-entity fingerprint stats (mu, sigma, max, trend, sparsity) are
-        # injected as static covariates. Raw stats have 38,000× scale mismatch
-        # with asinh model space (Syria max=500k vs asinh=13). AsinhTransform
-        # compresses them to the same ~[0,14] range as model internals, making
-        # the joint LayerNorm inside feature_mixing_static meaningful.
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # injected as static covariates into every TSMixer block via feature_mixing_static.
+        # AsinhTransform alone leaves Syria mu≈5.3 vs peaceful countries at 0 — this
+        # persistent 5× gap is injected at every block, biasing predictions upward
+        # for high-conflict countries and causing systematic overprediction in the
+        # 5–50 death range. MaxAbsScaler maps to [0,1]: Syria=1.0, peace=~0,
+        # preserving relative order with no structural positive push.
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
-        "loss_function": {"values": ["SpotlightLoss"]},
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
