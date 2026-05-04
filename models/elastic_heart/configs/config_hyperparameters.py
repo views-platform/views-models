@@ -111,7 +111,7 @@ def get_hp_config():
         "use_reversible_instance_norm": True,
 
         # Static covariate stats: transform to asinh space before injection
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
 
         "use_cyclic_encoders": True,
 
