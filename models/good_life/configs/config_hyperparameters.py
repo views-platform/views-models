@@ -106,7 +106,7 @@ def get_hp_config():
 
         # Encoders
         "use_cyclic_encoders": True,
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
         # Prediction output format
         "prediction_format": "dataframe",
     }

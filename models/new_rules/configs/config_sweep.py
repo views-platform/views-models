@@ -42,12 +42,11 @@ def get_sweep_config():
         # OPTIMIZER
         # ==============================================================================
         "lr": {"values": [5e-4, 2e-4]},
-        # WD ceiling capped at 1e-4: RLROP decays LR to 6e-5 after 3 reductions
-        # (5e-4 × 0.5³). At WD=1e-3, decoupled weight decay is 16× the LR —
-        # N-BEATS basis expansion (θ_b layer) is sensitive: high WD late in training
-        # collapses the basis toward zero, forcing outputs toward the series mean
-        # (peace) and losing conflict oscillation signal.
-        "weight_decay": {"values": [1e-4, 5e-5]},
+        # WD range [2e-4, 1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. No LayerNorm —
+        # explicit WD is the primary regularizer against per-country basis memorization.
+        # WD=2e-4 is 3.3× floor; θ_b basis vectors contract moderately, keeping outputs
+        # from collapsing toward series mean. Upper bound: WD > 2e-4 collapses basis.
+        "weight_decay": {"values": [2e-4, 1e-4, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER: ReduceLROnPlateau
         # RLROP on val_loss: val_loss (test partition, frozen scalers) is significantly
@@ -125,71 +124,17 @@ def get_sweep_config():
                     "lr_wdi_sh_sta_stnt_zs",      # Stunting
                     "lr_wdi_sh_sta_maln_zs",      # Malnutrition
                 ],
-            }, {
-                # Candidate B: MinMaxScaler — original flat structure.
-                # V-Dem, rates, sp_pop_grow all in one [0,1] space; conflict via Asinh->MaxAbs.
-                # Kept as A/B sweep baseline: internally consistent even if per-feature scaling is suboptimal.
-                "AsinhTransform->MaxAbsScaler": [
-                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
-                    "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs",
-                    "lr_wdi_ms_mil_xpnd_gd_zs",
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    "lr_wdi_sh_sta_stnt_zs",
-                    "lr_wdi_sh_sta_maln_zs",
-                ],
-                "MinMaxScaler": [
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
-                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
-                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
-                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
-                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
-                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
-                    "lr_vdem_v2x_clphy",
-                    "lr_wdi_sp_pop_grow",
-                    "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs",
-                    "lr_wdi_sp_urb_totl_in_zs",
-                ],
-            }]
+            }],
         },
         # ==============================================================================
         # N-BEATS ARCHITECTURE
         # ==============================================================================
-        # generic_architecture: True uses generic basis (learnable), False
-        # uses interpretable trend+seasonality decomposition. Generic is
-        # more flexible for conflict data which lacks clean seasonality.
         "generic_architecture": {"values": [True]},
-        # num_stacks: Number of stacks. Each stack processes the residual
-        # from the previous. 2 is standard for generic, more adds capacity.
-        # num_stacks: Fixed at 2. 3 adds ~50% params with marginal gain for
-        # conflict data — N-BEATS residual path saturates fast. Saves search space.
-        "num_stacks": {"values": [2]},
-        # num_blocks: Locked at 2. num_blocks=1 is confirmed capacity-limited —
-        # cannot route amplified β gradient into per-country differentiation.
-        # Two sweep runs with num_blocks=1 both underpredict events at ~41-46%
-        # despite different β values.
+        "num_stacks": {"values": [2, 3]},
         "num_blocks": {"values": [2]},
-        # num_layers: Fixed at 3. nl=3 outperformed nl=4 in sweep data
-        # (MSLE 0.54 vs 0.63 at same width). Deeper blocks overfit ~200 series.
         "num_layers": {"values": [3]},
-        # layer_widths: 256 validated. Adding 512 — N-BEATS is purely FC,
-        # extra depth capacity helps on conflict series with layer_widths=512
-        # remaining safe at ed=20-24 (basis matrix stays low-rank vs widths).
-        "layer_widths": {"values": [128, 256, 512]},
-        # expansion_coefficient_dim: basis rank in R^36.
-        # ed=20 won both top runs (MSLE 0.416/0.418) vs ed=16 (MSLE 0.419).
-        # ed=24 (67% of output_chunk_length): richer temporal mixture without full-rank overfitting.
-        # ed=12/16 confirmed suboptimal — removed.
+        "layer_widths": {"values": [128, 256]},
         "expansion_coefficient_dim": {"values": [8, 16, 24]},
-        # trend_polynomial_degree: Only used in interpretable mode.
-        # Included for completeness; irrelevant when generic=True.
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU", "ReLU"]},
@@ -212,7 +157,8 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         # "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
-        "delta": {"values": [0.075]},
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

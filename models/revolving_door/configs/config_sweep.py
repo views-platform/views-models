@@ -38,11 +38,11 @@ def get_sweep_config():
         # OPTIMIZER
         # ==============================================================================
         "lr": {"values": [5e-4, 2e-4]},
-        # WD ceiling capped at 1e-4: RLROP decays LR to 6e-5 after 3 reductions
-        # (5e-4 × 0.5³). At WD=1e-3, decoupled weight decay is 16× the LR —
-        # N-HiTS has no LayerNorm so WD-driven parameter shrinkage is unmitigated —
-        # collapses the hierarchical basis late in training, inflating val MSLE.
-        "weight_decay": {"values": [1e-4, 5e-5]},
+        # WD range [2e-4, 1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. No LayerNorm —
+        # explicit WD is the primary regularizer. WD=2e-4 is 3.3× floor (acceptable
+        # for MLP stacks without self-correction). Wide range needed: N-HiTS pooling
+        # stack benefits from stronger WD on deep runs to prevent per-country overfitting.
+        "weight_decay": {"values": [2e-4, 1e-4, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER: ReduceLROnPlateau
         # RLROP on val_loss: val_loss (test partition, frozen scalers) is significantly
@@ -120,47 +120,15 @@ def get_sweep_config():
                     "lr_wdi_sh_sta_stnt_zs",      # Stunting
                     "lr_wdi_sh_sta_maln_zs",      # Malnutrition
                 ],
-            }, {
-                # Candidate B: MinMaxScaler — original flat structure.
-                # V-Dem, rates, sp_pop_grow all in one [0,1] space; conflict via Asinh->MaxAbs.
-                # Kept as A/B sweep baseline: internally consistent even if per-feature scaling is suboptimal.
-                "AsinhTransform->MaxAbsScaler": [
-                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
-                    "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs",
-                    "lr_wdi_ms_mil_xpnd_gd_zs",
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    "lr_wdi_sh_sta_stnt_zs",
-                    "lr_wdi_sh_sta_maln_zs",
-                ],
-                "MinMaxScaler": [
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
-                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
-                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
-                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
-                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
-                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
-                    "lr_vdem_v2x_clphy",
-                    "lr_wdi_sp_pop_grow",
-                    "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs",
-                    "lr_wdi_sp_urb_totl_in_zs",
-                ],
-            }]
+            }],
         },
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
         "num_stacks": {"values": [3]},
-        "pooling_kernel_sizes": {"values": [[[4],[2],[1]], [[6],[3],[1]]]},
-        "n_freq_downsample": {"values": [[[3],[2],[1]], [[6],[3],[1]]]},
-        "max_pool_1d": {"values": [False]}, 
+        "pooling_kernel_sizes": {"values": [[[4],[2],[1]]]},
+        "n_freq_downsample": {"values": [[[3],[2],[1]]]},
+        "max_pool_1d": {"values": [False, True]}, 
         "activation": {"values": ["GELU"]},
         "num_blocks": {"values": [1]},
         "num_layers": {"values": [3, 4]},
@@ -180,7 +148,8 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
         "use_cyclic_encoders": {"values": [True]},

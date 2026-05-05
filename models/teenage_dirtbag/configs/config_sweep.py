@@ -46,11 +46,11 @@ def get_sweep_config():
         # 5e-4 is too conservative for 32-filter runs to show signal at epoch 25.
         # 1e-3 allows fast early convergence for small capacity; gradient ceiling
         # is handled by gradient_clip_val — see note there.
-        "lr": {"values": [1e-3, 5e-4]},
-        "weight_decay": {"values": [1e-4]},
-        # ==============================================================================
-        # LR SCHEDULER
-        # ==============================================================================
+        "lr": {"values": [1e-3, 5e-4, 2e-4]},
+        # WD range [1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. weight_norm already
+        # provides implicit regularization per conv filter. WD=1e-4 is 1.7× floor —
+        # mild AdamW shrinkage without fighting weight_norm's scale normalization.
+        "weight_decay": {"values": [1e-4, 5e-5]},
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
         "lr_scheduler_patience": {"values": [8]},
@@ -115,39 +115,7 @@ def get_sweep_config():
                     "lr_wdi_sh_sta_stnt_zs",      # Stunting
                     "lr_wdi_sh_sta_maln_zs",      # Malnutrition
                 ],
-            }, {
-                # Candidate B: MinMaxScaler — original flat structure.
-                # V-Dem, rates, sp_pop_grow all in one [0,1] space; conflict via Asinh->MaxAbs.
-                # Kept as A/B sweep baseline: internally consistent even if per-feature scaling is suboptimal.
-                "AsinhTransform->MaxAbsScaler": [
-                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
-                    "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs",
-                    "lr_wdi_ms_mil_xpnd_gd_zs",
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    "lr_wdi_sh_sta_stnt_zs",
-                    "lr_wdi_sh_sta_maln_zs",
-                ],
-                "MinMaxScaler": [
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
-                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
-                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
-                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
-                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
-                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
-                    "lr_vdem_v2x_clphy",
-                    "lr_wdi_sp_pop_grow",
-                    "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs",
-                    "lr_wdi_sp_urb_totl_in_zs",
-                ],
-            }]
+            }],
         },
         # ==============================================================================
         # TCN ARCHITECTURE
@@ -155,27 +123,21 @@ def get_sweep_config():
         "kernel_size": {"values": [3, 5]},
         "num_filters": {"values": [32, 64]},
         "dilation_base": {"values": [2]},
-        "num_layers": {"values": [4, 5]},
+        "num_layers": {"values": [4]},
         "weight_norm": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        # Dropout: TCN applies spatial dropout between conv layers.
-        # Floor lowered to 0.15 vs previous logcosh sweeps: clip=1.0 + weight_norm
-        # together guard against blowup, so high dropout is no longer needed as a
-        # blowup prevention mechanism. Lower dropout allows 32-filter runs to retain
-        # enough conflict-signal routing for Hyperband survival at epoch 25.
-        # 0.35 ceiling maintained to prevent capacity overfitting on the 10% non-zero
-        # conflict series — Bayesian sweep resolves the tradeoff.
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        "dropout": {"values": [0.15, 0.25]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLossLogcosh
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
