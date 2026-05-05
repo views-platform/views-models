@@ -84,10 +84,11 @@ def get_sweep_config():
                     "lr_wdi_ms_mil_xpnd_gd_zs",
                 ],
                 
-                # Group 2: Signal Centering (Indices & Rates)
-                # StandardScaler centers inputs to mean=0 for optimal Kaiming init & gradient symmetry.
-                "StandardScaler": [
-                    # Political Indices (Centering enables learning "regime shift" vs absolute level)
+                # Group 2: V-Dem IRT indices — already [0,1] by construction.
+                # PassThrough keeps them at native scale, commensurate with
+                # MaxAbsScaler's [-1, 1] output. StandardScaler would amplify
+                # to ±2.5 (σ≈0.2), drowning conflict signal in feature-mixing layers.
+                "PassThrough": [
                     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
                     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
                     "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
@@ -97,8 +98,11 @@ def get_sweep_config():
                     "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
                     "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
                     "lr_vdem_v2x_clphy",
-                    
-                    # Signed/Bounded Rates (Preserving growth/decline directionality)
+                ],
+                # Group 3: Signed/bounded rates — centering preserves directionality.
+                # sp_pop_grow is signed (±4%); others are bounded positives where
+                # z-score sign encodes below/above population average.
+                "StandardScaler": [
                     "lr_wdi_sp_pop_grow", "lr_wdi_sl_tlf_totl_fe_zs",
                     "lr_wdi_se_enr_prim_fm_zs", "lr_wdi_sp_urb_totl_in_zs",
                 ],
