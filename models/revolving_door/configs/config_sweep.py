@@ -118,7 +118,7 @@ def get_sweep_config():
         "num_stacks": {"values": [3]},
         "pooling_kernel_sizes": {"values": [[[4],[2],[1]]]},
         "n_freq_downsample": {"values": [[[3],[2],[1]]]},
-        "max_pool_1d": {"values": [False]}, 
+        "max_pool_1d": {"values": [False, True]}, 
         "activation": {"values": ["GELU"]},
         # num_blocks: pinned to 1. pooling_kernel_sizes and n_freq_downsample
         # require inner tuples of length == num_blocks per stack — they cannot

@@ -117,7 +117,7 @@ def get_sweep_config():
         "num_filters": {"values": [32, 64]},
         "dilation_base": {"values": [2]},
         "num_layers": {"values": [3, 4]},
-        "weight_norm": {"values": [False]},
+        "weight_norm": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
@@ -134,7 +134,7 @@ def get_sweep_config():
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "use_cyclic_encoders": {"values": [True, False]},
+        "use_cyclic_encoders": {"values": [True]},
     }
 
     sweep_config["parameters"] = parameters
