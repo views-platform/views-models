@@ -129,7 +129,7 @@ def get_sweep_config():
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "use_cyclic_encoders": {"values": [True, False]},
+        "use_cyclic_encoders": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters
