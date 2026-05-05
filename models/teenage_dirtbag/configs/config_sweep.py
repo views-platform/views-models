@@ -113,7 +113,7 @@ def get_sweep_config():
         "dilation_base": {"values": [2]},
         "num_layers": {"values": [4]},
         "weight_norm": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [True, False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
