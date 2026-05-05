@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260504_D",
+        "name": "elastic_heart_tsmixer_shadow_20260504_E",
         "early_terminate": {
             "type": "hyperband",
             # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
@@ -121,7 +121,7 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.15, 0.35, 0.35]},
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         
