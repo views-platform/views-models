@@ -42,8 +42,12 @@ def get_sweep_config():
         # OPTIMIZER
         # ==============================================================================
         "lr": {"values": [5e-4, 2e-4]},
-        # wd=1e-3: at lr=5e-4, effective wd/step = 5e-7 — sufficient for ~200 series.
-        "weight_decay": {"values": [1e-3, 1e-4]},
+        # WD ceiling capped at 1e-4: RLROP decays LR to 6e-5 after 3 reductions
+        # (5e-4 × 0.5³). At WD=1e-3, decoupled weight decay is 16× the LR —
+        # N-BEATS basis expansion (θ_b layer) is sensitive: high WD late in training
+        # collapses the basis toward zero, forcing outputs toward the series mean
+        # (peace) and losing conflict oscillation signal.
+        "weight_decay": {"values": [1e-4, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER: ReduceLROnPlateau
         # RLROP on val_loss: val_loss (test partition, frozen scalers) is significantly
@@ -66,7 +70,9 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # clip=5.0 removed: N-BEATS has no LayerNorm — 5.0 allows gradient spikes
+        # that can blow through the FC stack without self-correction.
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -92,7 +98,7 @@ def get_sweep_config():
                 # PassThrough keeps them at native scale, commensurate with
                 # MaxAbsScaler's [-1, 1] output. StandardScaler would amplify
                 # to ±2.5 (σ≈0.2), drowning conflict signal in feature-mixing layers.
-                "PassThrough": [
+                "MinMaxScaler": [
                     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
                     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
                     "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
@@ -113,10 +119,13 @@ def get_sweep_config():
                 
                 # Group 3: Tail-Bounded Compression (Strictly Positive Indicators)
                 # Asinh handles skew; MinMax utilizes full [0, 1] range since min >> 0.
-                "AsinhTransform->MinMaxScaler": [
-                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
-                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
-                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
+                "MaxAbsScaler": [
+                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
+                ],
+                "StandardScaler->MinMaxScaler": [
+                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
+                    "lr_wdi_se_enr_prim_fm_zs",    
+                    "lr_wdi_sp_urb_totl_in_zs",    
                 ],
             }]
         },

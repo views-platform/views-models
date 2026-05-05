@@ -43,8 +43,11 @@ def get_sweep_config():
         # OPTIMIZER
         # ==============================================================================
         "lr": {"values": [5e-4, 2e-4]},
-        # wd=1e-3: at lr=5e-4, effective wd/step = 5e-7 — sufficient for ~200 series.
-        "weight_decay": {"values": [1e-3, 1e-4]},
+        # WD ceiling capped at 1e-4: RLROP decays LR to 6e-5 after 3 reductions
+        # (5e-4 × 0.5³). At WD=1e-3, decoupled weight decay is 16× the LR —
+        # parameter shrinkage dominates learning, collapsing conflict representations
+        # late in training and inflating val MSLE. Keep WD < LR at scheduler floor.
+        "weight_decay": {"values": [1e-4, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -61,7 +64,8 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        # clip=5.0 removed: TSMixer with GELU + sparse inputs can spike at 5.0.
+        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -87,7 +91,7 @@ def get_sweep_config():
                 # PassThrough keeps them at native scale, commensurate with
                 # MaxAbsScaler's [-1, 1] output. StandardScaler would amplify
                 # to ±2.5 (σ≈0.2), drowning conflict signal in feature-mixing layers.
-                "PassThrough": [
+                "MinMaxScaler": [
                     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
                     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
                     "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
@@ -101,11 +105,15 @@ def get_sweep_config():
                 # Group 3: Signed/bounded rates — centering preserves directionality.
                 # sp_pop_grow is signed (±4%); others are bounded positives where
                 # z-score sign encodes below/above population average.
-                "StandardScaler": [
-                    "lr_wdi_sp_pop_grow", "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs", "lr_wdi_sp_urb_totl_in_zs",
+                "MaxAbsScaler": [
+                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
                 ],
-                
+                "StandardScaler->MinMaxScaler": [
+                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
+                    "lr_wdi_se_enr_prim_fm_zs",    
+                    "lr_wdi_sp_urb_totl_in_zs",    
+                ],
+                                
                 # Group 3: Tail-Bounded Compression (Strictly Positive Indicators)
                 # Asinh handles skew; MinMax utilizes full [0, 1] range since min >> 0.
                 "AsinhTransform->MinMaxScaler": [
