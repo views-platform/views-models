@@ -128,7 +128,7 @@ def get_sweep_config():
         "num_stacks": {"values": [3]},
         "pooling_kernel_sizes": {"values": [[[4],[2],[1]]]},
         "n_freq_downsample": {"values": [[[3],[2],[1]]]},
-        "max_pool_1d": {"values": [False, True]}, 
+        "max_pool_1d": {"values": [False]}, 
         "activation": {"values": ["GELU"]},
         "num_blocks": {"values": [1]},
         "num_layers": {"values": [3, 4]},
