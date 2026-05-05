@@ -118,9 +118,23 @@ def get_sweep_config():
         "n_freq_downsample": {"values": [[[3],[2],[1]]]},
         "max_pool_1d": {"values": [False]}, 
         "activation": {"values": ["GELU"]},
-        "num_blocks": {"values": [1]},
-        "num_layers": {"values": [3, 4]},
-        "layer_widths": {"values": [256, 512]},
+        # num_blocks: 1→1/2. With reduced layer_widths, one block per stack
+        # may no longer have enough capacity to fit the dominant zero pattern
+        # in a single epoch. Allowing 2 blocks gives the sweep room to
+        # compensate for the reduced per-block width without going back to
+        # fat single blocks that absorb everything at stack 0 epoch 0.
+        "num_blocks": {"values": [1, 2]},
+        # num_layers: 3/4→2/3. Deeper per-block MLPs with wide layers is what
+        # produces vanishing grad_norm/min ≈ 4e-13 in downstream stacks —
+        # the signal is consumed by the time it reaches the earlier layers
+        # during backprop. Shallower + narrower keeps gradients alive.
+        "num_layers": {"values": [2, 3]},
+        # layer_widths: 256/512→64/128. The 8.2M param count (178 params/sample)
+        # is the root cause of the freeze: stack 0 absorbs the dominant zero
+        # pattern completely in epoch 0, leaving near-zero residuals for stacks
+        # 1 and 2. 64/128 brings total params to ~300K–1.2M (6–26 params/sample)
+        # — still expressive but not able to memorise the distribution instantly.
+        "layer_widths": {"values": [64, 128]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
