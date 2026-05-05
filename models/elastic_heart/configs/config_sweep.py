@@ -129,8 +129,8 @@ def get_sweep_config():
         "num_blocks": {"values": [2, 3]},
         "hidden_size": {"values": [128, 256]},
         "ff_size": {"values": [128, 192]},
-        "normalize_before": {"values": [True]},
-        "activation": {"values": ["ReLU"]},
+        "normalize_before": {"values": [True, False]},
+        "activation": {"values": ["ReLU", "GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
         
         # ==============================================================================
