@@ -96,14 +96,6 @@ def get_sweep_config():
                     "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
                     "lr_vdem_v2x_clphy",
                 ],
-                # Group 3: Signed/bounded rates — centering preserves directionality.
-                # sp_pop_grow is signed (±4%); others are bounded positives where
-                # z-score sign encodes below/above population average.
-                "StandardScaler": [
-                    "lr_wdi_sp_pop_grow", "lr_wdi_sl_tlf_totl_fe_zs",
-                    "lr_wdi_se_enr_prim_fm_zs", "lr_wdi_sp_urb_totl_in_zs",
-                ],
-                
                 # Group 3: Tail-Bounded Compression (Strictly Positive Indicators)
                 # Asinh handles skew; MinMax utilizes full [0, 1] range since min >> 0.
                 "MaxAbsScaler": [
