@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -47,11 +47,11 @@ def get_sweep_config():
         # ==============================================================================
          "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
+        "lr_scheduler_patience": {"values": [12]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
                                             "factor": 0.5, 
-                                            "patience": 8, 
+                                            "patience": 12, 
                                             "min_lr": 1e-6, 
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
@@ -109,7 +109,7 @@ def get_sweep_config():
         "num_encoder_layers": {"values": [2, 3]},
         "dim_feedforward": {"values": [256, 512]},
         "activation": {"values": ["GELU"]},
-        "norm_type": {"values": ["LayerNorm", "RMSNorm"]},
+        "norm_type": {"values": ["LayerNorm"]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
@@ -122,7 +122,7 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.15},
         "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
