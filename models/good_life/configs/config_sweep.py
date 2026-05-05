@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_shadow_202605034_E",
+        "name": "good_life_transformer_shadow_20260505_A",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # Rungs at 30,90,270. min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }

@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260504_E",
+        "name": "elastic_heart_tsmixer_shadow_20260505_A",
         "early_terminate": {
             "type": "hyperband",
             # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.

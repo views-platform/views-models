@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_shadow_20260504_E",
+        "name": "teenage_dirtbag_tcn_shadow_20260505_A",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # >T_0=25 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -53,11 +53,16 @@ def get_sweep_config():
         "weight_decay": {"values": [1e-4, 5e-5]},
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
+        # patience=12: with 300 epochs, patience=8 exhausted 3 halvings by epoch ~36
+        # (LR at 6e-5), leaving 260 epochs at a near-floor rate. patience=12 gives
+        # 4 halvings across ~96+48 epochs before hitting min_lr, matching the
+        # 300-epoch budget. ESP=35 is the kill signal; patience=12 just slows the
+        # LR schedule so the optimizer has room to generalize after calibration.
+        "lr_scheduler_patience": {"values": [12]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
                                             "factor": 0.5, 
-                                            "patience": 8, 
+                                            "patience": 12, 
                                             "min_lr": 1e-6, 
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
