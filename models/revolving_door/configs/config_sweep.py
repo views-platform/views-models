@@ -4,7 +4,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_shadow_20260504_C",
+        "name": "revolving_door_nhits_shadow_20260504_D",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -93,7 +93,7 @@ def get_sweep_config():
                 # PassThrough keeps them at native scale, commensurate with
                 # MaxAbsScaler's [-1, 1] output. StandardScaler would amplify
                 # to ±2.5 (σ≈0.2), drowning conflict signal in feature-mixing layers.
-                "MinMaxScaler": [
+                "PassThrough": [
                     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
                     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
                     "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
@@ -113,6 +113,44 @@ def get_sweep_config():
                     "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
                     "lr_wdi_se_enr_prim_fm_zs",    
                     "lr_wdi_sp_urb_totl_in_zs",    
+                ],
+                # Group 4: Skewed health indicators — Asinh squashes tails, MinMax maps to [0,1]
+                "AsinhTransform->MinMaxScaler": [
+                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
+                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
+                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
+                ],
+            }, {
+                # Candidate B: MinMaxScaler — original flat structure.
+                # V-Dem, rates, sp_pop_grow all in one [0,1] space; conflict via Asinh->MaxAbs.
+                # Kept as A/B sweep baseline: internally consistent even if per-feature scaling is suboptimal.
+                "AsinhTransform->MaxAbsScaler": [
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                    "lr_ged_ns", "lr_ged_os",
+                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
+                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+                    "lr_wdi_dt_oda_odat_pc_zs",
+                    "lr_wdi_ms_mil_xpnd_gd_zs",
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    "lr_wdi_sh_sta_stnt_zs",
+                    "lr_wdi_sh_sta_maln_zs",
+                ],
+                "MinMaxScaler": [
+                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
+                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
+                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
+                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
+                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
+                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
+                    "lr_vdem_v2x_clphy",
+                    "lr_wdi_sp_pop_grow",
+                    "lr_wdi_sl_tlf_totl_fe_zs",
+                    "lr_wdi_se_enr_prim_fm_zs",
+                    "lr_wdi_sp_urb_totl_in_zs",
                 ],
             }]
         },
