@@ -64,7 +64,7 @@ def get_sweep_config():
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
         # clip=5.0 removed: TSMixer with GELU + sparse inputs can spike at 5.0.
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================

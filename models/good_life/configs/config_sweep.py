@@ -58,7 +58,7 @@ def get_sweep_config():
                                             "cooldown": 3}]},
         # TiDE: skip path + unconstrained output → tight clipping. Pinned to
         # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.0, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
