@@ -131,7 +131,7 @@ def get_sweep_config():
         # 36 steps. ecd=8/16 create a 4–8× bottleneck that is too restrictive
         # for multi-step conflict dynamics. Keep ecd >= ocl/2 at minimum.
         "expansion_coefficient_dim": {"values": [32, 64, 128]},
-        "trend_polynomial_degree": {"values": [2]},
+        "trend_polynomial_degree": {"values": [2]}, # useless for generic blocks but required by the rep gate
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU"]},
         "use_reversible_instance_norm": {"values": [True]},
