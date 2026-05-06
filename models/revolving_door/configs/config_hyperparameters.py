@@ -31,9 +31,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0002,
-        "weight_decay": 0.0001,
-        "gradient_clip_val": 3,
+        "lr": 0.0005,
+        "weight_decay": 0.0002,
+        "gradient_clip_val": 2,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -50,15 +50,15 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0002,
-            "weight_decay": 0.0001,
+            "lr": 0.0005,
+            "weight_decay": 0.0002,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01961635936900954,
+        "delta": 0.09600580038299708,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -121,13 +121,13 @@ def get_hp_config():
         #   preventing unbounded growth of interpolation coefficients.
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 3,
-        "layer_widths": [128, 64, 64],
+        "num_layers": 4,
+        "layer_widths": [256, 128, 64],
         "pooling_kernel_sizes": ((4,), (2,), (1,)),
         "n_freq_downsample": ((3,), (2,), (1,)),
-        "max_pool_1d": True,
+        "max_pool_1d": False,
         "activation": "GELU",
-        "dropout": 0.25,
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
