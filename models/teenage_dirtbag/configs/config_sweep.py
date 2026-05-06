@@ -67,7 +67,7 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -113,12 +113,12 @@ def get_sweep_config():
         # ==============================================================================
         # TCN ARCHITECTURE
         # ==============================================================================
-        "kernel_size": {"values": [3, 5]},
-        "num_filters": {"values": [32, 64]},
+        "kernel_size": {"values": [3, 5, 7]},
+        "num_filters": {"values": [64, 128]},
         "dilation_base": {"values": [2]},
         "num_layers": {"values": [3, 4]},
-        "weight_norm": {"values": [True]},
-        "use_reversible_instance_norm": {"values": [True]},
+        "weight_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True, False]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
