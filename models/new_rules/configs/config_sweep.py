@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260505_B",
+        "name": "new_rules_nbeats_shadow_20260505_C",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -122,7 +122,7 @@ def get_sweep_config():
         "num_blocks": {"values": [2, 3]},
         "num_layers": {"values": [3]},
         "layer_widths": {"values": [128, 256]},
-        "expansion_coefficient_dim": {"values": [16, 24, 32]},
+        "expansion_coefficient_dim": {"values": [8, 16, 24, 32, 64]},
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU"]},

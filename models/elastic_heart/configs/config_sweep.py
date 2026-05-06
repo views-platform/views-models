@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260505_A",
+        "name": "elastic_heart_tsmixer_shadow_20260505_C",
         "early_terminate": {
             "type": "hyperband",
             # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
@@ -112,10 +112,10 @@ def get_sweep_config():
         # TSMIXER ARCHITECTURE
         # ==============================================================================
         "num_blocks": {"values": [2, 3]},
-        "hidden_size": {"values": [128, 256]},
+        "hidden_size": {"values": [128, 256, 512]},
         "ff_size": {"values": [128, 192]},
-        "normalize_before": {"values": [True, False]},
-        "activation": {"values": ["ReLU", "GELU"]},
+        "normalize_before": {"values": [True]},
+        "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
         
         # ==============================================================================
