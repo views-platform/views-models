@@ -113,7 +113,7 @@ def get_sweep_config():
         # ==============================================================================
         # TCN ARCHITECTURE
         # ==============================================================================
-        "kernel_size": {"values": [3, 5, 7]},
+        "kernel_size": {"values": [3]},
         "num_filters": {"values": [64, 128]},
         "dilation_base": {"values": [2]},
         "num_layers": {"values": [2, 3, 4]},
