@@ -18,7 +18,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -112,8 +112,17 @@ def get_sweep_config():
         # TSMIXER ARCHITECTURE
         # ==============================================================================
         "num_blocks": {"values": [2, 3]},
-        "hidden_size": {"values": [128, 256, 512]},
-        "ff_size": {"values": [128, 192]},
+        # hidden_size: state dimension after feature_mixing_hist and throughout all blocks.
+        # 512 removed: with static covs active, each block's feature_mixing receives
+        # 2*hidden_size input before projecting to ff_size — at 512 the bottleneck is
+        # 1024→192 (5:1), paying 512's parameter budget for 192's rank. Also ~14K
+        # training samples (150 entities × ~94 windows) does not justify 1.4M params.
+        "hidden_size": {"values": [64, 128, 256]},
+        # ff_size: inner dimension of every _FeatureMixing FFN (fc1→activation→fc2).
+        # With static covs, feature_mixing input is 2*hidden_size, so ff_size < hidden_size
+        # creates a severe compression bottleneck. Keep ff_size >= hidden_size.
+        # Darts default convention is ff_size = hidden_size.
+        "ff_size": {"values": [256]},
         "normalize_before": {"values": [True]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
@@ -145,7 +154,7 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         
         # ==============================================================================
         # TEMPORAL ENCODINGS
