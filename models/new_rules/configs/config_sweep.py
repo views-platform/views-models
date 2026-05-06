@@ -18,7 +18,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -119,13 +119,13 @@ def get_sweep_config():
         # ==============================================================================
         "generic_architecture": {"values": [True]},
         "num_stacks": {"values": [2, 3]},
-        "num_blocks": {"values": [2]},
+        "num_blocks": {"values": [2, 3]},
         "num_layers": {"values": [3]},
-        "layer_widths": {"values": [128, 256]},
-        "expansion_coefficient_dim": {"values": [8, 16, 24]},
+        "layer_widths": {"values": [256, 512]},
+        "expansion_coefficient_dim": {"values": [16, 24, 32]},
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
-        "activation": {"values": ["GELU", "ReLU"]},
+        "activation": {"values": ["GELU"]},
         # use_reversible_instance_norm: True for SpotlightLoss.
         # SpotlightLoss DC/AC decomposition makes RevIN safe — shape gradient
         # sums to zero per series, preventing DC offset amplification through

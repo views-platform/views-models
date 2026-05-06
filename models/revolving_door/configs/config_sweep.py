@@ -4,7 +4,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_shadow_20260505_A",
+        "name": "revolving_door_nhits_shadow_20260505_B",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
@@ -120,22 +120,9 @@ def get_sweep_config():
         "n_freq_downsample": {"values": [[[3],[2],[1]]]},
         "max_pool_1d": {"values": [False, True]}, 
         "activation": {"values": ["GELU"]},
-        # num_blocks: pinned to 1. pooling_kernel_sizes and n_freq_downsample
-        # require inner tuples of length == num_blocks per stack — they cannot
-        # be swept independently with Bayes. Capacity reduction is achieved
-        # entirely through layer_widths and num_layers instead.
         "num_blocks": {"values": [1]},
-        # num_layers: 3/4→2/3. Deeper per-block MLPs with wide layers is what
-        # produces vanishing grad_norm/min ≈ 4e-13 in downstream stacks —
-        # the signal is consumed by the time it reaches the earlier layers
-        # during backprop. Shallower + narrower keeps gradients alive.
-        "num_layers": {"values": [2, 3]},
-        # layer_widths: 256/512→64/128. The 8.2M param count (178 params/sample)
-        # is the root cause of the freeze: stack 0 absorbs the dominant zero
-        # pattern completely in epoch 0, leaving near-zero residuals for stacks
-        # 1 and 2. 64/128 brings total params to ~300K–1.2M (6–26 params/sample)
-        # — still expressive but not able to memorise the distribution instantly.
-        "layer_widths": {"values": [64, 128]},
+        "num_layers": {"values": [3, 4]},
+        "layer_widths": {"values": [[256, 128, 64], [128, 64, 64]]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
