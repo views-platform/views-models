@@ -126,11 +126,7 @@ def get_sweep_config():
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU"]},
-        # use_reversible_instance_norm: True for SpotlightLoss.
-        # SpotlightLoss DC/AC decomposition makes RevIN safe — shape gradient
-        # sums to zero per series, preventing DC offset amplification through
-        # RevIN's denormalisation ŷ = ẑ·σ + μ.
-        "use_reversible_instance_norm": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [False]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION

@@ -115,7 +115,7 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         "dropout": {"values": [0.15, 0.25]},
-        "use_reversible_instance_norm": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [False]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLossLogcosh
         # ==============================================================================
