@@ -121,8 +121,16 @@ def get_sweep_config():
         "num_stacks": {"values": [2, 3]},
         "num_blocks": {"values": [2, 3]},
         "num_layers": {"values": [3]},
-        "layer_widths": {"values": [128, 256]},
-        "expansion_coefficient_dim": {"values": [8, 16, 24, 32, 64]},
+        # layer_widths: FC width per block. Paper default is 512; 128/256 are
+        # viable at our dataset scale (~14K windows). 512 included to cover
+        # cases where conflict dynamics need wider representations.
+        "layer_widths": {"values": [128, 256, 512]},
+        # expansion_coefficient_dim: rank of the forecast basis projection.
+        # Generic block: Linear(layer_width, ecd) → Linear(ecd, ocl=36).
+        # ecd < ocl means the model can only express rank-ecd forecasts over
+        # 36 steps. ecd=8/16 create a 4–8× bottleneck that is too restrictive
+        # for multi-step conflict dynamics. Keep ecd >= ocl/2 at minimum.
+        "expansion_coefficient_dim": {"values": [32, 64, 128]},
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU"]},
@@ -142,7 +150,7 @@ def get_sweep_config():
         # delta: multi-resolution spectral weight. DC bin masked.
         # "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
