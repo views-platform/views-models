@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_shadow_20260505_A",
+        "name": "good_life_transformer_shadow_20260505_B",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # Rungs at 30,90,270. min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -104,10 +104,10 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        "d_model": {"values": [128]}, 
+        "d_model": {"values": [128, 256]}, 
         "nhead": {"values": [4]},
-        "num_encoder_layers": {"values": [2, 3]},
-        "dim_feedforward": {"values": [256, 512]},
+        "num_encoder_layers": {"values": [3, 4]},
+        "dim_feedforward": {"values": [512, 1024]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
         "use_static_covariates": {"values": [True]},

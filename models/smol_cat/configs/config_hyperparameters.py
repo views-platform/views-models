@@ -1,10 +1,6 @@
 def get_hp_config():
     """
-    Contains the hyperparameter configurations for model training.
-    This configuration is "operational" so modifying these settings will impact the model's behavior during the training.
-
-    Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
+    https://wandb.ai/views_pipeline/smol_cat_tide_shadow_20260505_A_sweep/runs/aaxcc2fh
     """
     
     hyperparameters = {
@@ -18,14 +14,14 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 512,
+        "hidden_size": 384,
         "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 128,
-        "temporal_width_past": 12,
-        "temporal_width_future": 36,
-        "temporal_hidden_size_past": 128,
-        "temporal_hidden_size_future": 128,
-        "num_encoder_layers": 1,
+        "temporal_decoder_hidden": 256,
+        "temporal_width_past": 24,
+        "temporal_width_future": 4,
+        "temporal_hidden_size_past": 64,
+        "temporal_hidden_size_future": 32,
+        "num_encoder_layers": 3,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
@@ -41,21 +37,21 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.00001,
+        "weight_decay": 0.0001,
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.00001,
+            "weight_decay": 0.0001,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.7,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 8,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.7,
-            "patience": 10,
+            "factor": 0.5,
+            "patience": 8,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -63,13 +59,13 @@ def get_hp_config():
         },
 
         # Trainer
-        "gradient_clip_val": 1,
-        "early_stopping_patience": 30,
+        "gradient_clip_val": 3,
+        "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
 
         # Loss
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.0883995859566355,
+        "delta": 0.06276537091497503,
         "non_zero_threshold": 0.88,
 
         # Prediction
@@ -81,7 +77,24 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         "feature_scaler": None,
         "feature_scaler_map": {
-            "MinMaxScaler": [
+            "AsinhTransform->MaxAbsScaler": [
+                "lr_splag_1_ged_sb",
+                "lr_splag_1_ged_ns",
+                "lr_splag_1_ged_os",
+                "lr_ged_ns",
+                "lr_ged_os",
+                "lr_ged_sb_delta",
+                "lr_ged_ns_delta",
+                "lr_ged_os_delta",
+                "lr_acled_sb",
+                "lr_acled_sb_count",
+                "lr_acled_os",
+                "lr_wdi_ny_gdp_mktp_kd",
+                "lr_wdi_nv_agr_totl_kn",
+                "lr_wdi_sm_pop_refg_or",
+                "lr_wdi_sm_pop_netm",
+                "lr_wdi_dt_oda_odat_pc_zs",
+                "lr_wdi_ms_mil_xpnd_gd_zs",
                 "lr_vdem_v2x_horacc",
                 "lr_vdem_v2x_veracc",
                 "lr_vdem_v2x_diagacc",
@@ -100,32 +113,13 @@ def get_hp_config():
                 "lr_vdem_v2xeg_eqprotec",
                 "lr_vdem_v2xcl_dmove",
                 "lr_vdem_v2x_clphy",
-                "lr_wdi_ms_mil_xpnd_gd_zs",
-                "lr_wdi_sh_sta_stnt_zs",
-                "lr_wdi_sh_sta_maln_zs",
+                "lr_wdi_sp_pop_grow",
                 "lr_wdi_sl_tlf_totl_fe_zs",
                 "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_dyn_imrt_fe_in",
-            ],
-            "AsinhTransform": [
-                "lr_splag_1_ged_sb",
-                "lr_splag_1_ged_ns",
-                "lr_splag_1_ged_os",
-                "lr_ged_ns",
-                "lr_ged_os",
-                "lr_ged_sb_delta",
-                "lr_ged_ns_delta",
-                "lr_ged_os_delta",
-                "lr_wdi_ny_gdp_mktp_kd",
-                "lr_wdi_nv_agr_totl_kn",
-                "lr_wdi_sm_pop_refg_or",
-                "lr_wdi_dt_oda_odat_pc_zs",
-                "lr_wdi_sp_pop_grow",
                 "lr_wdi_sp_urb_totl_in_zs",
-                "lr_wdi_sm_pop_netm",
-                "lr_acled_sb", 
-                "lr_acled_sb_count",
-                "lr_acled_os",
+                "lr_wdi_sp_dyn_imrt_fe_in",
+                "lr_wdi_sh_sta_stnt_zs",
+                "lr_wdi_sh_sta_maln_zs",
             ],
         },
 

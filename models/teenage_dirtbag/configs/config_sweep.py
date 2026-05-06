@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_shadow_20260505_A",
+        "name": "teenage_dirtbag_tcn_shadow_20260505_B",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # >T_0=25 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }

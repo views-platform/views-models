@@ -2,7 +2,7 @@
 def get_hp_config():
     """
     TSMixer hyperparameters
-    https://wandb.ai/views_pipeline/elastic_heart_tsmixer_spotlight_v1_5_sweep/runs/v18ej41v
+    https://wandb.ai/views_pipeline/elastic_heart_tsmixer_shadow_20260505_A_sweep/runs/w10gy1p7
     """
 
     hyperparameters = {
@@ -23,44 +23,43 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
-        "early_stopping_min_delta": 0.0001,
+        "early_stopping_patience": 35,
+        "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.00010401786384220833,
+        "lr": 0.0002,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 3,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 12,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 10,
+            "patience": 12,
             "min_lr": 1e-6,
+            "cooldown": 3,
+            "threshold": 0.01,
+            "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.00010401786384220833,
+            "lr": 0.0002,
             "weight_decay": 1e-4,
         },
-        "loss_function": "SpotlightLoss",
-        "delta": 0.06626759490952949,
+        "loss_function": "SpotlightLossLogcosh",
+        "delta": 0.06027722300374322,
         "non_zero_threshold": 0.88,
 
         # Scaling
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform": [
-                "lr_wdi_sp_dyn_imrt_fe_in",
-                "lr_wdi_sm_pop_refg_or",
-                "lr_wdi_ny_gdp_mktp_kd",
-                "lr_wdi_nv_agr_totl_kn",
+            "AsinhTransform->MaxAbsScaler": [
                 "lr_splag_1_ged_sb",
                 "lr_splag_1_ged_ns",
                 "lr_splag_1_ged_os",
@@ -69,15 +68,15 @@ def get_hp_config():
                 "lr_ged_sb_delta",
                 "lr_ged_ns_delta",
                 "lr_ged_os_delta",
+                "lr_acled_sb",
+                "lr_acled_sb_count",
+                "lr_acled_os",
+                "lr_wdi_ny_gdp_mktp_kd",
+                "lr_wdi_nv_agr_totl_kn",
+                "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_sm_pop_netm",
                 "lr_wdi_dt_oda_odat_pc_zs",
-                "lr_wdi_sp_pop_grow",
                 "lr_wdi_ms_mil_xpnd_gd_zs",
-                "lr_wdi_sh_sta_stnt_zs",
-                "lr_wdi_sh_sta_maln_zs",
-                "lr_wdi_sl_tlf_totl_fe_zs",
-                "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_urb_totl_in_zs",
                 "lr_vdem_v2x_horacc",
                 "lr_vdem_v2x_veracc",
                 "lr_vdem_v2x_diagacc",
@@ -96,16 +95,23 @@ def get_hp_config():
                 "lr_vdem_v2xeg_eqprotec",
                 "lr_vdem_v2xcl_dmove",
                 "lr_vdem_v2x_clphy",
+                "lr_wdi_sp_pop_grow",
+                "lr_wdi_sl_tlf_totl_fe_zs",
+                "lr_wdi_se_enr_prim_fm_zs",
+                "lr_wdi_sp_urb_totl_in_zs",
+                "lr_wdi_sp_dyn_imrt_fe_in",
+                "lr_wdi_sh_sta_stnt_zs",
+                "lr_wdi_sh_sta_maln_zs",
             ],
         },
 
         # TSMixer Architecture
         "num_blocks": 3,
         "hidden_size": 256,
-        "ff_size": 256,
+        "ff_size": 192,
         "activation": "GELU",
         "norm_type": "LayerNorm",
-        "normalize_before": True,
+        "normalize_before": False,
         "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,

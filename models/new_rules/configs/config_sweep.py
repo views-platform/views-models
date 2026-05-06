@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260505_A",
+        "name": "new_rules_nbeats_shadow_20260505_B",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -58,11 +58,11 @@ def get_sweep_config():
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
+        "lr_scheduler_patience": {"values": [12]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
                                             "factor": 0.5, 
-                                            "patience": 8, 
+                                            "patience": 12, 
                                             "min_lr": 1e-6, 
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
