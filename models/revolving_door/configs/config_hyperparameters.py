@@ -1,7 +1,7 @@
 def get_hp_config():
     """
     N-HiTS hyperparameters from SpotlightLossLogcosh sweep best run.
-    https://wandb.ai/views_pipeline/revolving_door_nhits_shadow_20260505_B_sweep/runs/bdgh6bqg/
+    https://wandb.ai/views_pipeline/revolving_door_nhits_spotlight_v11_3_sweep/runs/p89rxmzk
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
@@ -9,7 +9,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 36,
+        "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -25,25 +25,25 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 35,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.0002,
-        "gradient_clip_val": 2,
+        "weight_decay": 0.001,
+        "gradient_clip_val": 5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
+            "patience": 10,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -51,14 +51,14 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.0002,
+            "weight_decay": 0.001,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.09600580038299708,
+        "delta": 0.0764687307621959,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -121,13 +121,13 @@ def get_hp_config():
         #   preventing unbounded growth of interpolation coefficients.
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 4,
-        "layer_widths": [256, 128, 64],
-        "pooling_kernel_sizes": ((4,), (2,), (1,)),
-        "n_freq_downsample": ((3,), (2,), (1,)),
+        "num_layers": 3,
+        "layer_widths": 128,
+        "pooling_kernel_sizes": ((6,), (3,), (1,)),
+        "n_freq_downsample": ((6,), (2,), (1,)),
         "max_pool_1d": False,
         "activation": "GELU",
-        "dropout": 0.15,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
