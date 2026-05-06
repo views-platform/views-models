@@ -61,6 +61,9 @@ def get_sweep_config():
         # factor=0.7: gentle halving for LSTM BPTT (48-step gradient depth).
         # patience=10, cooldown=3: ~2-3 halvings within ESP=30.
         # threshold=0.01/rel: 1% relative improvement required — filters batch noise.
+        "weight_decay": {"values": [1e-4, 5e-5]},
+        "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.5]},
         "lr_scheduler_patience": {"values": [10]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
