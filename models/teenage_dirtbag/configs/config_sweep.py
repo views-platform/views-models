@@ -116,8 +116,8 @@ def get_sweep_config():
         "kernel_size": {"values": [3, 5, 7]},
         "num_filters": {"values": [64, 128]},
         "dilation_base": {"values": [2]},
-        "num_layers": {"values": [3, 4]},
-        "weight_norm": {"values": [False]},
+        "num_layers": {"values": [2, 3, 4]},
+        "weight_norm": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
