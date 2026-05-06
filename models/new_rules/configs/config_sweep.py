@@ -126,7 +126,7 @@ def get_sweep_config():
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
         "activation": {"values": ["GELU"]},
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         "use_static_covariates": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION

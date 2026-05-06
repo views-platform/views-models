@@ -131,7 +131,7 @@ def get_sweep_config():
         # RevIN on: SpotlightLoss+AsinhTransform keeps outputs bounded; RevIN normalises
         # per-series mean/variance before encoding, improving convergence across heterogeneous
         # conflict intensities (peaceful vs. high-casualty series).
-        "use_reversible_instance_norm": {"values": [False]},
+        "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
         # ==============================================================================
