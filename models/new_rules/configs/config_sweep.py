@@ -121,7 +121,7 @@ def get_sweep_config():
         "num_stacks": {"values": [2, 3]},
         "num_blocks": {"values": [2, 3]},
         "num_layers": {"values": [3]},
-        "layer_widths": {"values": [256, 512]},
+        "layer_widths": {"values": [128, 256]},
         "expansion_coefficient_dim": {"values": [16, 24, 32]},
         "trend_polynomial_degree": {"values": [2]},
         # activation: ReLU is N-BEATS paper default.
