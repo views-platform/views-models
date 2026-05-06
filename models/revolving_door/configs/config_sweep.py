@@ -116,13 +116,46 @@ def get_sweep_config():
         # N-HiTS ARCHITECTURE
         # ==============================================================================
         "num_stacks": {"values": [3]},
-        "pooling_kernel_sizes": {"values": [[[4],[2],[1]]]},
-        "n_freq_downsample": {"values": [[[3],[2],[1]]]},
-        "max_pool_1d": {"values": [False, True]}, 
+        # pooling_kernel_sizes / n_freq_downsample: must be kept paired — each controls
+        # a different axis of stack compression (input vs output).
+        #
+        # Option A: pool_k=[4,2,1], n_freq=[4,2,1] — aligned (stack 0: 9 FC inputs,
+        #   9 theta points). The coarse stack sees a 4-month compressed view and emits
+        #   exactly 9 basis coefficients → no implicit upsampling at theta level.
+        #
+        # Option B: pool_k=[6,2,1], n_freq=[4,2,1] — coarse stack sees 6-point view
+        #   (ceil(36/6)=6 inputs, 9 theta). More aggressive low-pass on the input;
+        #   forces the coarse stack to represent only multi-month trends. Reduces the
+        #   spike energy routed to the coarse stack → less residual for Sudan at fine.
+        #   The slight theta > input (6→9) is handled by the FC expansion naturally.
+        #
+        # Previous n_freq=[3,2,1] mismatched pool_k=4 at stack 0: FC saw 9 inputs
+        # but had to upsample to 12 theta points before interpolation — inconsistent.
+        "pooling_kernel_sizes": {"values": [[[4],[2],[1]], [[6],[2],[1]]]},
+        "n_freq_downsample": {"values": [[[4],[2],[1]]]},
+        # MaxPool1d=True: for conflict data, MaxPool preserves spike information in
+        # the coarse stack's 9-point pooled view → coarse stack absorbs more of
+        # Sudan's high mean + spike magnitude → less residual reaching the fine stack
+        # → reduces explosion risk. AvgPool smooths spikes into background, leaving
+        # all spike energy to the fine stack. Both explored.
+        "max_pool_1d": {"values": [True]},
         "activation": {"values": ["GELU"]},
         "num_blocks": {"values": [1]},
         "num_layers": {"values": [3, 4]},
-        "layer_widths": {"values": [[256, 128, 64], [128, 64, 64]]},
+        # layer_widths: list of per-stack FC widths [stack_0, stack_1, stack_2].
+        # stack_0 = coarsest (pool_k=4, n_freq=3, sees 9 pooled inputs → 12 theta pts)
+        # stack_2 = finest  (pool_k=1, n_freq=1, sees 36 inputs → 36 theta pts, no interp)
+        #
+        # BUG in prev config: [256,128,64] gave the MOST capacity to the coarse/easy
+        # stack and the LEAST to the fine stack. The fine stack absorbs ALL residuals
+        # that stacks 0+1 couldn't model — including Sudan's spike patterns. With only
+        # 64 units and SpotlightLoss firing maximum DRO weights on Sudan's residual,
+        # the fine stack's theta coefficients become erratic → explosion for Sudan,
+        # and the coarse-stack weights drift toward Sudan's dominant loss signal →
+        # flatline for peaceful countries.
+        #
+        # FIX: reverse the ordering — give the fine stack the most capacity.
+        "layer_widths": {"values": [[64, 128, 256], [64, 192, 256], [128, 128, 128]]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
@@ -139,7 +172,7 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
         "use_cyclic_encoders": {"values": [True]},
