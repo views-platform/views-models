@@ -135,7 +135,9 @@ def get_sweep_config():
         # for high-conflict countries and causing systematic overprediction in the
         # 5–50 death range. MaxAbsScaler maps to [0,1]: Syria=1.0, peace=~0,
         # preserving relative order with no structural positive push.
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # Unlike TFT (VSN+GRN can learn to gate/rescale), TSMixer uses blunt linear
+        # concatenation — cross-entity scale normalization must be explicit.
+        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss
