@@ -23,20 +23,20 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 3e-3,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 0.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 18,
+        "lr_scheduler_patience": 8,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 3e-3,
+            "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -119,16 +119,16 @@ def get_hp_config():
         "normalize_before": True,
         "dropout": 0.30,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
 
         # Static covariate stats: trend + sparsity only.
         # sigma after MaxAbsScaler still encodes relative conflict magnitude
         # and causes projection layer weight accumulation (weight_norm→121).
         # Only direction (trend) and structural peace rate (sparsity) are safe.
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["trend", "sparsity"],
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "stats": ["trend", "sparsity"],
+        # },
 
         "use_cyclic_encoders": True,
 
