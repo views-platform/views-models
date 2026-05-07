@@ -41,7 +41,7 @@ def get_hp_config():
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 18,
+            "patience": 8,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -119,7 +119,7 @@ def get_hp_config():
         "normalize_before": True,
         "dropout": 0.30,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
 
         # Static covariate stats: trend + sparsity only.
         # sigma after MaxAbsScaler still encodes relative conflict magnitude
