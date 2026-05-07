@@ -121,14 +121,10 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        # Static covariate stats: trend + sparsity only.
-        # sigma after MaxAbsScaler still encodes relative conflict magnitude
-        # and causes projection layer weight accumulation (weight_norm→121).
-        # Only direction (trend) and structural peace rate (sparsity) are safe.
-        # "static_covariate_stats": {
-        #     "transform": "AsinhTransform->MaxAbsScaler",
-        #     "stats": ["trend", "sparsity"],
-        # },
+        "static_covariate_stats": {
+            "transform": "AsinhTransform->MaxAbsScaler",
+            "stats": ["sparsity", "trend"],
+        },
 
         "use_cyclic_encoders": True,
 
