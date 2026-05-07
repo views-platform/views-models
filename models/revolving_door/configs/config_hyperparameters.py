@@ -25,7 +25,7 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 40,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
@@ -124,7 +124,7 @@ def get_hp_config():
         # where a crisis context window gets extrapolated into a runaway forecast.
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 3,
+        "num_layers": 2,
         "layer_widths": [160, 80, 64],
         "pooling_kernel_sizes": [[2], [2], [1]],
         "n_freq_downsample": [[2], [2], [1]],
