@@ -113,11 +113,11 @@ def get_hp_config():
         "norm_type": "LayerNorm",
         "normalize_before": True,
         "dropout": 0.35,
-        "use_static_covariates": False,
+        "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
         # Static covariate stats: transform to asinh space before injection
-        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
+        # "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
 
         "use_cyclic_encoders": True,
 
