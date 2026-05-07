@@ -21,18 +21,18 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.00005,
-        "gradient_clip_val": 3,
+        "weight_decay": 0.001,
+        "gradient_clip_val": 1.5,
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.00005,
+            "weight_decay": 0.001,
         },
 
         # LR Scheduler
@@ -106,8 +106,8 @@ def get_hp_config():
         },
 
         # TFT Architecture
-        "hidden_size": 256,
-        "lstm_layers": 1,
+        "hidden_size": 128,
+        "lstm_layers": 2,
         "num_attention_heads": 2,
         "full_attention": True,
         "feed_forward": "GatedResidualNetwork",
@@ -115,7 +115,7 @@ def get_hp_config():
         "dropout": 0.25,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
-        "skip_interpolation": False,
+        "skip_interpolation": True,
         "categorical_embedding_sizes": {},
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
