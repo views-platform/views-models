@@ -116,6 +116,7 @@ def get_hp_config():
         "norm_type": "LayerNorm",
         "add_relative_index": True,
         "skip_interpolation": False,
+        "categorical_embedding_sizes": {},
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "likelihood": None,
