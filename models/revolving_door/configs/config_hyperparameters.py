@@ -25,15 +25,15 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.003,
-        "gradient_clip_val": 0.75,
+        "weight_decay": 0.001,
+        "gradient_clip_val": 1.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -51,7 +51,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.003,
+            "weight_decay": 0.001,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -122,14 +122,14 @@ def get_hp_config():
         # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
         # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
-        "num_blocks": 1,
+        "num_blocks": 2,
         "num_layers": 4,
         "layer_widths": [64, 128, 256],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.35,
+        "dropout": 0.20,
         # "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
