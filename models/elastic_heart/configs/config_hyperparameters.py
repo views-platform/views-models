@@ -30,18 +30,18 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-3,
+        "weight_decay": 3e-3,
         "gradient_clip_val": 0.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
+        "lr_scheduler_patience": 12,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 8,
+            "patience": 12,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -49,8 +49,9 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-3,
+            "weight_decay": 3e-3,
         },
+        "checkpoint_mode": "last",
         "loss_function": "SpotlightLossLogcosh",
         "delta": 0.0,
         "non_zero_threshold": 0.88,
@@ -116,14 +117,13 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        # Static covariate stats: trend + sparsity + sigma (volatility gate).
-        # mu/max carry absolute conflict magnitude → banned (weight_norm blowup).
-        # sigma after MaxAbsScaler is in [0,1] — encodes relative volatility, not level.
-        # This lets the channel mixer gate cross-series influence by country volatility
-        # without anchoring predictions to historical conflict magnitude.
+        # Static covariate stats: trend + sparsity only.
+        # sigma after MaxAbsScaler still encodes relative conflict magnitude
+        # and causes projection layer weight accumulation (weight_norm→121).
+        # Only direction (trend) and structural peace rate (sparsity) are safe.
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["sigma", "trend", "sparsity"],
+            "stats": ["trend", "sparsity"],
         },
 
         "use_cyclic_encoders": True,
