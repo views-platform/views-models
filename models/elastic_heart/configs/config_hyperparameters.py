@@ -107,9 +107,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 4,
-        "hidden_size": 96,
-        "ff_size": 96,
+        # 2 blocks × 256 width: fewer blocks means fewer additive static cov injections
+        # into the residual stream (2× vs 4×), and wider hidden dims give the mixer
+        # enough capacity to explain variance through temporal patterns rather than
+        # relying on the static cov projection for signal.
+        "num_blocks": 2,
+        "hidden_size": 256,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
