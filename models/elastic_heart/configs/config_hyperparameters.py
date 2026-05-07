@@ -116,8 +116,13 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        # Static covariate stats: transform to asinh space before injection
-        # "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
+        # Static covariate stats: only inject trend + sparsity (2 features).
+        # mu/sigma/max carry raw conflict magnitude that accumulates in the
+        # projection layer and drives systematic overpredict.
+        "static_covariate_stats": {
+            "transform": "AsinhTransform->MaxAbsScaler",
+            "stats": ["trend", "sparsity"],
+        },
 
         "use_cyclic_encoders": True,
 
