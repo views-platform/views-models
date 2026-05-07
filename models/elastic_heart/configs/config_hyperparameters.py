@@ -23,7 +23,7 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 25,
+        "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 1e-3,
-        "gradient_clip_val": 0.5,
+        "gradient_clip_val": 1.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
