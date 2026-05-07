@@ -50,18 +50,20 @@ def get_sweep_config():
         # 2e-4: TFT LSTM BPTT over 48 steps amplifies gradient depth — lower start
         # than TSMixer. RLROP halvings: 2e-4→1.4e-4→9.8e-5→6.9e-5 within ESP=30 budget.
         "lr": {"values": [5e-4, 2e-4]},
-        # wd=0 removed: L2=0 allows unbounded weight growth at hidden=256 (2.4M params).
-        # 1e-4/1e-3 bracket the useful regularisation range.
-        "weight_decay": {"values": [1e-4, 5e-5]},
+        # wd=0 removed: L2=0 allows unbounded weight growth at hidden=128 (600K params).
+        # Sparse signal constraint: only ~24% of series are non-zero (event series).
+        # At batch=128, ~32 effective gradient windows per step. Effective param density:
+        # h=128: 600K / 13.5K event windows = 44 params/window — needs strong L2.
+        # 1e-3 is the ceiling; 5e-5 is too light for this sparsity regime.
+        "weight_decay": {"values": [1e-3, 5e-4, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
         # ReduceLROnPlateau: loss-responsive, no cold-v̂ spike — avoids CAWR's
         # sudden peak hitting LSTM recurrent path unprepared.
-        # factor=0.7: gentle halving for LSTM BPTT (48-step gradient depth).
+        # factor=0.5: standard halving for LSTM BPTT (36-step gradient depth).
         # patience=10, cooldown=3: ~2-3 halvings within ESP=30.
         # threshold=0.01/rel: 1% relative improvement required — filters batch noise.
-        "weight_decay": {"values": [1e-4, 5e-5]},
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
         "lr_scheduler_patience": {"values": [10]},
@@ -120,30 +122,29 @@ def get_sweep_config():
         # TFT ARCHITECTURE
         # ==============================================================================
         # hidden_size: Controls VSN, GRN, LSTM, and attention dimensions.
-        # TFT is parameter-inefficient — hidden_size propagates into every
-        # sub-module (LSTM 4×h², VSN features×h, GRN 2×h², attention 3×h²).
-        # At hidden=64:  ~150K params — VSN bottleneck; head_dim=32 (minimum stable).
-        # At hidden=128: ~600K params — viable; head_dim=64.
-        # At hidden=256: ~2.4M params — capacity ceiling; head_dim=128. Needs
-        #   dropout=0.25 + weight_decay=1e-4 to avoid memorisation (~54K windows).
-        # VSN routing of 41 features is the binding constraint at h=64 — the GRN
-        # bottleneck (W∈ℝ^{h×h}) barely separates conflict vs. structural feature
-        # clusters. h=128/256 give it room. Bayes will pick the winner.
-        "hidden_size": {"values": [64, 128, 256]},
-        # lstm_layers: 1 layer must compress 48-month context to one hidden state
-        # before attention. Conflict data has lag structures up to 12–24 months
-        # (escalation cycles) — 2 layers allow a "memory" + "pattern" hierarchy.
-        # Cost is modest (extra 4h² weights per layer).
-        "lstm_layers": {"values": [1, 2]},
-        # num_attention_heads: nhead=2 valid for all hidden sizes (head_dim≥32).
-        # nhead=4 valid for hidden=128 (head_dim=32) and hidden=256 (head_dim=64)
-        # but degenerate for hidden=64 (head_dim=16). Fixed at 2 to stay safe.
-        "num_attention_heads": {"values": [2, 4]}, # 4 degenerates at hidden=64
+        # Sparse signal constraint: ~24% non-zero series = ~13.5K effective event windows.
+        # hidden=256: 2.4M params / 13.5K event windows = 178 params/window → memorises
+        #   the few conflict episodes (Syria 2012, Iraq 2014) instead of generalising.
+        # hidden=128: 600K params / 13.5K event windows = 44 params/window — viable with
+        #   strong regularisation (weight_decay≥1e-4, dropout≥0.25).
+        # hidden=64: VSN GRN W∈ℝ^{64×64} too tight for 47-feature routing. Removed.
+        "hidden_size": {"values": [128]},
+        # lstm_layers: 1 layer with RevIN normalisation is optimal for sparse data.
+        # Layer 2 would train on "hidden representation of ~75% zeros" — it learns
+        # to suppress everything rather than extract conflict dynamics. Removed.
+        "lstm_layers": {"values": [1]},
+        # num_attention_heads: 2 heads at h=128 → head_dim=64. Wider heads are
+        # better for sparse spike detection: each head attends to a 64-dim subspace
+        # vs 4 heads at 32-dim. 32-dim attention heads may not resolve rare conflict
+        # onset patterns from the dominant all-zero background.
+        "num_attention_heads": {"values": [2]},
         "full_attention": {"values": [True]},
         "feed_forward": {"values": ["GatedResidualNetwork"]},
-        # hidden_continuous_size: Scale with hidden_size. 32=h/2 for h=64, 64=h/2 for h=128,
-        # 128=h/2 for h=256. Bayes will pair appropriately.
-        "hidden_continuous_size": {"values": [32, 64]},
+        # hidden_continuous_size: 32 is h/4 for h=128. With sparse data, most
+        # continuous features are near-constant or zero for peaceful series —
+        # the GRN doesn't need 64 dimensions to route a predominantly zero-valued
+        # feature matrix. Smaller projection reduces overfit to structural covariates.
+        "hidden_continuous_size": {"values": [32]},
         # categorical_embedding_sizes: empty dict for pure continuous features.
         "categorical_embedding_sizes": {"values": [{}]},
         # add_relative_index: Injects position information into attention.
@@ -156,9 +157,12 @@ def get_sweep_config():
         # REGULARIZATION
         # ==============================================================================
         # Dropout: TFT applies dropout at 4 sites (LSTM, GRN, VSN, attention).
-        # Compound survival (1-d)^4: 0.15 → 52% signal, 0.25 → 32% signal.
-        # GRN gating adds implicit regularisation so explicit dropout stays moderate.
-        "dropout": {"values": [0.15, 0.25]},
+        # Compound survival (1-d)^4: 0.25 → 32% signal, 0.35 → 18% signal.
+        # 0.15 removed: (1-0.15)^4=52% survival is insufficient for sparse data
+        # (75% zero-target series). Model will memorise the ~13.5K event episodes.
+        # 0.25-0.35 forces the LSTM to learn general conflict-onset patterns rather
+        # than memorising specific country trajectories (Syria, Iraq, Ukraine).
+        "dropout": {"values": [0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         # RevIN on: SpotlightLoss DC/AC decomposition zeroes out per-series shape
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
@@ -178,10 +182,12 @@ def get_sweep_config():
         # SpotlightLoss pointwise gradient = w×tanh(e_shape) ≤ 2. Spectral bounded
         # at tanh ≤ 1. Ratio is ~2:1 — delta=0.10 gives spectral ~33% of total.
         # Particularly valuable for TFT — LSTM encoder has no explicit frequency bias.
+        # min=0.05 enforces a spectral floor: delta=0 disables spectral loss entirely,
+        # which for TFT (no frequency inductive bias) guarantees smooth forecasts.
         "delta": {
             "distribution": "uniform",
-            "min": 0.0,
-            "max": 0.03,
+            "min": 0.05,
+            "max": 0.15,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS

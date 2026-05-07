@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-4,
+        "weight_decay": 5e-4,
         "gradient_clip_val": 1.5,
 
         # LR Scheduler
@@ -49,11 +49,11 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-4,
+            "weight_decay": 5e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.012,
+        "delta": 0.05,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -107,13 +107,16 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 2 blocks × 256 width: fewer blocks means fewer additive static cov injections
-        # into the residual stream (2× vs 4×), and wider hidden dims give the mixer
-        # enough capacity to explain variance through temporal patterns rather than
-        # relying on the static cov projection for signal.
+        # 2 blocks × 128 width: sparse signal constraint — at hidden=256 the channel-
+        # mixing MLP has ~48 params per effective event window (13.5K event series out
+        # of 48K total). Downsized to 128 → ~12 params/window. Lower capacity forces
+        # the mixer to extract general conflict patterns rather than memorising
+        # country-specific trajectories. 2 blocks preserved: static cov injection
+        # (sparsity, trend) twice helps differentiate conflict-prone vs peaceful
+        # countries using entity-level structure rather than memorised temporal paths.
         "num_blocks": 2,
-        "hidden_size": 256,
-        "ff_size": 256,
+        "hidden_size": 128,
+        "ff_size": 128,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
