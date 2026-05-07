@@ -112,22 +112,21 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # 3 stacks with per-stack layer widths. Fine stack (stack 2) gets most capacity
-        # to handle spike residuals after coarse+medium extraction.
-        # Pooling: [2,2,1] → 18, 18, 36 FC inputs (coarse was [4]→9 inputs which
-        # averaged 4 months into near-identical high values for crisis countries,
-        # giving the coarse FC a near-constant input and amplifying the bias).
-        # n_freq: [2,2,1] → 18, 18, 36 theta basis coefficients before interpolation.
-        # Coarse stack uses n_freq=2 (not 4) to cap long-horizon trend extrapolation:
-        # 18 input points + 18 theta coefficients forces shape fitting
-        # rather than pure linear trend projection, preventing Niger-type escalations
-        # where a crisis context window gets extrapolated into a runaway forecast.
+        # Inverted pyramid: coarse stack is narrow (64), fine stack is wide (256).
+        # This matches the decomposition task — the coarse stack only needs to capture
+        # slow level shifts and physically cannot build complex crisis trend extrapolations
+        # with only 64-wide FC layers. The fine stack gets 256 width to fit spike residuals
+        # accurately, which drives MSLE down. Reverting to this from [160,80,64] which
+        # gave the coarse stack too much capacity and caused Niger-type runaway.
+        # Pooling: [4,2,1] → 9, 18, 36 FC inputs. Safe with 64-wide coarse stack +
+        # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
+        # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": [160, 80, 64],
-        "pooling_kernel_sizes": [[2], [2], [1]],
-        "n_freq_downsample": [[2], [2], [1]],
+        "num_layers": 4,
+        "layer_widths": [64, 128, 256],
+        "pooling_kernel_sizes": [[4], [2], [1]],
+        "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
         "dropout": 0.35,
