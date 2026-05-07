@@ -23,8 +23,8 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 15,
-        "early_stopping_min_delta": 0.005,
+        "early_stopping_patience": 25,
+        "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer

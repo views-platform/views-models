@@ -149,7 +149,7 @@ def get_sweep_config():
         # add_relative_index: Injects position information into attention.
         "add_relative_index": {"values": [True]},
         # skip_interpolation: Skip the interpolation in decoder output.
-        "skip_interpolation": {"values": [False, True]},
+        "skip_interpolation": {"values": [True]},
         # norm_type: LayerNorm is standard and most stable for TFT.
         "norm_type": {"values": ["LayerNorm"]},
         # ==============================================================================
