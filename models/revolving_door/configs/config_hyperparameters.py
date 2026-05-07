@@ -32,7 +32,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.001,
+        "weight_decay": 0.003,
         "gradient_clip_val": 0.75,
 
         # LR Scheduler
@@ -51,7 +51,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.001,
+            "weight_decay": 0.003,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -114,24 +114,26 @@ def get_hp_config():
         # N-HiTS Architecture
         # 3 stacks with per-stack layer widths. Fine stack (stack 2) gets most capacity
         # to handle spike residuals after coarse+medium extraction.
-        # Pooling: [4,2,1] → 9, 18, 36 FC inputs
+        # Pooling: [2,2,1] → 18, 18, 36 FC inputs (coarse was [4]→9 inputs which
+        # averaged 4 months into near-identical high values for crisis countries,
+        # giving the coarse FC a near-constant input and amplifying the bias).
         # n_freq: [2,2,1] → 18, 18, 36 theta basis coefficients before interpolation.
         # Coarse stack uses n_freq=2 (not 4) to cap long-horizon trend extrapolation:
-        # 9 input points + 18 theta coefficients forces higher-frequency shape fitting
+        # 18 input points + 18 theta coefficients forces shape fitting
         # rather than pure linear trend projection, preventing Niger-type escalations
         # where a crisis context window gets extrapolated into a runaway forecast.
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 4,
+        "num_layers": 3,
         "layer_widths": [160, 80, 64],
-        "pooling_kernel_sizes": [[4], [2], [1]],
+        "pooling_kernel_sizes": [[2], [2], [1]],
         "n_freq_downsample": [[2], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
         "dropout": 0.35,
         # "use_static_covariates": True,
         "use_reversible_instance_norm": True,
-        "checkpoint_mode": "last",
+        "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
         #     "stats": ["sigma", "trend", "sparsity"],

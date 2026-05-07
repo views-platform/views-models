@@ -51,7 +51,7 @@ def get_hp_config():
             "lr": 0.0005,
             "weight_decay": 3e-3,
         },
-        "checkpoint_mode": "last",
+        "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
         "delta": 0.0,
         "non_zero_threshold": 0.88,
