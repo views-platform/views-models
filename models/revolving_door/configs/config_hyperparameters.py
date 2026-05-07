@@ -119,7 +119,7 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 4,
-        "layer_widths": [256, 128, 64],
+        "layer_widths": [128, 64, 32],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,

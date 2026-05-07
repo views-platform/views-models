@@ -108,7 +108,7 @@ def get_hp_config():
         # TSMixer Architecture
         "num_blocks": 4,
         "hidden_size": 128,
-        "ff_size": 256,
+        "ff_size": 128,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
