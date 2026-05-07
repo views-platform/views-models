@@ -25,25 +25,25 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.001,
-        "gradient_clip_val": 1.5,
+        "weight_decay": 0.00005,
+        "gradient_clip_val": 3,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 15,
+        "lr_scheduler_patience": 12,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 15,
+            "patience": 12,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -51,14 +51,14 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.001,
+            "weight_decay": 0.00005,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.05490457624857521,
+        "delta": 0.041685644972051974,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -122,14 +122,14 @@ def get_hp_config():
         # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
         # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
-        "num_blocks": 2,
+        "num_blocks": 1,
         "num_layers": 4,
         "layer_widths": [64, 128, 256],
-        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
-        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
+        "pooling_kernel_sizes": [[4], [2], [1]],
+        "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.20,
+        "dropout": 0.15,
         "use_static_covariates": False,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
