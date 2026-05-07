@@ -116,12 +116,14 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        # Static covariate stats: only inject trend + sparsity (2 features).
-        # mu/sigma/max carry raw conflict magnitude that accumulates in the
-        # projection layer and drives systematic overpredict.
+        # Static covariate stats: trend + sparsity + sigma (volatility gate).
+        # mu/max carry absolute conflict magnitude → banned (weight_norm blowup).
+        # sigma after MaxAbsScaler is in [0,1] — encodes relative volatility, not level.
+        # This lets the channel mixer gate cross-series influence by country volatility
+        # without anchoring predictions to historical conflict magnitude.
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["trend", "sparsity"],
+            "stats": ["sigma", "trend", "sparsity"],
         },
 
         "use_cyclic_encoders": True,
