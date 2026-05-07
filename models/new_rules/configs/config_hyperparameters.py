@@ -12,8 +12,8 @@ def get_hp_config():
         "num_stacks": 2,
         "num_blocks": 3,
         "num_layers": 3,
-        "layer_widths": 256,
-        "expansion_coefficient_dim": 24,
+        "layer_widths": 128,
+        "expansion_coefficient_dim": 128,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.15,
@@ -111,7 +111,7 @@ def get_hp_config():
 
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.02309691615113865,
+        "delta": 0.01534983792365936,
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
 
         # --- Prediction ---
@@ -124,7 +124,7 @@ def get_hp_config():
         "time_steps": 36,  # Checksum: Must match len(steps)
         "rolling_origin_stride": 1,
         "prediction_format": "dataframe",
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
 
         # --- other ---
         "n_jobs": -1

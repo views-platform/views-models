@@ -8,7 +8,7 @@ def get_hp_config():
 
     hyperparameters = {
         # Temporal
-        "steps": [*range(1, 36 + 1, 1)],
+        "steps": [*range(1, 36 + 1)],
         "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
@@ -25,25 +25,25 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.001,
-        "gradient_clip_val": 5,
+        "weight_decay": 0.00005,
+        "gradient_clip_val": 3,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 12,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 10,
+            "patience": 12,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -51,14 +51,14 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.001,
+            "weight_decay": 0.00005,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.0764687307621959,
+        "delta": 0.041685644972051974,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -112,22 +112,19 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # 3 stacks: coarse (6:1), medium (3:1), fine (1:1)
-        # n_freq_downsample progression:
-        #   fd=6 → 36/6=6 coarse basis functions. Pure slow-trend extractor.
-        #   fd=3 → 36/3=12 coefficients interpolated to 36. Quarterly conflict cycles.
-        #   fd=1 → full-rank fine stack (36 coeffs → 36 steps). Safe under
-        #   SpotlightLossLogcosh because logcosh gradients saturate at ±1,
-        #   preventing unbounded growth of interpolation coefficients.
+        # 3 stacks with per-stack layer widths. Fine stack (stack 2) gets most capacity
+        # to handle spike residuals after coarse+medium extraction.
+        # Pooling: [4,2,1] → 9, 18, 36 FC inputs
+        # n_freq: [4,2,1] → 9, 18, 36 theta basis coefficients before interpolation
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 3,
-        "layer_widths": 128,
-        "pooling_kernel_sizes": ((6,), (3,), (1,)),
-        "n_freq_downsample": ((6,), (2,), (1,)),
-        "max_pool_1d": False,
+        "num_layers": 4,
+        "layer_widths": [64, 128, 256],
+        "pooling_kernel_sizes": [[4], [2], [1]],
+        "n_freq_downsample": [[4], [2], [1]],
+        "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.3,
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
@@ -136,7 +133,7 @@ def get_hp_config():
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
         "use_cyclic_encoders": True,
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
     }
 
     return hyperparameters
