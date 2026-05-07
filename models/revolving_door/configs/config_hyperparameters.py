@@ -118,13 +118,13 @@ def get_hp_config():
         # n_freq: [4,2,1] → 9, 18, 36 theta basis coefficients before interpolation
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 3,
-        "layer_widths": [128, 64, 32],
+        "num_layers": 4,
+        "layer_widths": [160, 80, 48],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.4,
+        "dropout": 0.35,
         "use_static_covariates": False,
         "use_reversible_instance_norm": True,
 
