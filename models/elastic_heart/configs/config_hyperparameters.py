@@ -23,7 +23,7 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 0.5,
+        "gradient_clip_val": 1.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -53,7 +53,7 @@ def get_hp_config():
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.0,
+        "delta": 0.012,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -117,7 +117,7 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.30,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
