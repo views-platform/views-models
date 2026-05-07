@@ -29,30 +29,30 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0002,
+        "lr": 0.0005,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 3,
+        "gradient_clip_val": 1.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_patience": 8,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
+            "patience": 8,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0002,
+            "lr": 0.0005,
             "weight_decay": 1e-4,
         },
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.06027722300374322,
+        "delta": 0.01194478052199321,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -106,18 +106,18 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 3,
+        "num_blocks": 2,
         "hidden_size": 256,
-        "ff_size": 192,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
-        "normalize_before": False,
+        "normalize_before": True,
         "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
         # Static covariate stats: transform to asinh space before injection
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
 
         "use_cyclic_encoders": True,
 
