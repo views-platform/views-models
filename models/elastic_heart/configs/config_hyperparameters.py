@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 1.5,
+        "weight_decay": 1e-3,
+        "gradient_clip_val": 1.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-4,
+            "weight_decay": 1e-3,
         },
         "loss_function": "SpotlightLossLogcosh",
         "delta": 0.01194478052199321,
