@@ -24,7 +24,7 @@ def get_hp_config():
         "batch_size": 128,
         "n_epochs": 300,
         "early_stopping_patience": 35,
-        "early_stopping_min_delta": 0.001,
+        "early_stopping_min_delta": 0.0001,
         "force_reset": True,
 
         # Optimizer
@@ -112,7 +112,7 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
+        "dropout": 0.30,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 

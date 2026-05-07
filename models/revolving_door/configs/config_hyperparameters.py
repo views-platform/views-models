@@ -9,7 +9,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -32,8 +32,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.00005,
-        "gradient_clip_val": 3,
+        "weight_decay": 0.0002,
+        "gradient_clip_val": 2,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -51,14 +51,14 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.00005,
+            "weight_decay": 0.0002,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.041685644972051974,
+        "delta": 0.05490457624857521,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -119,7 +119,7 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 4,
-        "layer_widths": [64, 128, 256],
+        "layer_widths": [128, 128, 128],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,

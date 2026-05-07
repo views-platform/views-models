@@ -124,7 +124,7 @@ def get_hp_config():
         "time_steps": 36,  # Checksum: Must match len(steps)
         "rolling_origin_stride": 1,
         "prediction_format": "dataframe",
-        "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
+        "static_covariate_stats": {"transform": "AsinhTransform"},
 
         # --- other ---
         "n_jobs": -1
