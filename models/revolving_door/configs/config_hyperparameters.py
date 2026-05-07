@@ -130,7 +130,7 @@ def get_hp_config():
         "max_pool_1d": True,
         "activation": "GELU",
         "dropout": 0.20,
-        # "use_static_covariates": True,
+        "use_static_covariates": False,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
