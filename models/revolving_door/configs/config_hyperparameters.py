@@ -125,15 +125,17 @@ def get_hp_config():
         "max_pool_1d": True,
         "activation": "GELU",
         "dropout": 0.35,
-        "use_static_covariates": False,
+        "use_static_covariates": True,
         "use_reversible_instance_norm": True,
-
+        "static_covariate_stats": {
+            "transform": "AsinhTransform->MaxAbsScaler",
+            "stats": ["trend", "sparsity"],
+        },
         # Temporal Encodings
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
         "use_cyclic_encoders": True,
-        # "static_covariate_stats": {"transform": "AsinhTransform->MaxAbsScaler"},
     }
 
     return hyperparameters
