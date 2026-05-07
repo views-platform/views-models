@@ -32,8 +32,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.0002,
-        "gradient_clip_val": 2,
+        "weight_decay": 0.001,
+        "gradient_clip_val": 1.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -51,7 +51,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.0002,
+            "weight_decay": 0.001,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -119,12 +119,12 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 4,
-        "layer_widths": [128, 128, 128],
+        "layer_widths": [256, 128, 64],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.15,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
