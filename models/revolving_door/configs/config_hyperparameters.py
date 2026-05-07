@@ -33,7 +33,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 0.001,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 0.75,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -118,13 +118,13 @@ def get_hp_config():
         # n_freq: [4,2,1] → 9, 18, 36 theta basis coefficients before interpolation
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 4,
-        "layer_widths": [192, 96, 48],
+        "num_layers": 3,
+        "layer_widths": [128, 64, 32],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.3,
+        "dropout": 0.4,
         "use_static_covariates": False,
         "use_reversible_instance_norm": True,
 

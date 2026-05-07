@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 1e-3,
-        "gradient_clip_val": 1.0,
+        "gradient_clip_val": 0.5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",

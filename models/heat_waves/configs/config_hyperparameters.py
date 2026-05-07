@@ -107,12 +107,12 @@ def get_hp_config():
 
         # TFT Architecture
         "hidden_size": 128,
-        "lstm_layers": 2,
+        "lstm_layers": 1,
         "num_attention_heads": 2,
         "full_attention": True,
         "feed_forward": "GatedResidualNetwork",
         "hidden_continuous_size": 32,
-        "dropout": 0.25,
+        "dropout": 0.35,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
         "skip_interpolation": True,
