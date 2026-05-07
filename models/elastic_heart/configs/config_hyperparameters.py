@@ -112,8 +112,8 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
-        "use_static_covariates": True,
+        "dropout": 0.35,
+        "use_static_covariates": False,
         "use_reversible_instance_norm": True,
 
         # Static covariate stats: transform to asinh space before injection
