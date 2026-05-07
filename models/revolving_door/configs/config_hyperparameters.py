@@ -123,7 +123,7 @@ def get_hp_config():
         # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 3,
+        "num_layers": 4,
         "layer_widths": [64, 128, 256],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],

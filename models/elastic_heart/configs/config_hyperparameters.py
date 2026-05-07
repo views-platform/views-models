@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 5e-4,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 1.5,
 
         # LR Scheduler
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 5e-4,
+            "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -107,16 +107,17 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 2 blocks × 128 width: sparse signal constraint — at hidden=256 the channel-
-        # mixing MLP has ~48 params per effective event window (13.5K event series out
-        # of 48K total). Downsized to 128 → ~12 params/window. Lower capacity forces
-        # the mixer to extract general conflict patterns rather than memorising
-        # country-specific trajectories. 2 blocks preserved: static cov injection
-        # (sparsity, trend) twice helps differentiate conflict-prone vs peaceful
-        # countries using entity-level structure rather than memorised temporal paths.
+        # 2 blocks × 256 width: the channel-mixing MLP must route 47 features —
+        # at h=128 pred_sanity/std collapses to 0.68 (vs 1.6 at h=256) because
+        # the mixer can't differentiate feature interactions, squeezing all
+        # predictions toward zero in normalized space. RevIN denorm then
+        # amplifies these uniformly-positive values by sigma_raw (up to ~39
+        # post-cap) → overpredict on every conflict country. h=256 gives
+        # sufficient width for feature routing; overfitting is controlled by
+        # weight_decay=1e-4 + dropout=0.25 + delta=0.05 spectral forcing.
         "num_blocks": 2,
-        "hidden_size": 128,
-        "ff_size": 128,
+        "hidden_size": 256,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
