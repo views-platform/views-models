@@ -32,7 +32,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.00005,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 3,
 
         # LR Scheduler
@@ -51,7 +51,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.00005,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -123,7 +123,7 @@ def get_hp_config():
         # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 4,
+        "num_layers": 3,
         "layer_widths": [64, 128, 256],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
