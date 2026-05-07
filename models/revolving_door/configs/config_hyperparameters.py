@@ -38,12 +38,12 @@ def get_hp_config():
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
+            "patience": 15,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -124,13 +124,13 @@ def get_hp_config():
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": True,
         "activation": "GELU",
-        "dropout": 0.30,
-        "use_static_covariates": True,
+        "dropout": 0.35,
+        # "use_static_covariates": True,
         "use_reversible_instance_norm": True,
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["trend", "sparsity"],
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "stats": ["sigma", "trend", "sparsity"],
+        # },
         # Temporal Encodings
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred
