@@ -56,9 +56,9 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        # TiDE: skip path + unconstrained output → tight clipping. Pinned to
-        # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
+        # Transformer: no skip path → grad norms higher than TSMixer. 3.0–7.0
+        # brackets the expected peak norm range for 3–4 encoder layers on sparse data.
+        "gradient_clip_val": {"values": [3.0, 5.0, 7.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -104,10 +104,16 @@ def get_sweep_config():
         # ==============================================================================
         # TRANSFORMER ARCHITECTURE
         # ==============================================================================
-        "d_model": {"values": [128, 256]}, 
-        "nhead": {"values": [4]},
+        "d_model": {"values": [128, 256]},
+        # nhead=2: head_dim=64/128 — coarser fanout, higher per-head capacity.
+        # Sparse sequences benefit from larger head_dim: each head has more room
+        # to discriminate signal from near-zero background.
+        # nhead=4: head_dim=32/64 — standard; better for dense covariate mixing.
+        "nhead": {"values": [2, 4]},
         "num_encoder_layers": {"values": [3, 4]},
-        "dim_feedforward": {"values": [512, 1024]},
+        # dim_feedforward=256 tests whether compression forces better generalisation
+        # on sparse input; 512/1024 risks memorising per-entity bias vectors.
+        "dim_feedforward": {"values": [256, 512]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
         "use_static_covariates": {"values": [True]},
@@ -122,7 +128,10 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.15},
+        # Cap at 0.05 (consistent with elastic_heart): at delta>0.05 on sparse
+        # conflict data the model hallucinates broadband noise to reduce spectral
+        # loss on event series, raising peace_mean and degrading MSLE.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
