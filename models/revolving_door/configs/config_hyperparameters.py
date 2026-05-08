@@ -32,7 +32,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-4,
+        "weight_decay": 0.00005,
         "gradient_clip_val": 3,
 
         # LR Scheduler
@@ -51,7 +51,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-4,
+            "weight_decay": 0.00005,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -130,13 +130,12 @@ def get_hp_config():
         "max_pool_1d": True,
         "activation": "GELU",
         "dropout": 0.15,
-        "use_static_covariates": False,
+        "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
-        # "static_covariate_stats": {
-        #     "transform": "AsinhTransform->MaxAbsScaler",
-        #     "stats": ["sigma", "trend", "sparsity"],
-        # },
+        "static_covariate_stats": {
+            "transform": "AsinhTransform->MaxAbsScaler",
+        },
         # Temporal Encodings
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred

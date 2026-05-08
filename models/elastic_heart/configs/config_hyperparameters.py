@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 0.9,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -53,7 +53,7 @@ def get_hp_config():
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.05,
+        "delta": 0.01194478052199321,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -127,7 +127,6 @@ def get_hp_config():
 
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["sparsity", "trend"],
         },
 
         "use_cyclic_encoders": True,
