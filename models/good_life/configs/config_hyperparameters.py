@@ -92,7 +92,7 @@ def get_hp_config():
         # Encoders
         "use_cyclic_encoders": True,
         "use_static_covariates": True,
-        "static_covariate_stats": {"transform": "AsinhTransform"},
+        # "static_covariate_stats": {"transform": "AsinhTransform"},
         # Prediction output format
         "prediction_format": "dataframe",
     }

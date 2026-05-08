@@ -133,9 +133,10 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": False,
+        # },
         # Temporal Encodings
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred

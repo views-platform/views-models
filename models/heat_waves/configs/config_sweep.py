@@ -14,7 +14,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_shadow_202670506_A",
+        "name": "heat_waves_tft_shadow_20260508_A",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }

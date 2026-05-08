@@ -111,9 +111,12 @@ def get_hp_config():
         # h=64 proved better generalization than h=128 across all RevIN
         # variants — smaller width forces representations that transfer
         # across conflict regimes at partition boundaries.
-        "num_blocks": 3,
-        "hidden_size": 64,
-        "ff_size": 128,
+        # "num_blocks": 3,
+        # "hidden_size": 64,
+        # "ff_size": 128,
+        "num_blocks": 2,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
@@ -121,10 +124,10 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-            # "stats": ["trend", "sparsity"],
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     # "stats": ["trend", "sparsity"],
+        # },
 
         "use_cyclic_encoders": True,
 

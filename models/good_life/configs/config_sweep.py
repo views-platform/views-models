@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "good_life_transformer_shadow_20260505_C",
+        "name": "good_life_transformer_shadow_20260508_A",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # Rungs at 30,90,270. min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -123,7 +123,7 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.15},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

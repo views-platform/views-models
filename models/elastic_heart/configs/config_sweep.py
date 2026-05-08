@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260505_C",
+        "name": "elastic_heart_tsmixer_shadow_20260508_A",
         "early_terminate": {
             "type": "hyperband",
             # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
@@ -42,7 +42,7 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        "lr": {"values": [5e-4, 2e-4, 1e-4]},
+        "lr": {"values": [5e-4, 2e-4]},
         # WD range [1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. WD=1e-4 is 1.7× floor —
         # mild AdamW shrinkage; LayerNorm self-corrects scale drift. WD=0 removes
         # decoupled regularization entirely, risking per-country memorization.
@@ -61,10 +61,7 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        # TiDE: skip path + unconstrained output → tight clipping. Pinned to
-        # remove three-way interaction with weight_decay and dropout.
-        # clip=5.0 removed: TSMixer with GELU + sparse inputs can spike at 5.0.
-        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -122,7 +119,7 @@ def get_sweep_config():
         # With static covs, feature_mixing input is 2*hidden_size, so ff_size < hidden_size
         # creates a severe compression bottleneck. Keep ff_size >= hidden_size.
         # Darts default convention is ff_size = hidden_size.
-        "ff_size": {"values": [256]},
+        "ff_size": {"values": [128, 256]},
         "normalize_before": {"values": [True]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
@@ -146,7 +143,7 @@ def get_sweep_config():
         # preserving relative order with no structural positive push.
         # Unlike TFT (VSN+GRN can learn to gate/rescale), TSMixer uses blunt linear
         # concatenation — cross-entity scale normalization must be explicit.
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss

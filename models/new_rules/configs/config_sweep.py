@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260505_C",
+        "name": "new_rules_nbeats_shadow_20260508_A",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -150,7 +150,7 @@ def get_sweep_config():
         # delta: multi-resolution spectral weight. DC bin masked.
         # "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

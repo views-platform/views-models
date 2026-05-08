@@ -4,7 +4,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_shadow_20260505_C",
+        "name": "revolving_door_nhits_shadow_20260508_A",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -172,7 +172,7 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
         "use_cyclic_encoders": {"values": [True]},

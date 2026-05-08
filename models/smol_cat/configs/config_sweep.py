@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "smol_cat_tide_shadow_20260505_A",
+        "name": "smol_cat_tide_shadow_20260508_A",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -14,7 +14,7 @@ def get_sweep_config():
         # TEMPORAL CONFIGURATION
         # ==============================================================================
         "steps": {"values": [[*range(1, 36 + 1)]]},
-        "input_chunk_length": {"values": [36, 48]},
+        "input_chunk_length": {"values": [36]},
         "output_chunk_shift": {"values": [0]},
         "random_state": {"values": [67]},
         "output_chunk_length": {"values": [36]},
@@ -143,7 +143,7 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================

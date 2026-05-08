@@ -121,9 +121,10 @@ def get_hp_config():
         "use_reversible_instance_norm": True,
         "likelihood": None,
 
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": False,
+        # },
         "checkpoint_mode": "best",
 
         # Encoders
