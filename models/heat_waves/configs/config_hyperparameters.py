@@ -19,19 +19,19 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 128,
+        "batch_size": 256,
         "n_epochs": 300,
-        "early_stopping_patience": 15,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0002,
         "weight_decay": 0.001,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 3,
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0002,
             "weight_decay": 0.001,
         },
 
@@ -52,7 +52,7 @@ def get_hp_config():
 
         # Loss
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.029357346926395782,
+        "delta": 0.05268358354964825,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -107,11 +107,11 @@ def get_hp_config():
 
         # TFT Architecture
         "hidden_size": 128,
-        "lstm_layers": 1,
+        "lstm_layers": 2,
         "num_attention_heads": 2,
         "full_attention": True,
         "feed_forward": "GatedResidualNetwork",
-        "hidden_continuous_size": 32,
+        "hidden_continuous_size": 64,
         "dropout": 0.35,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
@@ -123,8 +123,8 @@ def get_hp_config():
 
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["sparsity", "trend"],
         },
+        "checkpoint_mode": "best",
 
         # Encoders
         "use_cyclic_encoders": True,
