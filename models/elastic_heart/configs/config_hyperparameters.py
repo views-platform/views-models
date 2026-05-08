@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0001,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 1.5,
+        "gradient_clip_val": 2,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -48,12 +48,12 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0001,
             "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01194478052199321,
+        "delta": 0.025436510268788612,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -107,21 +107,16 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 2 blocks × 256 width: the channel-mixing MLP must route 47 features —
-        # at h=128 pred_sanity/std collapses to 0.68 (vs 1.6 at h=256) because
-        # the mixer can't differentiate feature interactions, squeezing all
-        # predictions toward zero in normalized space. RevIN denorm then
-        # amplifies these uniformly-positive values by sigma_raw (up to ~39
-        # post-cap) → overpredict on every conflict country. h=256 gives
-        # sufficient width for feature routing; overfitting is controlled by
-        # weight_decay=1e-4 + dropout=0.25 + delta=0.05 spectral forcing.
-        "num_blocks": 2,
-        "hidden_size": 256,
+        # 3 blocks × 64 width: sweep-validated configuration. Wider depth
+        # (3 blocks) compensates for narrower hidden_size=64 by stacking
+        # more mixing passes
+        "num_blocks": 3,
+        "hidden_size": 64,
         "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
+        "dropout": 0.20,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
