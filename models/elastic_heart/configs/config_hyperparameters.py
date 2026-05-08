@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0001,
+        "lr": 0.0005,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 2,
+        "gradient_clip_val": 5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -48,7 +48,7 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0001,
+            "lr": 0.0005,
             "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
@@ -110,8 +110,8 @@ def get_hp_config():
         # 3 blocks × 64 width: sweep-validated configuration. Wider depth
         # (3 blocks) compensates for narrower hidden_size=64 by stacking
         # more mixing passes
-        "num_blocks": 3,
-        "hidden_size": 64,
+        "num_blocks": 2,
+        "hidden_size": 128,
         "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
