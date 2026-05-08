@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 0.9,
+        "gradient_clip_val": 2.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -127,6 +127,7 @@ def get_hp_config():
 
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
+            "stats": ["trend", "sparsity"],
         },
 
         "use_cyclic_encoders": True,
