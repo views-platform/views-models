@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0001,
         "weight_decay": 1e-4,
         "gradient_clip_val": 5,
 
@@ -48,7 +48,7 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0001,
             "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
