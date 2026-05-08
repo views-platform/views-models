@@ -56,8 +56,6 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        # Transformer: no skip path → grad norms higher than TSMixer. 3.0–7.0
-        # brackets the expected peak norm range for 3–4 encoder layers on sparse data.
         "gradient_clip_val": {"values": [3.0, 5.0, 7.0]},
         # ==============================================================================
         # SCALING
