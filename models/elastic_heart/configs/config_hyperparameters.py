@@ -116,7 +116,7 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.20,
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
