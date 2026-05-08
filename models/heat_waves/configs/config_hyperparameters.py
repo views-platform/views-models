@@ -19,7 +19,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 256,
+        "batch_size": 128,
         "n_epochs": 300,
         "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
