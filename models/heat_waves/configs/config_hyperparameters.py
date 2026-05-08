@@ -28,11 +28,11 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0002,
-        "weight_decay": 0.001,
+        "weight_decay": 0.0005,
         "gradient_clip_val": 3,
         "optimizer_kwargs": {
             "lr": 0.0002,
-            "weight_decay": 0.001,
+            "weight_decay": 0.0005,
         },
 
         # LR Scheduler
@@ -111,7 +111,7 @@ def get_hp_config():
         "num_attention_heads": 2,
         "full_attention": True,
         "feed_forward": "GatedResidualNetwork",
-        "hidden_continuous_size": 64,
+        "hidden_continuous_size": 32,
         "dropout": 0.35,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
