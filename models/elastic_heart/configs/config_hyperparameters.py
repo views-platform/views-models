@@ -127,7 +127,7 @@ def get_hp_config():
 
         "static_covariate_stats": {
             "transform": "AsinhTransform->MaxAbsScaler",
-            "stats": ["trend", "sparsity"],
+            # "stats": ["trend", "sparsity"],
         },
 
         "use_cyclic_encoders": True,
