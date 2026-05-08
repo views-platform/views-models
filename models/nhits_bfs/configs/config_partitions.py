@@ -32,10 +32,6 @@ def generate(steps: int = 36) -> dict:
             "train": (121, 444),
             "test": (445, 540),
         },
-        "validation": {
-            "train": (121, 492),
-            "test": (493, 540),
-        },
         "forecasting": {
             "train": forecasting_train_range(),
             "test": forecasting_test_range(steps=steps),

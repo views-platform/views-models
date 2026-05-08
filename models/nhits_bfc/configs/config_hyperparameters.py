@@ -72,15 +72,7 @@ def get_hp_config():
                 "lr_ged_os",
                 "lr_ged_ns",
                 "lr_pop_totl",
-                "lr_pop_totl_splag",
-                "lr_ged_sb_splag",
-                "lr_ged_os_splag",
-                "lr_ged_ns_splag",
-            ],
-            "MinMaxScaler": [
-                "lr_vdem_v2x_libdem",
-                "lr_vdem_v2x_libdem_splag",
-            ],
+            ]
         },
         # N-HiTS Architecture: minimal 2-stack
         "num_stacks": 2,
@@ -97,7 +89,38 @@ def get_hp_config():
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "average",
-                "regressor_col": "lr_ged_sb",
+            },
+            "lr_ttns_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_imrt_in": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_le00_in": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_chex_gd_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_stnt_me_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_defc_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_prm_enrr": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_v2x_libdem": {
+                "method": "denton-cholette",
+                "conversion": "average",
             },
         },
     }

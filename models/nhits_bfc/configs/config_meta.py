@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "nhits_bfc", 
         "algorithm": "NHiTSModel",
         "level": "cm",
-        "targets": ["lr_gdp_pcap"],
+        "targets": ["lr_chex_gd_pcap"],
         "metrics": ["CRPS", "MSE", "MSLE"],
         "creator": "Xiaolong",
     }
