@@ -19,31 +19,31 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 128,
+        "batch_size": 256,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0002,
-        "weight_decay": 0.0005,
+        "lr": 0.0001,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 3,
         "optimizer_kwargs": {
-            "lr": 0.0002,
-            "weight_decay": 0.0005,
+            "lr": 0.0001,
+            "weight_decay": 1e-3,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 10,
+            "patience": 15,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -52,7 +52,7 @@ def get_hp_config():
 
         # Loss
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.05268358354964825,
+        "delta": 0.035,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -112,7 +112,7 @@ def get_hp_config():
         "full_attention": True,
         "feed_forward": "GatedResidualNetwork",
         "hidden_continuous_size": 32,
-        "dropout": 0.35,
+        "dropout": 0.40,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
         "skip_interpolation": True,
