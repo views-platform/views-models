@@ -47,7 +47,7 @@ def get_sweep_config():
         # WD range [1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. WD=1e-4 is 1.7× floor —
         # mild AdamW shrinkage; LayerNorm self-corrects scale drift. WD=0 removes
         # decoupled regularization entirely, risking per-country memorization.
-        "weight_decay": {"values": [1e-4, 5e-5]},
+        "weight_decay": {"values": [1e-3, 1e-4, 5e-5]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -61,7 +61,7 @@ def get_sweep_config():
         # clip=[20,50]: grad_norm/max naturally settles ~36 at ep65 with clip=50 → clip never fires.
         # clip=20 provides occasional gradient noise regularization on the hottest batches;
         # clip=50 lets the optimizer run free. Both needed for Bayes to discriminate.
-        "gradient_clip_val": {"values": [50.0]},
+        "gradient_clip_val": {"values": [20.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -121,7 +121,7 @@ def get_sweep_config():
         # num_blocks=2 only: 3rd block re-encodes the static country profile (22/31
         # features are annual → identical across the 36-step window). Extra depth adds
         # leakage capacity, not temporal discrimination.
-        "num_blocks": {"values": [2]},
+        "num_blocks": {"values": [2, 3]},
         "hidden_size": {"values": [128, 256]},
         # ff_size=256 only: ff=128 with hidden=128 → zero expansion (square projection,
         # monthly and annual features fight for the same 128-dim bottleneck). ff=128
@@ -138,7 +138,7 @@ def get_sweep_config():
         # dropout=0.05 removed: ep54→65 shows train_loss −21% while val_loss +3% — memorization.
         # With clip=50 never firing (~36 max), 0.05 leaves the model unregularized against
         # conflict pattern memorization. 0.10 is the new floor; 0.25 retained from sweep C best.
-        "dropout": {"values": [0.10, 0.15, 0.25]},
+        "dropout": {"values": [0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         
