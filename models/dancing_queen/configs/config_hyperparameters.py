@@ -51,7 +51,7 @@ def get_hp_config():
             "weight_decay": 1e-5,
         },
 
-        "loss_function": "SpotlightLoss",
+        "loss_function": "SpotlightLossLogcosh",
         "delta": 0.08434880199414987,
         "non_zero_threshold": 0.88,
 
