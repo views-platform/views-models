@@ -29,7 +29,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 7.364325238538162e-05,
         "weight_decay": 1e-5,
-        "gradient_clip_val": 10,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -109,7 +109,7 @@ def get_hp_config():
         "rnn_type": "GRU",
         "hidden_dim": 256,
         "n_rnn_layers": 1,
-        "hidden_fc_sizes": [128],
+        "hidden_fc_sizes": [64],
         "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
