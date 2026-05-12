@@ -75,38 +75,52 @@ def get_sweep_config():
         "target_scaler": {"values": ["AsinhTransform"]},
         "feature_scaler_map": {
             "values": [{
-                # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
+                # AsinhTransform→MaxAbsScaler: applied to all past covariates.
+                # Asinh compresses count tails (Syria outliers); MaxAbs preserves
+                # zero-anchor (zero conflict = exactly 0, not shifted to −0.4).
+                # Decay features [0,1] and ln_ged lags [0,~10] also benefit:
+                # asinh is monotone so ordering is preserved, MaxAbs normalises range.
+                # Topic stocks are non-negative unbounded — same pipeline is appropriate.
                 "AsinhTransform->MaxAbsScaler": [
-                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                    # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                    
-                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+
+                    # Decay features — conflict regime memory ∈ [0,1]
+                    "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+                    "lr_decay_ged_os_5", "lr_decay_ged_os_100",
+                    "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
+                    "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
+                    "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
+
+                    # ln_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "ln_ged_sb_tlag_1", "ln_ged_sb_tlag_2", "ln_ged_sb_tlag_3",
+                    "ln_ged_sb_tlag_4", "ln_ged_sb_tlag_5", "ln_ged_sb_tlag_6",
+                    "ln_ged_os_tlag_1",
+
+                    # Topic/NLP features — monthly leading indicators
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t2",
+                    "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
+                    "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
+                    "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
+
+                    # WDI (8 with static covs)
                     "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs",
-                    "lr_wdi_ms_mil_xpnd_gd_zs",
+                    "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
+                    "lr_wdi_sp_pop_grow",
+                    "lr_wdi_sp_urb_totl_in_zs",
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    "lr_wdi_sh_sta_maln_zs",
 
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
+                    # V-Dem (12 — pruned of redundant accountability/exclusion)
+                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
                     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
-                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
-                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
-                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
-                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
-                    "lr_vdem_v2x_clphy",
-
-                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
-
-                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
-                    "lr_wdi_se_enr_prim_fm_zs",    
-                    "lr_wdi_sp_urb_totl_in_zs",    
-
-                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
-                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
-                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
+                    "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+                    "lr_vdem_v2xeg_eqdr",
+                    "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
                 ],
             }],
         },
