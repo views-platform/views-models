@@ -78,7 +78,7 @@ def get_sweep_config():
                 # AsinhTransform→MaxAbsScaler: applied to all past covariates.
                 # Asinh compresses count tails (Syria outliers); MaxAbs preserves
                 # zero-anchor (zero conflict = exactly 0, not shifted to −0.4).
-                # Decay features [0,1] and ln_ged lags [0,~10] also benefit:
+                # Decay features [0,1] and lr_ged lags [0,~10] also benefit:
                 # asinh is monotone so ordering is preserved, MaxAbs normalises range.
                 # Topic stocks are non-negative unbounded — same pipeline is appropriate.
                 "AsinhTransform->MaxAbsScaler": [
@@ -95,10 +95,10 @@ def get_sweep_config():
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # ln_ged temporal lags — explicit trajectory for TiDE (no recurrence)
-                    "ln_ged_sb_tlag_1", "ln_ged_sb_tlag_2", "ln_ged_sb_tlag_3",
-                    "ln_ged_sb_tlag_4", "ln_ged_sb_tlag_5", "ln_ged_sb_tlag_6",
-                    "ln_ged_os_tlag_1",
+                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+                    "lr_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
                     "lr_topic_tokens_t1", "lr_topic_tokens_t2",

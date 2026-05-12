@@ -73,10 +73,10 @@ def get_hp_config():
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # ln_ged temporal lags — explicit trajectory for TiDE (no recurrence)
-                    "ln_ged_sb_tlag_1", "ln_ged_sb_tlag_2", "ln_ged_sb_tlag_3",
-                    "ln_ged_sb_tlag_4", "ln_ged_sb_tlag_5", "ln_ged_sb_tlag_6",
-                    "ln_ged_os_tlag_1",
+                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+                    "lr_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
                     "lr_topic_tokens_t1", "lr_topic_tokens_t2",

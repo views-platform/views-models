@@ -16,7 +16,7 @@ def generate():
                            Decay features are country-month level, update every step,
                            and encode "is this country currently in a conflict regime?"
                            without level-leakage (bounded ∈ [0,1]).
-    3. Temporal Lags:      ln_ged explicit lags (t-1..t-6) — TiDE has no recurrence,
+    3. Temporal Lags:      lr_ged explicit lags (t-1..t-6) — TiDE has no recurrence,
                            so explicit temporal context must be provided.
     4. Topic/NLP:          News topic model stocks (t-1, t-2, t-13 + spatial lags) —
                            leading indicators not present in conflict counts.
@@ -26,7 +26,7 @@ def generate():
     Feature Counts (with USE_STATIC_COVS=True):
     - Conflict counts + delta + splag: 12
     - Decay + splag decay:             13
-    - ln_ged temporal lags:             7
+    - lr_ged temporal lags:             7
     - Topic:                           10
     - WDI:                              8
     - V-Dem:                           12
@@ -346,56 +346,49 @@ def generate():
 
     def _add_temporal_lags(queryset: Queryset) -> Queryset:
         """
-        Explicit ln_ged temporal lags for TiDE (no recurrence — must see recent
+        Explicit ged temporal lags for TiDE (no recurrence — must see recent
         conflict trajectory as explicit input features, not reconstructed from
-        hidden state). ln() compresses Syria-scale outliers without level-leakage.
+        hidden state). AsinhTransform scaler handles tail compression downstream.
         """
         return (
             queryset
-            .with_column(Column('ln_ged_sb_tlag_1', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_1', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(1)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_sb_tlag_2', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_2', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(2)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_sb_tlag_3', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_3', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(3)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_sb_tlag_4', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_4', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(4)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_sb_tlag_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_5', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(5)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_sb_tlag_6', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_sb_tlag_6', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(6)
                 .transform.missing.fill()
                 .transform.missing.replace_na()
             )
-            .with_column(Column('ln_ged_os_tlag_1', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
-                .transform.ops.ln()
+            .with_column(Column('lr_ged_os_tlag_1', from_loa='country_month', from_column='ged_os_best_sum_nokgi')
                 .transform.missing.fill()
                 .transform.temporal.tlag(1)
                 .transform.missing.fill()
