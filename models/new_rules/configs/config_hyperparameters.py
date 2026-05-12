@@ -9,11 +9,11 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
-        "num_blocks": 3,
+        "num_stacks": 3,
+        "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 128,
-        "expansion_coefficient_dim": 128,
+        "layer_widths": 256,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.15,
@@ -111,7 +111,7 @@ def get_hp_config():
 
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01534983792365936,
+        "delta": 0.045968994667973787,
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
 
         # --- Prediction ---

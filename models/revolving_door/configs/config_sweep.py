@@ -27,22 +27,14 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [128]},
         "n_epochs": {"values": [300]},
-        # ESP=35: allows ~4 LR reductions (patience=8 each) before triggering.
-        # Each RLROP firing gives the optimizer a reset opportunity; 35 epochs of
-        # continuous stagnation despite all reductions is a reliable stop signal.
-        # Hyperband (min_iter=15) is the primary fast-kill for clearly bad runs.
         "early_stopping_patience": {"values": [35]},
         "early_stopping_min_delta": {"values": [0.001]},
         "force_reset": {"values": [True]},
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        "lr": {"values": [5e-4, 2e-4]},
-        # WD range [2e-4, 1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. No LayerNorm —
-        # explicit WD is the primary regularizer. WD=2e-4 is 3.3× floor (acceptable
-        # for MLP stacks without self-correction). Wide range needed: N-HiTS pooling
-        # stack benefits from stronger WD on deep runs to prevent per-country overfitting.
-        "weight_decay": {"values": [2e-4, 1e-4, 5e-5]},
+        "lr": {"values": [2e-4, 1e-4]},
+        "weight_decay": {"values": [2e-4, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER: ReduceLROnPlateau
         # RLROP on val_loss: val_loss (test partition, frozen scalers) is significantly
@@ -54,8 +46,6 @@ def get_sweep_config():
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        # patience=12: same reasoning as TCN — patience=8 exhausted the LR budget
-        # by epoch ~36. patience=12 spaces halvings across the 300-epoch window.
         "lr_scheduler_patience": {"values": [12]},
         "lr_scheduler_min_lr": {"values": [1e-6]},
         "lr_scheduler_kwargs": {"values": [{"mode": "min", 
@@ -65,11 +55,7 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        # TiDE: skip path + unconstrained output → tight clipping. Pinned to
-        # remove three-way interaction with weight_decay and dropout.
-        # clip=5.0 removed: N-HiTS has no LayerNorm — 5.0 allows gradient spikes
-        # that the architecture cannot self-correct.
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [3.0, 5.0, 7.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -131,14 +117,20 @@ def get_sweep_config():
         #
         # Previous n_freq=[3,2,1] mismatched pool_k=4 at stack 0: FC saw 9 inputs
         # but had to upsample to 12 theta points before interpolation — inconsistent.
-        "pooling_kernel_sizes": {"values": [[[4],[2],[1]], [[6],[2],[1]]]},
-        "n_freq_downsample": {"values": [[[4],[2],[1]]]},
-        # MaxPool1d=True: for conflict data, MaxPool preserves spike information in
-        # the coarse stack's 9-point pooled view → coarse stack absorbs more of
-        # Sudan's high mean + spike magnitude → less residual reaching the fine stack
-        # → reduces explosion risk. AvgPool smooths spikes into background, leaving
-        # all spike energy to the fine stack. Both explored.
-        "max_pool_1d": {"values": [True]},
+        "pooling_kernel_sizes": {"values": [[[4],[2],[1]], [[6],[2],[1]], [[8],[2],[1]]]},
+        # n_freq_downsample: output interpolation factor per stack (T/n_freq theta points).
+        # [[4],[2],[1]]: coarse stack generates 9 theta pts, interpolates to 36.
+        # [[8],[4],[1]]: coarse generates 4-5 pts (near-global trend), medium 9 pts.
+        #   Aligned with pooling=[8,2,1]: forces stack 0 to be a pure trend extractor
+        #   and leaves all spike structure for stacks 1+2 to absorb.
+        "n_freq_downsample": {"values": [[[4],[2],[1]], [[8],[4],[1]]]},
+        # max_pool_1d: MaxPool preserves spike magnitude in the pooled view, so the
+        # coarse stack absorbs more of the conflict spike energy via theta. This
+        # reduces residual left for the fine stack — less explosion risk.
+        # AvgPool smooths spikes into background, routing all spike energy to fine stack.
+        # Both explored: MaxPool is safer for ratio stability; AvgPool may improve MSLE
+        # by forcing the fine stack to learn conflict-onset shapes.
+        "max_pool_1d": {"values": [True, False]},
         "activation": {"values": ["GELU"]},
         "num_blocks": {"values": [1]},
         "num_layers": {"values": [3, 4]},
@@ -159,7 +151,11 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.15, 0.25]},
+        # dropout: N-HiTS has no attention or conv inductive bias — dropout is the
+        # only per-layer stochastic regularizer. The catastrophic run used 0.25 and
+        # still showed 1.73× train/val gap. 0.35 prevents the fine stack's dense FC
+        # from memorizing per-entity conflict trajectories.
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         # RevIN on: SpotlightLoss+AsinhTransform keeps outputs bounded; RevIN normalises
         # per-series mean/variance before encoding, improving convergence across heterogeneous
@@ -171,7 +167,10 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        # Cap at 0.05: at delta>0.05 on sparse conflict data the model hallucinates
+        # broadband noise across peaceful series to reduce spectral loss, raising
+        # peace_mean and MSLE. Consistent with elastic_heart and other models.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.

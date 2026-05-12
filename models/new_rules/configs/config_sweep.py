@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260508_A",
+        "name": "new_rules_nbeats_shadow_20260508_D",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -71,7 +71,7 @@ def get_sweep_config():
         # remove three-way interaction with weight_decay and dropout.
         # clip=5.0 removed: N-BEATS has no LayerNorm — 5.0 allows gradient spikes
         # that can blow through the FC stack without self-correction.
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [10.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -81,7 +81,7 @@ def get_sweep_config():
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
                 # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform->StandardScaler": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -118,13 +118,10 @@ def get_sweep_config():
         # N-BEATS ARCHITECTURE
         # ==============================================================================
         "generic_architecture": {"values": [True]},
-        "num_stacks": {"values": [2, 3]},
-        "num_blocks": {"values": [2, 3]},
-        "num_layers": {"values": [3]},
-        # layer_widths: FC width per block. Paper default is 512; 128/256 are
-        # viable at our dataset scale (~14K windows). 512 included to cover
-        # cases where conflict dynamics need wider representations.
-        "layer_widths": {"values": [128, 256, 512]},
+        "num_stacks": {"values": [1]},
+        "num_blocks": {"values": [3, 4, 6]},       # more blocks per stack
+        "layer_widths": {"values": [256, 512]},     # wider
+        "expansion_coefficient_dim": {"values": [64, 128]}, 
         # expansion_coefficient_dim: rank of the forecast basis projection.
         # Generic block: Linear(layer_width, ecd) → Linear(ecd, ocl=36).
         # ecd < ocl means the model can only express rank-ecd forecasts over
@@ -154,7 +151,7 @@ def get_sweep_config():
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "use_cyclic_encoders": {"values": [True]},
+        "use_cyclic_encoders": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters

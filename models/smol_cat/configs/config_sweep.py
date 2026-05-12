@@ -62,9 +62,12 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        # TiDE: skip path + unconstrained output → tight clipping. Pinned to
-        # remove three-way interaction with weight_decay and dropout.
-        "gradient_clip_val": {"values": [1.5, 2.0, 3.0]},
+        # TiDE: skip path provides a direct gradient channel (lookback → output)
+        # alongside the encoder path. The skip gradient is single-matrix (low norm);
+        # encoder gradients spike on conflict timesteps. 2.0–5.0 brackets the expected
+        # range — 1.5 was too tight and would clip the encoder's conflict-onset signal.
+        # Not pinned: skip vs encoder gradient balance varies with hidden_size.
+        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -111,11 +114,19 @@ def get_sweep_config():
         # TiDE ARCHITECTURE
         # ==============================================================================
         "num_encoder_layers": {"values": [2, 3]},
-        "num_decoder_layers": {"values": [2]},
-        "decoder_output_dim": {"values": [32, 64]},
-        "hidden_size": {"values": [256, 384]},
-        "temporal_width_past": {"values": [24]},
-        "temporal_width_future": {"values": [4]},
+        # num_decoder_layers=1: single projection from hidden to per-step output.
+        # Avoids step-specific memorization of conflict patterns across 36 steps.
+        # 2 layers adds capacity to model escalation/de-escalation profiles.
+        "num_decoder_layers": {"values": [1, 2]},
+        # decoder_output_dim: per-step bottleneck before projecting to 1 value.
+        # Tighter bottleneck (16) forces compact representation — prevents the decoder
+        # from allocating dedicated dimensions to rare-conflict steps.
+        "decoder_output_dim": {"values": [16, 32]},
+        "hidden_size": {"values": [64, 128, 256]},
+        # temporal_width_past: 47 covariates → 16 or 24 before encoder. Tighter (16)
+        # forces covariate projection to select conflict-risk indicators over noise.
+        "temporal_width_past": {"values": [16, 24]},
+        "temporal_width_future": {"values": [4, 6]},
         "temporal_decoder_hidden": {"values": [128, 256]},
         "temporal_hidden_size_past": {"values": [64]},
         "temporal_hidden_size_future": {"values": [32]},
@@ -125,15 +136,11 @@ def get_sweep_config():
         "use_layer_norm": {"values": [True]},
         # Dropout: Country-level has fewer training windows per series.
         # Slightly higher dropout ceiling to prevent overfitting on ~200 series.
-        # dropout: Srivastava et al. (2014) optimal dropout scales with
-        # parameters-per-series ratio. At hidden_size=512 with ~200 series,
-        # 0.15 was tuned for larger benchmarks. Higher dropout prevents the
-        # implicit "always predict zero" strategy by forcing the encoder to retain
-        # conflict-relevant representations even in zero-dominated batches.
-        # dropout: With Barron(1.5) providing stronger gradient flow than log_cosh,
-        # lower dropout preserves conflict-onset gradient signal through the network.
-        # 0.30 was tuned for log_cosh's saturating gradient; Barron tolerates less.
-        "dropout": {"values": [0.15, 0.25]},
+        # dropout: TiDE has encoder + decoder + temporal decoder = more parameter paths
+        # than TSMixer. Higher dropout (0.35) prevents each path from specialising to
+        # event-series memorization. 0.15 preserves conflict-onset gradients in the
+        # encoder but risks overfitting on ~13 event entities.
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         # RevIN on: SpotlightLoss DC/AC decomposition zeroes out per-series shape
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through
@@ -142,7 +149,9 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
+        # Cap at 0.05: at delta>0.05 on sparse conflict data the model hallucinates
+        # broadband noise to reduce spectral loss, raising peace_mean and MSLE.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS

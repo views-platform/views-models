@@ -1,6 +1,6 @@
 def get_hp_config():
     """
-    BlockRNN (GRU) hyperparameters — best sweep run (SpotlightLoss v37 DRO+Barron).
+    BlockRNN (GRU) hyperparameters — best sweep run (SpotlightLossLogcosh, RLROP).
     """
 
     hyperparameters = {
@@ -27,24 +27,30 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.00007364325238538162,
-        "weight_decay": 0,
-        "gradient_clip_val": 3,
+        "lr": 7.364325238538162e-05,
+        "weight_decay": 1e-5,
+        "gradient_clip_val": 10,
 
         # LR Scheduler
-        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 25,
-        "lr_scheduler_T_mult": 1,
-        "lr_scheduler_eta_min": 0.000001,
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 8,
+        "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
-            "T_0": 25,
-            "T_mult": 1,
-            "eta_min": 0.000001,
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 8,
+            "min_lr": 1e-6,
+            "monitor": "val_loss",
+            "cooldown": 3,
+            "threshold": 0.01,
+            "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.00007364325238538162,
-            "weight_decay": 0,
+            "lr": 0.0001,
+            "weight_decay": 1e-5,
         },
+
         "loss_function": "SpotlightLoss",
         "delta": 0.08434880199414987,
         "non_zero_threshold": 0.88,
@@ -53,7 +59,7 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform": [
+            "AsinhTransform->MaxAbsScaler": [
                 "lr_wdi_sp_dyn_imrt_fe_in",
                 "lr_wdi_sm_pop_refg_or",
                 "lr_wdi_ny_gdp_mktp_kd",
@@ -95,10 +101,13 @@ def get_hp_config():
                 "lr_vdem_v2x_clphy",
             ],
         },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform",
+        # },
 
         # BlockRNN Architecture
         "rnn_type": "GRU",
-        "hidden_dim": 128,
+        "hidden_dim": 256,
         "n_rnn_layers": 1,
         "hidden_fc_sizes": [128],
         "dropout": 0.15,
@@ -106,10 +115,7 @@ def get_hp_config():
         "use_reversible_instance_norm": True,
         "activation": "GELU",
 
-        # Static covariate stats: transform to asinh space before injection
-        "static_covariate_stats": {"transform": "AsinhTransform"},
-
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
 
         # Prediction output format
         "prediction_format": "dataframe",

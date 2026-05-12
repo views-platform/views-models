@@ -2,7 +2,8 @@
 def get_hp_config():
     """
     TSMixer hyperparameters
-    https://wandb.ai/views_pipeline/elastic_heart_tsmixer_shadow_20260505_A_sweep/runs/w10gy1p7
+    Best run: elastic_heart_tsmixer_shadow_20260508_C
+    lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
     """
 
     hyperparameters = {
@@ -43,6 +44,7 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 8,
             "min_lr": 1e-6,
+            "monitor": "val_loss",
             "cooldown": 3,
             "threshold": 0.01,
             "threshold_mode": "rel",
@@ -107,13 +109,9 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 3 blocks × 64 width: sweep-validated configuration.
-        # h=64 proved better generalization than h=128 across all RevIN
-        # variants — smaller width forces representations that transfer
-        # across conflict regimes at partition boundaries.
-        # "num_blocks": 3,
-        # "hidden_size": 64,
-        # "ff_size": 128,
+        # 3 blocks × 64 width: sweep-validated configuration. Wider depth
+        # (3 blocks) compensates for narrower hidden_size=64 by stacking
+        # more mixing passes
         "num_blocks": 2,
         "hidden_size": 128,
         "ff_size": 256,
@@ -126,6 +124,7 @@ def get_hp_config():
 
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": True,
         #     # "stats": ["trend", "sparsity"],
         # },
 

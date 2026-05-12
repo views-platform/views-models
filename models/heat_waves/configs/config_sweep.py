@@ -14,7 +14,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_shadow_20260508_A",
+        "name": "heat_waves_tft_shadow_20260508_D",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -50,12 +50,10 @@ def get_sweep_config():
         # 2e-4: TFT LSTM BPTT over 48 steps amplifies gradient depth — lower start
         # than TSMixer. RLROP halvings: 2e-4→1.4e-4→9.8e-5→6.9e-5 within ESP=30 budget.
         "lr": {"values": [5e-4, 2e-4]},
-        # wd=0 removed: L2=0 allows unbounded weight growth at hidden=128 (600K params).
-        # Sparse signal constraint: only ~24% of series are non-zero (event series).
-        # At batch=128, ~32 effective gradient windows per step. Effective param density:
-        # h=128: 600K / 13.5K event windows = 44 params/window — needs strong L2.
-        # 1e-3 is the ceiling; 5e-5 is too light for this sparsity regime.
-        "weight_decay": {"values": [1e-3, 5e-4, 1e-4]},
+        # 1e-3 confirmed bad: crushes GRN/LSTM output weights → low-amplitude representation
+        # that can't generalise sparse conflict peaks (val/train=2.92× observed at epoch 24
+        # with wd=1e-3, event_bias=-21). Ceiling is 5e-4.
+        "weight_decay": {"values": [5e-4, 2e-4, 1e-4]},
         # ==============================================================================
         # LR SCHEDULER
         # ==============================================================================
@@ -75,7 +73,12 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        # TFT: LSTM BPTT over 36 steps accumulates gradient through the recurrent
+        # path. GRN gating partially bounds this, but conflict-onset timesteps still
+        # produce large gradients. Observed grad_norm/max=120 at clip=3 (97.5% cut).
+        # No NaN/inf, no exploding layers → peaks are legitimate conflict-onset signal.
+        # 7.0 upper bound: passes ~6% of peak vs 2.5% at clip=3 — meaningful improvement.
+        "gradient_clip_val": {"values": [20.0, 50.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -84,8 +87,8 @@ def get_sweep_config():
         "feature_scaler_map": {
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
-                "AsinhTransform->MaxAbsScaler": [
+                # Asinh compresses tails; StandardScaler scales to zero mean and unit variance.
+                "AsinhTransform->StandardScaler": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -128,26 +131,40 @@ def get_sweep_config():
         # hidden=128: 600K params / 13.5K event windows = 44 params/window — viable with
         #   strong regularisation (weight_decay≥1e-4, dropout≥0.25).
         # hidden=64: VSN GRN W∈ℝ^{64×64} too tight for 47-feature routing. Removed.
-        "hidden_size": {"values": [128]},
-        # lstm_layers: 1 layer with RevIN normalisation is optimal for sparse data.
-        # Layer 2 would train on "hidden representation of ~75% zeros" — it learns
-        # to suppress everything rather than extract conflict dynamics. Removed.
+        "hidden_size": {"values": [128, 256]},
+        # lstm_layers: pinned at 1. A second LSTM layer processes the hidden state
+        # of the first — but after RevIN normalization the hidden representation is
+        # dominated by peaceful series (90%). Layer 2 learns from a near-zero
+        # distribution and degrades to a trivial suppressor that smooths the
+        # already-averaged h_1. Single-layer LSTM with sufficient hidden_size is
+        # more expressive for this sparsity regime.
         "lstm_layers": {"values": [1]},
-        # num_attention_heads: 2 heads at h=128 → head_dim=64. Wider heads are
-        # better for sparse spike detection: each head attends to a 64-dim subspace
-        # vs 4 heads at 32-dim. 32-dim attention heads may not resolve rare conflict
-        # onset patterns from the dominant all-zero background.
+        # num_attention_heads: pinned at 2 (head_dim=64 at h=128).
+        # 4 heads → head_dim=32: each head attends to a narrower subspace; the
+        # averaged output over 4 narrow heads smooths spike amplitude relative
+        # to 2 wide heads. 64-dim heads better resolve rare conflict positions
+        # against the dominant all-zero background.
         "num_attention_heads": {"values": [2]},
-        "full_attention": {"values": [True]},
+        # full_attention: critical for forecast smoothing.
+        # full_attention=True (bidirectional decoder self-attention): step k attends
+        # to all 36 output positions including future steps → implicit smoothing via
+        # neighbour-borrowing. Reduces spike amplitude in output.
+        # full_attention=False (causal): step k attends only to steps 1..k → each
+        # step is forced to be independently resolved → less temporal smearing.
+        # For conflict forecasting where sharpness matters, False is preferable.
+        "full_attention": {"values": [False]},
         "feed_forward": {"values": ["GatedResidualNetwork"]},
         # hidden_continuous_size: 32 is h/4 for h=128. With sparse data, most
         # continuous features are near-constant or zero for peaceful series —
         # the GRN doesn't need 64 dimensions to route a predominantly zero-valued
         # feature matrix. Smaller projection reduces overfit to structural covariates.
-        "hidden_continuous_size": {"values": [32]},
+        "hidden_continuous_size": {"values": [16, 32]},
         # categorical_embedding_sizes: empty dict for pure continuous features.
         "categorical_embedding_sizes": {"values": [{}]},
-        # add_relative_index: Injects position information into attention.
+        # add_relative_index: Pinned True. Without position encoding, attention
+        # blends all output timesteps toward the batch mean — the model cannot
+        # distinguish step 8 from step 20 and smooths spike amplitude across the
+        # 36-step horizon. True is required for sharp temporal resolution.
         "add_relative_index": {"values": [True]},
         # skip_interpolation: Skip the interpolation in decoder output.
         "skip_interpolation": {"values": [True]},
@@ -179,20 +196,22 @@ def get_sweep_config():
         "non_zero_threshold": {"values": [0.88]},  # asinh(1) ≈ 0.88, i.e. ≥1 battle-related death
         # ── delta (multi-resolution spectral weight) ─────────────────────────────────
         # Spectral log_cosh(|S_pred| - |S_true|) at n_fft=6,12,24. DC bin masked.
-        # SpotlightLoss pointwise gradient = w×tanh(e_shape) ≤ 2. Spectral bounded
-        # at tanh ≤ 1. Ratio is ~2:1 — delta=0.10 gives spectral ~33% of total.
-        # Particularly valuable for TFT — LSTM encoder has no explicit frequency bias.
-        # min=0.05 enforces a spectral floor: delta=0 disables spectral loss entirely,
-        # which for TFT (no frequency inductive bias) guarantees smooth forecasts.
+        # min=0.00: allows Bayes to explore the full range of delta values.
+        # max=0.20: at delta=0.20, spectral is ~25% of gradient — strong enough to
+        # maintain spike sharpness without destabilizing the level anchor.
+        # min=0.05: guarantees AC sharpness pressure in every run. delta=0 removes
+        # the only mechanism that directly penalizes loss of spike amplitude in
+        # frequency space, allowing the shape loss (smooth log_cosh) to converge
+        # to a mean-regressing solution.
         "delta": {
             "distribution": "uniform",
             "min": 0.05,
-            "max": 0.15,
+            "max": 0.20,
         },
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "use_cyclic_encoders": {"values": [True]},
+        "use_cyclic_encoders": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters

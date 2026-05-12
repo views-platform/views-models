@@ -3,10 +3,11 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260508_A",
+        "name": "elastic_heart_tsmixer_shadow_20260508_D",
         "early_terminate": {
             "type": "hyperband",
-            # CAWR T_0=25: min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
+            # RLROP patience=15 + cooldown=3: first reduction fires at epoch ~18.
+            # min_iter=30 ensures at least one LR reduction before Hyperband kills.
             "min_iter": 30,
             "eta": 2,
         },
@@ -42,7 +43,7 @@ def get_sweep_config():
         # ==============================================================================
         # OPTIMIZER
         # ==============================================================================
-        "lr": {"values": [5e-4, 2e-4]},
+        "lr": {"values": [5e-4, 2e-4, 1e-4]},
         # WD range [1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. WD=1e-4 is 1.7× floor —
         # mild AdamW shrinkage; LayerNorm self-corrects scale drift. WD=0 removes
         # decoupled regularization entirely, risking per-country memorization.
@@ -52,16 +53,15 @@ def get_sweep_config():
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [8]},
-        "lr_scheduler_min_lr": {"values": [1e-6]},
-        "lr_scheduler_kwargs": {"values": [{"mode": "min", 
-                                            "factor": 0.5, 
-                                            "patience": 8, 
-                                            "min_lr": 1e-6, 
-                                            "threshold": 0.01, 
-                                            "threshold_mode": "rel", 
-                                            "cooldown": 3}]},
-        "gradient_clip_val": {"values": [2.0, 3.0, 5.0]},
+        "lr_scheduler_patience": {"values": [15]},
+        "lr_scheduler_min_lr": {"values": [1e-5]},
+        "lr_scheduler_kwargs": {"values": [
+            {"mode": "min", "factor": 0.5, "patience": 15, "min_lr": 1e-5, "threshold": 0.01, "threshold_mode": "rel", "cooldown": 3},
+        ]},
+        # clip=[20,50]: grad_norm/max naturally settles ~36 at ep65 with clip=50 → clip never fires.
+        # clip=20 provides occasional gradient noise regularization on the hottest batches;
+        # clip=50 lets the optimizer run free. Both needed for Bayes to discriminate.
+        "gradient_clip_val": {"values": [50.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -70,7 +70,7 @@ def get_sweep_config():
         "feature_scaler_map": {
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
+                # Asinh compresses tails; MaxAbsScaler scales to [-1, 1] based on max absolute value.
                 "AsinhTransform->MaxAbsScaler": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
@@ -108,18 +108,16 @@ def get_sweep_config():
         # ==============================================================================
         # TSMIXER ARCHITECTURE
         # ==============================================================================
-        "num_blocks": {"values": [2, 3]},
-        # hidden_size: state dimension after feature_mixing_hist and throughout all blocks.
-        # 512 removed: with static covs active, each block's feature_mixing receives
-        # 2*hidden_size input before projecting to ff_size — at 512 the bottleneck is
-        # 1024→192 (5:1), paying 512's parameter budget for 192's rank. Also ~14K
-        # training samples (150 entities × ~94 windows) does not justify 1.4M params.
-        "hidden_size": {"values": [64, 128, 256]},
-        # ff_size: inner dimension of every _FeatureMixing FFN (fc1→activation→fc2).
-        # With static covs, feature_mixing input is 2*hidden_size, so ff_size < hidden_size
-        # creates a severe compression bottleneck. Keep ff_size >= hidden_size.
-        # Darts default convention is ff_size = hidden_size.
-        "ff_size": {"values": [128, 256]},
+        # num_blocks=2 only: 3rd block re-encodes the static country profile (22/31
+        # features are annual → identical across the 36-step window). Extra depth adds
+        # leakage capacity, not temporal discrimination.
+        "num_blocks": {"values": [2]},
+        "hidden_size": {"values": [128, 256]},
+        # ff_size=256 only: ff=128 with hidden=128 → zero expansion (square projection,
+        # monthly and annual features fight for the same 128-dim bottleneck). ff=128
+        # with hidden=256 → 0.5× compression, actively destructive. ff=256 gives 2×
+        # expansion for hidden=128 and parity for hidden=256 — minimum viable.
+        "ff_size": {"values": [256]},
         "normalize_before": {"values": [True]},
         "activation": {"values": ["GELU"]},
         "norm_type": {"values": ["LayerNorm"]},
@@ -127,7 +125,10 @@ def get_sweep_config():
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.15, 0.25, 0.35]},
+        # dropout=0.05 removed: ep54→65 shows train_loss −21% while val_loss +3% — memorization.
+        # With clip=50 never firing (~36 max), 0.05 leaves the model unregularized against
+        # conflict pattern memorization. 0.10 is the new floor; 0.25 retained from sweep C best.
+        "dropout": {"values": [0.10, 0.15, 0.25]},
         "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         
@@ -151,12 +152,16 @@ def get_sweep_config():
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
+        # "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
+        "delta": {"values": [0.0, 0.01]},
         
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
-        "use_cyclic_encoders": {"values": [True]},
+        # cyclic=False: sin/cos(month) + RevIN mean-strip adds a harmonic bias that
+        # the mixer may over-rely on instead of learning conflict patterns.
+        # TSMixer has no GRU h_T bottleneck but mixing still routes cyclic signal at every layer.
+        "use_cyclic_encoders": {"values": [False]},
     }
 
     sweep_config["parameters"] = parameters

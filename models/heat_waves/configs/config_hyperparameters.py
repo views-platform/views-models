@@ -19,31 +19,31 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 256,
+        "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 40,
+        "early_stopping_patience": 30,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0001,
-        "weight_decay": 1e-3,
-        "gradient_clip_val": 3,
+        "lr": 5e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 15,
         "optimizer_kwargs": {
-            "lr": 0.0001,
-            "weight_decay": 1e-3,
+            "lr": 5e-4,
+            "weight_decay": 1e-4,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 15,
+        "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 15,
+            "patience": 10,
             "min_lr": 1e-6,
             "cooldown": 3,
             "threshold": 0.01,
@@ -52,7 +52,7 @@ def get_hp_config():
 
         # Loss
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.035,
+        "delta": 0.05544820600171585,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -106,13 +106,13 @@ def get_hp_config():
         },
 
         # TFT Architecture
-        "hidden_size": 128,
+        "hidden_size": 256,
         "lstm_layers": 2,
-        "num_attention_heads": 2,
-        "full_attention": True,
+        "num_attention_heads": 4,
+        "full_attention": False,
         "feed_forward": "GatedResidualNetwork",
         "hidden_continuous_size": 32,
-        "dropout": 0.40,
+        "dropout": 0.25,
         "norm_type": "LayerNorm",
         "add_relative_index": True,
         "skip_interpolation": True,
@@ -128,7 +128,7 @@ def get_hp_config():
         "checkpoint_mode": "best",
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
 
         # Prediction output format
         "prediction_format": "dataframe",

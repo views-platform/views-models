@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "teenage_dirtbag_tcn_shadow_20260508_A",
+        "name": "teenage_dirtbag_tcn_shadow_20260508_B",
         "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # >T_0=25 — avoids terminating runs at the LR spike before they recover
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -67,7 +67,7 @@ def get_sweep_config():
                                             "threshold": 0.01, 
                                             "threshold_mode": "rel", 
                                             "cooldown": 3}]},
-        "gradient_clip_val": {"values": [2.0, 3.0]},
+        "gradient_clip_val": {"values": [3.0, 5.0]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -113,23 +113,34 @@ def get_sweep_config():
         # ==============================================================================
         # TCN ARCHITECTURE
         # ==============================================================================
-        "kernel_size": {"values": [3]},
+        "kernel_size": {"values": [3, 5]},
         "num_filters": {"values": [64, 128]},
         "dilation_base": {"values": [2]},
-        "num_layers": {"values": [2, 3, 4]},
+        # num_layers: receptive field = kernel_size × (dilation_base^num_layers - 1)
+        # With kernel=3, dilation=2:
+        #   num_layers=4: RF = 3×15 = 45 > 36 ✓ (covers full input)
+        #   num_layers=3: RF = 3×7  = 21 (covers ~half input, faster but may miss
+        #                                  long-range conflict persistence patterns)
+        #   num_layers=5: RF = 3×31 = 93 (overkill for T=48, wastes capacity)
+        # Keep [3, 4]: 4 layers is the minimum to cover the full 36-step horizon.
+        "num_layers": {"values": [4, 5]},
         "weight_norm": {"values": [True]},
+        "use_static_covariates": {"values": [True]},
         "use_reversible_instance_norm": {"values": [True]},
         # ==============================================================================
         # REGULARIZATION
         # ==============================================================================
-        "dropout": {"values": [0.15, 0.25]},
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLossLogcosh
         # ==============================================================================
         "loss_function": {"values": ["SpotlightLossLogcosh"]},
         "non_zero_threshold": {"values": [0.88]}, 
         # delta: multi-resolution spectral weight. DC bin masked.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.02},
+        # Cap at 0.05: sparse conflict data — at delta>0.05 the model hallucinates
+        # broadband noise across peaceful series to reduce spectral loss on event
+        # series, raising peace_mean and degrading MSLE.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
