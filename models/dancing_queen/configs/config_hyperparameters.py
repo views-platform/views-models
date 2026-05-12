@@ -34,12 +34,12 @@ def get_hp_config():
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
+        "lr_scheduler_patience": 25,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 8,
+            "patience": 25,
             "min_lr": 1e-6,
             "monitor": "val_loss",
             "cooldown": 3,
