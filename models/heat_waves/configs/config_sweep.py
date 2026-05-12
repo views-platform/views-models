@@ -131,7 +131,7 @@ def get_sweep_config():
         # hidden=128: 600K params / 13.5K event windows = 44 params/window — viable with
         #   strong regularisation (weight_decay≥1e-4, dropout≥0.25).
         # hidden=64: VSN GRN W∈ℝ^{64×64} too tight for 47-feature routing. Removed.
-        "hidden_size": {"values": [128, 256]},
+        "hidden_size": {"values": [64, 128]},
         # lstm_layers: pinned at 1. A second LSTM layer processes the hidden state
         # of the first — but after RevIN normalization the hidden representation is
         # dominated by peaceful series (90%). Layer 2 learns from a near-zero
@@ -158,7 +158,7 @@ def get_sweep_config():
         # continuous features are near-constant or zero for peaceful series —
         # the GRN doesn't need 64 dimensions to route a predominantly zero-valued
         # feature matrix. Smaller projection reduces overfit to structural covariates.
-        "hidden_continuous_size": {"values": [16, 32]},
+        "hidden_continuous_size": {"values": [32]},
         # categorical_embedding_sizes: empty dict for pure continuous features.
         "categorical_embedding_sizes": {"values": [{}]},
         # add_relative_index: Pinned True. Without position encoding, attention
@@ -179,7 +179,7 @@ def get_sweep_config():
         # (75% zero-target series). Model will memorise the ~13.5K event episodes.
         # 0.25-0.35 forces the LSTM to learn general conflict-onset patterns rather
         # than memorising specific country trajectories (Syria, Iraq, Ukraine).
-        "dropout": {"values": [0.25, 0.35]},
+        "dropout": {"values": [0.15, 0.25, 0.35]},
         "use_static_covariates": {"values": [True]},
         # RevIN on: SpotlightLoss DC/AC decomposition zeroes out per-series shape
         # gradients (Σ ∂L_shape/∂ŷᵢ = 0), preventing DC offset amplification through

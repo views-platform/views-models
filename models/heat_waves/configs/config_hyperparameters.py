@@ -106,15 +106,63 @@ def get_hp_config():
         },
 
         # TFT Architecture
-        "hidden_size": 256,
-        "lstm_layers": 2,
-        "num_attention_heads": 4,
+        # hidden_size=128: VSN flattened_grn receives concat of all 37 variable
+        # prescaler embeddings (37 × hidden_continuous_size = 37 × 32 = 1184 dims).
+        # At hidden=64, the GRN hidden layer is min(64, 37)=37 → bottleneck collapses
+        # the 5 monthly conflict features and 32 annual features into the same 37-dim
+        # space with no separation capacity. 128 gives the softmax enough headroom to
+        # assign distinct weights to monthly vs annual features.
+        "hidden_size": 128,
+        # lstm_layers=1: TFT initialises LSTM h_0 and c_0 from static_context_grn
+        # (country fingerprint). Layer 2 receives h_1 as input — but h_1 is dominated
+        # by the 32 annually-constant features (stable gradients every step). Layer 2
+        # learns a deeper country embedding, not temporal dynamics. Combined with the
+        # static enrichment GRN (which re-injects country context after LSTM), a 2-layer
+        # LSTM double-encodes the country profile. For zero-inflated data where the 5
+        # monthly features are the only dynamic signal, single-layer LSTM preserves more
+        # bandwidth for those features.
+        "lstm_layers": 1,
+        # num_attention_heads=2: TFT uses InterpretableMultiHeadAttention — all heads
+        # share the same V projection (v_layer), only Q/K are per-head. With 4 heads,
+        # d_k=32 (128/4). The Q×K^T dot product in 32-dim space has SNR ∝ 1/√32 ≈ 0.18.
+        # For zero-inflated data the conflict timesteps are rare positive values in a
+        # near-zero background — a 32-dim attention needs very high conflict amplitude
+        # to produce a sharp attention peak above the zero background noise. With 2
+        # heads, d_k=64 → SNR ∝ 1/√64 ≈ 0.125 better separation. Final output is
+        # mean of 2 heads (less averaging than 4), preserving spike amplitude.
+        "num_attention_heads": 2,
         "full_attention": False,
         "feed_forward": "GatedResidualNetwork",
+        # hidden_continuous_size=32: each feature is projected 1→32 before VSN.
+        # For zero-inflated conflict features (e.g. lr_ged_sb_delta), the prescaler
+        # must encode both magnitude and sign in 32 dims. At 16, the per-variable GRN
+        # (16→min(16,128)→128) compresses before it can differentiate conflict onset
+        # from noise. 32 is h/4 at hidden=128 — standard TFT ratio.
         "hidden_continuous_size": 32,
+        # dropout=0.25: TFT applies dropout at 4 independent sites — LSTM recurrent
+        # path, GRN gates, VSN softmax inputs, and attention weights. Compound survival
+        # rate = (1-d)^4. At d=0.30: 24% survival. At d=0.25: 32% survival.
+        # Conflict signal is sparse — an event series has ~30% non-zero timesteps.
+        # At d=0.30, a conflict-onset timestep survives all 4 dropout gates with only
+        # 24% probability per forward pass. 0.25 improves this to 32% without
+        # sacrificing regularisation (the 90% peaceful series still receive heavy
+        # regularisation via zero-activation dropout paths).
         "dropout": 0.25,
         "norm_type": "LayerNorm",
+        # add_relative_index=True: without position encoding, the attention mask
+        # (causal, full_attention=False) prevents future leakage but attention scores
+        # are purely content-based. Step 8 and step 20 produce identical Q vectors if
+        # the decoder inputs are identical. The model cannot differentiate an early-
+        # horizon spike from a late-horizon plateau. Relative index breaks this
+        # degeneracy, allowing the attention to resolve temporal position of conflict
+        # onset within the 36-step forecast window.
         "add_relative_index": True,
+        # skip_interpolation=True: skips the TimeDistributedInterpolation in the
+        # ResampleNorm path. Interpolation uses F.interpolate(mode='linear') which
+        # applies linear blending across the sequence dimension — directly smoothing
+        # conflict spikes in the residual path. Skip=True routes the residual through
+        # the trainable gate only (mask parameter × sigmoid × 2.0), preserving
+        # spike amplitude in the skip connections.
         "skip_interpolation": True,
         "categorical_embedding_sizes": {},
         "use_static_covariates": True,
