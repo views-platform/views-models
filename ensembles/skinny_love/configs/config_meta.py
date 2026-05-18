@@ -25,6 +25,7 @@ def get_meta_config():
         "regression_targets": ["lr_ged_sb"],
         "level": "pgm",
         "aggregation": "mean",
+        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Xiaolong",
         "reconciliation": "pgm_cm_point",
