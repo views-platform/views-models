@@ -16,6 +16,7 @@ def get_meta_config():
         "level": "cm",
         "creator": "Dylan",
         "prediction_format": "dataframe",
+        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         "rolling_origin_stride": 1,
     }

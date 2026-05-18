@@ -1,115 +1,152 @@
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
-
-    Returns:
-    - sweep_config (dict): A dictionary containing the configuration for hyperparameter sweeps, defining the methods and parameter ranges used to search for optimal hyperparameters.
+    meow
     """
-
     sweep_config = {
-        'method': 'bayes',
-        'name': 'teenage_dirtbag_tcn_focus',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 10,
-            'eta': 2
-        },
-        'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
-            'goal': 'minimize'
-        },
+        "method": "bayes",
+        "name": "teenage_dirtbag_tcn_shadow_20260508_B",
+        "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # >T_0=25 — avoids terminating runs at the LR spike before they recover
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
-        # Temporal horizon & context
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60, 72]},
-        'output_chunk_shift': {'values': [0, 1, 2]},
+        # ==============================================================================
+        # TEMPORAL CONFIGURATION
+        # ==============================================================================
+        "steps": {"values": [[*range(1, 36 + 1)]]},
+        "input_chunk_length": {"values": [48]},
+        "output_chunk_shift": {"values": [0]},
+        "random_state": {"values": [67]},
+        "output_chunk_length": {"values": [36]},
+        "optimizer_cls": {"values": ["AdamW"]},
+        "mc_dropout": {"values": [False]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [-1]},
+        "time_steps": {"values": [36]},  # Checksum: Must match len(steps)
+        "rolling_origin_stride": {"values": [1]},
+        "prediction_format": {"values": ["dataframe"]},
 
-        # Training basics - FIXED: more epochs
-        'batch_size': {'values': [32, 64, 96]},
-        'n_epochs': {'values': [300]},  # Increased from 2
-        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
-        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
+        # ==============================================================================
+        # TRAINING
+        # ==============================================================================
+        "batch_size": {"values": [128]},
+        "n_epochs": {"values": [300]},
+        # ESP=35: allows ~4 LR reductions (patience=8 each) before triggering.
+        # Each RLROP firing gives the optimizer a reset opportunity; 35 epochs of
+        # continuous stagnation despite all reductions is a reliable stop signal.
+        # Hyperband (min_iter=15) is the primary fast-kill for clearly bad runs.
+        "early_stopping_patience": {"values": [35]},
+        "early_stopping_min_delta": {"values": [0.001]},
+        "force_reset": {"values": [True]},
+        # ==============================================================================
+        # OPTIMIZER
+        # ==============================================================================
+        # lr: swept to allow small-filter runs to survive Hyperband's min_iter=25 cut.
+        # AdamW bias correction + mostly-zero batches → effective LR starts near 0;
+        # 5e-4 is too conservative for 32-filter runs to show signal at epoch 25.
+        # 1e-3 allows fast early convergence for small capacity; gradient ceiling
+        # is handled by gradient_clip_val — see note there.
+        "lr": {"values": [1e-3, 5e-4, 2e-4]},
+        # WD range [1e-4, 5e-5]: LR floor ≈ 5e-4 × 0.5³ = 6e-5. weight_norm already
+        # provides implicit regularization per conv filter. WD=1e-4 is 1.7× floor —
+        # mild AdamW shrinkage without fighting weight_norm's scale normalization.
+        "weight_decay": {"values": [1e-4, 5e-5]},
+        "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.5]},
+        # patience=12: with 300 epochs, patience=8 exhausted 3 halvings by epoch ~36
+        # (LR at 6e-5), leaving 260 epochs at a near-floor rate. patience=12 gives
+        # 4 halvings across ~96+48 epochs before hitting min_lr, matching the
+        # 300-epoch budget. ESP=35 is the kill signal; patience=12 just slows the
+        # LR schedule so the optimizer has room to generalize after calibration.
+        "lr_scheduler_patience": {"values": [12]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
+        "lr_scheduler_kwargs": {"values": [{"mode": "min", 
+                                            "factor": 0.5, 
+                                            "patience": 12, 
+                                            "min_lr": 1e-6, 
+                                            "threshold": 0.01, 
+                                            "threshold_mode": "rel", 
+                                            "cooldown": 3}]},
+        "gradient_clip_val": {"values": [3.0, 5.0]},
+        # ==============================================================================
+        # SCALING
+        # ==============================================================================
+        "feature_scaler": {"values": [None]},
+        "target_scaler": {"values": ["AsinhTransform"]},
+        "feature_scaler_map": {
+            "values": [{
+                # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
+                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
+                "AsinhTransform->MaxAbsScaler": [
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                    "lr_ged_ns", "lr_ged_os",
+                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    
+                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
+                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+                    "lr_wdi_dt_oda_odat_pc_zs",
+                    "lr_wdi_ms_mil_xpnd_gd_zs",
 
-        # Optimizer / scheduler - FIXED: lower learning rates
-        'lr': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-4,
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
-        },
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
+                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
+                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
+                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
+                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
+                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
+                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
+                    "lr_vdem_v2x_clphy",
 
-        # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'log_targets': {'values': [True]},
-        'log_features': {
-            'values': ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
-                 "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns", 
-                 "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or", "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
-                 ]
-        },
+                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
 
-        # TCN specific architecture - FIXED: added weight norm
-        'kernel_size': {'values': [3, 5, 7]},
-        'num_filters': {'values': [32, 64, 128]},
-        'dilation_base': {'values': [2, 3, 4]},
-        'dropout': {'values': [0.1, 0.2, 0.3]},
-        'use_reversible_instance_norm': {'values': [True, False]},
-        'weight_norm': {'values': [True, False]},  # FIXED: added back
-        'force_reset': {'values': [True]},
-        'save_checkpoints': {'values': [True]},
+                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
+                    "lr_wdi_se_enr_prim_fm_zs",    
+                    "lr_wdi_sp_urb_totl_in_zs",    
 
-        # Loss function
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-
-        # Loss function parameters
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
+                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
+                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
+                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
+                ],
+            }],
         },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
-        },
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
-        },
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
-        },
-        'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 1.0,
-        },
-        
-        # Gradient clipping - added to prevent explosion
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
-        },
+        # ==============================================================================
+        # TCN ARCHITECTURE
+        # ==============================================================================
+        "kernel_size": {"values": [3, 5]},
+        "num_filters": {"values": [64, 128]},
+        "dilation_base": {"values": [2]},
+        # num_layers: receptive field = kernel_size × (dilation_base^num_layers - 1)
+        # With kernel=3, dilation=2:
+        #   num_layers=4: RF = 3×15 = 45 > 36 ✓ (covers full input)
+        #   num_layers=3: RF = 3×7  = 21 (covers ~half input, faster but may miss
+        #                                  long-range conflict persistence patterns)
+        #   num_layers=5: RF = 3×31 = 93 (overkill for T=48, wastes capacity)
+        # Keep [3, 4]: 4 layers is the minimum to cover the full 36-step horizon.
+        "num_layers": {"values": [4, 5]},
+        "weight_norm": {"values": [True]},
+        "use_static_covariates": {"values": [True]},
+        "use_reversible_instance_norm": {"values": [True]},
+        # ==============================================================================
+        # REGULARIZATION
+        # ==============================================================================
+        "dropout": {"values": [0.15, 0.25, 0.35]},
+        # ==============================================================================
+        # LOSS FUNCTION: SpotlightLossLogcosh
+        # ==============================================================================
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
+        "non_zero_threshold": {"values": [0.88]}, 
+        # delta: multi-resolution spectral weight. DC bin masked.
+        # Cap at 0.05: sparse conflict data — at delta>0.05 the model hallucinates
+        # broadband noise across peaceful series to reduce spectral loss on event
+        # series, raising peace_mean and degrading MSLE.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # ==============================================================================
+        # TEMPORAL ENCODINGS
+        # ==============================================================================
+        "use_cyclic_encoders": {"values": [True]},
     }
 
-    sweep_config['parameters'] = parameters
+    sweep_config["parameters"] = parameters
     return sweep_config

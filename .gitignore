@@ -120,7 +120,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-#*.ipynb
+*.ipynb
 
 # IPython
 profile_default/
@@ -256,10 +256,6 @@ cython_debug/
 # logs
 *.log
 *.log.*
-
-/models/emerging_principles/temp-views-r2darts2/
-/models/emerging_principles/output_non_sweep_00.md
-/models/emerging_principles/temp_output_sweep00.md
 
 # Un-ignore tracked files that match blanket rules above
 !**/requirements.txt
