@@ -64,8 +64,9 @@ def get_hp_config():
         "early_stopping_min_delta": 0.001,
 
         # Loss
-        "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.06276537091497503,
+        # "loss_function": "SpotlightLossLogcosh",
+        "loss_function": "SpotlightLossAsinh",
+        #"delta": 0.06276537091497503,
         "non_zero_threshold": 0.88,
 
         # Prediction

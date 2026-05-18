@@ -165,7 +165,7 @@ def get_sweep_config():
         # delta: multi-resolution spectral weight. DC bin masked.
         # Cap at 0.05: at delta>0.05 on sparse conflict data the model hallucinates
         # broadband noise to reduce spectral loss, raising peace_mean and MSLE.
-        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
+        # "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
         # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS

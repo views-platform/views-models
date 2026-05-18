@@ -26,7 +26,7 @@ def get_sweep_config():
         # ==============================================================================
         "batch_size": {"values": [128]},
         "n_epochs": {"values": [300]},
-        "early_stopping_patience": {"values": [35]},
+        "early_stopping_patience": {"values": [50]},
         # 0.0001 too tight: loss_stability/cv=0.33 → nearly every epoch triggers patience increment
         # even on genuinely improving runs. 0.001 matches all other models in the sweep.
         "early_stopping_min_delta": {"values": [0.001]},
@@ -47,12 +47,15 @@ def get_sweep_config():
         # ==============================================================================
         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
         "lr_scheduler_factor": {"values": [0.5]},
-        "lr_scheduler_patience": {"values": [15]},
+        # patience=[15,25]: same dead-config issue as elastic_heart. threshold=0.01
+        # in lr_scheduler_kwargs never reaches PyTorch; default 1e-4 fires 100× more
+        # aggressively. patience=25 preserves LR budget.
+        "lr_scheduler_patience": {"values": [15, 25]},
         "lr_scheduler_min_lr": {"values": [1e-5]},
         "lr_scheduler_kwargs": {"values": [
             {"mode": "min", "factor": 0.5, "patience": 15, "min_lr": 1e-5, "threshold": 0.01, "threshold_mode": "rel", "cooldown": 3},
         ]},
-        "gradient_clip_val": {"values": [50]},
+        "gradient_clip_val": {"values": [20, 50]},
         # ==============================================================================
         # SCALING
         # ==============================================================================
@@ -61,8 +64,11 @@ def get_sweep_config():
         "feature_scaler_map": {
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; StandardScaler scales to zero mean and unit variance.
-                "AsinhTransform->StandardScaler": [
+                # Asinh compresses tails; MaxAbsScaler scales to [-1, 1] based on
+                # max absolute value. StandardScaler shifts zero-anchor and creates
+                # non-zero mean for peace series — GRU hidden state carries a
+                # persistent positive bias from the input mean.
+                "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

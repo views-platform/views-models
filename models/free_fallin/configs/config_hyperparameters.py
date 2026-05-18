@@ -1,144 +1,133 @@
+
 def get_hp_config():
     """
-    N-HiTS hyperparameters from SpotlightLossLogcosh sweep best run.
-    https://wandb.ai/views_pipeline/revolving_door_nhits_spotlight_v11_3_sweep/runs/p89rxmzk
-    Returns:
-    - hyperparameters (dict): Training configuration dictionary.
+    TSMixer hyperparameters
+    Best run: elastic_heart_tsmixer_shadow_20260508_C
+    lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
     """
 
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "time_steps": 36,  # Checksum: Must match len(steps)
         "rolling_origin_stride": 1,
-        "prediction_format": "dataframe",
 
         # Inference
-        "num_samples": 512,
+        "num_samples": 500,
         "mc_dropout": True,
         "n_jobs": -1,
 
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0001,
         "weight_decay": 0.001,
-        "gradient_clip_val": 5,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.7,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 25,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.7,
-            "patience": 10,
+            "factor": 0.5,
+            "patience": 25,
             "min_lr": 1e-6,
+            "monitor": "val_loss",
             "cooldown": 3,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0001,
             "weight_decay": 0.001,
         },
-
-        # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
-        # Safe for basis-expansion architectures — bounded gradients prevent
-        # learned interpolation coefficients from growing unbounded.
+        "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.0764687307621959,
+        "delta": 0.01,
         "non_zero_threshold": 0.88,
 
         # Scaling
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "MinMaxScaler": [
-                "lr_vdem_v2x_horacc",
-                "lr_vdem_v2x_veracc",
-                "lr_vdem_v2x_diagacc",
-                "lr_vdem_v2xnp_client",
-                "lr_vdem_v2xnp_regcorr",
-                "lr_vdem_v2xpe_exlpol",
-                "lr_vdem_v2xpe_exlgeo",
-                "lr_vdem_v2xpe_exlgender",
-                "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_divparctrl",
-                "lr_vdem_v2x_ex_party",
-                "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2x_genpp",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty",
-                "lr_vdem_v2xeg_eqprotec",
-                "lr_vdem_v2xcl_dmove",
-                "lr_vdem_v2x_clphy",
-                "lr_wdi_ms_mil_xpnd_gd_zs",
-                "lr_wdi_sh_sta_stnt_zs",
-                "lr_wdi_sh_sta_maln_zs",
-                "lr_wdi_sl_tlf_totl_fe_zs",
-                "lr_wdi_se_enr_prim_fm_zs",
-                "lr_wdi_sp_dyn_imrt_fe_in",
-            ],
-            "AsinhTransform": [
-                "lr_splag_1_ged_sb",
-                "lr_splag_1_ged_ns",
-                "lr_splag_1_ged_os",
-                "lr_ged_ns",
-                "lr_ged_os",
-                "lr_ged_sb_delta",
-                "lr_ged_ns_delta",
-                "lr_ged_os_delta",
-                "lr_wdi_ny_gdp_mktp_kd",
-                "lr_wdi_nv_agr_totl_kn",
-                "lr_wdi_sm_pop_refg_or",
-                "lr_wdi_dt_oda_odat_pc_zs",
-                "lr_wdi_sp_pop_grow",
-                "lr_wdi_sp_urb_totl_in_zs",
-                "lr_wdi_sm_pop_netm",
-                "lr_acled_sb", 
-                "lr_acled_sb_count",
-                "lr_acled_os",
-            ],
+            "AsinhTransform->StandardScaler": [
+                    # Conflict counts + deltas + spatial lags
+                    "lr_ged_ns", "lr_ged_os",
+                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+
+                    # Decay features — conflict regime memory ∈ [0,1]
+                    "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+                    "lr_decay_ged_os_5", "lr_decay_ged_os_100",
+                    "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
+                    "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
+                    "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
+
+                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+                    "lr_ged_os_tlag_1",
+
+                    # Topic/NLP features — monthly leading indicators
+                    "lr_topic_tokens_t1", "lr_topic_tokens_t2",
+                    "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
+                    "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
+                    "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
+
+                    # WDI (8 with static covs)
+                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+                    "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
+                    "lr_wdi_sp_pop_grow",
+                    "lr_wdi_sp_urb_totl_in_zs",
+                    "lr_wdi_sp_dyn_imrt_fe_in",
+                    "lr_wdi_sh_sta_maln_zs",
+
+                    # V-Dem (12 — pruned of redundant accountability/exclusion)
+                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                    "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+                    "lr_vdem_v2xeg_eqdr",
+                    "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+                ],
         },
 
-        # N-HiTS Architecture
-        # 3 stacks: coarse (6:1), medium (3:1), fine (1:1)
-        # n_freq_downsample progression:
-        #   fd=6 → 36/6=6 coarse basis functions. Pure slow-trend extractor.
-        #   fd=3 → 36/3=12 coefficients interpolated to 36. Quarterly conflict cycles.
-        #   fd=1 → full-rank fine stack (36 coeffs → 36 steps). Safe under
-        #   SpotlightLossLogcosh because logcosh gradients saturate at ±1,
-        #   preventing unbounded growth of interpolation coefficients.
-        "num_stacks": 3,
-        "num_blocks": 1,
-        "num_layers": 3,
-        "layer_widths": 128,
-        "pooling_kernel_sizes": ((6,), (3,), (1,)),
-        "n_freq_downsample": ((6,), (2,), (1,)),
-        "max_pool_1d": False,
+        # TSMixer Architecture
+        # 3 blocks × 64 width: sweep-validated configuration. Wider depth
+        # (3 blocks) compensates for narrower hidden_size=64 by stacking
+        # more mixing passes
+        "num_blocks": 2,
+        "hidden_size": 256,
+        "ff_size": 512,
         "activation": "GELU",
-        "dropout": 0.3,
+        "norm_type": "LayerNorm",
+        "normalize_before": True,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        # Temporal Encodings
-        # ModelCatalog reads this flag and injects the appropriate cyclic
-        # encoder functions for the dataset temporal resolution, inferred
-        # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
-        "use_cyclic_encoders": True,
-        "static_covariate_stats": {"transform": "AsinhTransform"},
-    }
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": True,
+        #     # "stats": ["trend", "sparsity"],
+        # },
 
+        "use_cyclic_encoders": True,
+
+        # Prediction output format
+        "prediction_format": "dataframe",
+    }
     return hyperparameters
