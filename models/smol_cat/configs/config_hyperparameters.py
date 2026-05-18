@@ -65,7 +65,7 @@ def get_hp_config():
 
         # Loss
         # "loss_function": "SpotlightLossLogcosh",
-        "loss_function": "SpotlightLossAsinh",
+        "loss_function": "SpotlightLossLogcosh",
         #"delta": 0.06276537091497503,
         "non_zero_threshold": 0.88,
 
