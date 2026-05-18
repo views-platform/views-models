@@ -1,1 +1,1 @@
-views-faoapi>=0.1.0, <1.0.0
+views-seldon>=0.1.0, <1.0.0
