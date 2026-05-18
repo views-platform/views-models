@@ -19,7 +19,11 @@ run_folder () {
 
     (
         cd "$abs_path"
-        bash ./run.sh
+        if [[ "$folder" == ensembles/* ]]; then
+            bash run.sh -m
+        else
+            bash  run.sh
+        fi
     )
 
     echo "Finished: $folder"
