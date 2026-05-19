@@ -31,7 +31,7 @@ def get_hp_config():
         "dropout": 0.3,
         "batch_norm": False,          # not part of sweep; unchanged default
         "mc_dropout": True,
-        "expansion_coefficient_dim": 64,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 16,
 
         # --- Input / output structure ---

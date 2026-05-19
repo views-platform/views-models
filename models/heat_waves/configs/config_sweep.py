@@ -14,7 +14,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "heat_waves_tft_shadow_20260508_D",
+        "name": "heat_waves_tft_shadow_20260519_A",
         "early_terminate": {"type": "hyperband", "min_iter": 25, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
@@ -87,8 +87,8 @@ def get_sweep_config():
         "feature_scaler_map": {
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; StandardScaler scales to zero mean and unit variance.
-                "AsinhTransform->StandardScaler": [
+                # Asinh compresses tails; MaxAbsScaler scales to [-1, 1] range.
+                "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -162,8 +162,8 @@ def get_sweep_config():
         # full_attention=False (causal): step k attends only to steps 1..k → each
         # step is forced to be independently resolved → less temporal smearing.
         # For conflict forecasting where sharpness matters, False is preferable.
-        "full_attention": {"values": [False]},
-        "feed_forward": {"values": ["GatedResidualNetwork"]},
+        "full_attention": {"values": [False, True]},
+        "feed_forward": {"values": ["GatedResidualNetwork", "GELU", "ReLU"]},
         # hidden_continuous_size: 32 is h/4 for h=128. With sparse data, most
         # continuous features are near-constant or zero for peaceful series —
         # the GRN doesn't need 64 dimensions to route a predominantly zero-valued
