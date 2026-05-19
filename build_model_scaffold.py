@@ -122,7 +122,7 @@ class ModelScaffoldBuilder:
             # ModelPathManager calls crash with cryptic NoneType errors.
             # Guard on subdir.exists() so a failed mkdir above doesn't turn the
             # logged-and-continue path into an unhandled FileNotFoundError.
-            if subdir.exists():
+            if subdir.is_dir():
                 gitkeep_path = subdir / ".gitkeep"
                 if not gitkeep_path.exists():
                     gitkeep_path.touch()
@@ -244,10 +244,10 @@ class ModelScaffoldBuilder:
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first."
             )
         if self._model.target == "model":
-            updated_model_path = ModelPathManager(self._model.model_name, validate=True)
+            updated_model_path = ModelPathManager(self._model.model_name, validate=False)
         elif self._model.target == "ensemble":
             updated_model_path = EnsemblePathManager(
-                self._model.model_name, validate=True
+                self._model.model_name, validate=False
             )
         else:
             raise ValueError(
@@ -307,6 +307,8 @@ class ModelScaffoldBuilder:
         """
         for subdir in self._subdirs:
             subdir = Path(subdir)
+            if not subdir.is_dir():
+                continue
             if not list(subdir.glob("*")):
                 gitkeep_path = subdir / ".gitkeep"
                 if not gitkeep_path.exists():
