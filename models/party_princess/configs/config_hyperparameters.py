@@ -10,6 +10,7 @@ def get_hp_config():
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 36 + 1)),
+        "time_steps": 36,
     
         # --- Sampling ---
         "num_samples": 1,
@@ -29,6 +30,8 @@ def get_hp_config():
         "future_cov_dim": 0,
         "input_size": 76,
         "target_size": 1,
+        "hidden_fc_sizes": [256],
+        "use_static_covariates": True,
     
         # --- Regularization ---
         "dropout": 0.2,

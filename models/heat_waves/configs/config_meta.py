@@ -10,11 +10,12 @@ def get_meta_config():
     meta_config = {
         "name": "heat_waves", 
         "algorithm": "TFTModel",
-        # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb_dep"],
-        # "queryset": "escwa001_cflong",
+        "regression_targets": ["lr_ged_sb"],
         "level": "cm",
         "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "rolling_origin_stride": 1,
+        "prediction_format": "dataframe",
     }
     return meta_config

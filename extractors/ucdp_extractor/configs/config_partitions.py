@@ -1,5 +1,7 @@
 from ingester3.ViewsMonth import ViewsMonth
 
+# ViewsMonth reference: 121 = Jan 1990, 444 = Dec 2016, 492 = Dec 2020, 540 = Dec 2024
+
 
 def generate(steps: int = 36) -> dict:
     """
@@ -20,21 +22,21 @@ def generate(steps: int = 36) -> dict:
     """
 
     def forecasting_train_range():
-        month_last = ViewsMonth.now().id - 2
+        month_last = ViewsMonth.now().id - 1
         return (121, month_last)
 
     def forecasting_test_range(steps):
-        month_last = ViewsMonth.now().id - 2
+        month_last = ViewsMonth.now().id - 1
         return (month_last + 1, month_last + 1 + steps)
 
     return {
         "calibration": {
-            "train": (121, 396),
-            "test": (397, 444),
-        },
-        "validation": {
             "train": (121, 444),
             "test": (445, 492),
+        },
+        "validation": {
+            "train": (121, 492),
+            "test": (493, 540),
         },
         "forecasting": {
             "train": forecasting_train_range(),

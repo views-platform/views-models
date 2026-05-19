@@ -1,1 +1,0 @@
-    print(f"DartsForecastingModelManager.__init__ - self.config:\n{pprint.pformat(self.config)}")

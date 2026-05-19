@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
@@ -17,6 +17,11 @@ script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
 env_path="$project_path/envs/views-postprocessing"
 
+if [ -f "$project_path/.env" ]; then
+  source "$project_path/.env"
+  export GITHUB_TOKEN
+fi
+
 eval "$(conda shell.bash hook)"
 
 if [ -d "$env_path" ]; then
@@ -31,11 +36,15 @@ if [ -d "$env_path" ]; then
   else
     echo "All packages are up-to-date."
   fi
+  echo "Installing views-postprocessing from GitHub..."
+  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
 else
   echo "Creating new Conda environment at $env_path..."
   conda create --prefix "$env_path" python=3.11 -y
   conda activate "$env_path"
   pip install -r $script_path/requirements.txt
+  echo "Installing views-postprocessing from GitHub..."
+  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
 fi
 
 echo "Running $script_path/main.py "

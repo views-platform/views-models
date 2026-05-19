@@ -7,16 +7,31 @@ def get_meta_config():
     - meta_config (dict): A dictionary containing model meta configuration.
     """
     meta_config = {
+        # ============================================================
+        # General information
+        # ============================================================
         "name": "purple_alien",
         "algorithm": "HydraNet", 
-        "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"], #, "ln_sb_best_binarized", "ln_ns_best_binarized", "ln_os_best_binarized"], 
-        # "queryset": "escwa001_cflong",
-        "identity_cols" : ["priogrid_gid", "col", "row", "month_id", "c_id"],
-        "index_names": ['month_id', 'priogrid_gid'],
-        "features" : ["lr_sb_best", "lr_ns_best", "lr_os_best"],
-        "level": "pgm",
         "creator": "Simon",
-        "regression_metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
-        "classification_metrics": ["AP"],
+        "level": "pgm",
+        
+        # ============================================================
+        # output format
+        # ============================================================
+
+        "prediction_format": "prediction_frame", #"dataframe",
+        # "prediction_format": "dataframe",
+        # ============================================================
+        # diagnostic settings
+        # ============================================================
+        "diagnostic_visualizations": True,
+
+        # ============================================================
+        # evaluation settings 
+        # ============================================================
+        "regression_sample_metrics": ["CRPS", "QS_sample", "MCR_sample"],
+        "classification_sample_metrics": ["Brier_cls_sample"],
+        "evaluation_profile": "hydranet_ucdp",
+        "rolling_origin_stride": 1,
     }
     return meta_config 

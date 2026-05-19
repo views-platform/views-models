@@ -10,10 +10,13 @@ def get_meta_config():
     meta_config = {
         "name": "preliminary_directives", 
         "algorithm": "NBEATSModel",
-        "targets": ["lr_ged_sb_dep"],
+        "regression_targets": ["lr_ged_sb"],
         # "queryset": "escwa001_cflong",
         "level": "cm",
-        "creator": "Dylan",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "creator": "Simon",
+        "prediction_format": "dataframe",
+        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "rolling_origin_stride": 1,
     }
     return meta_config

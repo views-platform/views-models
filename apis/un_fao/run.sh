@@ -1,8 +1,13 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
 env_path="$project_path/envs/views-faoapi"
+
+if [ -f "$project_path/.env" ]; then
+  source "$project_path/.env"
+  export GITHUB_TOKEN
+fi
 
 eval "$(conda shell.bash hook)"
 
@@ -18,12 +23,15 @@ if [ -d "$env_path" ]; then
   else
     echo "All packages are up-to-date."
   fi
+  echo "Installing views-faoapi from GitHub..."
+  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-faoapi.git@main
 else
   echo "Creating new Conda environment at $env_path..."
   conda create --prefix "$env_path" python=3.11 -y
   conda activate "$env_path"
   # pip install -r $script_path/requirements.txt
-  pip install git+https://github.com/views-platform/views-faoapi.git@development
+  echo "Installing views-faoapi from GitHub..."
+  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-faoapi.git@main
 fi
 
 echo "Running $script_path/main.py "

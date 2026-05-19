@@ -1,5 +1,7 @@
 from ingester3.ViewsMonth import ViewsMonth
 
+# ViewsMonth reference: 121 = Jan 1990, 444 = Dec 2016, 492 = Dec 2020, 540 = Dec 2024
+
 
 def generate(steps: int = 36) -> dict:
     """

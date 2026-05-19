@@ -1,0 +1,7 @@
+{
+  "calibration": {"train": [121, 444], "test": [445, 492]},
+  "validation": {"train": [121, 492], "test": [493, 540]},
+  "forecasting_offset": -1,
+  "forecasting_origin": 121,
+  "steps_default": 36
+}

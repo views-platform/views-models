@@ -6,6 +6,10 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
+# Integration test logs (allow .gitkeep through to preserve empty log dirs)
+logs/*
+!logs/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -16,6 +20,7 @@ __pycache__/
 *.ckpt
 *.onnx
 *.pt
+*.pt.sha256
 *.pth
 *.bin
 *.json
@@ -86,6 +91,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.ruff_cache/
 cover/
 
 # Translations
@@ -114,7 +120,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-#*.ipynb
+*.ipynb
 
 # IPython
 profile_default/
@@ -245,12 +251,12 @@ cython_debug/
 *.bak
 
 # txt logs
-# *.txt
+*.txt
 
 # logs
 *.log
 *.log.*
 
-/models/emerging_principles/temp-views-r2darts2/
-/models/emerging_principles/output_non_sweep_00.md
-/models/emerging_principles/temp_output_sweep00.md
+# Un-ignore tracked files that match blanket rules above
+!**/requirements.txt
+!meta/partitions.json

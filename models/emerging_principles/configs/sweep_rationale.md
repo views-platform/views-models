@@ -1,1 +1,0 @@
-This sweep tests the unique learning rate and weight decay of this model against the more common values from other high-performing runs to see which is optimal for this simpler architecture.

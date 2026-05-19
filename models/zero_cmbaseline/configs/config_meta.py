@@ -6,15 +6,16 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
+
     meta_config = {
-        "name": "zero_cmbaseline", 
+        "name": "zero_cmbaseline",
         "algorithm": "ZeroModel",
-        # Uncomment and modify the following lines as needed for additional metadata:
-        "targets": ["lr_ged_sb"],
-        # "queryset": "escwa001_cflong",
+        "regression_targets": ["lr_ged_sb"],
         "level": "cm",
         "creator": "Sonja",
-        "metrics": ["RMSLE", "CRPS", "MSE", "MSLE", "y_hat_bar"],
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1,
+        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
     }
     return meta_config

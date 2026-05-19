@@ -19,6 +19,8 @@ def get_hp_config():
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
+        "time_steps": 36,
+        "rolling_origin_stride": 1,
 
         # --- Architecture ---
         "activation": "LeakyReLU",
@@ -28,7 +30,9 @@ def get_hp_config():
         "num_layers": 3,
         "layer_widths": 64, # widths 
         "dropout": 0.3,
-        "batch_norm": False,          
+        "batch_norm": False,         
+        "expansion_coefficient_dim": 32,
+        "trend_polynomial_degree": 16, 
 
         # --- Input / output structure ---
         "input_chunk_length": 24,

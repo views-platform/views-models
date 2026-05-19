@@ -1,120 +1,141 @@
-import math
-
 def get_sweep_config():
     """
-    Contains the configuration for hyperparameter sweeps using WandB.
-    This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
-
-    Returns:
-    - sweep_config (dict): A dictionary containing the configuration for hyperparameter sweeps, defining the methods and parameter ranges used to search for optimal hyperparameters.
+    meow
     """
-
     sweep_config = {
-        'method': 'bayes',
-        'name': 'good_life_transformer_focus',
-        'early_terminate': {
-            'type': 'hyperband',
-            'min_iter': 10,
-            'eta': 2
-        },
-        'metric': {
-            'name': 'time_series_wise_msle_mean_sb',
-            'goal': 'minimize'
-        },
+        "method": "bayes",
+        "name": "good_life_transformer_shadow_20260508_A",
+        "early_terminate": {"type": "hyperband", "min_iter":30, "eta": 2},  # Rungs at 30,90,270. min_iter=30 = 5 epochs post-restart-1, past the spike; comparisons at matched post-restart phase.
+        "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
 
     parameters = {
-        # Temporal horizon & context
-        'steps': {'values': [[*range(1, 36 + 1)]]},
-        'input_chunk_length': {'values': [36, 48, 60, 72]},
-        'output_chunk_shift': {'values': [0, 1, 2]},
+        # ==============================================================================
+        # TEMPORAL CONFIGURATION
+        # ==============================================================================
+        "steps": {"values": [[*range(1, 36 + 1)]]},
+        "input_chunk_length": {"values": [36]},
+        "output_chunk_shift": {"values": [0]},
+        "random_state": {"values": [67]},
+        "output_chunk_length": {"values": [36]},
+        "optimizer_cls": {"values": ["AdamW"]},
+        "mc_dropout": {"values": [False]},
+        "num_samples": {"values": [1]},
+        "n_jobs": {"values": [-1]},
+        # ==============================================================================
+        # TRAINING
+        # ==============================================================================
+        "batch_size": {"values": [128]},
+        "n_epochs": {"values": [300]},
+        # ESP=35: allows ~4 LR reductions (patience=8 each) before triggering.
+        # Each RLROP firing gives the optimizer a reset opportunity; 35 epochs of
+        # continuous stagnation despite all reductions is a reliable stop signal.
+        # Hyperband (min_iter=15) is the primary fast-kill for clearly bad runs.
+        "early_stopping_patience": {"values": [35]},
+        "early_stopping_min_delta": {"values": [0.001]},
+        "force_reset": {"values": [True]},
+        # ==============================================================================
+        # OPTIMIZER
+        # ==============================================================================
+        "lr": {"values": [3e-4, 1e-4, 5e-5]},
+        # WD range [5e-5, 2e-5]: LR floor ≈ 3e-4 × 0.5³ = 3.75e-5. WD=1e-4 would be
+        # 2.7× floor — too dominant on attention weights late in training. LayerNorm
+        # already regularizes scale; WD provides mild L2 bias against memorization.
+        "weight_decay": {"values": [5e-5, 2e-5]},
+        # ==============================================================================
+        # LR SCHEDULER
+        # ==============================================================================
+         "lr_scheduler_cls": {"values": ["ReduceLROnPlateau"]},
+        "lr_scheduler_factor": {"values": [0.5]},
+        "lr_scheduler_patience": {"values": [12]},
+        "lr_scheduler_min_lr": {"values": [1e-6]},
+        "lr_scheduler_kwargs": {"values": [{"mode": "min", 
+                                            "factor": 0.5, 
+                                            "patience": 12, 
+                                            "min_lr": 1e-6, 
+                                            "threshold": 0.01, 
+                                            "threshold_mode": "rel", 
+                                            "cooldown": 3}]},
+        "gradient_clip_val": {"values": [3.0, 5.0, 7.0]},
+        # ==============================================================================
+        # SCALING
+        # ==============================================================================
+        "feature_scaler": {"values": [None]},
+        "target_scaler": {"values": ["AsinhTransform"]},
+        "feature_scaler_map": {
+            "values": [{
+                # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
+                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
+                "AsinhTransform->MaxAbsScaler": [
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                    "lr_ged_ns", "lr_ged_os",
+                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    
+                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
+                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+                    "lr_wdi_dt_oda_odat_pc_zs",
+                    "lr_wdi_ms_mil_xpnd_gd_zs",
 
-        # Training basics - FIXED: more epochs, smaller batches
-        'batch_size': {'values': [32, 64, 96, 128]},  # Reduced from 256
-        'n_epochs': {'values': [300]}, 
-        'early_stopping_patience': {'values': [15, 20, 25]},  # Increased from 5
-        'early_stopping_min_delta': {'values': [0.001, 0.005, 0.01]},
+                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
+                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
+                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
+                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
+                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
+                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
+                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
+                    "lr_vdem_v2x_clphy",
 
-        # Optimizer / scheduler - FIXED: lower learning rates
-        'lr': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-6,
-            'max': 1e-4,
-        },
-        'weight_decay': {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-3,
-        },
-        'lr_scheduler_factor': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
-        },
-        'lr_scheduler_patience': {'values': [3, 5, 7]},
-        'lr_scheduler_min_lr': {'values': [1e-6, 1e-5]},
+                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
 
-        # Scaling and transformation
-        'feature_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'target_scaler': {'values': ['RobustScaler', "MinMaxScaler"]},
-        'log_targets': {'values': [True]},
-        'log_features': {
-            'values': [
-                ["lr_ged_sb", "lr_ged_ns", "lr_ged_os", "lr_acled_sb", "lr_acled_os", 
-                 "lr_ged_sb_tsum_24", "lr_splag_1_ged_sb", "lr_splag_1_ged_os", "lr_splag_1_ged_ns", 
-                 "lr_wdi_sm_pop_netm", "lr_wdi_sm_pop_refg_or", "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_ny_gdp_mktp_kd",
-                 ]
-            ]
-        },
+                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
+                    "lr_wdi_se_enr_prim_fm_zs",    
+                    "lr_wdi_sp_urb_totl_in_zs",    
 
-        # Transformer specific architecture - FIXED: reduced complexity
-        'd_model': {'values': [32, 64, 128]},  # Reduced from 256
-        'nhead': {'values': [2, 4, 8]},  # Reduced from 16
-        'num_encoder_layers': {'values': [2, 3, 4]},  # Reduced from 6
-        'num_decoder_layers': {'values': [2, 3, 4]},  # Reduced from 6
-        'dim_feedforward': {'values': [128, 256, 512]},  # Reduced from 1024
-        'dropout': {'values': [0.1, 0.2, 0.3]},  # Reduced from 0.1
-        'activation': {'values': ['ReLU', 'LeakyReLU', 'GELU']},
-        'norm_type': {'values': [None, 'LayerNorm']},
-        'force_reset': {'values': [True]},
-
-        # Loss function
-        'loss_function': {'values': ['WeightedPenaltyHuberLoss']},
-
-        # Loss function parameters
-        'zero_threshold': {
-            'distribution': 'uniform',
-            'min': 0.1,
-            'max': 0.5,
+                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
+                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
+                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
+                ],
+            }],
         },
-        'false_positive_weight': {
-            'distribution': 'uniform',
-            'min': 1.0,
-            'max': 3.0,
-        },
-        'false_negative_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 8.0,
-        },
-        'non_zero_weight': {
-            'distribution': 'uniform',
-            'min': 3.0,
-            'max': 7.0,
-        },
-        'delta': {
-            'distribution': 'log_uniform_values',
-            'min': 0.1,
-            'max': 1.0,
-        },
-        
-        # Gradient clipping - added to prevent explosion
-        'gradient_clip_val': {
-            'distribution': 'uniform',
-            'min': 0.5,
-            'max': 1.0,
-        },
+        # ==============================================================================
+        # TRANSFORMER ARCHITECTURE
+        # ==============================================================================
+        "d_model": {"values": [128, 256]},
+        # nhead=2: head_dim=64/128 — coarser fanout, higher per-head capacity.
+        # Sparse sequences benefit from larger head_dim: each head has more room
+        # to discriminate signal from near-zero background.
+        # nhead=4: head_dim=32/64 — standard; better for dense covariate mixing.
+        "nhead": {"values": [2, 4]},
+        "num_encoder_layers": {"values": [3, 4]},
+        # dim_feedforward=256 tests whether compression forces better generalisation
+        # on sparse input; 512/1024 risks memorising per-entity bias vectors.
+        "dim_feedforward": {"values": [256, 512]},
+        "activation": {"values": ["GELU"]},
+        "norm_type": {"values": ["LayerNorm"]},
+        "use_static_covariates": {"values": [True]},
+        # ==============================================================================
+        # REGULARIZATION
+        # ==============================================================================
+        "dropout": {"values": [0.15, 0.25]},
+        "use_reversible_instance_norm": {"values": [True]},
+        # ==============================================================================
+        # LOSS FUNCTION: SpotlightLossLogcosh
+        # ==============================================================================
+        "loss_function": {"values": ["SpotlightLossLogcosh"]},
+        "non_zero_threshold": {"values": [0.88]}, 
+        # delta: multi-resolution spectral weight. DC bin masked.
+        # Cap at 0.05 (consistent with elastic_heart): at delta>0.05 on sparse
+        # conflict data the model hallucinates broadband noise to reduce spectral
+        # loss on event series, raising peace_mean and degrading MSLE.
+        "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
+        # ==============================================================================
+        # TEMPORAL ENCODINGS
+        # ==============================================================================
+        "use_cyclic_encoders": {"values": [True]},
     }
 
-    sweep_config['parameters'] = parameters
+    sweep_config["parameters"] = parameters
     return sweep_config

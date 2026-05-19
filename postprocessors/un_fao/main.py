@@ -1,13 +1,10 @@
 import wandb
-import warnings
 from pathlib import Path
 from views_postprocessing.unfao.managers import UNFAOPostProcessorManager
 from views_pipeline_core.managers.postprocessor.postprocessor import PostprocessorPathManager
 
 # Import your model manager class here
 # E.g. from views_stepshifter.manager.stepshifter_manager import StepshifterManager
-
-warnings.filterwarnings("ignore")
 
 try:
     model_path = PostprocessorPathManager(Path(__file__))

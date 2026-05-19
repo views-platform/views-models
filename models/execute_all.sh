@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 
 # Get a sorted list of model directories
 models=($(find . -type f -name "run.sh" -exec dirname {} \; | sort))
@@ -7,5 +7,5 @@ models=($(find . -type f -name "run.sh" -exec dirname {} \; | sort))
 for dir in "${models[@]}"; do
   script="$dir/run.sh"
   echo "Executing $script..."
-  zsh "$script" "$@"
+  "$script" "$@"
 done

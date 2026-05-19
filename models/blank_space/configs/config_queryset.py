@@ -1,5 +1,4 @@
 from viewser import Queryset, Column
-from viewser import Queryset, Column
 from views_pipeline_core.managers.model import ModelPathManager
 
 model_name = ModelPathManager.get_model_name_from_path(__file__)

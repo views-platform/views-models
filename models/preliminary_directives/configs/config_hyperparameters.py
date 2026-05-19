@@ -19,6 +19,7 @@ def get_hp_config():
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
+        "time_steps": 36,
 
         # --- Architecture ---
         "activation": "LeakyReLU",
@@ -30,6 +31,8 @@ def get_hp_config():
         "dropout": 0.3,
         "batch_norm": False,          # not part of sweep; unchanged default
         "mc_dropout": True,
+        "expansion_coefficient_dim": 64,
+        "trend_polynomial_degree": 16,
 
         # --- Input / output structure ---
         "input_chunk_length": 24,

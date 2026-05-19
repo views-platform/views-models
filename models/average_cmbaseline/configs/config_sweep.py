@@ -10,19 +10,19 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'average_baseline'
+        'name': 'average_cmbaseline'
     }
 
-    # Example metric setup:
     metric = {
         'name': 'MSE',
         'goal': 'minimize'
     }
     sweep_config['metric'] = metric
 
-    # Example parameters setup:
     parameters_dict = {
-        'steps': {'values': [[*range(1, 36 + 1, 1)]]},
+        'steps': {'value': [*range(1, 36 + 1, 1)]},
+        'time_steps': {'value': 36},
+        'window_months': {'values': [6, 12, 18, 24, 36, 48, 60]},
     }
     sweep_config['parameters'] = parameters_dict
 
