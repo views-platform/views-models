@@ -31,6 +31,7 @@ ALGORITHM_TO_PACKAGE = {
     "TransformerModel": "views_r2darts2",
     "TiDEModel": "views_r2darts2",
     "TSMixerModel": "views_r2darts2",
+    "NHiTSModel": "views_r2darts2",
     # views_baseline algorithms
     "MixtureBaseline": "views_baseline",
     "AverageModel": "views_baseline",
