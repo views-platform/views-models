@@ -14,7 +14,6 @@ def get_hp_config():
         "mc_dropout": False,
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
-        "rolling_origin_stride": 1,
 
         "activation": "GELU",
         "batch_size": 128,
@@ -93,8 +92,6 @@ def get_hp_config():
         "use_cyclic_encoders": True,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
-        # Prediction output format
-        "prediction_format": "dataframe",
     }
 
 

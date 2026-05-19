@@ -17,5 +17,7 @@ def get_meta_config():
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
         # "regression_sample_metrics": ["CRPS", "y_hat_bar"],
         # "regression_sample_baselines": ["red_ranger"],
+        "rolling_origin_stride": 1,
+        "prediction_format": "dataframe",
     }
     return meta_config

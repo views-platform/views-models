@@ -7,7 +7,6 @@ def get_hp_config():
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
         "time_steps": 36,  # Checksum: Must match len(steps)
-        "rolling_origin_stride": 1,
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
@@ -174,8 +173,5 @@ def get_hp_config():
 
         # Encoders
         "use_cyclic_encoders": False,
-
-        # Prediction output format
-        "prediction_format": "dataframe",
     }
     return hyperparameters

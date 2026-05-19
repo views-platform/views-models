@@ -14,7 +14,6 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "random_state": 67,
         "time_steps": 36,  # Checksum: Must match len(steps)
-        "rolling_origin_stride": 1,
 
         # Inference
         "num_samples": 1,
@@ -126,8 +125,5 @@ def get_hp_config():
         # },
 
         "use_cyclic_encoders": True,
-
-        # Prediction output format
-        "prediction_format": "dataframe",
     }
     return hyperparameters
