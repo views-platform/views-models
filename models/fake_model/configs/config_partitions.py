@@ -12,8 +12,7 @@ def generate(steps: int = 36) -> dict:
     Partition details:
         - 'calibration': Uses fixed index ranges for training and testing.
         - 'validation': Uses fixed index ranges for training and testing.
-        - 'forecasting': Uses callables that accept ViewsMonth (and optionally step) to dynamically determine
-          training and testing index ranges based on the current month.
+        - 'forecasting': Uses training and testing index ranges based on the current month.
 
     Note:
         - The 'forecasting' partition's 'train' and 'test' values are functions that require the ViewsMonth
@@ -42,4 +41,3 @@ def generate(steps: int = 36) -> dict:
             "test": forecasting_test_range(steps=steps),
         },
     }
-

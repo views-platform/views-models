@@ -31,6 +31,8 @@ def get_hp_config():
         "dropout": 0.3,
         "batch_norm": False,
         "mc_dropout": True,
+        "expansion_coefficient_dim": 32,
+        "trend_polynomial_degree": 16,
 
         # --- Input / output structure ---
         "input_chunk_length": 36,
