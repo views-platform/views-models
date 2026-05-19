@@ -14,6 +14,9 @@ logging.basicConfig(
 
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
 
+# Scaffold/fixture models that exist for testing purposes only.
+_FIXTURE_MODELS = {"fake_model"} 
+
 
 
 
@@ -205,7 +208,7 @@ if __name__ == "__main__":
     for model_type in base_dirs:
         if os.path.isdir(model_type):
             for model_name in sorted(os.listdir(model_type)):
-                if  ModelPathManager.validate_model_name(model_name):
+                if  ModelPathManager.validate_model_name(model_name) and model_name not in _FIXTURE_MODELS:
                     model_path = os.path.join(model_type, model_name)
                     if os.path.isdir(model_path):  
                         if model_type=='models':
