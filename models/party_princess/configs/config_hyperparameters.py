@@ -30,6 +30,8 @@ def get_hp_config():
         "future_cov_dim": 0,
         "input_size": 76,
         "target_size": 1,
+        "hidden_fc_sizes": [256],
+        "use_static_covariates": True,
     
         # --- Regularization ---
         "dropout": 0.2,
