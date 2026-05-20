@@ -89,17 +89,22 @@ done
 
 # ── Build exclusion set ──────────────────────────────────────────────
 
-declare -A EXCLUDED
-for m in $EXCLUDE_MODELS; do
-    EXCLUDED[$m]=1
-done
+# Bash 3.x-compatible exclusion check (avoids declare -A arithmetic-context
+# crash under set -u when run with macOS's default bash 3.2).
+_is_excluded() {
+    local name="$1" ex
+    for ex in $EXCLUDE_MODELS; do
+        [[ "$ex" == "$name" ]] && return 0
+    done
+    return 1
+}
 
 # ── Discover models ──────────────────────────────────────────────────
 
 MODELS=()
 if [ -n "$FILTER_MODELS" ]; then
     for m in $FILTER_MODELS; do
-        if [[ -n "${EXCLUDED[$m]:-}" ]]; then
+        if _is_excluded "$m"; then
             echo -e "${YELLOW}Excluding: $m${NC}"
         elif [ -f "$MODELS_DIR/$m/main.py" ]; then
             MODELS+=("$m")
@@ -110,7 +115,7 @@ if [ -n "$FILTER_MODELS" ]; then
 else
     for dir in "$MODELS_DIR"/*/; do
         model_name=$(basename "$dir")
-        if [[ -n "${EXCLUDED[$model_name]:-}" ]]; then
+        if _is_excluded "$model_name"; then
             continue
         fi
         if [ -f "$dir/main.py" ]; then

@@ -12,12 +12,13 @@ except Exception as e:
 if __name__ == "__main__":
     args = ForecastingModelArgs.parse_args()
     
-    manager = DartsForecastingModelManager(
-        model_path=model_path,
-        wandb_notifications=args.wandb_notifications,
-    )
-
     if args.sweep:
-        manager.execute_sweep_run(args)
+        DartsForecastingModelManager(
+            model_path=model_path, 
+            wandb_notifications=args.wandb_notifications
+        ).execute_sweep_run(args)
     else:
-        manager.execute_single_run(args)
+        DartsForecastingModelManager(
+            model_path=model_path, 
+            wandb_notifications=args.wandb_notifications
+        ).execute_single_run(args)

@@ -10,6 +10,10 @@ ENSEMBLES_DIR = REPO_ROOT / "ensembles"
 EXTRACTORS_DIR = REPO_ROOT / "extractors"
 POSTPROCESSORS_DIR = REPO_ROOT / "postprocessors"
 
+# Scaffold template models that exist only as scaffolding examples and should
+# not be exercised by the production test suite.
+_FIXTURE_MODELS = {"fake_model"}
+
 
 def _collect_model_dirs(base_dir: Path) -> list[Path]:
     """Return sorted list of model directories (dirs containing main.py)."""
@@ -18,6 +22,7 @@ def _collect_model_dirs(base_dir: Path) -> list[Path]:
     return sorted(
         d for d in base_dir.iterdir()
         if d.is_dir() and (d / "main.py").exists()
+        and d.name not in _FIXTURE_MODELS
     )
 
 

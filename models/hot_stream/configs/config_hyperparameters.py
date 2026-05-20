@@ -29,6 +29,7 @@ def get_hp_config():
         'use_static_covariates': True,
         'output_dim': [1, 1],
         'num_static_components': 1,
+        'categorical_embedding_sizes': {},
 
         # --- Regularization ---
         'dropout': 0.3,

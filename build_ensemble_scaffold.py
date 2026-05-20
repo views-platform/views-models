@@ -67,7 +67,7 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         Raises:
             FileNotFoundError: If the model directory does not exist.
         """
-        pipeline_config = pipeline_config or PipelineConfig()
+        pipeline_config = pipeline_config or PipelineConfig
 
         if not self._model.model_dir.exists():
             raise FileNotFoundError(

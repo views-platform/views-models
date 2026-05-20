@@ -8,6 +8,10 @@ from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathM
 base_dir = os.getcwd()
 target_dir = Path(base_dir + "/models")
 
+# Scaffold/fixture models that exist for testing purposes only and should
+# not appear in the README or be processed by ModelPathManager.
+_FIXTURE_MODELS = {"fake_model"}
+
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
     """Generate a structured repository tree dynamically from folders and scripts."""
@@ -63,7 +67,7 @@ def generate_repo_structure(folders, scripts, model_name):
 
 
 for subfolder in target_dir.iterdir():
-    if subfolder.is_dir():  # Check if it's a directory
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_MODELS:  # Check if it's a directory
         print(f"Model: {subfolder.name}")
         configs_dir = target_dir / subfolder.name / "configs"
         model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)

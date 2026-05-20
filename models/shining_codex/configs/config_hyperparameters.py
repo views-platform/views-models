@@ -31,6 +31,8 @@ def get_hp_config():
         "layer_widths": 64,
         "dropout": 0.3,
         "batch_norm": False,
+        "expansion_coefficient_dim": 32,
+        "trend_polynomial_degree": 16,
 
         # --- Input / output structure ---
         "input_chunk_length": 24,
