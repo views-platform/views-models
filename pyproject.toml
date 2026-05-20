@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+markers = [
+    "red: adversarial / error-path tests (ADR-005)",
+    "beige: convention and structural compliance tests (ADR-005)",
+    "green: correctness and functional tests (ADR-005)",
+]

@@ -139,12 +139,6 @@ class ModelScaffoldBuilder:
             logging.error(f"Did not create README.md: {readme_path}")
 
         self.requirements_path = self._model.model_dir / "requirements.txt"
-        # with open(requirements_path, "w") as requirements_file:
-        #     requirements_file.write("# Requirements\n")
-        # if requirements_path.exists():
-        #     logging.info(f"Created requirements.txt: {requirements_path}")
-        # else:
-        #     logging.error(f"Did not create requirements.txt: {requirements_path}")
         return self._model.model_dir
 
     def build_model_scripts(self, *, input_fn=None, get_version_fn=None):

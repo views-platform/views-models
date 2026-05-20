@@ -13,6 +13,8 @@ import pytest
 
 from tests.conftest import load_config_module
 
+pytestmark = pytest.mark.green
+
 # Verified empirically from all 66 active models on 2026-04-04.
 # Update this mapping when a new algorithm is added to a package.
 ALGORITHM_TO_PACKAGE = {

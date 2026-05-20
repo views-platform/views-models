@@ -3,6 +3,8 @@ import pytest
 
 from tests.conftest import load_config_module
 
+pytestmark = pytest.mark.beige
+
 
 # ── Required keys ──────────────────────────────────────────────────────
 

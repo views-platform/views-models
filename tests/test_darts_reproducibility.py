@@ -10,6 +10,8 @@ import pytest
 
 from tests.conftest import ALL_MODEL_DIRS, load_config_module
 
+pytestmark = pytest.mark.green
+
 try:
     from views_r2darts2.infrastructure.reproducibility_gate import (
         ReproducibilityGate,

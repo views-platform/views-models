@@ -13,6 +13,10 @@ current line range — line numbers in section headers are approximate.
 import re
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.beige
+
 # ---------------------------------------------------------------------------
 # Characterization: create_catalogs.py :: replace_table_in_section (lines 156-177)
 # ---------------------------------------------------------------------------

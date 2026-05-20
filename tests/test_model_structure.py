@@ -7,6 +7,8 @@ import pytest
 
 from tests.conftest import MODEL_NAMES, REPO_ROOT
 
+pytestmark = pytest.mark.beige
+
 MODEL_NAME_PATTERN = re.compile(r'^[a-z]+_[a-z]+$')
 
 REQUIRED_CONFIG_FILES = [

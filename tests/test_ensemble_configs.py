@@ -17,6 +17,8 @@ from tests.conftest import (
 )
 
 
+pytestmark = pytest.mark.beige
+
 REQUIRED_ENSEMBLE_META_KEYS = {"name", "models", "regression_targets", "level", "aggregation"}
 
 REQUIRED_ENSEMBLE_CONFIG_FILES = [

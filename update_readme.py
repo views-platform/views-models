@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import re
 from views_pipeline_core.managers.model import ModelManager, ModelPathManager
-from views_pipeline_core.managers.ensemble import  EnsembleManager, EnsemblePathManager
+from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathManager
 
 
 base_dir = os.getcwd()
@@ -65,7 +65,6 @@ def generate_repo_structure(folders, scripts, model_name):
 for subfolder in target_dir.iterdir():
     if subfolder.is_dir():  # Check if it's a directory
         print(f"Model: {subfolder.name}")
-        #configs_dir = Path(subfolder.name+"/configs")
         configs_dir = target_dir / subfolder.name / "configs"
         model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)
         mpm = ModelPathManager(configs_dir)
@@ -85,7 +84,6 @@ for subfolder in target_dir.iterdir():
         target = model_manager.configs['targets']
         if isinstance(target, list):
             target = ", ".join(target)
-        queryset = model_manager.configs.get("queryset", "")
         level = model_manager.configs['level']
         try:
             metrics = model_manager.configs['metrics']
@@ -118,17 +116,14 @@ for subfolder in target_dir.iterdir():
         with open(readme_path, "r") as file:
             old_readme_content = file.read()
 
-        # Add created sessioin if it exists
+        # Add created section if it exists
 
         match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
         if match is None:
             new_string=''
         else:
             created_section = match.group(1).strip()
-            insert_position = created_section.find("##")
-
-            # Find where the '##' ends (after '##' and the next space)
-            end_of_heading = len("##")  # Skip the '##' part itself
+            end_of_heading = len("##")
             new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
 
         # Read scaffold.md content
@@ -162,8 +157,6 @@ for subfolder in target_dir.iterdir():
         scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
         repo_structure = generate_repo_structure(folders, scripts, model_name=model_name)
         formatted_structure = f"```\n{repo_structure}\n```"
-        formatted_structure
-
 
         updated_readme = content.replace("## Repository Structure",
                 f"## Repository Structure\n\n{formatted_structure}",
@@ -184,7 +177,6 @@ target_ens_dir = Path(base_dir + "/ensembles")
 for subfolder in target_ens_dir.iterdir():
     if subfolder.is_dir():  # Check if it's a directory
         print(f"Model: {subfolder.name}")
-        #configs_dir = Path(subfolder.name+"/configs")
         configs_dir = target_ens_dir / subfolder.name / "configs"
         ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir), use_prediction_store=False)
         epm = EnsemblePathManager(configs_dir)
@@ -220,17 +212,14 @@ for subfolder in target_ens_dir.iterdir():
         with open(readme_path, "r") as file:
             old_readme_content = file.read()
 
-        # Add created sessioin if it exists
+        # Add created section if it exists
 
         match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
         if match is None:
             new_string=''
         else:
             created_section = match.group(1).strip()
-            insert_position = created_section.find("##")
-
-            # Find where the '##' ends (after '##' and the next space)
-            end_of_heading = len("##")  # Skip the '##' part itself
+            end_of_heading = len("##")
             new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
 
         # Read scaffold.md content
@@ -261,8 +250,6 @@ for subfolder in target_ens_dir.iterdir():
         scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
         repo_structure = generate_repo_structure(folders, scripts, model_name=ens_name)
         formatted_structure = f"```\n{repo_structure}\n```"
-        formatted_structure
-
 
         updated_readme = content.replace("## Repository Structure",
                 f"## Repository Structure\n\n{formatted_structure}",

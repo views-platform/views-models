@@ -19,6 +19,8 @@ from tests.conftest import (
     load_canonical_partitions,
 )
 
+pytestmark = pytest.mark.green
+
 CANONICAL = load_canonical_partitions()
 
 OVERRIDE_MARKER = "# PARTITION_OVERRIDE:"
