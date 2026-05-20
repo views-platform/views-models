@@ -16,10 +16,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BRIGHT_STARSHIP = REPO_ROOT / "models" / "bright_starship"
 
-pytestmark = pytest.mark.skipif(
-    not shutil.which("conda"),
-    reason="local pre-flight check — requires conda environment",
-)
+pytestmark = [
+    pytest.mark.red,
+    pytest.mark.skipif(
+        not shutil.which("conda"),
+        reason="local pre-flight check — requires conda environment",
+    ),
+]
 
 
 class TestF1_DatafactoryQueryDependency:
