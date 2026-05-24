@@ -233,6 +233,7 @@ cython_debug/
 # data files
 *.csv
 *.npy
+*.npz
 *.parquet
 *.pt
 *.pkl 
