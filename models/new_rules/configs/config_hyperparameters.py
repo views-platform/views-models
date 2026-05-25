@@ -23,7 +23,7 @@ def get_hp_config():
         "use_cyclic_encoders": False,
 
         # --- Input / output structure ---
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
 
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 0.001,
-        "gradient_clip_val": 5,
+        "gradient_clip_val": 50,
         "optimizer_kwargs": {
             "lr": 0.0005,
             "weight_decay": 0.001,
@@ -63,7 +63,7 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         "feature_scaler": None,
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform->StandardScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

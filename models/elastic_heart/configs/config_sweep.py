@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260508_I",
+        "name": "elastic_heart_tsmixer_shadow_20260519_A",
         "early_terminate": {
             "type": "hyperband",
             # RLROP patience=15 + cooldown=3: first reduction fires at epoch ~18.
@@ -76,36 +76,6 @@ def get_sweep_config():
                 {
                     # MaxAbsScaler arm: zero-anchor preserved, dynamic range compressed
                     "AsinhTransform->MaxAbsScaler": [
-                        "lr_ged_ns", "lr_ged_os",
-                        "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                        "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                        "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
-                        "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
-                        "lr_decay_ged_os_5", "lr_decay_ged_os_100",
-                        "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
-                        "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
-                        "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
-                        "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
-                        "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
-                        "lr_ged_os_tlag_1",
-                        "lr_topic_tokens_t1", "lr_topic_tokens_t2",
-                        "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
-                        "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
-                        "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
-                        "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                        "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
-                        "lr_wdi_sp_pop_grow", "lr_wdi_sp_urb_totl_in_zs",
-                        "lr_wdi_sp_dyn_imrt_fe_in", "lr_wdi_sh_sta_maln_zs",
-                        "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
-                        "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                        "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
-                        "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
-                        "lr_vdem_v2xeg_eqdr",
-                        "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
-                    ],
-                },
-                {
-                    "AsinhTransform->StandardScaler": [
                         "lr_ged_ns", "lr_ged_os",
                         "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                         "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
