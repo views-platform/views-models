@@ -5,5 +5,6 @@ def get_hp_config():
         'window_months': 18,
         'lambda_mix': 0.10,
         'n_samples': 64,
+        'skip_predictions_delivery': True,
     }
     return hyperparameters

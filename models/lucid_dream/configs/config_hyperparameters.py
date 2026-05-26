@@ -4,5 +4,6 @@ def get_hp_config():
         'time_steps': 36,
         'window_months': 18,
         'n_samples': 64,
+        'skip_predictions_delivery': True,
     }
     return hyperparameters

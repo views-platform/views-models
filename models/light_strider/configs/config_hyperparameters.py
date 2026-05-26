@@ -14,6 +14,7 @@ def get_hp_config():
         "window_months": 36,
         "n_samples": 64,
         "seed": 42,
+        "skip_predictions_delivery": True,
     }
 
     return hyperparameters

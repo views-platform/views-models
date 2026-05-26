@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-05-24  
+**Last updated:** 2026-05-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 47 (43 concerns + 4 disagreements)  
-**Concerns:** Open 14 | Mitigated 10 | Resolved 16 | Accepted 3  
+**Total entries:** 53 (49 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 10 | Resolved 17 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -452,7 +452,7 @@
 | **Source** | review-diff (2026-04-20) |
 | **Status** | Mitigated |
 | **Location** | `models/bright_starship/configs/config_partitions.py:17-20,35` |
-| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. **2026-05-20 (fix):** Removed `_current_month_id()` from all 4 synthetic entries (vertical_dream, horizontal_dream, diagonal_dream, synthetic_chorus) by replacing dynamic forecasting ranges with fixed boundaries — train (121, 540), test (541, 541 + steps). Synthetic data has no external data availability constraint so fixed ranges are sufficient. These files no longer carry the epoch-divergence risk. Residual risk applies only to bright_starship, heavy_strider, heavy_freighter, light_strider, and shining_codex (all carry `# PARTITION_OVERRIDE:` comments). See also C-01, D-01. |
+| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. **2026-05-20 (fix):** Removed `_current_month_id()` from all 4 synthetic entries (vertical_dream, horizontal_dream, diagonal_dream, synthetic_chorus) by replacing dynamic forecasting ranges with fixed boundaries — train (121, 540), test (541, 541 + steps). Synthetic data has no external data availability constraint so fixed ranges are sufficient. These files no longer carry the epoch-divergence risk. Residual risk applies only to bright_starship, heavy_strider, heavy_freighter, light_strider, and shining_codex (all carry `# PARTITION_OVERRIDE:` comments). **2026-05-26 (ensemble parity dimension):** bold_comet, blazing_meteor, and stellar_horizon also use `_current_month_id()`. golden_hour (viewser ensemble) uses `ViewsMonth`. When comparing golden_hour ↔ stellar_horizon forecasting parity, the two implementations may disagree by ±1 month at month boundaries, silently shifting the forecasting train/test partition and invalidating the comparison. `test_datafactory_parity.py` only checks calibration/validation boundaries (static, identical) — it does not catch forecasting divergence. Forecasting parity comparisons in the runbook (Phase 7) must account for this. See also C-01, D-01. |
 
 ---
 
@@ -529,6 +529,84 @@
 | **Status** | Open |
 | **Location** | `ensembles/synthetic_chorus/configs/config_meta.py:4` |
 | **Notes** | The ensemble evaluation loads prediction files from constituent models in list order. The actual `synth_target` values (ground truth) come from the first model's predictions — currently `vertical_dream`. The analytically derived expected MSE (4.34444) depends on this ordering. Reordering the list silently changes which model supplies the ground truth, producing a different MSE with no error signal. Mitigated by `tests/test_falsification_synthetic.py::test_synthetic_chorus_first_model_is_vertical_dream` which asserts vertical_dream is first, and by the README which documents the order-dependency. This is a test-internal concern with no production impact — synthetic models are not deployed. |
+
+---
+
+### C-44 — Concat aggregation degrades ensemble CRPS when constituent model quality varies
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Building a concat ensemble where constituent models have heterogeneous performance on a specific target (e.g., one model's CRPS is 50%+ worse than others on that target) |
+| **Source** | golden_hour calibration run (2026-05-25) |
+| **Status** | Open |
+| **Location** | `ensembles/golden_hour/configs/config_meta.py` (`aggregation: "concat"`), `views-pipeline-core` PredictionFrameEnsembleManager concat path |
+| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. See also C-13 (no prediction quality validation before aggregation). |
+
+---
+
+### C-45 — Ensemble `-t` flag causes full retraining cascade when models are pre-trained
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Running any PredictionFrameEnsembleManager or DataFrameEnsembleManager with `-t` when constituent models already have trained artifacts in their `artifacts/` directories |
+| **Source** | golden_hour calibration run (2026-05-25) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core` EnsembleManager train path (invokes constituent `run.sh` subprocesses) |
+| **Notes** | Running `python main.py -r calibration -t -e` on a pre-trained ensemble causes: (1) retrain all constituent models via run.sh subprocess (~2h), (2) create new model artifacts with new timestamps, (3) discover no predictions exist for those new timestamps, (4) re-evaluate all constituent models via run.sh subprocess (~3h), (5) finally perform the actual aggregation (~30 min). This wasted ~6 hours on golden_hour. The correct command when models are already trained: `python main.py -r calibration -e --saved`. The `-t` flag on ensembles should either warn when artifacts already exist, or detect and reuse existing timestamps rather than creating new ones. See also C-22 (no idempotency guarantee in training artifacts). |
+
+---
+
+### C-46 — Classification targets not evaluable at PredictionFrame ensemble level
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Adding `classification_targets` to any PredictionFrame ensemble's `config_meta.py` |
+| **Source** | golden_hour design review (2026-05-24) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core` `PredictionFrameEnsembleManager.prepare_actuals_df` (identity lambda), `ensembles/golden_hour/configs/config_meta.py` (regression-only by design) |
+| **Notes** | `PredictionFrameEnsembleManager.prepare_actuals_df` is a no-op identity lambda. Classification targets (`by_sb_best`, `by_ns_best`, `by_os_best`) are derived signals not present in raw viewser data. Individual HydraNet models derive them via `DataFetcher.apply_blueprint()`, but the ensemble doesn't inherit that derivation logic. Including `classification_targets` in ensemble `config_meta` causes `KeyError` when `EvaluationStage._load_actuals()` looks for the derived columns in raw actuals. Workaround: exclude `classification_targets` from ensemble config; evaluate classification at individual model level only. golden_hour correctly implements this workaround. Fix would require `PredictionFrameEnsembleManager` to implement target derivation or delegate to constituent model blueprints. See also C-15 (CIC failure mode coverage — ensemble aggregation failure modes listed as remaining gap). |
+
+---
+
+### C-47 — Track A/B dual output produces redundant predictions with contradictory documentation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer reads `skip_predictions_delivery: False` with its inline comment "Delivery pipeline suspended" and assumes Track B is disabled; or Track B (.parquet) is retired without parity verification against Track A (.npy) |
+| **Source** | golden_hour investigation (2026-05-25) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core` config (`skip_predictions_delivery` flag), `models/*/data/generated/` (both `.npy` and `.parquet` outputs coexist) |
+| **Notes** | HydraNet models produce both Track A (`.npy` PredictionFrame, 64 posterior samples) and Track B (`.parquet` DataFrame delivery, point predictions) simultaneously. The `skip_predictions_delivery` flag is set to `False` (meaning "produce parquet") but its inline comment says "Delivery pipeline suspended" — a contradiction that misleads developers about which outputs are active. Track B is scheduled for retirement, but no parity test exists to verify Track A and Track B produce equivalent point predictions before the parquet path is removed. Without parity verification, retiring Track B risks silently breaking downstream consumers that depend on the parquet format. Recommended: build parity tests comparing `.npy` median/mean against `.parquet` values before setting `skip_predictions_delivery: True`. See also C-40 (generate() return type contract mismatch — same theme of implicit contracts between output formats). |
+
+---
+
+### C-48 — Viewser vs datafactory variable variant mismatch confounds parity comparison
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | CRPS or forecast parity comparison between golden_hour (viewser) and stellar_horizon (datafactory) shows divergence; root cause is data input differences, not pipeline differences |
+| **Source** | config diff investigation (2026-05-26) |
+| **Status** | Resolved |
+| **Location** | `models/purple_alien/configs/config_queryset.py` (`ged_sb_best_sum_nokgi`), `models/bright_starship/configs/config_queryset.py` (`ged_sb_best`), same pattern for `ged_ns_best` and `ged_os_best` |
+| **Notes** | The viewser trio (purple_alien, blue_stranger, violet_visitor) trains on `ged_*_best_sum_nokgi` — the summed, no-known-geographical-imprecision variant of UCDP fatality counts. The datafactory trio (bright_starship, bold_comet, blazing_meteor) trains on `ged_*_best` — the base variant. Despite different variable names, both deliver functionally identical values. **Resolved (2026-05-26):** Direct cell-by-cell comparison of cached training parquets (4,876,920 rows × 6 columns) showed 99.99% exact match for all three target variables: lr_sb_best (614 differing rows of 4.9M), lr_ns_best (138), lr_os_best (182). Correlations all >0.999. The `_sum_nokgi` suffix does not indicate a different aggregation — both sources deliver the same fatality sums per PRIO-GRID cell-month. The ~600 differing rows have small absolute differences reflecting timing differences in UCDP data ingestion. This concern is fully disproven as a source of prediction divergence. See `reports/parity_investigation_20260526.md` for full analysis. See also C-02 (queryset validation), C-40 (generate() contract mismatch). |
+
+---
+
+### C-49 — Feature set divergence between viewser and datafactory model configs
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Parity comparison between golden_hour and stellar_horizon produces unexplained spatial or regional bias differences |
+| **Source** | config diff investigation (2026-05-26) |
+| **Status** | Partially Resolved |
+| **Location** | `models/purple_alien/configs/config_queryset.py` (lines 22-23: `col`, `row` columns), `models/bright_starship/configs/config_queryset.py` (no spatial features) |
+| **Notes** | Originally three concerns. **Partially resolved (2026-05-26):** **(1) Spatial features: DISPROVEN.** Raw data comparison confirmed `col` and `row` are 100% identical between viewser and datafactory parquets. Both data loading paths provide them. **(2) Country encoding: CONFIRMED but metadata-only.** viewser uses VIEWS-internal `country_id` (e.g., 192); datafactory uses FAO `gaul0_code` (e.g., 159, or -1 for unassigned). 0% cell-level match. However, `c_id` is in `identity_cols`, NOT in `features` — HydraNet uses only 3 input channels (lr_sb_best, lr_ns_best, lr_os_best). Unless curriculum sampling or stratified evaluation uses `c_id` values downstream, this is a metadata-only divergence with no model impact. Downgraded from Tier 2 to Tier 4. **(3) NA handling:** Not yet investigated. See `reports/parity_investigation_20260526.md` for full analysis. See also C-48 (resolved — variable variant not a divergence source), C-02 (queryset correctness). |
 
 ---
 

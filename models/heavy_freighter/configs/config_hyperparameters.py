@@ -111,7 +111,7 @@ def get_hp_config():
         # to_prediction_df() creates 5.5M Python float objects per target per origin
         # (~4.8–6.4 GB peak + 2.3 GB permanent fragmentation). Track A (.npy) is
         # written per-origin for metrics. Re-enable once Track B has a PyArrow fix.
-        'skip_predictions_delivery':  False, #True,
+        'skip_predictions_delivery': True,
     }
 
     return hyperparameters
