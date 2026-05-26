@@ -111,7 +111,7 @@ def get_hp_config():
         "hidden_fc_sizes": [64],
         "dropout": 0.15,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
         "activation": "GELU",
 
         "use_cyclic_encoders": True,
