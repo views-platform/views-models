@@ -3,7 +3,7 @@
 **Last updated:** 2026-05-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 53 (49 concerns + 4 disagreements)  
-**Concerns:** Open 19 | Mitigated 10 | Resolved 17 | Accepted 3  
+**Concerns:** Open 18 | Mitigated 11 | Resolved 17 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -576,11 +576,11 @@
 | Field | Value |
 |---|---|
 | **Tier** | 3 |
-| **Trigger** | A developer reads `skip_predictions_delivery: False` with its inline comment "Delivery pipeline suspended" and assumes Track B is disabled; or Track B (.parquet) is retired without parity verification against Track A (.npy) |
+| **Trigger** | A developer sets `skip_predictions_delivery` back to `False` to re-enable Track B parquets without verifying the PyArrow memory fix is in place |
 | **Source** | golden_hour investigation (2026-05-25) |
-| **Status** | Open |
+| **Status** | Mitigated |
 | **Location** | `views-pipeline-core` config (`skip_predictions_delivery` flag), `models/*/data/generated/` (both `.npy` and `.parquet` outputs coexist) |
-| **Notes** | HydraNet models produce both Track A (`.npy` PredictionFrame, 64 posterior samples) and Track B (`.parquet` DataFrame delivery, point predictions) simultaneously. The `skip_predictions_delivery` flag is set to `False` (meaning "produce parquet") but its inline comment says "Delivery pipeline suspended" — a contradiction that misleads developers about which outputs are active. Track B is scheduled for retirement, but no parity test exists to verify Track A and Track B produce equivalent point predictions before the parquet path is removed. Without parity verification, retiring Track B risks silently breaking downstream consumers that depend on the parquet format. Recommended: build parity tests comparing `.npy` median/mean against `.parquet` values before setting `skip_predictions_delivery: True`. See also C-40 (generate() return type contract mismatch — same theme of implicit contracts between output formats). |
+| **Notes** | HydraNet models produce both Track A (`.npy` PredictionFrame, 64 posterior samples) and Track B (`.parquet` DataFrame delivery, point predictions) simultaneously. **Mitigated (2026-05-26):** All 19 PredictionFrame models now have `skip_predictions_delivery: True`, suppressing Track B parquet generation. The contradictory `False, #True,` comment pattern has been removed. `test_track_parity.py` (40 tests) verified Track A and Track B produce identical values before Track B was disabled. `CoreConfigSniffer` (views-pipeline-core PR #87) now enforces the key as mandatory — models without it crash at config validation. Residual risk: if Track B is re-enabled without the PyArrow memory fix, the 5.5M Python float object allocation (~4.8–6.4 GB peak) will recur. See also C-40 (generate() return type contract mismatch). |
 
 ---
 

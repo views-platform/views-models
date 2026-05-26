@@ -26,7 +26,7 @@ All three share the same architecture, data source (viewser), feature set (lr_sb
 This is the first of three planned HydraNet ensembles, establishing the **viewser data baseline**:
 
 1. **golden_hour** (this) -- viewser data, three loss variants. Known-good reference.
-2. **TBD** -- datafactory data, Africa+ME region. Compare parity with golden_hour.
+2. **stellar_horizon** -- datafactory data, Africa+ME region. Parity counterpart to golden_hour.
 3. **TBD** -- datafactory data, global coverage. Full-scale deployment.
 
 The purpose is to validate that datafactory-based ensembles produce equivalent results to the established viewser pipeline before migrating production workloads.
