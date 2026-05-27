@@ -20,25 +20,25 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 40,
         "early_stopping_min_delta": 0.0001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 7.364325238538162e-05,
-        "weight_decay": 1e-5,
+        "weight_decay": 0.0001,
         "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 25,
+        "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 25,
+            "patience": 10,
             "min_lr": 1e-6,
             "monitor": "val_loss",
             "cooldown": 3,
@@ -46,8 +46,8 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0001,
-            "weight_decay": 1e-5,
+            "lr": 7.364325238538162e-05,
+            "weight_decay": 0.0001,
         },
 
         "loss_function": "SpotlightLossLogcosh",
@@ -109,7 +109,7 @@ def get_hp_config():
         "hidden_dim": 256,
         "n_rnn_layers": 2,
         "hidden_fc_sizes": [64],
-        "dropout": 0.15,
+        "dropout": 0.30,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "activation": "GELU",
