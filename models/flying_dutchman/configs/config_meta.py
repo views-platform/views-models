@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "flying_dutchman", 
         "algorithm": "MarkovModel",
         "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
-        "regression_targets": ["lr_ged_sb_dep"],
+        "regression_targets": ["lr_ged_sb"],
         "queryset": "markov_joint_narrow",
         "level": "cm",
         "creator": "Luuk Boekestein",

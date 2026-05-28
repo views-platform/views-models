@@ -15,10 +15,10 @@ def generate():
     
     qs_markov = (Queryset(f'{model_name}','country_month')
 
-        # target variable
-        .with_column(Column("lr_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
-                .transform.missing.fill()
-                )
+        # # target variable
+        # .with_column(Column("lr_ged_sb_dep", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
+        #         .transform.missing.fill()
+        #         )
 
         # Baseline features:
         # lag of target variable
