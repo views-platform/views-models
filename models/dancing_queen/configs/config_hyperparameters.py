@@ -58,7 +58,7 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->StandardScaler": [
+            "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -108,8 +108,8 @@ def get_hp_config():
         "rnn_type": "GRU",
         "hidden_dim": 256,
         "n_rnn_layers": 2,
-        "hidden_fc_sizes": [64],
-        "dropout": 0.20,
+        "hidden_fc_sizes": [256, 128],
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "activation": "GELU",
