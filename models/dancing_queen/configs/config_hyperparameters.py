@@ -26,8 +26,8 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 1e-4,
+        "lr": 1e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 500,
 
         # LR Scheduler
@@ -46,8 +46,8 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 1e-4,
+            "lr": 1e-4,
+            "weight_decay": 1e-3,
         },
 
         "loss_function": "SpotlightLossLogcosh",
@@ -109,7 +109,7 @@ def get_hp_config():
         "hidden_dim": 256,
         "n_rnn_layers": 3,
         "hidden_fc_sizes": [256, 128],
-        "dropout": 0.10,
+        "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": False,
         "activation": "GELU",
