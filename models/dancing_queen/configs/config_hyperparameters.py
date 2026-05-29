@@ -26,19 +26,19 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 7.364325238538162e-05,
-        "weight_decay": 1e-5,
-        "gradient_clip_val": 50,
+        "lr": 2e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 500,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 25,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 25,
+            "patience": 15,
             "min_lr": 1e-6,
             "monitor": "val_loss",
             "cooldown": 3,
@@ -46,8 +46,8 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0001,
-            "weight_decay": 1e-5,
+            "lr": 2e-4,
+            "weight_decay": 1e-4,
         },
 
         "loss_function": "SpotlightLossLogcosh",
@@ -107,11 +107,11 @@ def get_hp_config():
         # BlockRNN Architecture
         "rnn_type": "GRU",
         "hidden_dim": 256,
-        "n_rnn_layers": 2,
+        "n_rnn_layers": 3,
         "hidden_fc_sizes": [256, 128],
-        "dropout": 0.15,
+        "dropout": 0.10,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "activation": "GELU",
 
         "use_cyclic_encoders": True,
