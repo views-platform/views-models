@@ -18,7 +18,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 128,
+        "batch_size": 64,
         "n_epochs": 300,
         "early_stopping_patience": 25,
         "early_stopping_min_delta": 0.0001,
@@ -30,21 +30,11 @@ def get_hp_config():
         "weight_decay": 1e-4,
         "gradient_clip_val": 10,
 
-        # LR Scheduler
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
-        "lr_scheduler_min_lr": 1e-6,
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.5,
-            "patience": 10,
-            "min_lr": 1e-6,
-            "monitor": "val_loss",
-            "cooldown": 2,
-            "threshold": 0.005,
-            "threshold_mode": "rel",
-        },
+        # LR Scheduler — cosine annealing with warm restarts
+        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
+        "lr_scheduler_T_0": 30,
+        "lr_scheduler_T_mult": 2,
+        "lr_scheduler_eta_min": 1e-6,
         "optimizer_kwargs": {
             "lr": 5e-4,
             "weight_decay": 1e-4,
@@ -111,7 +101,7 @@ def get_hp_config():
         "hidden_fc_sizes": [256, 128],
         "dropout": 0.15,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "activation": "GELU",
 
         "use_cyclic_encoders": True,
