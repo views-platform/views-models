@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.00005,
-        "gradient_clip_val": 20,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.00005,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -117,9 +117,9 @@ def get_hp_config():
         # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
         # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
-        "num_blocks": 1,
+        "num_blocks": 2,
         "num_layers": 4,
-        "layer_widths": [32, 64, 128],
+        "layer_widths": [64, 128, 256],
         "pooling_kernel_sizes": [[4], [2], [1]],
         "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": False,
