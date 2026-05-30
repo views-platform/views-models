@@ -9,18 +9,18 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
+        "num_stacks": 3,
         "num_blocks": 2,
-        "num_layers": 3,
-        "layer_widths": 256,
-        "expansion_coefficient_dim": 20,
+        "num_layers": 4,
+        "layer_widths": 512,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.3,
+        "dropout": 0.15,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
-        "use_cyclic_encoders": False,
+        "use_cyclic_encoders": True,
 
         # --- Input / output structure ---
         "input_chunk_length": 36,
