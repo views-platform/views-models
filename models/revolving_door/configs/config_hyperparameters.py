@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 5e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 5,
 
         # LR Scheduler
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 5e-4,
+            "weight_decay": 1e-3,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -107,25 +107,24 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # Inverted pyramid: coarse stack is narrow (64), fine stack is wide (256).
-        # This matches the decomposition task — the coarse stack only needs to capture
-        # slow level shifts and physically cannot build complex crisis trend extrapolations
-        # with only 64-wide FC layers. The fine stack gets 256 width to fit spike residuals
-        # accurately, which drives MSLE down. Reverting to this from [160,80,64] which
-        # gave the coarse stack too much capacity and caused Niger-type runaway.
-        # Pooling: [4,2,1] → 9, 18, 36 FC inputs. Safe with 64-wide coarse stack +
-        # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
-        # extrapolates trend, the denorm multiplier is bounded).
+        # Tanh activation bounds all hidden states to [-1,1], mechanically limiting
+        # the forecast projection magnitude before RevIN denormalization.
+        # Single block per stack (3 additive contributions total, not 6) reduces
+        # cumulative output amplitude. Shallow blocks (2 layers) avoid vanishing
+        # gradients from Tanh while keeping training stable.
+        # Coarse stack: pool×6 + downsample×6 → 6 FC inputs, 6 forecast coefficients.
+        # Very constrained: can only learn slow trends, not spike-scale extrapolation.
+        # Fine stack: pool×1 + downsample×1 → 36 FC inputs, 36 forecast coefficients.
+        # Full resolution for spike timing detail.
         "num_stacks": 3,
-        "num_blocks": 2,
-        "num_layers": 4,
-        "layer_widths": [64, 128, 256],
-        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
-        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
+        "num_blocks": 1,
+        "num_layers": 2,
+        "layer_widths": [64, 128, 192],
+        "pooling_kernel_sizes": [[6], [2], [1]],
+        "n_freq_downsample": [[6], [2], [1]],
         "max_pool_1d": False,
-        "activation": "ReLU",
-        "batch_norm": True,
-        "dropout": 0.30,
+        "activation": "Tanh",
+        "dropout": 0.20,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
