@@ -19,7 +19,7 @@ def get_hp_config():
         "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
-        "use_static_covariates": False,
+        "use_static_covariates": True,
         "use_cyclic_encoders": False,
 
         # --- Input / output structure ---
