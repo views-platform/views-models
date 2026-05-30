@@ -124,9 +124,10 @@ def get_hp_config():
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "max_pool_1d": False,
         "activation": "GELU",
+        "batch_norm": True,
         "dropout": 0.15,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
