@@ -20,34 +20,34 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 25,
         "early_stopping_min_delta": 0.0001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 5e-5,
-        "gradient_clip_val": 500,
+        "lr": 5e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 10,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 15,
+        "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 15,
+            "patience": 10,
             "min_lr": 1e-6,
             "monitor": "val_loss",
-            "cooldown": 3,
-            "threshold": 0.01,
+            "cooldown": 2,
+            "threshold": 0.005,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 5e-5,
+            "lr": 5e-4,
+            "weight_decay": 1e-4,
         },
 
         "loss_function": "SpotlightLossLogcosh",
@@ -105,11 +105,11 @@ def get_hp_config():
         # },
 
         # BlockRNN Architecture
-        "rnn_type": "GRU",
-        "hidden_dim": 128,
-        "n_rnn_layers": 2,
-        "hidden_fc_sizes": [128],
-        "dropout": 0.25,
+        "rnn_type": "LSTM",
+        "hidden_dim": 256,
+        "n_rnn_layers": 3,
+        "hidden_fc_sizes": [256, 128],
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "activation": "GELU",
