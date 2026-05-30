@@ -46,14 +46,15 @@ def get_hp_config():
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.7,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 25,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.7,
-            "patience": 10,
+            "factor": 0.5,
+            "patience": 25,
             "min_lr": 1e-6,
+            "monitor": "val_loss",
             "cooldown": 3,
             "threshold": 0.01,
             "threshold_mode": "rel",
@@ -63,7 +64,7 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         "feature_scaler": None,
         "feature_scaler_map": {
-            "AsinhTransform->StandardScaler": [
+            "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -108,7 +109,7 @@ def get_hp_config():
 
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.07139486580318413,
+        # "delta": 0.07139486580318413,
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
 
         # --- Prediction ---
