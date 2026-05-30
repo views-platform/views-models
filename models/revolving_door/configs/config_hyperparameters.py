@@ -126,7 +126,7 @@ def get_hp_config():
         "activation": "GELU",
         "dropout": 0.15,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
