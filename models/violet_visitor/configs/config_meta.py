@@ -24,7 +24,7 @@ def get_meta_config():
         # ============================================================
         # diagnostic settings
         # ============================================================
-        "diagnostic_visualizations": False, #True,
+        "diagnostic_visualizations": True,  # was False
 
         # ============================================================
         # evaluation settings 

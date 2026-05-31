@@ -79,17 +79,14 @@ def get_hp_config():
         # ============================================================
         # Loss Functions
         # ============================================================
-        # Regression: Basu Density Power Divergence (alpha=0.3, sigma=3.0)
-        # Robust loss from Basu et al. (1998). Alpha reduced from 0.5 to 0.3
-        # per metric-lab autoresearch (apr09): alpha=0.5 too aggressive for
-        # sparse UCDP data. Sigma=3.0 calibrated for log1p residual scale
-        # (dampening engages at residuals > ~5, not > ~2).
-        # See views-metric-lab/reports/experiments/autoresearch_basu_apr09_report.md
-        'loss_reg': 'basu_dpd',
-        'loss_reg_alpha': 0.3,
-        'loss_reg_sigma': 3.0,
-        # Classification: Focal Loss (unchanged from purple_alien)
+        'loss_reg': 'shrinkage',
         'loss_class': 'focal',
+        'loss_reg_a': 258,
+        'loss_reg_c': 0.001,
+        # was: basu_dpd (alpha=0.3, sigma=3.0) — reverted to match purple_alien
+        # 'loss_reg': 'basu_dpd',
+        # 'loss_reg_alpha': 0.3,
+        # 'loss_reg_sigma': 3.0,
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
         'onset_bias_init': -7.0,  # Dilution study: no penalty for deeper bias; -7.0 universal default
@@ -102,8 +99,9 @@ def get_hp_config():
         'min_ratio': 0.05,           
         'slope_ratio': 0.75,         
         'roof_ratio': 0.7,           
-        'min_events': 5,             
-
+        'min_events': 5,
+        'sampling_strategy' : 'boltzmann',
+        'sampling_temperature' : 10.0,  # τ
         # ============================================================
         # Outbound / Evaluation
         # ============================================================

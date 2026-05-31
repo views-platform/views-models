@@ -1,18 +1,18 @@
 
 def get_hp_config():
     """
-    Contains the hyperparameter configurations for model training.
-    This configuration is "operational" so modifying these settings will impact the model's behavior during training.
+    S2a — BASELINE + Tobit censored-normal loss
+    Delta: replaces shrinkage with Tobit NLL (loss_reg='tobit', sigma=1.0).
+    No hurdle_threshold — Tobit handles zero-inflation internally via
+    censored likelihood. This is the validation that Path A (ADR-054) fixes
+    the gradient starvation that S2 (hurdle mask) caused.
 
-    Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model,
-      which determine the model's behavior during the training phase.
+    Expected: PASS. Dense gradient from all cells (including y=0 via censored
+    likelihood) should eliminate the divergence seen in S2.
     """
 
     hyperparameters = {
 
-
-        
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
         # ============================================================
@@ -22,7 +22,7 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        'input_channels': 3, # Checksum: Must match len(features)
+        'input_channels': 3,
         'row_offset': 87,
         'col_offset': 310,
         'height': 180,
@@ -35,7 +35,7 @@ def get_hp_config():
         'total_hidden_channels': 32,
         'dropout_rate': 0.125,
         'window_dim': 32,
-        'output_channels': 1, # Depth per head
+        'output_channels': 1,
         'weight_init': 'xavier_norm',
         'freeze_h': "hl",
         'h_init': 'abs_rand_exp-100',
@@ -43,7 +43,7 @@ def get_hp_config():
         # ============================================================
         # Optimization (ADR 014 Compliance)
         # ============================================================
-        'windows_per_lesson': 3,     
+        'windows_per_lesson': 3,
         'learning_rate': 0.001,
         'weight_decay': 0.1,
         'scheduler': 'WarmupDecay',
@@ -55,10 +55,9 @@ def get_hp_config():
         # ============================================================
         # Multi-Task Signals (ADR 020 Compliance)
         # ============================================================
-        #'target_variable': 'lr_sb_best',
-        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'], # auto transform to by_ 
+        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
         'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        
+
         'transformations': {
             'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
             'asinh': [],
@@ -74,49 +73,41 @@ def get_hp_config():
         },
 
         'steps': list(range(1, 37)),
-        'time_steps': 36, # Checksum: Must match len(steps)
+        'time_steps': 36,
 
         # ============================================================
         # Loss Functions
         # ============================================================
-        'loss_reg': 'shrinkage',
+        # ── Per-target Tobit sigma (issue #44) ──
+        'loss_reg': 'tobit',
+        'loss_reg_sigma': {
+            'lr_sb_best': 1.0,
+            'lr_ns_best': 0.75,
+            'lr_os_best': 0.5,
+        },
         'loss_class': 'focal',
-        'loss_reg_a': 258,
-        'loss_reg_c': 0.001,
-        # was: lognormal_nll (sigma=0.9) — reverted to match purple_alien
-        # 'loss_reg': 'lognormal_nll',
-        # 'loss_reg_sigma': 0.9,
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
-        'onset_bias_init': -7.0,  # Dilution study: no penalty for deeper bias; -7.0 universal default
+        'onset_bias_init': -7.0,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 150,        
-        'max_ratio': 0.95,           
-        'min_ratio': 0.05,           
-        'slope_ratio': 0.75,         
-        'roof_ratio': 0.7,           
+        'total_lessons': 80,
+        'max_ratio': 0.95,
+        'min_ratio': 0.05,
+        'slope_ratio': 0.75,
+        'roof_ratio': 0.7,
         'min_events': 5,
-        'sampling_strategy' : 'sigmoid',
-        'sampling_steepness' : 1.0,  # k
+        'sampling_strategy': 'threshold',
+
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
-        'n_posterior_samples': 64,
-        #'evaluation_mode': "point", #'stochastic',
+        'n_posterior_samples': 3,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        # 'run_type': 'calibration',
-
-        # Track B (list-in-cell parquet delivery) is suspended at pgm scale.
-        # to_prediction_df() creates 5.5M Python float objects per target per origin
-        # (~4.8–6.4 GB peak + 2.3 GB permanent fragmentation). Track A (.npy) is
-        # written per-origin for metrics. Re-enable once Track B has a PyArrow fix.
         'skip_predictions_delivery': True,
     }
 
     return hyperparameters
-

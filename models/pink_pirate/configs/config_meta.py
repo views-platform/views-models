@@ -10,7 +10,7 @@ def get_meta_config():
         # ============================================================
         # General information
         # ============================================================
-        "name": "blue_stranger",
+        "name": "pink_pirate",
         "algorithm": "HydraNet", 
         "creator": "Simon",
         "level": "pgm",
@@ -24,7 +24,7 @@ def get_meta_config():
         # ============================================================
         # diagnostic settings
         # ============================================================
-        "diagnostic_visualizations": True,  # was False
+        "diagnostic_visualizations": True,
 
         # ============================================================
         # evaluation settings 

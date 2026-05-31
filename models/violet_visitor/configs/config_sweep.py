@@ -44,8 +44,10 @@ def get_sweep_config():
         'loss_class' : { 'value' : 'b'}, # det nytter jo ikke noget at du køre over gamma og alpha for loss-class a...
         'loss_class_gamma' : {'value' : 1.5},
         'loss_class_alpha' : {'value' : 0.75}, # should be between 0.5 and 0.95...
-        'loss_reg' : { 'value' :  'd'},
-        'loss_reg_sigma' : { 'value' : 0.9},
+        'loss_reg' : { 'value' :  'b'},
+        'loss_reg_a' : { 'value' : 258},
+        'loss_reg_c' : { 'value' : 0.001},
+        # was: 'd' (lognormal_nll, sigma=0.9)
         'np_seed' : {'values' : [4, 8]},
         'torch_seed' : {'values' : [4, 8]},
         'window_dim' : {'value' : 32},
