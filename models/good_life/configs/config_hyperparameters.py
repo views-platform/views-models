@@ -67,7 +67,7 @@ def get_hp_config():
                 ],
         },
         "force_reset": True,
-        "gradient_clip_val": 5,
+        "gradient_clip_val": 1,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "delta": 0.08,
@@ -92,16 +92,16 @@ def get_hp_config():
         "num_decoder_layers": 1,
         "num_encoder_layers": 4,
         "optimizer_cls": "AdamW",
-        "optimizer_kwargs": {
+        "optimizer_kwargs": { 
             "lr": 5e-4,
-            "weight_decay": 1e-4,
+            "weight_decay": 1e-3,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-3,
 
         # Encoders
         "use_cyclic_encoders": True,
