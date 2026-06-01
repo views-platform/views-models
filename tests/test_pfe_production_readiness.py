@@ -8,12 +8,13 @@ Green tests (config-level) always run.
 Red tests (output-level) skip when prediction outputs don't exist.
 """
 
-import importlib.util
 import re
 from pathlib import Path
 
 import numpy as np
 import pytest
+
+from tests.conftest import load_config_module
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
@@ -27,11 +28,7 @@ _GETTER_ALIASES = {"config_hyperparameters": "get_hp_config"}
 
 def _load_config(base_dir, name, config_name):
     path = base_dir / name / "configs" / f"{config_name}.py"
-    spec = importlib.util.spec_from_file_location(
-        f"_pfe_{name}_{config_name}", path
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    mod = load_config_module(path)
     getter = _GETTER_ALIASES.get(
         config_name, f"get_{config_name.removeprefix('config_')}_config"
     )
@@ -72,7 +69,7 @@ def _discover_pf_models():
             meta = _load_meta(d.name)
             if meta.get("prediction_format") == "prediction_frame":
                 pf_models.append(d.name)
-        except Exception:
+        except (FileNotFoundError, AttributeError):
             continue
     return pf_models
 
@@ -200,7 +197,7 @@ class TestPFEEnsembleConfigReadiness:
         samples = []
         for model_name in meta["models"]:
             hp = _load_hp(model_name)
-            samples.append(hp["n_posterior_samples"])
+            samples.append(_require_n_posterior_samples(hp, model_name))
         assert len(set(samples)) == 1, (
             f"{pfe_ensemble} uses arithmetic_mean but constituents have "
             f"different n_posterior_samples: {samples}"
@@ -438,15 +435,18 @@ class TestPFEEnsembleAggregation:
         name, run_type, timestamp = pfe_case
         return ENSEMBLES_DIR / name / "data" / "generated" / f"predictions_{run_type}_{timestamp}"
 
+    def _first_origin(self, pfe_case):
+        pred_dir = self._pred_dir(pfe_case)
+        return sorted(
+            d for d in pred_dir.iterdir()
+            if d.is_dir() and d.name.startswith("origin_")
+        )[0]
+
     def test_all_targets_have_directories(self, pfe_case):
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         expected_targets = set(meta["regression_targets"])
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
+        first_origin = self._first_origin(pfe_case)
         actual_targets = {d.name for d in first_origin.iterdir() if d.is_dir()}
         missing = expected_targets - actual_targets
         assert not missing, (
@@ -458,12 +458,7 @@ class TestPFEEnsembleAggregation:
         meta = _load_meta(name, ENSEMBLES_DIR)
         expected = _expected_ensemble_samples(name)
         first_target = meta["regression_targets"][0]
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
-        y = np.load(first_origin / first_target / "y_pred.npy", mmap_mode="r")
+        y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
         assert y.shape[1] == expected, (
             f"{name}: aggregated samples={y.shape[1]} but expected "
             f"{expected} (from constituent configs, aggregation='{meta['aggregation']}')"
@@ -473,12 +468,7 @@ class TestPFEEnsembleAggregation:
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         first_target = meta["regression_targets"][0]
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
-        y = np.load(first_origin / first_target / "y_pred.npy", mmap_mode="r")
+        y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
         assert y.min() >= 0, (
             f"{name}/{first_target}: min={y.min():.4f} is negative"
         )
@@ -487,12 +477,7 @@ class TestPFEEnsembleAggregation:
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         first_target = meta["regression_targets"][0]
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
-        y = np.load(first_origin / first_target / "y_pred.npy", mmap_mode="r")
+        y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
         assert y.max() > 10, (
             f"{name}/{first_target}: max={y.max():.4f} suggests log-scale"
         )
@@ -501,12 +486,7 @@ class TestPFEEnsembleAggregation:
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         first_target = meta["regression_targets"][0]
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
-        y = np.load(first_origin / first_target / "y_pred.npy", mmap_mode="r")
+        y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
         assert np.isnan(y).sum() == 0, f"{name}: NaN in aggregated output"
         assert np.isinf(y).sum() == 0, f"{name}: Inf in aggregated output"
 
@@ -514,12 +494,7 @@ class TestPFEEnsembleAggregation:
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         first_target = meta["regression_targets"][0]
-        pred_dir = self._pred_dir(pfe_case)
-        first_origin = sorted(
-            d for d in pred_dir.iterdir()
-            if d.is_dir() and d.name.startswith("origin_")
-        )[0]
-        ids = np.load(first_origin / first_target / "identifiers.npz")
+        ids = np.load(self._first_origin(pfe_case) / first_target / "identifiers.npz")
         assert "time" in ids and "unit" in ids, (
             f"{name}: identifiers.npz missing keys, got {list(ids.keys())}"
         )
