@@ -15,13 +15,17 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        "activation": "SwiGLU",
+        # Architecture: Transformer
+        # Increased d_model and nhead for greater expressivity per country, preventing
+        # the model from defaulting to a single "template" shape.
+        # GELU activation and reduced dropout preserve complex patterns while remaining bounded compared to pure ReLU.
+        "activation": "GELU",
         "batch_size": 128,
-        "d_model": 256,
-        "dim_feedforward": 1024,
-        "dropout": 0.2,
+        "d_model": 512,
+        "dim_feedforward": 2048,
+        "dropout": 0.1,
         "early_stopping_min_delta": 0.001,
-        "early_stopping_patience": 25,
+        "early_stopping_patience": 30,
         "feature_scaler": None,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
@@ -74,22 +78,23 @@ def get_hp_config():
         "lr": 0.0005,
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
-        "lr_scheduler_min_lr": 5e-5,
+        "lr_scheduler_patience": 15,
+        "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
-            "min_lr": 5e-5,
+            "patience": 15,
+            "min_lr": 1e-6,
             "threshold": 0.005,
             "threshold_mode": "rel",
             "cooldown": 3,
         },
         "n_epochs": 300,
+        # Deep encoder/decoder stacks allow more refined temporal mixing.
         "nhead": 8,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 4,
-        "num_encoder_layers": 3,
+        "num_encoder_layers": 4,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 0.0005,

@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 200.0,
+        "gradient_clip_val": 10.0, # Reduced to 10 to avoid explosions from affine TSMixer layers
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -104,16 +104,17 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 3 blocks × 64 width: sweep-validated configuration. Wider depth
-        # (3 blocks) compensates for narrower hidden_size=64 by stacking
-        # more mixing passes
-        "num_blocks": 4,
-        "hidden_size": 256,
-        "ff_size": 768,
+        # Using 3 blocks with wider linear layers
+        # (hidden_size: 128, ff_size: 256) to ensure enough capacity to represent spikes.
+        # GELU and LayerNorm with normalize_before=True provide gradient stability.
+        # Dropout is kept at 0.1 to avoid over-regularization suppressing spikes.
+        "num_blocks": 3,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.2,
+        "dropout": 0.1,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 

@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 5e-4,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 200.0,
 
         # LR Scheduler
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 1e-4,
-            "weight_decay": 5e-3,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -106,31 +106,24 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # Tanh activation bounds all hidden states to [-1,1], mechanically limiting
-        # the forecast projection magnitude before RevIN denormalization.
-        # Single block per stack (3 additive contributions total, not 6) reduces
-        # cumulative output amplitude. Shallow blocks (2 layers) avoid vanishing
-        # gradients from Tanh while keeping training stable.
-        # Coarse stack: pool×6 + downsample×6 → 6 FC inputs, 6 forecast coefficients.
-        # Very constrained: can only learn slow trends, not spike-scale extrapolation.
-        # Fine stack: pool×1 + downsample×1 → 36 FC inputs, 36 forecast coefficients.
-        # Full resolution for spike timing detail.
-        # Widths increased: fine stack (2016→256) relieves the 10× compression
-        # bottleneck that prevented event-scale representation.
+        # Using auto pooling/downsampling (None) to avoid extreme compression
+        # that forces coefficients to explode. We use more blocks (3) and layers (3)
+        # to guarantee capacity, but with Tanh activation to strictly bound outputs.
+        # Reduced dropout (0.1) and weight decay to stop the model from collapsing
+        # into a central tendency template.
         "num_stacks": 3,
-        "num_blocks": 2,
-        "num_layers": 3,
+        "num_blocks": 3,
         "layer_widths": 256,
-        "pooling_kernel_sizes": [[4, 4],
-                         [2, 2],
-                         [1, 1]],
-
-        "n_freq_downsample":   [[4, 4],
-                                [2, 2],
-                                [1, 1]],
+        "pooling_kernel_sizes": None,
+        "n_freq_downsample": None,
+        "activation": "Tanh",
+        "dropout": 0.1,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
+        "use_cyclic_encoders": True,
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.4,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",

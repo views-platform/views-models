@@ -8,15 +8,18 @@ def get_hp_config():
         "steps": list(range(1, 37)),
 
         # --- Architecture ---
+        # Tanh activation strongly bounds the summation, completely preventing runaway explosions.
+        # Reduced num_stacks (3) and num_blocks (1) limits cumulative amplitude capacity, 
+        # further reducing the risk of explosion while avoiding under-capacity template learning.
         "generic_architecture": True,
         "num_stacks": 3,
-        "num_blocks": 2,
+        "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 256,
         "expansion_coefficient_dim": 16,
         "trend_polynomial_degree": 2,
         "activation": "Tanh",
-        "dropout": 0.3,
+        "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
