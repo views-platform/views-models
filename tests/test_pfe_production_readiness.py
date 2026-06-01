@@ -148,6 +148,18 @@ class TestPFModelConfigReadiness:
             f"{pf_model}: steps must be a non-empty list"
         )
 
+    def test_regression_targets_consistent_meta_hp(self, pf_model):
+        meta = _load_meta(pf_model)
+        hp = _load_hp(pf_model)
+        meta_targets = meta.get("regression_targets")
+        hp_targets = hp.get("regression_targets")
+        if not meta_targets or not hp_targets:
+            pytest.skip(f"{pf_model}: one or both configs missing regression_targets")
+        assert sorted(meta_targets) == sorted(hp_targets), (
+            f"{pf_model}: config_meta regression_targets {meta_targets} != "
+            f"config_hyperparameters regression_targets {hp_targets}"
+        )
+
 
 class TestPFEEnsembleConfigReadiness:
     """Every PFE ensemble must reference valid PF constituent models."""
@@ -479,6 +491,8 @@ class TestPFEEnsembleAggregation:
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
         first_target = meta["regression_targets"][0]
+        if first_target.startswith("synth_"):
+            pytest.skip(f"{name}/{first_target}: synthetic target, log-compression check N/A")
         y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
         assert y.max() > 10, (
             f"{name}/{first_target}: max={y.max():.4f} suggests log-scale"
