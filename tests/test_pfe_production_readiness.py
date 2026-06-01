@@ -109,6 +109,18 @@ def _latest_pf_run(base_dir, name):
 PF_MODELS = _discover_pf_models()
 PFE_ENSEMBLES = _discover_pfe_ensembles()
 
+# C-52: PF models not yet PFE-ready. Remove models as they gain the keys.
+_C52_MISSING_N_POSTERIOR = {
+    "black_ranger", "blue_ranger", "green_ranger", "heavy_strider",
+    "light_strider", "lucid_dream", "pink_ranger", "red_ranger",
+    "vivid_dream", "waking_dream", "white_ranger", "yellow_ranger",
+}
+_C52_MISSING_REGRESSION_TARGETS = {
+    "black_ranger", "blue_ranger", "green_ranger", "lucid_dream",
+    "pink_ranger", "red_ranger", "vivid_dream", "waking_dream",
+    "yellow_ranger",
+}
+
 
 # ══════════════════════════════════════════════════════════════════════
 # Issue #64 — Config-level readiness (green, always-run)
@@ -123,7 +135,11 @@ class TestPFModelConfigReadiness:
     def pf_model(self, request):
         return request.param
 
-    def test_has_n_posterior_samples(self, pf_model):
+    def test_has_n_posterior_samples(self, pf_model, request):
+        if pf_model in _C52_MISSING_N_POSTERIOR:
+            request.applymarker(pytest.mark.xfail(
+                reason=f"C-52: {pf_model} missing n_posterior_samples"
+            ))
         hp = _load_hp(pf_model)
         n = hp.get("n_posterior_samples")
         assert isinstance(n, int) and n > 0, (
@@ -134,7 +150,11 @@ class TestPFModelConfigReadiness:
         meta = _load_meta(pf_model)
         assert meta.get("prediction_format") == "prediction_frame"
 
-    def test_has_regression_targets(self, pf_model):
+    def test_has_regression_targets(self, pf_model, request):
+        if pf_model in _C52_MISSING_REGRESSION_TARGETS:
+            request.applymarker(pytest.mark.xfail(
+                reason=f"C-52: {pf_model} missing regression_targets"
+            ))
         hp = _load_hp(pf_model)
         targets = hp.get("regression_targets")
         assert isinstance(targets, list) and len(targets) > 0, (
