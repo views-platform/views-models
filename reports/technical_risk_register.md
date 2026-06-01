@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-01  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 48 (44 concerns + 4 disagreements)  
-**Concerns:** Open 15 | Mitigated 10 | Resolved 16 | Accepted 3  
+**Total entries:** 56 (52 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 12 | Resolved 18 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -532,8 +532,6 @@
 
 ---
 
-<<<<<<< HEAD
-=======
 ### C-44 — Concat aggregation degrades ensemble CRPS when constituent model quality varies
 
 | Field | Value |
@@ -651,7 +649,6 @@
 
 ---
 
->>>>>>> a58a65c (docs: register C-52 — 12 PF models missing PFE-required config keys)
 ## Disagreements
 
 ### D-01 — Intentional config duplication vs. DRY principle
