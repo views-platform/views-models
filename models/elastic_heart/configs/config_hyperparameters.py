@@ -29,28 +29,28 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 5e-4,
-        "weight_decay": 2e-4,
-        "gradient_clip_val": 10,
+        "lr": 2e-4,
+        "weight_decay": 5e-4,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
-        "lr_scheduler_min_lr": 5e-5,
+        "lr_scheduler_patience": 25,
+        "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 8,
-            "min_lr": 5e-5,
+            "patience": 25,
+            "min_lr": 1e-6,
             "monitor": "val_loss",
-            "cooldown": 2,
-            "threshold": 0.005,
+            "cooldown": 3,
+            "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 5e-4,
-            "weight_decay": 2e-4,
+            "lr": 2e-4,
+            "weight_decay": 5e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -114,7 +114,7 @@ def get_hp_config():
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.15,
+        "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
