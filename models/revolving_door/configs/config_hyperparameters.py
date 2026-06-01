@@ -131,7 +131,7 @@ def get_hp_config():
                                 [2, 2, 2, 2],
                                 [1, 1, 1, 1]],
         "max_pool_1d": False,
-        "activation": "Tanh",
+        "activation": "GELU",
         "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
