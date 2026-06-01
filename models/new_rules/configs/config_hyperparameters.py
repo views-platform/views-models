@@ -9,14 +9,14 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 3,
-        "num_blocks": 2,
-        "num_layers": 4,
-        "layer_widths": 512,
-        "expansion_coefficient_dim": 32,
+        "num_stacks": 2,
+        "num_blocks": 1,
+        "num_layers": 2,
+        "layer_widths": [256, 256],
+        "expansion_coefficient_dim": 5,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.15,
+        "dropout": 0.35,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -36,11 +36,11 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0001,
         "weight_decay": 0.001,
-        "gradient_clip_val": 50,
+        "gradient_clip_val": 1.0,
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0001,
             "weight_decay": 0.001,
         },
 
@@ -48,13 +48,12 @@ def get_hp_config():
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 25,
-        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_min_lr": 0.000001,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
             "patience": 25,
-            "min_lr": 1e-6,
-            "monitor": "val_loss",
+            "min_lr": 0.000001,
             "cooldown": 3,
             "threshold": 0.01,
             "threshold_mode": "rel",
@@ -109,7 +108,7 @@ def get_hp_config():
 
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
-        # "delta": 0.07139486580318413,
+        "delta": 0.07139486580318413,
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
 
         # --- Prediction ---
