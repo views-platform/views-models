@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
-        "weight_decay": 5e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 50,
 
         # LR Scheduler
@@ -50,7 +50,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 2e-4,
-            "weight_decay": 5e-4,
+            "weight_decay": 1e-3,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
