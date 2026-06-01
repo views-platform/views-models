@@ -96,6 +96,7 @@ def get_hp_config():
         'slope_ratio': 0.75,
         'roof_ratio': 0.7,
         'min_events': 5,
+        'sampling_strategy': 'threshold',
 
         # ============================================================
         # Outbound / Evaluation

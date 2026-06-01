@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-05-26  
+**Last updated:** 2026-05-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 54 (50 concerns + 4 disagreements)  
-**Concerns:** Open 19 | Mitigated 11 | Resolved 17 | Accepted 3  
+**Total entries:** 55 (51 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 11 | Resolved 18 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -620,6 +620,19 @@
 | **Status** | Open |
 | **Location** | `models/lucid_dream/requirements.txt`, `models/vivid_dream/requirements.txt`, `models/waking_dream/requirements.txt`, `models/vertical_dream/requirements.txt`, `models/horizontal_dream/requirements.txt`, `models/diagonal_dream/requirements.txt`, `models/red_ranger/requirements.txt`, `models/green_ranger/requirements.txt`, `models/blue_ranger/requirements.txt`, `models/black_ranger/requirements.txt`, `models/pink_ranger/requirements.txt`, `models/yellow_ranger/requirements.txt`, `models/white_ranger/requirements.txt`, `models/light_strider/requirements.txt`, `models/heavy_strider/requirements.txt`, `models/average_cmbaseline/requirements.txt`, `models/average_pgmbaseline/requirements.txt`, `models/zero_cmbaseline/requirements.txt`, `models/zero_pgmbaseline/requirements.txt`, `models/locf_cmbaseline/requirements.txt`, `models/locf_pgmbaseline/requirements.txt` (21 models total) |
 | **Notes** | All 21 baseline models declare `views-baseline>=1.0.0,<2.0.0` in `requirements.txt`. The `views-baseline` package is not published to PyPI at all — it is only available as a local editable install from `~/Documents/scripts/views_platform/views-baseline` at version `0.1.0`. On existing developer machines with the pre-existing `envs/views-baseline` env, the pip dry-run check succeeds because the package is already installed, and `run.sh` proceeds normally. On a fresh clone (new machine, CI, new contributor), `run.sh` creates the conda env, `pip install` fails with `No matching distribution found for views-baseline`, and the model crashes with `ModuleNotFoundError: No module named 'views_baseline'`. **Observed (2026-05-26):** All 6 synthetic model runs showed `ERROR: No matching distribution found for views-baseline<2.0.0,>=1.0.0` but succeeded because the env already had the local install. **Fix options:** (1) publish `views-baseline` to PyPI at version `>=1.0.0`, (2) change `requirements.txt` to use a git+https URL (matching the `views-datafactory` pattern in HydraNet models), (3) update `run.sh` to install from local path if available (but run.sh must not be modified — see feedback constraint). See also C-38 (same class: `datafactory_query` not installed), C-42 (same class: `views-pipeline-core` from PyPI lacks features), C-08 (requirements coherence). |
+
+---
+
+### C-51 — Datafactory trio missing `sampling_strategy` — ADR-049 required field, runtime crash
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer runs `bash models/bold_comet/run.sh -r calibration` (or bright_starship, blazing_meteor) and views-hydranet rejects the config with `'sampling_strategy' is required (ADR-049)` |
+| **Source** | review (PR #59, 2026-05-31) |
+| **Status** | Resolved |
+| **Location** | `models/bright_starship/configs/config_hyperparameters.py`, `models/bold_comet/configs/config_hyperparameters.py`, `models/blazing_meteor/configs/config_hyperparameters.py`, `models/heavy_freighter/configs/config_hyperparameters.py` |
+| **Notes** | The viewser trio (purple_alien, blue_stranger, violet_visitor) received `sampling_strategy` in this PR cycle (threshold/boltzmann/sigmoid respectively). The datafactory trio and heavy_freighter were not updated — bold_comet and blazing_meteor were cloned from bright_starship, which also lacked the field. views-hydranet's curriculum learner validates the key at config load time and raises `KeyError` on absence. All four models would fail immediately on any training run. The parity test (`test_datafactory_parity.py::TestDatafactoryTrioConfigParity::test_identical_shared_hyperparameters`) does not catch this because it strips loss keys and compares models pairwise — since all three are equally missing the field, they match each other. **Resolved (2026-06-01):** Added `'sampling_strategy': 'threshold'` to all four affected models (3 datafactory + heavy_freighter). Added `test_hydranet_has_sampling_strategy` to `test_config_completeness.py` to catch this class of omission for all HydraNet models (scoped via `meta_config["algorithm"] == "HydraNet"`) — this test is what caught heavy_freighter. See also C-05 (incomplete HP validation — covers stepshifter/baseline, not HydraNet), C-38 (datafactory_query not installed — same models, different dependency class), C-42 (unreleased pipeline-core branch — different: import availability, not config completeness). |
 
 ---
 
