@@ -2,7 +2,7 @@ def get_hp_config():
     """
     N-BEATS hyperparameters
     """
-
+    # r4
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
@@ -16,7 +16,7 @@ def get_hp_config():
         "expansion_coefficient_dim": 16,
         "trend_polynomial_degree": 2,
         "activation": "ReLU",
-        "dropout": 0.35,
+        "dropout": 0.15,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -36,12 +36,12 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 0.0001,
-        "weight_decay": 0.001,
-        "gradient_clip_val": 1.0,
+        "lr": 0.0003,
+        "weight_decay": 0.0003,
+        "gradient_clip_val": 5.0,
         "optimizer_kwargs": {
-            "lr": 0.0001,
-            "weight_decay": 0.001,
+            "lr": 0.0003,
+            "weight_decay": 0.0003,
         },
 
         # --- LR Scheduler ---
