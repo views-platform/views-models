@@ -107,21 +107,12 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # Tanh activation bounds all hidden states to [-1,1], mechanically limiting
-        # the forecast projection magnitude before RevIN denormalization.
-        # Single block per stack (3 additive contributions total, not 6) reduces
-        # cumulative output amplitude. Shallow blocks (2 layers) avoid vanishing
-        # gradients from Tanh while keeping training stable.
-        # Coarse stack: pool×6 + downsample×6 → 6 FC inputs, 6 forecast coefficients.
-        # Very constrained: can only learn slow trends, not spike-scale extrapolation.
-        # Fine stack: pool×1 + downsample×1 → 36 FC inputs, 36 forecast coefficients.
-        # Full resolution for spike timing detail.
         "num_stacks": 3,
         "num_blocks": 3,
         "num_layers": 3,
         "layer_widths": [512, 1024, 512],
-        "pooling_kernel_sizes": [[6], [2], [1]],
-        "n_freq_downsample": [[6], [2], [1]],
+        "pooling_kernel_sizes": [[6, 6, 6], [2, 2, 2], [1, 1, 1]],
+        "n_freq_downsample": [[6, 6, 6], [2, 2, 2], [1, 1, 1]],
         "max_pool_1d": False,
         "activation": "Tanh",
         "dropout": 0.30,
