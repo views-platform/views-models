@@ -4,5 +4,7 @@ def get_hp_config():
         'time_steps': 36,
         'window_months': 18,
         'n_samples': 64,
+        'n_posterior_samples': 64,
+        'regression_targets': ['synth_target'],
     }
     return hyperparameters
