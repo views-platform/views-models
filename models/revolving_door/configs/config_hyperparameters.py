@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-3,
-        "gradient_clip_val": 5,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-3,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -117,14 +117,14 @@ def get_hp_config():
         # Fine stack: pool×1 + downsample×1 → 36 FC inputs, 36 forecast coefficients.
         # Full resolution for spike timing detail.
         "num_stacks": 3,
-        "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": [64, 128, 192],
+        "num_blocks": 3,
+        "num_layers": 3,
+        "layer_widths": [512, 1024, 512],
         "pooling_kernel_sizes": [[6], [2], [1]],
         "n_freq_downsample": [[6], [2], [1]],
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.20,
+        "dropout": 0.30,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
