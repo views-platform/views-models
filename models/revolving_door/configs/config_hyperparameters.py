@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-    # r5
+    # r5.1
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 50,
+        "weight_decay": 5e-4,
+        "gradient_clip_val": 200.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -49,14 +49,13 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 2e-4,
-            "weight_decay": 1e-4,
+            "weight_decay": 5e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.041685644972051974,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -122,13 +121,18 @@ def get_hp_config():
         "num_blocks": 4,
         "num_layers": 3,
         "layer_widths": [512, 512, 512, 512],
-        # "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
-        # "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
-        "pooling_kernel_sizes": None,
-        "n_freq_downsample": None,
+        "pooling_kernel_sizes": [[6, 6, 6, 6],
+                         [3, 3, 3, 3],
+                         [2, 2, 2, 2],
+                         [1, 1, 1, 1]],
+
+        "n_freq_downsample": [[6, 6, 6, 6],
+                                [3, 3, 3, 3],
+                                [2, 2, 2, 2],
+                                [1, 1, 1, 1]],
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.25,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
