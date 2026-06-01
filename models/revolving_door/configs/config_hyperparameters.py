@@ -113,6 +113,7 @@ def get_hp_config():
         # into a central tendency template.
         "num_stacks": 3,
         "num_blocks": 3,
+        "num_layers": 3,
         "layer_widths": 256,
         "pooling_kernel_sizes": None,
         "n_freq_downsample": None,
@@ -122,10 +123,6 @@ def get_hp_config():
         "use_reversible_instance_norm": True,
         "use_cyclic_encoders": True,
         "max_pool_1d": False,
-        "activation": "Tanh",
-        "dropout": 0.25,
-        "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
