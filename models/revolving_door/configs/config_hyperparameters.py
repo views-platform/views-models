@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 3e-4,
-        "gradient_clip_val": 20,
+        "weight_decay": 1e-3,
+        "gradient_clip_val": 5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 3e-4,
+            "weight_decay": 1e-3,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -116,17 +116,15 @@ def get_hp_config():
         # Very constrained: can only learn slow trends, not spike-scale extrapolation.
         # Fine stack: pool×1 + downsample×1 → 36 FC inputs, 36 forecast coefficients.
         # Full resolution for spike timing detail.
-        # Widths increased: fine stack (2016→256) relieves the 10× compression
-        # bottleneck that prevented event-scale representation.
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": [128, 192, 256],
+        "layer_widths": [64, 128, 192],
         "pooling_kernel_sizes": [[6], [2], [1]],
         "n_freq_downsample": [[6], [2], [1]],
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.15,
+        "dropout": 0.20,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
