@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-    # r4
+    # r5
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0003,
-        "weight_decay": 3e-4,
-        "gradient_clip_val": 5,
+        "lr": 2e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 50,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -48,8 +48,8 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0003,
-            "weight_decay": 3e-4,
+            "lr": 2e-4,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -118,15 +118,15 @@ def get_hp_config():
         # Full resolution for spike timing detail.
         # Widths increased: fine stack (2016→256) relieves the 10× compression
         # bottleneck that prevented event-scale representation.
-        "num_stacks": 3,
-        "num_blocks": 2,
-        "num_layers": 2,
-        "layer_widths": [256, 256, 256],
+        "num_stacks": 4,
+        "num_blocks": 4,
+        "num_layers": 3,
+        "layer_widths": [512, 512, 512],
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.10,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
