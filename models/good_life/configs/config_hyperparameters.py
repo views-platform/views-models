@@ -7,7 +7,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    # r5
+    # r6
     hyperparameters = {
         "steps": [*range(1, 36 + 1)],
         "num_samples": 1,
@@ -17,9 +17,9 @@ def get_hp_config():
 
         "activation": "SwiGLU",
         "batch_size": 128,
-        "d_model": 128,
-        "dim_feedforward": 512,
-        "dropout": 0.15,
+        "d_model": 256,
+        "dim_feedforward": 1024,
+        "dropout": 0.2,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 25,
         "feature_scaler": None,
@@ -86,9 +86,9 @@ def get_hp_config():
             "cooldown": 3,
         },
         "n_epochs": 300,
-        "nhead": 4,
+        "nhead": 8,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 3,
+        "num_decoder_layers": 4,
         "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
