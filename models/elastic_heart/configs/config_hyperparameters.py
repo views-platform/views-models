@@ -108,13 +108,13 @@ def get_hp_config():
         # 3 blocks × 64 width: sweep-validated configuration. Wider depth
         # (3 blocks) compensates for narrower hidden_size=64 by stacking
         # more mixing passes
-        "num_blocks": 3,
-        "hidden_size": 128,
-        "ff_size": 256,
+        "num_blocks": 4,
+        "hidden_size": 256,
+        "ff_size": 512,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.2,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
