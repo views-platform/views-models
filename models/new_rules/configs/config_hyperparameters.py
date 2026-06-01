@@ -12,11 +12,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 4,
-        "layer_widths": [256, 256, 256],
-        "expansion_coefficient_dim": 20,
+        "layer_widths": 512,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
-        "activation": "Tanh",
-        "dropout": 0.2,
+        "activation": "GELU",
+        "dropout": 0.15,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -37,22 +37,22 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.0005,
-        "gradient_clip_val": 5,
+        "weight_decay": 0.001,
+        "gradient_clip_val": 50,
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.0005,
+            "weight_decay": 0.001,
         },
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_patience": 25,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
+            "patience": 25,
             "min_lr": 1e-6,
             "monitor": "val_loss",
             "cooldown": 3,
@@ -127,4 +127,3 @@ def get_hp_config():
     }
 
     return hyperparameters
-
