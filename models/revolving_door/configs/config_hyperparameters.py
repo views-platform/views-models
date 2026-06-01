@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-    # r5.1
+    # r5.2
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 1e-4,
         "weight_decay": 5e-4,
         "gradient_clip_val": 200.0,
 
@@ -48,8 +48,8 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 5e-4,
+            "lr": 1e-4,
+            "weight_decay": 5e-3,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -117,22 +117,20 @@ def get_hp_config():
         # Full resolution for spike timing detail.
         # Widths increased: fine stack (2016→256) relieves the 10× compression
         # bottleneck that prevented event-scale representation.
-        "num_stacks": 4,
-        "num_blocks": 4,
+        "num_stacks": 3,
+        "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": [512, 512, 512, 512],
-        "pooling_kernel_sizes": [[6, 6, 6, 6],
-                         [3, 3, 3, 3],
-                         [2, 2, 2, 2],
-                         [1, 1, 1, 1]],
+        "layer_widths": 256,
+        "pooling_kernel_sizes": [[4, 4],
+                         [2, 2],
+                         [1, 1]],
 
-        "n_freq_downsample": [[6, 6, 6, 6],
-                                [3, 3, 3, 3],
-                                [2, 2, 2, 2],
-                                [1, 1, 1, 1]],
+        "n_freq_downsample":   [[4, 4],
+                                [2, 2],
+                                [1, 1]],
         "max_pool_1d": False,
         "activation": "GELU",
-        "dropout": 0.3,
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
