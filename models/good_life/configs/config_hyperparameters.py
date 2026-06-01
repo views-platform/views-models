@@ -7,7 +7,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    # r4
+    # r5
     hyperparameters = {
         "steps": [*range(1, 36 + 1)],
         "num_samples": 1,
@@ -67,7 +67,7 @@ def get_hp_config():
                 ],
         },
         "force_reset": True,
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 200.0,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
@@ -88,19 +88,19 @@ def get_hp_config():
         "n_epochs": 300,
         "nhead": 4,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 1,
+        "num_decoder_layers": 3,
         "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.0003,
+            "weight_decay": 1e-4,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 0.0003,
+        "weight_decay": 1e-4,
 
         # Encoders
         "use_cyclic_encoders": True,
