@@ -5,7 +5,7 @@ def get_hp_config():
     Best run: elastic_heart_tsmixer_shadow_20260508_C
     lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
     """
-    # r4
+    # r5
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -30,8 +30,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
-        "weight_decay": 0.001,
-        "gradient_clip_val": 2.0,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 200.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -50,7 +50,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 2e-4,
-            "weight_decay": 0.001,
+            "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -107,13 +107,13 @@ def get_hp_config():
         # 3 blocks × 64 width: sweep-validated configuration. Wider depth
         # (3 blocks) compensates for narrower hidden_size=64 by stacking
         # more mixing passes
-        "num_blocks": 3,
-        "hidden_size": 128,
-        "ff_size": 512,
+        "num_blocks": 4,
+        "hidden_size": 256,
+        "ff_size": 768,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.1,
+        "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
