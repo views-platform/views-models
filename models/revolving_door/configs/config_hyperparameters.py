@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-    # r3
+    # r4
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
+        "lr": 0.0003,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 20,
+        "gradient_clip_val": 5,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -48,7 +48,7 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0003,
             "weight_decay": 3e-4,
         },
 
@@ -119,14 +119,14 @@ def get_hp_config():
         # Widths increased: fine stack (2016→256) relieves the 10× compression
         # bottleneck that prevented event-scale representation.
         "num_stacks": 3,
-        "num_blocks": 1,
+        "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": [128, 192, 256],
-        "pooling_kernel_sizes": [[6], [2], [1]],
-        "n_freq_downsample": [[6], [2], [1]],
+        "layer_widths": [256, 256, 256],
+        "pooling_kernel_sizes": [[4], [2], [1]],
+        "n_freq_downsample": [[4], [2], [1]],
         "max_pool_1d": False,
         "activation": "Tanh",
-        "dropout": 0.15,
+        "dropout": 0.10,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
