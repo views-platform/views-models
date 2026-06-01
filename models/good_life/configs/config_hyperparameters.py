@@ -7,7 +7,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    
+    # r3
     hyperparameters = {
         "steps": [*range(1, 36 + 1)],
         "num_samples": 1,
@@ -17,11 +17,11 @@ def get_hp_config():
 
         "activation": "SwiGLU",
         "batch_size": 128,
-        "d_model": 256,
-        "dim_feedforward": 768,
-        "dropout": 0.10,
+        "d_model": 128,
+        "dim_feedforward": 512,
+        "dropout": 0.30,
         "early_stopping_min_delta": 0.001,
-        "early_stopping_patience": 35,
+        "early_stopping_patience": 15,
         "feature_scaler": None,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
@@ -67,12 +67,12 @@ def get_hp_config():
                 ],
         },
         "force_reset": True,
-        "gradient_clip_val": 5,
+        "gradient_clip_val": 1,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "delta": 0.08,
         "non_zero_threshold": 0.88,
-        "lr": 5e-4,
+        "lr": 2e-4,
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 12,
@@ -87,21 +87,21 @@ def get_hp_config():
             "cooldown": 3,
         },
         "n_epochs": 300,
-        "nhead": 4,
+        "nhead": 8,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 1,
-        "num_encoder_layers": 4,
+        "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 5e-4,
-            "weight_decay": 1e-4,
+            "lr": 2e-4,
+            "weight_decay": 1e-3,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-3,
 
         # Encoders
         "use_cyclic_encoders": True,
