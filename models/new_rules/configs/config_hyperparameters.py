@@ -2,21 +2,21 @@ def get_hp_config():
     """
     N-BEATS hyperparameters
     """
-    # r4
+    # r5
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
-        "num_blocks": 1,
+        "num_stacks": 4,
+        "num_blocks": 3,
         "num_layers": 2,
-        "layer_widths": [512, 256],
-        "expansion_coefficient_dim": 16,
+        "layer_widths": [512, 512, 512, 512],
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
-        "activation": "ReLU",
-        "dropout": 0.15,
+        "activation": "Tanh",
+        "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -36,12 +36,12 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 0.0003,
-        "weight_decay": 0.0003,
-        "gradient_clip_val": 5.0,
+        "lr": 2e-4,
+        "weight_decay": 1e-3,
+        "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
-            "lr": 0.0003,
-            "weight_decay": 0.0003,
+            "lr": 2e-4,
+            "weight_decay": 1e-3,
         },
 
         # --- LR Scheduler ---
@@ -108,7 +108,6 @@ def get_hp_config():
 
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.07139486580318413,
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
 
         # --- Prediction ---
