@@ -54,7 +54,6 @@ def get_hp_config():
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -108,10 +107,10 @@ def get_hp_config():
         # 3 blocks × 64 width: sweep-validated configuration. Wider depth
         # (3 blocks) compensates for narrower hidden_size=64 by stacking
         # more mixing passes
-        "num_blocks": 3,
-        "hidden_size": 128,
-        "ff_size": 256,
-        "activation": "GELU",
+        "num_blocks": 5,
+        "hidden_size": 256,
+        "ff_size": 1024,
+        "activation": "ReLU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
         "dropout": 0.2,
