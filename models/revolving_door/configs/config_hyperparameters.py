@@ -124,6 +124,8 @@ def get_hp_config():
         "layer_widths": [512, 512, 512, 512],
         # "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         # "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
+        "pooling_kernel_sizes": None,
+        "n_freq_downsample": None,
         "max_pool_1d": False,
         "activation": "Tanh",
         "dropout": 0.25,
