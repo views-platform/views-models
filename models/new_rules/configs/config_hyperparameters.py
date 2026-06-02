@@ -13,7 +13,7 @@ def get_hp_config():
         "num_blocks": 2,
         "num_layers": 3,
         "layer_widths": 256,
-        "expansion_coefficient_dim": 64,
+        "expansion_coefficient_dim": 128,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.1,
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 10.0,
+        "gradient_clip_val": 30.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
             "weight_decay": 3e-4,
