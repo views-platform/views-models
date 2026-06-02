@@ -36,26 +36,26 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 5e-4,
+        "lr": 2e-4,
         "weight_decay": 1e-3,  # Increased to bound conv weights actively and prevent ReLu/residual explosions
-        "gradient_clip_val": 200.0,
+        "gradient_clip_val": 1.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 10,
-        "lr_scheduler_min_lr": 5e-5,
+        "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
             "patience": 10,
-            "min_lr": 5e-5,
+            "min_lr": 1e-6,
             "cooldown": 2,
             "threshold": 0.005,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 5e-4,
+            "lr": 2e-4,
             "weight_decay": 1e-3,
         },
 
