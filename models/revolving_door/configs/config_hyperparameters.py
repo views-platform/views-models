@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-4,
+        "lr": 1e-3,
         "weight_decay": 1e-3,
         "gradient_clip_val": 200.0,
 

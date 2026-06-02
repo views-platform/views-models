@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-4,
+        "lr": 1e-3,
         "weight_decay": 1e-4,
         "gradient_clip_val": 200.0, 
 
@@ -98,7 +98,7 @@ def get_hp_config():
         "num_blocks": 3,
         "hidden_size": 256,
         "ff_size": 512,
-        "activation": "LeakyReLU",
+        "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
         "dropout": 0.25,
