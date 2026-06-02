@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-02  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 56 (52 concerns + 4 disagreements)  
-**Concerns:** Open 18 | Mitigated 12 | Resolved 19 | Accepted 3  
+**Total entries:** 58 (54 concerns + 4 disagreements)  
+**Concerns:** Open 20 | Mitigated 12 | Resolved 19 | Accepted 3  
 **Disagreements:** Open 4  
 
 ---
@@ -646,6 +646,32 @@
 | **Status** | Resolved |
 | **Location** | `models/{black_ranger,blue_ranger,green_ranger,lucid_dream,pink_ranger,red_ranger,vivid_dream,waking_dream,yellow_ranger}/configs/config_hyperparameters.py` (missing both `n_posterior_samples` and `regression_targets`), `models/{heavy_strider,light_strider,white_ranger}/configs/config_hyperparameters.py` (missing `n_posterior_samples` only) |
 | **Notes** | All 21 models declare `prediction_format: "prediction_frame"` in `config_meta.py`, meaning they produce PredictionFrame outputs. But 12 of them lack `n_posterior_samples` (needed by PFE to verify aggregated sample counts) and 9 of those also lack `regression_targets` (needed to know which target directories to validate). The 9 models with fully compliant configs (purple_alien, blue_stranger, violet_visitor, bright_starship, bold_comet, blazing_meteor, heavy_freighter, pink_pirate, heavy_strider partially) are the only ones eligible for PFE ensembles today. This blocks the PFE production roadmap: Steps 2-5 require running constituent models through PFE, and any model without these keys cannot participate. The ranger models (7 of 12) use an older config convention with `n_samples` instead of `n_posterior_samples` and no explicit `regression_targets` — they predate the HydraNet multi-target architecture. The dream models (lucid_dream, vivid_dream, waking_dream) are synthetic test models that also predate the convention. **Resolved (2026-06-02):** Added `n_posterior_samples` and `regression_targets` to all 12 affected `config_hyperparameters.py` files. Values derived from each model's `config_meta.py` (regression_targets) and existing `n_samples` (n_posterior_samples). xfail markers removed from `test_pfe_production_readiness.py` — all 21 PF models now pass config-level readiness tests unconditionally. See #70. |
+
+---
+
+### C-53 — Config value regression during cross-branch merges
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer merges `development` into a feature branch (or vice versa) when both branches have modified the same model `config_hyperparameters.py` with different values for the same key — git auto-resolves by picking one side, silently dropping the other's intentional change |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/blue_stranger/configs/config_hyperparameters.py`, `models/violet_visitor/configs/config_hyperparameters.py` (observed); any model config modified on both branches (systemic) |
+| **Notes** | Observed during merge of `development` into `feature/golden_hour_ensemble`: blue_stranger and violet_visitor had `skip_predictions_delivery` changed to `True` on the feature branch (intentional), while development still had `False` (pre-existing). Git auto-merged without conflict markers, silently regressing the value to `False`. Also introduced a stray `prediction_format` key in hyperparameters (belongs only in config_meta). Caught during tech-debt-cleanup verification; would have caused Track B parquet generation and potential OOM in ensemble runs. **Mitigated (2026-06-02):** Fixed in this session. No automated guard exists — mitigation is manual post-merge review of config diffs. See also C-01 (73 duplicated config files amplify this risk), C-52 (same files, different keys). |
+
+---
+
+### C-54 — Experimental model (heavy_freighter) in production model directory without marker
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer adds heavy_freighter to a production ensemble's `config_meta.models` list without realizing its hyperparameters are experimental — global grid (360×720 vs regional 180×180), 3 posterior samples (vs 64), 80 lessons (vs 150-200) |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (experimental values: `height: 360`, `width: 720`, `n_posterior_samples: 3`, `total_lessons: 80`) |
+| **Notes** | heavy_freighter's docstring identifies it as "S2a — BASELINE + Tobit censored-normal loss" validation run. Its grid dimensions, sample count, and lesson count are all set for fast experimental iteration, not production quality. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes experimental models from production models — the only signal is reading the docstring. Low severity because the model fails loudly if sample counts don't match ensemble expectations (PFE tests catch this). |
 
 ---
 

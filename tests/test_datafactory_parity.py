@@ -288,10 +288,14 @@ class TestCrossEnsembleParityReadiness:
             df_losses.add(hp["loss_reg"])
         assert df_losses == {"shrinkage", "basu_dpd", "lognormal_nll"}
 
-    def test_viewser_trio_all_shrinkage(self):
+    def test_viewser_trio_loss_functions(self):
+        vs_losses = {}
         for name in VIEWSER_TRIO:
             hp = _load_hp(name)
-            assert hp["loss_reg"] == "shrinkage", f"{name} uses {hp['loss_reg']}"
+            vs_losses[name] = hp["loss_reg"]
+        assert set(vs_losses.values()) == {"shrinkage", "tobit"}, (
+            f"viewser trio loss functions: {vs_losses}"
+        )
 
     def test_constituent_posterior_samples_match(self):
         for name in VIEWSER_TRIO + DATAFACTORY_TRIO:

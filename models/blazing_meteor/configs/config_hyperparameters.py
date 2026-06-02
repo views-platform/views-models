@@ -10,8 +10,6 @@ def get_hp_config():
     """
 
     hyperparameters = {
-
-
         
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
@@ -55,7 +53,6 @@ def get_hp_config():
         # ============================================================
         # Multi-Task Signals (ADR 020 Compliance)
         # ============================================================
-        #'target_variable': 'lr_sb_best',
         'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'], # auto transform to by_ 
         'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
         
@@ -100,17 +97,10 @@ def get_hp_config():
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
         'n_posterior_samples': 64,
-        #'evaluation_mode': "point", #'stochastic',
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        # 'run_type': 'calibration',
 
-        # Track B (list-in-cell parquet delivery) is suspended at pgm scale.
-        # to_prediction_df() creates 5.5M Python float objects per target per origin
-        # (~4.8–6.4 GB peak + 2.3 GB permanent fragmentation). Track A (.npy) is
-        # written per-origin for metrics. Re-enable once Track B has a PyArrow fix.
         'skip_predictions_delivery': True,
     }
 

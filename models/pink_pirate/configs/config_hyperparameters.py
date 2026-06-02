@@ -1,14 +1,16 @@
 
 def get_hp_config():
     """
-    S2a — BASELINE + Tobit censored-normal loss
-    Delta: replaces shrinkage with Tobit NLL (loss_reg='tobit', sigma=1.0).
-    No hurdle_threshold — Tobit handles zero-inflation internally via
-    censored likelihood. This is the validation that Path A (ADR-054) fixes
-    the gradient starvation that S2 (hurdle mask) caused.
+    Ensemble member A: "Balanced" — per-target sigma + standard scheduled sampling.
 
-    Expected: PASS. Dense gradient from all cells (including y=0 via censored
-    likelihood) should eliminate the divergence seen in S2.
+    Orthogonal design for golden_hour ensemble (3 HydraNet models × 64 samples = 192).
+    Validated by production integration sweep (run 8: CRPS=0.143, MCR=0.22).
+
+    Diversity axes vs other members:
+    - Seeds: 4/4 (vs 42/42 and 99/99)
+    - Sigma: per-target {1.0, 0.75, 0.5} (vs per-target and uniform)
+    - SS epsilon: 0.5 (vs 0.25 and 0.5)
+    - Dropout: 0.125 (vs 0.15 and 0.1)
     """
 
     hyperparameters = {
@@ -76,9 +78,8 @@ def get_hp_config():
         'time_steps': 36,
 
         # ============================================================
-        # Loss Functions
+        # Loss Functions — Tobit + per-target sigma (ADR-054/055)
         # ============================================================
-        # ── Per-target Tobit sigma (issue #44) ──
         'loss_reg': 'tobit',
         'loss_reg_sigma': {
             'lr_sb_best': 1.0,
@@ -91,9 +92,16 @@ def get_hp_config():
         'onset_bias_init': -7.0,
 
         # ============================================================
+        # Scheduled Sampling (ADR-056)
+        # ============================================================
+        'ss_schedule': 'linear',
+        'ss_warmup_lessons': 10,
+        'ss_epsilon_max': 0.5,
+
+        # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 80,
+        'total_lessons': 200,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
@@ -104,10 +112,11 @@ def get_hp_config():
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        'n_posterior_samples': 3,
+        'n_posterior_samples': 64,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        'skip_predictions_delivery': True,
+        'prediction_format': 'prediction_frame',
+        'skip_predictions_delivery': False,
     }
 
     return hyperparameters
