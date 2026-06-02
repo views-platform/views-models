@@ -30,7 +30,7 @@ def get_hp_config():
         # --- Training ---
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
@@ -47,12 +47,12 @@ def get_hp_config():
         # --- LR Scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 25,
+        "lr_scheduler_patience": 7,
         "lr_scheduler_min_lr": 0.000001,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 25,
+            "patience": 7,
             "min_lr": 0.000001,
             "cooldown": 3,
             "threshold": 0.01,

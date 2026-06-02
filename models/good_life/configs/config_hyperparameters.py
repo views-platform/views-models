@@ -21,7 +21,7 @@ def get_hp_config():
         "dim_feedforward": 256,
         "dropout": 0.3,
         "early_stopping_min_delta": 0.001,
-        "early_stopping_patience": 30,
+        "early_stopping_patience": 20,
         "feature_scaler": None,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
@@ -74,12 +74,12 @@ def get_hp_config():
         "lr": 0.0001,
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 15,
+        "lr_scheduler_patience": 7,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 15,
+            "patience": 7,
             "min_lr": 1e-6,
             "threshold": 0.005,
             "threshold_mode": "rel",
