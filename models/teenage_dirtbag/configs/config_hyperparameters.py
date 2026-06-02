@@ -37,8 +37,8 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 5e-4,
-        "weight_decay": 2e-4,
-        "gradient_clip_val": 10,
+        "weight_decay": 1e-3,  # Increased to bound conv weights actively and prevent ReLu/residual explosions
+        "gradient_clip_val": 200.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -56,7 +56,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 5e-4,
-            "weight_decay": 2e-4,
+            "weight_decay": 1e-3,
         },
 
         # SpotlightLossLogcosh
@@ -113,14 +113,17 @@ def get_hp_config():
         # TCN Architecture
         # 4 residual blocks with exponential dilation: d=[1,2,4,8]
         # RF = 1 + 2*(3-1)*(2^4 - 1)/(2-1) = 61 > input_chunk_length=48 ✓
-        # Each block: Conv1d(num_filters, k=3, d=2^i) → ReLU → Dropout → Conv1d → ReLU → Dropout + Residual
-        # Weight norm stabilizes dilated convolutions (replaces batch norm)
+        # Darts' TCN implementation lacks internal LayerNorm/BatchNorm inside the residual 
+        # path, meaning ReLU outputs accumulate exponentially. To stop runaway predictions, we drop 
+        # num_filters to 64 (limiting parallel paths), increase weight_decay considerably (1e-3) to bound 
+        # conv filters, and drop dropout to 0.05 (too much dropout scales activations by 1/(1-p) during 
+        # training which massively inflates residual accumulation).
         "kernel_size": 3,
-        "num_filters": 128,
+        "num_filters": 64,
         "num_layers": 4,
         "dilation_base": 2,
         "weight_norm": True,
-        "dropout": 0.15,
+        "dropout": 0.05,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "checkpoint_mode": "best",
