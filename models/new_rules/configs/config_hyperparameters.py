@@ -15,8 +15,8 @@ def get_hp_config():
         "layer_widths": 128,
         "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
-        "activation": "Tanh",
-        "dropout": 0.3,
+        "activation": "ELU",
+        "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 1e-3,
-        "gradient_clip_val": 200.0,
+        "gradient_clip_val": 10.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
             "weight_decay": 1e-3,
@@ -46,7 +46,7 @@ def get_hp_config():
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 10,
+        "lr_scheduler_T_0": 20,
         "lr_scheduler_T_mult": 2,
         "lr_scheduler_eta_min": 1e-6,
         "lr_scheduler_kwargs": {},
