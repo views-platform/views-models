@@ -15,7 +15,7 @@ def get_hp_config():
         "layer_widths": 256,
         "expansion_coefficient_dim": 64,
         "trend_polynomial_degree": 2,
-        "activation": "Tanh",
+        "activation": "ReLU",
         "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
