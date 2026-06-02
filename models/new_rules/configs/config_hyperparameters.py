@@ -40,24 +40,16 @@ def get_hp_config():
         "weight_decay": 1e-3,
         "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
-            "lr": 2e-4,
+            "lr": 1e-3,
             "weight_decay": 1e-3,
         },
 
         # --- LR Scheduler ---
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 7,
-        "lr_scheduler_min_lr": 0.000001,
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.5,
-            "patience": 7,
-            "min_lr": 0.000001,
-            "cooldown": 3,
-            "threshold": 0.01,
-            "threshold_mode": "rel",
-        },
+        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
+        "lr_scheduler_T_0": 10,
+        "lr_scheduler_T_mult": 2,
+        "lr_scheduler_eta_min": 1e-6,
+        "lr_scheduler_kwargs": {},
 
         # --- Scaling ---
         "target_scaler": "AsinhTransform",
