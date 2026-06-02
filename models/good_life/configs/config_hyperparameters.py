@@ -19,7 +19,7 @@ def get_hp_config():
         "batch_size": 128,
         "d_model": 128,
         "dim_feedforward": 1024,
-        "dropout": 0.15,
+        "dropout": 0.2,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
         "feature_scaler": None,
@@ -86,17 +86,17 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 3e-4,
-            "weight_decay": 3e-3,
+            "weight_decay": 5e-3,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 3e-3,
+        "weight_decay": 5e-3,
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
     }
