@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 1e-5,
+        "weight_decay": 2e-4,
         "gradient_clip_val": 200.0,
 
         # LR Scheduler
@@ -109,11 +109,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 512,
+        "layer_widths": 256,
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "Tanh",
-        "dropout": 0.05,
+        "dropout": 0.15,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": False,
