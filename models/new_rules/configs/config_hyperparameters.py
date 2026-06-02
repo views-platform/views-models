@@ -9,7 +9,7 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 3,
+        "num_stacks": 2,
         "num_blocks": 2,
         "num_layers": 3,
         "layer_widths": 256,
@@ -37,11 +37,11 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 60.0,
+        "weight_decay": 3e-4,
+        "gradient_clip_val": 30.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
-            "weight_decay": 1e-4,
+            "weight_decay": 3e-4,
         },
 
         # --- LR Scheduler ---
