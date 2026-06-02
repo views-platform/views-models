@@ -5,7 +5,7 @@ def get_hp_config():
     Best run: elastic_heart_tsmixer_shadow_20260508_C
     lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
     """
-    # r7
+    # r8
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 20.0, 
+        "gradient_clip_val": 200.0, 
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -105,12 +105,12 @@ def get_hp_config():
 
         # TSMixer Architecture
         "num_blocks": 3,
-        "hidden_size": 64,
-        "ff_size": 64,
-        "activation": "GELU",
+        "hidden_size": 256,
+        "ff_size": 512,
+        "activation": "LeakyReLU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.35,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 

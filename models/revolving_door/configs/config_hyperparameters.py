@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 2e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 200.0,
 
         # LR Scheduler
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 1e-4,
-            "weight_decay": 1e-5,
+            "weight_decay": 1e-3,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -109,14 +109,14 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 256,
+        "layer_widths": 128,
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
-        "activation": "Tanh",
-        "dropout": 0.15,
+        "activation": "LeakyReLU",
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
-        "max_pool_1d": False,
+        "max_pool_1d": True,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
