@@ -82,7 +82,7 @@ def get_hp_config():
         "nhead": 8,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 3,
-        "num_encoder_layers": 3,
+        "num_encoder_layers": 4,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 3e-4,
