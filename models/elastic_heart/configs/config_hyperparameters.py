@@ -30,18 +30,18 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 3e-4,
-        "weight_decay": 1e-3,
-        "gradient_clip_val": 200.0, 
+        "weight_decay": 3e-3,
+        "gradient_clip_val": 10.0, 
 
         # LR Scheduler
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 10,
+        "lr_scheduler_T_0": 20,
         "lr_scheduler_T_mult": 2,
         "lr_scheduler_eta_min": 1e-6,
         "lr_scheduler_kwargs": {},
         "optimizer_kwargs": {
             "lr": 3e-4,
-            "weight_decay": 1e-3,
+            "weight_decay": 3e-3,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
