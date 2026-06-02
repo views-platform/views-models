@@ -14,6 +14,7 @@ def get_hp_config():
         "window_months": 36,
         "n_samples": 64,
         "n_posterior_samples": 64,
+        "skip_predictions_delivery": True,
         "seed": 42,
     }
 

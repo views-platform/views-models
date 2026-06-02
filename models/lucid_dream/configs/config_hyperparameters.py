@@ -6,5 +6,6 @@ def get_hp_config():
         'n_samples': 64,
         'n_posterior_samples': 64,
         'regression_targets': ['synth_target'],
+        'skip_predictions_delivery': True,
     }
     return hyperparameters
