@@ -96,7 +96,7 @@ def get_hp_config():
         "weight_decay": 3e-3,
 
         # Encoders
-        "use_cyclic_encoders": False,
+        "use_cyclic_encoders": True,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
     }
