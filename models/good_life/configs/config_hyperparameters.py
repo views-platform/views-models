@@ -71,7 +71,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
-        "lr": 5e-4,
+        "lr": 3e-4,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 20,
         "lr_scheduler_T_mult": 2,
@@ -85,18 +85,18 @@ def get_hp_config():
         "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 5e-4,
-            "weight_decay": 1e-3,
+            "lr": 3e-4,
+            "weight_decay": 2e-3,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
-        "use_reversible_instance_norm": True,
-        "weight_decay": 1e-3,
+        "use_reversible_instance_norm": False,
+        "weight_decay": 2e-3,
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
     }
