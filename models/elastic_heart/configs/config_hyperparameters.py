@@ -103,7 +103,7 @@ def get_hp_config():
         "normalize_before": True,
         "dropout": 0.25,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
 
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
