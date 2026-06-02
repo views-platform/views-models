@@ -81,7 +81,7 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 7,
             "min_lr": 1e-6,
-            "threshold": 0.005,
+            "threshold": 0.01,
             "threshold_mode": "rel",
             "cooldown": 3,
         },
@@ -104,7 +104,7 @@ def get_hp_config():
         "weight_decay": 1e-4,
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
     }

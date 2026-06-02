@@ -51,7 +51,7 @@ def get_hp_config():
             "patience": 7,
             "min_lr": 1e-6,
             "cooldown": 2,
-            "threshold": 0.005,
+            "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {

@@ -2,25 +2,25 @@ def get_hp_config():
     """
     N-BEATS hyperparameters
     """
-    # r7
+    # r8
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 3,
-        "num_blocks": 1,
+        "num_stacks": 2,
+        "num_blocks": 3,
         "num_layers": 3,
-        "layer_widths": 512,
-        "expansion_coefficient_dim": 16,
+        "layer_widths": 128,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
-        "activation": "Tanh",
-        "dropout": 0.05,
+        "activation": "LeakyReLU",
+        "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
 
         # --- Input / output structure ---
         "input_chunk_length": 36,
@@ -37,11 +37,11 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
-        "weight_decay": 1e-5,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
             "lr": 2e-4,
-            "weight_decay": 1e-5,
+            "weight_decay": 1e-3,
         },
 
         # --- LR Scheduler ---
