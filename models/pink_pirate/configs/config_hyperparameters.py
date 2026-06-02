@@ -115,8 +115,7 @@ def get_hp_config():
         'n_posterior_samples': 64,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        'prediction_format': 'prediction_frame',
-        'skip_predictions_delivery': False,
+        'skip_predictions_delivery': True,
     }
 
     return hyperparameters

@@ -1,7 +1,7 @@
 def get_meta_config():
     meta_config = {
         "name": "golden_hour",
-        "models": ["purple_alien", "blue_stranger", "violet_visitor"],
+        "models": ["pink_pirate", "blue_stranger", "violet_visitor"],
         "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"],
         "level": "pgm",
         "aggregation": "concat",

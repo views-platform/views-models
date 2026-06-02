@@ -22,7 +22,7 @@ MODELS_DIR = REPO_ROOT / "models"
 ENSEMBLES_DIR = REPO_ROOT / "ensembles"
 
 DATAFACTORY_TRIO = ["bright_starship", "bold_comet", "blazing_meteor"]
-VIEWSER_TRIO = ["purple_alien", "blue_stranger", "violet_visitor"]
+VIEWSER_TRIO = ["pink_pirate", "blue_stranger", "violet_visitor"]
 DF_ENSEMBLE = "stellar_horizon"
 VS_ENSEMBLE = "golden_hour"
 
@@ -293,7 +293,7 @@ class TestCrossEnsembleParityReadiness:
         for name in VIEWSER_TRIO:
             hp = _load_hp(name)
             vs_losses[name] = hp["loss_reg"]
-        assert set(vs_losses.values()) == {"shrinkage", "tobit"}, (
+        assert set(vs_losses.values()) == {"tobit"}, (
             f"viewser trio loss functions: {vs_losses}"
         )
 
