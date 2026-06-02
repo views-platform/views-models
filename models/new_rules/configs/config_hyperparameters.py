@@ -9,11 +9,11 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
-        "num_blocks": 3,
+        "num_stacks": 3,
+        "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 128,
-        "expansion_coefficient_dim": 32,
+        "layer_widths": 256,
+        "expansion_coefficient_dim": 64,
         "trend_polynomial_degree": 2,
         "activation": "ELU",
         "dropout": 0.1,
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 1e-3,
-        "gradient_clip_val": 10.0,
+        "gradient_clip_val": 30.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
             "weight_decay": 1e-3,
