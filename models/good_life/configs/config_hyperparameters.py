@@ -7,7 +7,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    # r6
+    # r7
     hyperparameters = {
         "steps": [*range(1, 36 + 1)],
         "num_samples": 1,
@@ -15,15 +15,11 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        # Architecture: Transformer
-        # Increased d_model and nhead for greater expressivity per country, preventing
-        # the model from defaulting to a single "template" shape.
-        # GELU activation and reduced dropout preserve complex patterns while remaining bounded compared to pure ReLU.
         "activation": "GELU",
         "batch_size": 128,
-        "d_model": 512,
-        "dim_feedforward": 2048,
-        "dropout": 0.1,
+        "d_model": 64,
+        "dim_feedforward": 256,
+        "dropout": 0.3,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 30,
         "feature_scaler": None,
@@ -75,7 +71,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
-        "lr": 0.0005,
+        "lr": 0.0001,
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 15,
@@ -91,13 +87,13 @@ def get_hp_config():
         },
         "n_epochs": 300,
         # Deep encoder/decoder stacks allow more refined temporal mixing.
-        "nhead": 8,
+        "nhead": 4,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 4,
-        "num_encoder_layers": 4,
+        "num_decoder_layers": 2,
+        "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 0.0005,
+            "lr": 0.0001,
             "weight_decay": 1e-4,
         },
         "output_chunk_length": 36,

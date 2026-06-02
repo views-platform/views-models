@@ -5,7 +5,7 @@ def get_hp_config():
     Best run: elastic_heart_tsmixer_shadow_20260508_C
     lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
     """
-    # r5
+    # r7
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -29,19 +29,19 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 10.0, # Reduced to 10 to avoid explosions from affine TSMixer layers
+        "gradient_clip_val": 20.0, 
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 25,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 25,
+            "patience": 15,
             "min_lr": 1e-6,
             "monitor": "val_loss",
             "cooldown": 3,
@@ -49,7 +49,7 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 2e-4,
+            "lr": 1e-4,
             "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
@@ -104,17 +104,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # Using 3 blocks with wider linear layers
-        # (hidden_size: 128, ff_size: 256) to ensure enough capacity to represent spikes.
-        # GELU and LayerNorm with normalize_before=True provide gradient stability.
-        # Dropout is kept at 0.1 to avoid over-regularization suppressing spikes.
         "num_blocks": 3,
-        "hidden_size": 128,
-        "ff_size": 256,
+        "hidden_size": 64,
+        "ff_size": 64,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.1,
+        "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 

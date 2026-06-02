@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-    # r5.2
+    # r7
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-5,
         "gradient_clip_val": 200.0,
 
         # LR Scheduler
@@ -49,7 +49,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "lr": 1e-4,
-            "weight_decay": 1e-4,
+            "weight_decay": 1e-5,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -106,22 +106,16 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # Using auto pooling/downsampling (None) to avoid extreme compression
-        # that forces coefficients to explode. We use more blocks (3) and layers (3)
-        # to guarantee capacity, but with Tanh activation to strictly bound outputs.
-        # Reduced dropout (0.1) and weight decay to stop the model from collapsing
-        # into a central tendency template.
         "num_stacks": 3,
-        "num_blocks": 3,
+        "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 256,
-        "pooling_kernel_sizes": None,
-        "n_freq_downsample": None,
+        "layer_widths": 512,
+        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
+        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "Tanh",
-        "dropout": 0.1,
+        "dropout": 0.05,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
-        "use_cyclic_encoders": True,
         "max_pool_1d": False,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
@@ -132,7 +126,7 @@ def get_hp_config():
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
-        "use_cyclic_encoders": True,
+        # "use_cyclic_encoders": True,
     }
 
     return hyperparameters

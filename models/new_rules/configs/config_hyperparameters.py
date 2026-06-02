@@ -2,24 +2,21 @@ def get_hp_config():
     """
     N-BEATS hyperparameters
     """
-    # r5
+    # r7
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
 
         # --- Architecture ---
-        # Tanh activation strongly bounds the summation, completely preventing runaway explosions.
-        # Reduced num_stacks (3) and num_blocks (1) limits cumulative amplitude capacity, 
-        # further reducing the risk of explosion while avoiding under-capacity template learning.
         "generic_architecture": True,
         "num_stacks": 3,
         "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": 256,
+        "num_layers": 3,
+        "layer_widths": 512,
         "expansion_coefficient_dim": 16,
         "trend_polynomial_degree": 2,
         "activation": "Tanh",
-        "dropout": 0.1,
+        "dropout": 0.05,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -40,11 +37,11 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 2e-4,
-        "weight_decay": 5e-3,
+        "weight_decay": 1e-5,
         "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
             "lr": 2e-4,
-            "weight_decay": 5e-3,
+            "weight_decay": 1e-5,
         },
 
         # --- LR Scheduler ---
