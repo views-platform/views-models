@@ -18,7 +18,7 @@ def get_hp_config():
         "activation": "SwiGLU",
         "batch_size": 128,
         "d_model": 128,
-        "dim_feedforward": 512,
+        "dim_feedforward": 1024,
         "dropout": 0.1,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
@@ -82,7 +82,7 @@ def get_hp_config():
         "nhead": 8,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 3,
-        "num_encoder_layers": 4,
+        "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 3e-4,

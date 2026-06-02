@@ -15,7 +15,7 @@ def get_hp_config():
         "layer_widths": 256,
         "expansion_coefficient_dim": 64,
         "trend_polynomial_degree": 2,
-        "activation": "ReLU",
+        "activation": "GELU",
         "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
@@ -46,7 +46,7 @@ def get_hp_config():
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 20,
+        "lr_scheduler_T_0": 30,
         "lr_scheduler_T_mult": 2,
         "lr_scheduler_eta_min": 1e-6,
         "lr_scheduler_kwargs": {},
