@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
+        "lr": 1e-4,
         "weight_decay": 1e-3,
         "gradient_clip_val": 200.0,
 
@@ -105,7 +105,7 @@ def get_hp_config():
         "layer_widths": 128,
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
-        "activation": "ELU",
+        "activation": "Tanh",
         "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
@@ -119,7 +119,7 @@ def get_hp_config():
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
-        # "use_cyclic_encoders": True,
+        "use_cyclic_encoders": True,
     }
 
     return hyperparameters

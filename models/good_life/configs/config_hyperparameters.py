@@ -7,7 +7,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    # r7
+    # r8
     hyperparameters = {
         "steps": [*range(1, 36 + 1)],
         "num_samples": 1,
@@ -17,8 +17,8 @@ def get_hp_config():
 
         "activation": "gelu",
         "batch_size": 128,
-        "d_model": 64,
-        "dim_feedforward": 128,
+        "d_model": 128,
+        "dim_feedforward": 512,
         "dropout": 0.3,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
@@ -71,7 +71,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
-        "lr": 1e-3,
+        "lr": 5e-4,
         "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
         "lr_scheduler_T_0": 10,
         "lr_scheduler_T_mult": 2,
@@ -79,13 +79,13 @@ def get_hp_config():
         "lr_scheduler_kwargs": {},
         "n_epochs": 300,
         # Deep encoder/decoder stacks allow more refined temporal mixing.
-        "nhead": 2,
+        "nhead": 4,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 2,
-        "num_encoder_layers": 2,
+        "num_decoder_layers": 3,
+        "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 1e-3,
+            "lr": 5e-4,
             "weight_decay": 1e-3,
         },
         "output_chunk_length": 36,
@@ -96,7 +96,7 @@ def get_hp_config():
         "weight_decay": 1e-3,
 
         # Encoders
-        "use_cyclic_encoders": False,
+        "use_cyclic_encoders": True,
         "use_static_covariates": True,
         # "static_covariate_stats": {"transform": "AsinhTransform"},
     }

@@ -29,8 +29,8 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
-        "weight_decay": 1e-4,
+        "lr": 3e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 200.0, 
 
         # LR Scheduler
@@ -40,8 +40,8 @@ def get_hp_config():
         "lr_scheduler_eta_min": 1e-6,
         "lr_scheduler_kwargs": {},
         "optimizer_kwargs": {
-            "lr": 1e-3,
-            "weight_decay": 1e-4,
+            "lr": 3e-4,
+            "weight_decay": 1e-3,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -95,7 +95,7 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 3,
+        "num_blocks": 2,
         "hidden_size": 256,
         "ff_size": 512,
         "activation": "GELU",

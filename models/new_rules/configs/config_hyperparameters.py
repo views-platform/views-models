@@ -15,12 +15,12 @@ def get_hp_config():
         "layer_widths": 128,
         "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
-        "activation": "ELU",
+        "activation": "tanh",
         "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
-        "use_cyclic_encoders": False,
+        "use_cyclic_encoders": True,
 
         # --- Input / output structure ---
         "input_chunk_length": 36,
