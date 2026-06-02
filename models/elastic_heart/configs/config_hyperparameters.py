@@ -96,14 +96,14 @@ def get_hp_config():
 
         # TSMixer Architecture
         "num_blocks": 2,
-        "hidden_size": 256,
-        "ff_size": 512,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
+        "dropout": 0.35,
         "use_static_covariates": True,
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
 
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",

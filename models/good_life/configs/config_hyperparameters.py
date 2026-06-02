@@ -15,7 +15,7 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        "activation": "gelu",
+        "activation": "SwiGLU",
         "batch_size": 128,
         "d_model": 128,
         "dim_feedforward": 512,
@@ -79,7 +79,7 @@ def get_hp_config():
         "lr_scheduler_kwargs": {},
         "n_epochs": 300,
         # Deep encoder/decoder stacks allow more refined temporal mixing.
-        "nhead": 4,
+        "nhead": 8,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 3,
         "num_encoder_layers": 3,
@@ -92,7 +92,7 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
         "weight_decay": 2e-3,
 
         # Encoders
