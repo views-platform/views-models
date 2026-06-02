@@ -15,10 +15,10 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        "activation": "GELU",
+        "activation": "relu",
         "batch_size": 128,
         "d_model": 64,
-        "dim_feedforward": 256,
+        "dim_feedforward": 128,
         "dropout": 0.3,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
@@ -87,21 +87,21 @@ def get_hp_config():
         },
         "n_epochs": 300,
         # Deep encoder/decoder stacks allow more refined temporal mixing.
-        "nhead": 4,
+        "nhead": 2,
         "norm_type": "LayerNorm",
         "num_decoder_layers": 2,
         "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 0.0001,
-            "weight_decay": 1e-4,
+            "weight_decay": 1e-3,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 1e-4,
+        "weight_decay": 1e-3,
 
         # Encoders
         "use_cyclic_encoders": False,
