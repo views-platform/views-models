@@ -17,7 +17,7 @@ def get_hp_config():
 
         "activation": "SwiGLU",
         "batch_size": 128,
-        "d_model": 128,
+        "d_model": 256,
         "dim_feedforward": 1024,
         "dropout": 0.15,
         "early_stopping_min_delta": 0.001,
