@@ -9,7 +9,7 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
+        "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 3,
         "layer_widths": 256,
@@ -38,18 +38,26 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 30.0,
+        "gradient_clip_val": 60.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
             "weight_decay": 3e-4,
         },
 
         # --- LR Scheduler ---
-        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 30,
-        "lr_scheduler_T_mult": 2,
-        "lr_scheduler_eta_min": 1e-6,
-        "lr_scheduler_kwargs": {},
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 10,
+        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_kwargs": {
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 10,
+            "min_lr": 1e-6,
+            "cooldown": 2,
+            "threshold": 0.01,
+            "threshold_mode": "rel",
+        },
 
         # --- Scaling ---
         "target_scaler": "AsinhTransform",
