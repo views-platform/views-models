@@ -67,7 +67,7 @@ def get_hp_config():
                 ],
         },
         "force_reset": True,
-        "gradient_clip_val": 20.0,
+        "gradient_clip_val": 50.0,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
