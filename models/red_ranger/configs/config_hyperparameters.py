@@ -14,6 +14,8 @@ def get_hp_config():
         'window_months': 18,
         'lambda_mix': 0.05,
         'n_samples': 256,
+        'n_posterior_samples': 256,
+        'regression_targets': ['lr_ged_sb'],
         'skip_predictions_delivery': True,
     }
     return hyperparameters
