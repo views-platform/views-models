@@ -63,15 +63,15 @@ def get_hp_config():
         "early_stopping_min_delta": 0.001,
 
         # Loss
+        # "loss_function": "SpotlightLossLogcosh",
         "loss_function": "SpotlightLossLogcosh",
-        # "loss_function": "SpotlightLossAsinh",
-        "delta": 0.06276537091497503,
+        #"delta": 0.06276537091497503,
         "non_zero_threshold": 0.88,
 
         # Prediction
         "likelihood": None,
-        "num_samples": 1,
-        "mc_dropout": False,
+        "num_samples": 500,
+        "mc_dropout": True,
 
         # Scalers
         "target_scaler": "AsinhTransform",

@@ -1,84 +1,59 @@
 def get_hp_config():
     """
-    https://wandb.ai/views_pipeline/smol_cat_tide_shadow_20260505_A_sweep/runs/aaxcc2fh
+    N-HiTS hyperparameters from SpotlightLossLogcosh sweep best run.
+    https://wandb.ai/views_pipeline/revolving_door_nhits_spotlight_v11_3_sweep/runs/p89rxmzk
+    Returns:
+    - hyperparameters (dict): Training configuration dictionary.
     """
-    
+    # r7
     hyperparameters = {
-        # Steps
-        "steps": [*range(1, 36 + 1, 1)],
-        "time_steps": 36,  # Checksum: Must match len(steps)
-        "n_jobs": -1,
-
-        # TiDE Architecture
+        # Temporal
+        "steps": [*range(1, 36 + 1)],
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 384,
-        "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 256,
-        "temporal_width_past": 24,
-        "temporal_width_future": 4,
-        "temporal_hidden_size_past": 64,
-        "temporal_hidden_size_future": 32,
-        "num_encoder_layers": 3,
-        "num_decoder_layers": 2,
-        "use_layer_norm": True,
-        "use_reversible_instance_norm": True,
-        "dropout": 0.25,
-        "use_static_covariates": True,
+        "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+
+        # Inference
+        "num_samples": 500,
+        "mc_dropout": True,
+        "n_jobs": -1,
 
         # Training
-        "n_epochs": 300,
         "batch_size": 128,
-        "random_state": 67,
+        "n_epochs": 300,
+        "early_stopping_patience": 20,
+        "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
-        "weight_decay": 0.0001,
-        "optimizer_kwargs": {
-            "lr": 0.0005,
-            "weight_decay": 0.0001,
-        },
+        "lr": 1e-4,
+        "weight_decay": 1e-3,
+        "gradient_clip_val": 200.0,
 
         # LR Scheduler
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
-        "lr_scheduler_min_lr": 1e-6,
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.5,
-            "patience": 8,
-            "min_lr": 1e-6,
-            "cooldown": 3,
-            "threshold": 0.01,
-            "threshold_mode": "rel",
+        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
+        "lr_scheduler_T_0": 10,
+        "lr_scheduler_T_mult": 2,
+        "lr_scheduler_eta_min": 1e-6,
+        "lr_scheduler_kwargs": {},
+
+        "optimizer_kwargs": {
+            "lr": 1e-3,
+            "weight_decay": 1e-3,
         },
 
-        # Trainer
-        "gradient_clip_val": 3,
-        "early_stopping_patience": 35,
-        "early_stopping_min_delta": 0.001,
+        # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
+        # Safe for basis-expansion architectures — bounded gradients prevent
+        # learned interpolation coefficients from growing unbounded.
+        "loss_function": "SpotlightLossLogcosh",
+        "non_zero_threshold": 0.88,
 
-        # Loss / Likelihood
-        # LaplaceLikelihood replaces the custom loss_fn:
-        #   - Darts trains with Laplace NLL (proper scoring rule; L1-like for μ gradient)
-        #   - loss_fn is automatically set to None in ModelCatalog
-        #   - model outputs (μ, b) per timestep, sampled during predict
-        #   - heavier tails than Gaussian → better fit for rare high-casualty spikes
-        #   - num_samples > 1 to get distributional forecasts
-        "loss_function": "LaplaceLikelihood",
-
-        # Prediction
-        "likelihood": None,   # resolved from loss_function — do not set
-        "num_samples": 100,
-        "mc_dropout": False,
-
-        # Scalers
-        "target_scaler": "AsinhTransform",
+        # Scaling
         "feature_scaler": None,
+        "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
@@ -94,10 +69,10 @@ def get_hp_config():
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
-                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
-                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
-                    "lr_ged_os_tlag_1",
+                    # ln_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "ln_ged_sb_tlag_1", "ln_ged_sb_tlag_2", "ln_ged_sb_tlag_3",
+                    "ln_ged_sb_tlag_4", "ln_ged_sb_tlag_5", "ln_ged_sb_tlag_6",
+                    "ln_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
                     "lr_topic_tokens_t1", "lr_topic_tokens_t2",
@@ -123,9 +98,28 @@ def get_hp_config():
                 ],
         },
 
-        # Encoders
+        # N-HiTS Architecture
+        "num_stacks": 3,
+        "num_blocks": 2,
+        "num_layers": 3,
+        "layer_widths": 128,
+        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
+        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
+        "activation": "Tanh",
+        "dropout": 0.3,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
+        "max_pool_1d": True,
+        "checkpoint_mode": "best",
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": False,
+        # },
+        # Temporal Encodings
+        # ModelCatalog reads this flag and injects the appropriate cyclic
+        # encoder functions for the dataset temporal resolution, inferred
+        # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
         "use_cyclic_encoders": True,
-        # "static_covariate_stats": {"transform": "AsinhTransform", "inject": True},
     }
 
     return hyperparameters

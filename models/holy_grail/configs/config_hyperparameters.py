@@ -1,82 +1,27 @@
+
 def get_hp_config():
     """
-    https://wandb.ai/views_pipeline/smol_cat_tide_shadow_20260505_A_sweep/runs/aaxcc2fh
+    Contains the hyperparameter configurations for model training.
+    This configuration is "operational" so modifying these settings will impact the model's behavior during the training.
+
+    Returns:
+    - hyperparameters (dict): A dictionary containing hyperparameters for training the model, which determine the model's behavior during the training phase.
     """
-    
+    # r8
     hyperparameters = {
-        # Steps
-        "steps": [*range(1, 36 + 1, 1)],
+        "steps": [*range(1, 36 + 1)],
+        "num_samples": 500,
+        "mc_dropout": True,
+        "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
-        "n_jobs": -1,
 
-        # TiDE Architecture
-        "input_chunk_length": 36,
-        "output_chunk_length": 36,
-        "output_chunk_shift": 0,
-        "hidden_size": 384,
-        "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 256,
-        "temporal_width_past": 24,
-        "temporal_width_future": 4,
-        "temporal_hidden_size_past": 64,
-        "temporal_hidden_size_future": 32,
-        "num_encoder_layers": 3,
-        "num_decoder_layers": 2,
-        "use_layer_norm": True,
-        "use_reversible_instance_norm": True,
-        "dropout": 0.25,
-        "use_static_covariates": True,
-
-        # Training
-        "n_epochs": 300,
+        "activation": "SwiGLU",
         "batch_size": 128,
-        "random_state": 67,
-        "force_reset": True,
-
-        # Optimizer
-        "optimizer_cls": "AdamW",
-        "lr": 0.0005,
-        "weight_decay": 0.0001,
-        "optimizer_kwargs": {
-            "lr": 0.0005,
-            "weight_decay": 0.0001,
-        },
-
-        # LR Scheduler
-        "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
-        "lr_scheduler_min_lr": 1e-6,
-        "lr_scheduler_kwargs": {
-            "mode": "min",
-            "factor": 0.5,
-            "patience": 8,
-            "min_lr": 1e-6,
-            "cooldown": 3,
-            "threshold": 0.01,
-            "threshold_mode": "rel",
-        },
-
-        # Trainer
-        "gradient_clip_val": 3,
-        "early_stopping_patience": 35,
+        "d_model": 128,
+        "dim_feedforward": 1024,
+        "dropout": 0.10,
         "early_stopping_min_delta": 0.001,
-
-        # Loss / Likelihood
-        # GaussianLikelihood replaces the custom loss_fn:
-        #   - Darts trains with Gaussian NLL (proper scoring rule)
-        #   - loss_fn is automatically set to None in ModelCatalog
-        #   - model outputs (μ, σ) per timestep, sampled during predict
-        #   - num_samples > 1 to get distributional forecasts
-        "loss_function": "GaussianLikelihood",
-
-        # Prediction
-        "likelihood": None,   # resolved from loss_function — do not set
-        "num_samples": 100,
-        "mc_dropout": False,
-
-        # Scalers
-        "target_scaler": "AsinhTransform",
+        "early_stopping_patience": 20,
         "feature_scaler": None,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
@@ -121,10 +66,48 @@ def get_hp_config():
                     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
                 ],
         },
+        "force_reset": True,
+        "gradient_clip_val": 50.0,
+        "input_chunk_length": 36,
+        "loss_function": "SpotlightLossLogcosh",
+        "non_zero_threshold": 0.88,
+        "lr": 3e-4,
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 10,
+        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_kwargs": {
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 10,
+            "min_lr": 1e-6,
+            "cooldown": 2,
+            "threshold": 0.01,
+            "threshold_mode": "rel",
+        },
+        "n_epochs": 300,
+        # Deep encoder/decoder stacks allow more refined temporal mixing.
+        "nhead": 8,
+        "norm_type": "LayerNorm",
+        "num_decoder_layers": 3,
+        "num_encoder_layers": 3,
+        "optimizer_cls": "AdamW",
+        "optimizer_kwargs": {
+            "lr": 3e-4,
+            "weight_decay": 3e-3,
+        },
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "random_state": 67,
+        "target_scaler": "AsinhTransform",
+        "use_reversible_instance_norm": True,
+        "weight_decay": 3e-3,
 
         # Encoders
         "use_cyclic_encoders": True,
-        # "static_covariate_stats": {"transform": "AsinhTransform", "inject": True},
+        "use_static_covariates": True,
+        # "static_covariate_stats": {"transform": "AsinhTransform"},
     }
+
 
     return hyperparameters
