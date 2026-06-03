@@ -8,7 +8,7 @@ def get_meta_config():
     """
     meta_config = {
         "name": "rude_boy",
-        "models": ["smol_cat", "revolving_door", "elastic_heart"],
+        "models": ["smol_cat", "revolving_door", "elastic_heart", "new_rules"],
         "regression_targets": ["lr_ged_sb"],
         "level": "cm", 
         "aggregation": "mean",

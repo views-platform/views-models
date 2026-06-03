@@ -19,7 +19,7 @@ def get_hp_config():
         "batch_size": 128,
         "d_model": 128,
         "dim_feedforward": 1024,
-        "dropout": 0.15,
+        "dropout": 0.10,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
         "feature_scaler": None,
