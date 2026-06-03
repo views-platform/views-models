@@ -17,8 +17,8 @@ def get_hp_config():
 
         "activation": "SwiGLU",
         "batch_size": 128,
-        "d_model": 128,
-        "dim_feedforward": 1024,
+        "d_model": 256,
+        "dim_feedforward": 512,
         "dropout": 0.10,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
@@ -89,19 +89,19 @@ def get_hp_config():
         # Deep encoder/decoder stacks allow more refined temporal mixing.
         "nhead": 8,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 3,
-        "num_encoder_layers": 3,
+        "num_decoder_layers": 2,
+        "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "lr": 1e-3,
-            "weight_decay": 3e-3,
+            "weight_decay": 3e-4,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 3e-3,
+        "weight_decay": 3e-4,
 
         # Encoders
         "use_cyclic_encoders": True,
