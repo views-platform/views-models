@@ -9,7 +9,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 36,
+        "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -104,8 +104,8 @@ def get_hp_config():
 
         # TSMixer Architecture
         "num_blocks": 2,
-        "hidden_size": 96,
-        "ff_size": 384,
+        "hidden_size": 64,
+        "ff_size": 128,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
