@@ -103,7 +103,7 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 3,
+        "num_blocks": 2,
         "hidden_size": 96,
         "ff_size": 384,
         "activation": "GELU",
