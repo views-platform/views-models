@@ -30,7 +30,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
-        "weight_decay": 3e-4,
+        "weight_decay": 1e-3,
         "gradient_clip_val": 50.0,
 
         # LR Scheduler
@@ -50,7 +50,7 @@ def get_hp_config():
 
         "optimizer_kwargs": {
             "lr": 1e-3,
-            "weight_decay": 3e-4,
+            "weight_decay": 1e-3,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
