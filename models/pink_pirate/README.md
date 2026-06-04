@@ -1,4 +1,4 @@
-# Purple Alien 
+# Pink Pirate 
 ## Overview
 
 
@@ -6,8 +6,8 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HydraNet                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_sb_best, ln_ns_best, ln_os_best, ln_sb_best_binarized, ln_ns_best_binarized, ln_os_best_binarized |
-| **Features**       |  purple_alien   |
+| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best, by_sb_best, by_ns_best, by_os_best |
+| **Features**       |  pink_pirate   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
@@ -15,7 +15,7 @@
 ## Repository Structure
 
 ```
-Purple Alien
+Pink Pirate
 ├── README.md
 ├── main.py
 ├── requirements.txt

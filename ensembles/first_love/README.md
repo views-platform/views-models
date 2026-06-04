@@ -6,11 +6,11 @@ This folder contains code for the First Love model, an ensemble machine learning
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | new_rules, teenage_dirtbag, thousand_miles, thrift_shop                  |
+| **Models** | bad_romance, cold_heart, free_fallin                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Targets**         | lr_ged_sb |
+| **Aggregation**       |  concat   |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

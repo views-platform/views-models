@@ -8,9 +8,9 @@ from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathM
 base_dir = os.getcwd()
 target_dir = Path(base_dir + "/models")
 
-# Scaffold/fixture models that exist for testing purposes only and should
-# not appear in the README or be processed by ModelPathManager.
-_FIXTURE_MODELS = {"fake_model"}
+# Scaffold/fixture entries that exist for testing purposes only and should
+# not appear in the README or be processed by path managers.
+_FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
 
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
@@ -67,7 +67,7 @@ def generate_repo_structure(folders, scripts, model_name):
 
 
 for subfolder in target_dir.iterdir():
-    if subfolder.is_dir() and subfolder.name not in _FIXTURE_MODELS:  # Check if it's a directory
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:  # Check if it's a directory
         print(f"Model: {subfolder.name}")
         configs_dir = target_dir / subfolder.name / "configs"
         model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)
@@ -102,12 +102,18 @@ for subfolder in target_dir.iterdir():
         ## Get queryset description
         queryset_info = mpm.get_queryset()
         if queryset_info:
-            description = queryset_info.description
-            try:
-                description = " ".join(description.split())
-            except AttributeError:
-                description = 'No description provided'
-            name = queryset_info.name
+            if isinstance(queryset_info, dict):
+                features = queryset_info.get("features", [])
+                name = ", ".join(features) if features else queryset_info.get("source", "")
+                pattern = queryset_info.get("pattern", "unknown")
+                description = f"Synthetic data ({pattern})"
+            else:
+                description = getattr(queryset_info, "description", None)
+                try:
+                    description = " ".join(description.split())
+                except AttributeError:
+                    description = "No description provided"
+                name = getattr(queryset_info, "name", "")
         else:
             description = ""
             name = ""
@@ -179,7 +185,7 @@ base_dir = os.getcwd()
 target_ens_dir = Path(base_dir + "/ensembles")
 
 for subfolder in target_ens_dir.iterdir():
-    if subfolder.is_dir():  # Check if it's a directory
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:
         print(f"Model: {subfolder.name}")
         configs_dir = target_ens_dir / subfolder.name / "configs"
         ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir), use_prediction_store=False)

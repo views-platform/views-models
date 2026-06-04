@@ -9,7 +9,7 @@
 | **Targets**         | lr_sb_best |
 | **Features**       |  uncertainty_conflict_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and conflict indicators from GED and ACLED only    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

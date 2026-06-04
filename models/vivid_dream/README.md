@@ -1,49 +1,58 @@
-# Vivid Dream
-
+# Vivid Dream 
 ## Overview
 
-Synthetic test model for end-to-end PredictionFrame pipeline testing. Uses MixtureBaseline (distributional baseline) to produce numpy-native PredictionFrame output with posterior samples.
 
-| Information           | Details                          |
-|-----------------------|----------------------------------|
-| **Model Algorithm**   | MixtureBaseline                  |
-| **Level of Analysis** | pgm                              |
-| **Targets**           | synth_target                     |
-| **Data Source**       | Synthetic (no external dependencies) |
-| **Pattern**           | `horizontal_stripe`              |
-| **Prediction Format** | prediction_frame (numpy)         |
-| **Samples**           | 64                               |
-| **lambda_mix**        | 0.05                             |
-| **Deployment Status** | shadow                           |
-
-## What
-
-A MixtureBaseline model trained on synthetically generated `horizontal_stripe` data with `lambda_mix=0.05`. Produces PredictionFrame output (Track A: `y_pred.npy` + `identifiers.npz`) with 64 posterior samples per observation.
-
-## Why
-
-Constituent model for the `synthetic_chant` ensemble, which tests `PredictionFrameEnsembleManager`. Uses a different synthetic pattern and algorithm variant from `lucid_dream` to ensure the ensemble aggregates across heterogeneous distributional models.
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | MixtureBaseline                  |
+| **Level of Analysis** | pgm            |
+| **Targets**         | synth_target |
+| **Features**       |  synth_target   |
+| **Feature Description**       |  Synthetic data (horizontal_stripe)    |
+| **Metrics**       |  No information provided    |
+| **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-vivid_dream
+Vivid Dream
 ├── README.md
 ├── main.py
+├── requirements.txt
 ├── run.sh
+├── logs
+├── artifacts
 ├── configs
 │   ├── config_deployment.py
 │   ├── config_hyperparameters.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py
-│   └── config_sweep.py
-├── artifacts
+│   ├── config_sweep.py
 ├── data
 │   ├── generated
 │   ├── processed
-│   └── raw
-├── notebooks
+│   ├── raw
 ├── reports
-└── logs
+├── notebooks
 ```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
+
+## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
+```
+
+
