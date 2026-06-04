@@ -52,7 +52,13 @@ def extract_models(model_class):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_meta_config())
-        model_dict['queryset'] = create_link(model_dict['queryset'], model_class.queryset_path) if 'queryset' in model_dict else 'None'
+        config_queryset = os.path.join(model_class.configs, 'config_queryset.py')
+        if model_class.model_name.endswith('baseline'):
+            model_dict['queryset'] = 'N/A'
+        elif os.path.exists(config_queryset):
+            model_dict['queryset'] = create_link(f"{model_class.model_name}_features", Path(config_queryset))
+        else:
+            model_dict['queryset'] = 'None'
 
 
     if os.path.exists(config_deployment):

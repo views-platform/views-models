@@ -7,8 +7,8 @@
 | **Model Algorithm** | AverageModel                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  average_baseline   |
-| **Feature Description**       |  No description provided    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 

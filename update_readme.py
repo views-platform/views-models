@@ -100,23 +100,27 @@ for subfolder in target_dir.iterdir():
         deployment = model_manager.configs['deployment_status']
 
         ## Get queryset description
-        queryset_info = mpm.get_queryset()
-        if queryset_info:
-            if isinstance(queryset_info, dict):
-                features = queryset_info.get("features", [])
-                name = ", ".join(features) if features else queryset_info.get("source", "")
-                pattern = queryset_info.get("pattern", "unknown")
-                description = f"Synthetic data ({pattern})"
-            else:
-                description = getattr(queryset_info, "description", None)
-                try:
-                    description = " ".join(description.split())
-                except AttributeError:
-                    description = "No description provided"
-                name = getattr(queryset_info, "name", "")
+        if subfolder.name.endswith('baseline'):
+            name = "N/A"
+            description = "N/A"
         else:
-            description = ""
-            name = ""
+            queryset_info = mpm.get_queryset()
+            if queryset_info:
+                if isinstance(queryset_info, dict):
+                    features = queryset_info.get("features", [])
+                    name = ", ".join(features) if features else queryset_info.get("source", "")
+                    pattern = queryset_info.get("pattern", "unknown")
+                    description = f"Synthetic data ({pattern})"
+                else:
+                    description = getattr(queryset_info, "description", None)
+                    try:
+                        description = " ".join(description.split())
+                    except AttributeError:
+                        description = "No description provided"
+                    name = getattr(queryset_info, "name", "")
+            else:
+                name = f"{subfolder.name}_features"
+                description = "No description provided"
 
         ## Update old README file - For Bitter Symphony Model 
         scaffold_path = target_dir / "README_scaffold.md"
