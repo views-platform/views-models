@@ -1,0 +1,1 @@
+views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development

@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-01  
+**Last updated:** 2026-06-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 56 (52 concerns + 4 disagreements)  
-**Concerns:** Open 18 | Mitigated 12 | Resolved 19 | Accepted 3  
+**Total entries:** 59 (55 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 12 | Resolved 20 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -452,7 +452,7 @@
 | **Source** | review-diff (2026-04-20) |
 | **Status** | Mitigated |
 | **Location** | `models/bright_starship/configs/config_partitions.py:17-20,35` |
-| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. **2026-05-20 (fix):** Removed `_current_month_id()` from all 4 synthetic entries (vertical_dream, horizontal_dream, diagonal_dream, synthetic_chorus) by replacing dynamic forecasting ranges with fixed boundaries — train (121, 540), test (541, 541 + steps). Synthetic data has no external data availability constraint so fixed ranges are sufficient. These files no longer carry the epoch-divergence risk. Residual risk applies only to bright_starship, heavy_strider, heavy_freighter, light_strider, and shining_codex (all carry `# PARTITION_OVERRIDE:` comments). See also C-01, D-01. |
+| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. **2026-05-20 (fix):** Removed `_current_month_id()` from all 4 synthetic entries (vertical_dream, horizontal_dream, diagonal_dream, synthetic_chorus) by replacing dynamic forecasting ranges with fixed boundaries — train (121, 540), test (541, 541 + steps). Synthetic data has no external data availability constraint so fixed ranges are sufficient. These files no longer carry the epoch-divergence risk. Residual risk applies only to bright_starship, heavy_strider, heavy_freighter, light_strider, and shining_codex (all carry `# PARTITION_OVERRIDE:` comments). **2026-05-26 (ensemble parity dimension):** bold_comet, blazing_meteor, and stellar_horizon also use `_current_month_id()`. golden_hour (viewser ensemble) uses `ViewsMonth`. When comparing golden_hour ↔ stellar_horizon forecasting parity, the two implementations may disagree by ±1 month at month boundaries, silently shifting the forecasting train/test partition and invalidating the comparison. `test_datafactory_parity.py` only checks calibration/validation boundaries (static, identical) — it does not catch forecasting divergence. Forecasting parity comparisons in the runbook (Phase 7) must account for this. See also C-01, D-01. |
 
 ---
 
@@ -517,7 +517,7 @@
 | **Source** | pr-review (2026-05-20) |
 | **Status** | Open |
 | **Location** | `models/vertical_dream/configs/config_queryset.py`, `models/horizontal_dream/configs/config_queryset.py`, `models/diagonal_dream/configs/config_queryset.py`, `ensembles/synthetic_chorus/main.py`, `models/lucid_dream/configs/config_queryset.py`, `models/vivid_dream/configs/config_queryset.py`, `models/waking_dream/configs/config_queryset.py`, `ensembles/synthetic_chant/main.py` |
-| **Notes** | PR #56 adds `vertical_dream`, `horizontal_dream`, `diagonal_dream`, and `synthetic_chorus` — all four depend on the `"source": "synthetic"` queryset descriptor and `DataFrameEnsembleManager`, which exist only on the `feature/hydranet_ensamble_africa_me` branch of `views-pipeline-core`. If that branch renames pattern values (e.g., `"vertical_stripe"` → `"v_stripe"`), changes required descriptor keys, or alters the `EnsembleManager` import path, the synthetic models will fail at data-load time with no structural test catching the mismatch — `test_model_structure.py` validates directory layout but not queryset descriptor validity against pipeline-core. This is the same class of cross-repo coupling as C-31 and C-38 but with a sharper trigger: the dependency is on an unreleased, in-flux branch rather than a released package. Risk resolves naturally once the pipeline-core branch merges and the API stabilizes. **2026-05-24 (PR #58):** Three additional PredictionFrame synthetic models (`lucid_dream`, `vivid_dream`, `waking_dream`) and one ensemble (`synthetic_chant`) added. These extend the dependency surface to `PredictionFrameEnsembleManager`, `ConflictologyModel`, and `MixtureBaseline` distributional outputs. All run successfully against `views-pipeline-core v2.3.0` — if that version is released, this risk may be resolved. See also C-31 (upstream API breaks), C-38 (datafactory_query not installed), C-40 (generate() return type contract mismatch). |
+| **Notes** | PR #56 adds `vertical_dream`, `horizontal_dream`, `diagonal_dream`, and `synthetic_chorus` — all four depend on the `"source": "synthetic"` queryset descriptor and `DataFrameEnsembleManager`, which exist only on the `feature/hydranet_ensamble_africa_me` branch of `views-pipeline-core`. If that branch renames pattern values (e.g., `"vertical_stripe"` → `"v_stripe"`), changes required descriptor keys, or alters the `EnsembleManager` import path, the synthetic models will fail at data-load time with no structural test catching the mismatch — `test_model_structure.py` validates directory layout but not queryset descriptor validity against pipeline-core. This is the same class of cross-repo coupling as C-31 and C-38 but with a sharper trigger: the dependency is on an unreleased, in-flux branch rather than a released package. Risk resolves naturally once the pipeline-core branch merges and the API stabilizes. **2026-05-24 (PR #58):** Three additional PredictionFrame synthetic models (`lucid_dream`, `vivid_dream`, `waking_dream`) and one ensemble (`synthetic_chant`) added. These extend the dependency surface to `PredictionFrameEnsembleManager`, `ConflictologyModel`, and `MixtureBaseline` distributional outputs. All run successfully against `views-pipeline-core v2.3.0` — if that version is released, this risk may be resolved. **2026-05-26 (confirmed):** `envs/views_ensemble` created by ensemble `run.sh` installs `views-pipeline-core` from PyPI, which lacks `PredictionFrameEnsembleManager`. `synthetic_chant` ensemble failed with `ImportError: cannot import name 'PredictionFrameEnsembleManager'` until local editable install replaced the PyPI version. This confirms the trigger: any fresh clone or CI environment that creates `views_ensemble` from `requirements.txt` will fail for PredictionFrame ensembles. See also C-31 (upstream API breaks), C-38 (datafactory_query not installed), C-40 (generate() return type contract mismatch), C-50 (views-baseline version spec mismatch — same class of fresh-clone failure). |
 
 ### C-43 — Ensemble ground truth is order-dependent on `config_meta.models` list
 
@@ -646,6 +646,45 @@
 | **Status** | Resolved |
 | **Location** | `models/{black_ranger,blue_ranger,green_ranger,lucid_dream,pink_ranger,red_ranger,vivid_dream,waking_dream,yellow_ranger}/configs/config_hyperparameters.py` (missing both `n_posterior_samples` and `regression_targets`), `models/{heavy_strider,light_strider,white_ranger}/configs/config_hyperparameters.py` (missing `n_posterior_samples` only) |
 | **Notes** | All 21 models declare `prediction_format: "prediction_frame"` in `config_meta.py`, meaning they produce PredictionFrame outputs. But 12 of them lack `n_posterior_samples` (needed by PFE to verify aggregated sample counts) and 9 of those also lack `regression_targets` (needed to know which target directories to validate). The 9 models with fully compliant configs (purple_alien, blue_stranger, violet_visitor, bright_starship, bold_comet, blazing_meteor, heavy_freighter, pink_pirate, heavy_strider partially) are the only ones eligible for PFE ensembles today. This blocks the PFE production roadmap: Steps 2-5 require running constituent models through PFE, and any model without these keys cannot participate. The ranger models (7 of 12) use an older config convention with `n_samples` instead of `n_posterior_samples` and no explicit `regression_targets` — they predate the HydraNet multi-target architecture. The dream models (lucid_dream, vivid_dream, waking_dream) are synthetic test models that also predate the convention. **Resolved (2026-06-02):** Added `n_posterior_samples` and `regression_targets` to all 12 affected `config_hyperparameters.py` files. Values derived from each model's `config_meta.py` (regression_targets) and existing `n_samples` (n_posterior_samples). xfail markers removed from `test_pfe_production_readiness.py` — all 21 PF models now pass config-level readiness tests unconditionally. See #70. |
+
+---
+
+### C-53 — Config value regression during cross-branch merges
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer merges `development` into a feature branch (or vice versa) when both branches have modified the same model `config_hyperparameters.py` with different values for the same key — git auto-resolves by picking one side, silently dropping the other's intentional change |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/blue_stranger/configs/config_hyperparameters.py`, `models/violet_visitor/configs/config_hyperparameters.py` (observed); any model config modified on both branches (systemic) |
+| **Notes** | Observed during merge of `development` into `feature/golden_hour_ensemble`: blue_stranger and violet_visitor had `skip_predictions_delivery` changed to `True` on the feature branch (intentional), while development still had `False` (pre-existing). Git auto-merged without conflict markers, silently regressing the value to `False`. Also introduced a stray `prediction_format` key in hyperparameters (belongs only in config_meta). Caught during tech-debt-cleanup verification; would have caused Track B parquet generation and potential OOM in ensemble runs. **Mitigated (2026-06-02):** Fixed in this session. No automated guard exists — mitigation is manual post-merge review of config diffs. See also C-01 (73 duplicated config files amplify this risk), C-52 (same files, different keys). |
+
+---
+
+### C-54 — Experimental model (heavy_freighter) in production model directory without marker
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer adds heavy_freighter to a production ensemble's `config_meta.models` list without realizing it uses a global grid (360×720 vs regional 180×180), producing incompatible spatial dimensions |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (`height: 360`, `width: 720` — global grid vs regional 180×180) |
+| **Notes** | heavy_freighter uses global grid coverage (360×720) vs the regional Africa-ME grid (180×180) used by all ensemble-eligible models. Its training params (tobit, 200 lessons, 16 samples, scheduled sampling) now match the production models — only the grid differs. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes global-grid models from regional models — the only signal is reading the config. Low severity because incompatible spatial dimensions would cause a shape mismatch error at ensemble aggregation time. |
+
+---
+
+### C-55 — Stale `xfail` marker on `test_datafactory_query_importable` produces xpass noise
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer reviews CI output and sees an xpass warning for `test_datafactory_query_importable`, masking real xpass regressions |
+| **Source** | falsify Round 3 (2026-06-04) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bright_starship_readiness.py:29` |
+| **Notes** | The `@pytest.mark.xfail` decorator on `TestF1_DatafactoryQueryDependency` was stale — `datafactory_query` is now installed. Removed the xfail; the test is environment-gated by the class-level `skipif(not shutil.which("conda"))`. See C-38. **Resolved 2026-06-04.** |
 
 ---
 

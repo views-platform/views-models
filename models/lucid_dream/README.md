@@ -23,6 +23,10 @@ A ConflictologyModel trained on synthetically generated `vertical_stripe` data. 
 
 The existing synthetic models (vertical_dream, horizontal_dream, diagonal_dream) produce DataFrame output via LocfModel. This model exercises the PredictionFrame code path — distributional baselines that output numpy arrays of shape `(N, S)` where S is the number of posterior samples. It serves as a constituent for the `synthetic_chant` ensemble, which tests `PredictionFrameEnsembleManager`.
 
+## Note on CRPS = 0
+
+ConflictologyModel resamples from the last `window_months` of training history. Because the `vertical_stripe` pattern is time-invariant (each entity has the same value every month), all 64 posterior samples are identical to the true value — a degenerate Dirac-delta posterior. CRPS of a perfect point mass at truth is mathematically zero. This is correct behaviour but means lucid_dream provides no signal about distributional calibration quality; it exercises the PredictionFrame code path, not probabilistic forecasting.
+
 ## Repository Structure
 
 ```

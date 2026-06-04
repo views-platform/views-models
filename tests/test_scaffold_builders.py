@@ -150,7 +150,7 @@ class TestEnsembleScaffoldInjectionSeams:
 class TestModelScaffoldBuilderFunctional:
     """Functional tests using the injection seams. Skipped without views_pipeline_core.
 
-    NOTE: These tests access private attributes (_model._model_dir, _model_algorithm)
+    NOTE: These tests access internal attributes (_model.model_dir, _model_algorithm)
     because ModelScaffoldBuilder has no public API for overriding the model directory.
     Changes to ModelPathManager internals in views_pipeline_core could break these tests.
     """
@@ -164,7 +164,7 @@ class TestModelScaffoldBuilderFunctional:
 
         builder = ModelScaffoldBuilder("fake_model")
         # Override the model directory to tmp_path
-        builder._model._model_dir = tmp_path / "models" / "fake_model"
+        builder._model.model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
@@ -188,7 +188,7 @@ class TestModelScaffoldBuilderFunctional:
         from build_model_scaffold import ModelScaffoldBuilder
 
         builder = ModelScaffoldBuilder("fake_model")
-        builder._model._model_dir = tmp_path / "models" / "fake_model"
+        builder._model.model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
         (builder._model.model_dir / "configs").mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
@@ -218,7 +218,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         from build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
-        builder._model._model_dir = target
+        builder._model.model_dir = target
         builder._subdirs = [
             target / "configs",
             target / "data" / "raw",
@@ -235,7 +235,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         from build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
-        builder._model._model_dir = target
+        builder._model.model_dir = target
         builder._subdirs = [target / "configs"]
         builder.build_model_directory()
         readme = target / "README.md"
@@ -247,7 +247,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         from build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
-        builder._model._model_dir = target
+        builder._model.model_dir = target
         sub1 = target / "configs"
         sub2 = target / "data" / "raw"
         builder._subdirs = [sub1, sub2]
@@ -259,7 +259,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         from build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
-        builder._model._model_dir = target
+        builder._model.model_dir = target
         sub = target / "data" / "raw"
         builder._subdirs = [sub]
         builder.build_model_directory()
@@ -268,7 +268,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
         from build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("nonexistent_model")
-        builder._model._model_dir = tmp_path / "does_not_exist"
+        builder._model.model_dir = tmp_path / "does_not_exist"
         with pytest.raises(FileNotFoundError):
             builder.build_model_scripts()
 
@@ -289,7 +289,7 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
         from build_ensemble_scaffold import EnsembleScaffoldBuilder
         builder = EnsembleScaffoldBuilder("nonexistent_ensemble")
-        builder._model._model_dir = tmp_path / "does_not_exist"
+        builder._model.model_dir = tmp_path / "does_not_exist"
         with pytest.raises(FileNotFoundError):
             builder.build_model_scripts()
 
@@ -297,7 +297,7 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
         from build_ensemble_scaffold import EnsembleScaffoldBuilder
         builder = EnsembleScaffoldBuilder("test_ensemble")
         target = tmp_path / "ensembles" / "test_ensemble"
-        builder._model._model_dir = target
+        builder._model.model_dir = target
         builder._subdirs = [target / "configs"]
         result = builder.build_model_directory()
         assert result.exists()
