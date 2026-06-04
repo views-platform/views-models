@@ -44,7 +44,7 @@ Located in: `create_catalogs.py:extract_models()`
 ## 5. Outputs and Side Effects
 
 Returns a dict with keys from merged meta and deployment configs, plus:
-- `queryset`: markdown link (or `'None'`)
+- `queryset`: markdown link to config_queryset.py, `'N/A'` for baselines, or `'None'` if no queryset exists
 - `hyperparameters`: markdown link to config_hyperparameters.py
 
 No side effects beyond logging.
