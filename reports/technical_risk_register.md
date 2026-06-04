@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 58 (54 concerns + 4 disagreements)  
-**Concerns:** Open 19 | Mitigated 12 | Resolved 19 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 59 (55 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 12 | Resolved 20 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -672,6 +672,19 @@
 | **Status** | Open |
 | **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (experimental values: `height: 360`, `width: 720`, `n_posterior_samples: 3`, `total_lessons: 80`) |
 | **Notes** | heavy_freighter's docstring identifies it as "S2a — BASELINE + Tobit censored-normal loss" validation run. Its grid dimensions, sample count, and lesson count are all set for fast experimental iteration, not production quality. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes experimental models from production models — the only signal is reading the docstring. Low severity because the model fails loudly if sample counts don't match ensemble expectations (PFE tests catch this). |
+
+---
+
+### C-55 — Stale `xfail` marker on `test_datafactory_query_importable` produces xpass noise
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer reviews CI output and sees an xpass warning for `test_datafactory_query_importable`, masking real xpass regressions |
+| **Source** | falsify Round 3 (2026-06-04) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bright_starship_readiness.py:29` |
+| **Notes** | The `@pytest.mark.xfail` decorator on `TestF1_DatafactoryQueryDependency` was stale — `datafactory_query` is now installed. Removed the xfail; the test is environment-gated by the class-level `skipif(not shutil.which("conda"))`. See C-38. **Resolved 2026-06-04.** |
 
 ---
 

@@ -2,6 +2,7 @@
 
 Round 1 (2026-05-20, PR #56): F4 pytestmark overwrite bug.
 Round 2 (2026-06-04, PR #59): F1 uncommitted work, F4 stale docstrings, F6 risk register headers.
+Round 3 (2026-06-04, PR #59): F7 stale xfail marker.
 """
 import ast
 import re
@@ -111,6 +112,21 @@ class TestF4_StaleDocstrings:
                 f"test_datafactory_parity.py still references '{stale}' — "
                 f"datafactory trio now uses tobit"
             )
+
+
+class TestF7_StaleXfailMarkers:
+    """F7: xfail markers must be removed once the underlying issue is resolved."""
+
+    @pytest.mark.red
+    def test_no_stale_xfail_in_bright_starship_readiness(self):
+        source = (TESTS_DIR / "test_bright_starship_readiness.py").read_text()
+        for line in source.splitlines():
+            if "xfail" in line and "datafactory_query" in line:
+                assert False, (
+                    "test_bright_starship_readiness.py still has xfail for "
+                    "datafactory_query — the package is now installed; "
+                    "remove the stale marker"
+                )
 
 
 class TestF6_RiskRegisterHeader:
