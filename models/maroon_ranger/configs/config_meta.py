@@ -6,18 +6,15 @@ def get_meta_config():
     Returns:
     - meta_config (dict): A dictionary containing model meta configuration.
     """
-    
+
     meta_config = {
-        "name": "cold_heart",
-        "algorithm": "NBEATSModel",
+        "name": "maroon_ranger",
+        "algorithm": "MixtureBaseline",
         "regression_targets": ["lr_ged_sb"],
         "level": "cm",
-        "creator": "Dylan",
-        # "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
-        "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
-        # "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_sample_baselines": ["red_ranger", "maroon_ranger"],
+        "creator": "Simon",
+        "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
-        "prediction_format": "dataframe",
+        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample"],
     }
     return meta_config
