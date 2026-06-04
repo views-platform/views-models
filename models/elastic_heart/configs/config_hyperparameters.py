@@ -9,7 +9,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 60,
+        "input_chunk_length": 48,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
