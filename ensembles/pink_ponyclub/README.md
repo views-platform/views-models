@@ -10,7 +10,7 @@ This folder contains code for the Pink Ponyclub model, an ensemble machine learn
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

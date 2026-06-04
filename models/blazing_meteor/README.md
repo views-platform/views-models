@@ -1,41 +1,58 @@
-# blazing_meteor
+# Blazing Meteor 
+## Overview
 
-| Property | Value |
-|----------|-------|
-| **Algorithm** | HydraNet (HydraBNUNet06_LSTM4) |
-| **Level** | pgm |
-| **Data Source** | views-datafactory (not viewser) |
-| **Regression Loss** | LogNormal NLL (sigma=0.9) |
-| **Deployment** | shadow |
-| **Creator** | Simon |
 
-## What
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | HydraNet                  |
+| **Level of Analysis** | pgm            |
+| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best, by_sb_best, by_ns_best, by_os_best |
+| **Features**       |  ged_sb_best, ged_ns_best, ged_os_best, gaul0_code   |
+| **Feature Description**       |  Synthetic data (unknown)    |
+| **Metrics**       |  No information provided    |
+| **Deployment Status**       |  shadow    |
 
-Datafactory-powered HydraNet with LogNormal NLL regression loss. Cloned from bright_starship with only the loss function changed. Part of the datafactory trio for parity validation against viewser models.
+## Repository Structure
 
-## Parity Mapping
+```
+Blazing Meteor
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
 
-| Datafactory (this trio) | Viewser (golden_hour trio) | Loss |
-|------------------------|--------------------------|------|
-| bright_starship | purple_alien | Shrinkage (a=258, c=0.001) |
-| bold_comet | blue_stranger | Basu DPD (alpha=0.3, sigma=3.0) |
-| **blazing_meteor** (this) | violet_visitor | **LogNormal NLL (sigma=0.9)** |
+## Setup Instructions
 
-Ensemble: stellar_horizon (datafactory) vs golden_hour (viewser).
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
 
-## Targets
-
-- `lr_sb_best` (state-based fatalities)
-- `lr_ns_best` (non-state fatalities)
-- `lr_os_best` (one-sided violence fatalities)
-- `by_sb_best`, `by_ns_best`, `by_os_best` (binary classification)
-
-## Prerequisites
-
-Same as bright_starship — requires `views-datafactory` and `~/.netrc` Hetzner credentials. See bright_starship README for setup.
 
 ## Usage
+Modify configurations in configs/.
 
-```bash
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
 ./run.sh -r calibration -t -e
 ```
+
+

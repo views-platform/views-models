@@ -1,4 +1,4 @@
-# Elastic Heart 
+# Bouncy Organ 
 ## Overview
 
 
@@ -6,16 +6,16 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TSMixerModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  elastic_heart   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Targets**         | lr_ged_sb_dep |
+| **Features**       |  bouncy_organ   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-Elastic Heart
+Bouncy Organ
 ├── README.md
 ├── main.py
 ├── requirements.txt

@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  lavender_haze   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting lr_ged_sb_dep, broad model    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -34,6 +34,7 @@ Lavender Haze
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

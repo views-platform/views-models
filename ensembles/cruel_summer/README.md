@@ -10,7 +10,7 @@ This folder contains code for the Cruel Summer model, an ensemble machine learni
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  median   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

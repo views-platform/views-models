@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  midnight_rain   |
 | **Feature Description**       |  Fatalities, escwa drought and vulnerability, pgm level Predicting number of fatalities with features from the escwa drought and vulnerability themes    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
@@ -34,6 +34,7 @@ Midnight Rain
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions
