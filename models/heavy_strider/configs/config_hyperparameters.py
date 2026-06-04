@@ -16,6 +16,7 @@ def get_hp_config():
         "n_posterior_samples": 64,
         "skip_predictions_delivery": True,
         "seed": 42,
+        "skip_predictions_delivery": True,
     }
 
     return hyperparameters

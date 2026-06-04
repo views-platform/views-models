@@ -100,6 +100,13 @@ class TestConfigHyperparameters:
         missing = REQUIRED_HP_KEYS - set(hp_config.keys())
         assert not missing, f"{model_dir.name} config_hp missing keys: {missing}"
 
+    def test_hydranet_has_sampling_strategy(self, model_dir, hp_config, meta_config):
+        if meta_config.get("algorithm") != "HydraNet":
+            pytest.skip("not a HydraNet model")
+        assert "sampling_strategy" in hp_config, (
+            f"{model_dir.name} is HydraNet but missing 'sampling_strategy' (ADR-049)"
+        )
+
     def test_time_steps_matches_steps_length(self, model_dir, hp_config):
         steps = hp_config.get("steps")
         time_steps = hp_config.get("time_steps")

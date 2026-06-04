@@ -26,7 +26,6 @@ pytestmark = [
 ]
 
 
-@pytest.mark.xfail(reason="F-1 pre-flight blocker: datafactory_query not yet installed in views-hydranet-env", strict=False)
 class TestF1_DatafactoryQueryDependency:
     """F-1 (hard): datafactory_query must be importable in the run environment.
 
