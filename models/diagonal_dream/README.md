@@ -7,8 +7,8 @@
 | **Model Algorithm** | LocfModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | synth_target |
-| **Features**       |  synth_target   |
-| **Feature Description**       |  Synthetic data (diagonal_gradient)    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 

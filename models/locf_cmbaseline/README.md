@@ -7,8 +7,8 @@
 | **Model Algorithm** | LocfModel                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  locf_baseline   |
-| **Feature Description**       |  No description provided    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 

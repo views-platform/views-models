@@ -7,8 +7,8 @@
 | **Model Algorithm** | ZeroModel                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  zero_baseline   |
-| **Feature Description**       |  No description provided    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
