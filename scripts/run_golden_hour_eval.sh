@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Full golden_hour pipeline: train + evaluate each constituent, then ensemble.
-# Run with: nohup bash scripts/run_golden_hour_eval.sh > logs/golden_hour_eval.log 2>&1 &
+# Run with: nohup bash scripts/run_golden_hour_eval.sh &
+# (self-logs to logs/golden_hour_eval.log via tee)
 
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+LOG="$REPO_DIR/logs/golden_hour_eval.log"
+
 mkdir -p "$REPO_DIR/logs"
+exec > >(tee -a "$LOG") 2>&1
 
 echo "=== golden_hour full pipeline (train + evaluate + ensemble) ==="
 echo "Started: $(date)"

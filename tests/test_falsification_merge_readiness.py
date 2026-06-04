@@ -82,7 +82,7 @@ class TestF1_UncommittedWork:
     """F1: Working-tree changes are committed — nothing lost on GitHub merge."""
 
     @pytest.mark.red
-    def test_no_uncommitted_config_changes(self):
+    def test_no_uncommitted_tracked_changes(self):
         import subprocess
 
         result = subprocess.run(
@@ -91,12 +91,7 @@ class TestF1_UncommittedWork:
             text=True,
             cwd=REPO,
         )
-        changed = [
-            f
-            for f in result.stdout.strip().splitlines()
-            if f.endswith("config_hyperparameters.py")
-            or f == "tests/test_datafactory_parity.py"
-        ]
+        changed = result.stdout.strip().splitlines()
         assert not changed, f"Uncommitted changes will be lost on merge: {changed}"
 
 
