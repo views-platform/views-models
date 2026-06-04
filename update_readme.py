@@ -100,8 +100,7 @@ for subfolder in target_dir.iterdir():
         deployment = model_manager.configs['deployment_status']
 
         ## Get queryset description
-        _BASELINE_ALGORITHMS = {"AverageModel", "ZeroModel", "LocfModel"}
-        if algorithm in _BASELINE_ALGORITHMS:
+        if subfolder.name.endswith('baseline'):
             name = "N/A"
             description = "N/A"
         else:

@@ -52,12 +52,8 @@ def extract_models(model_class):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_meta_config())
-        _BASELINE_ALGORITHMS = {"AverageModel", "ZeroModel", "LocfModel"}
-        algorithm = model_dict.get('algorithm', '')
-        if isinstance(algorithm, str):
-            algorithm = algorithm.split('(')[0]
         config_queryset = os.path.join(model_class.configs, 'config_queryset.py')
-        if algorithm in _BASELINE_ALGORITHMS:
+        if model_class.model_name.endswith('baseline'):
             model_dict['queryset'] = 'N/A'
         elif os.path.exists(config_queryset):
             model_dict['queryset'] = create_link(f"{model_class.model_name}_features", Path(config_queryset))
