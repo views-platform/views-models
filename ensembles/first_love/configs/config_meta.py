@@ -8,7 +8,12 @@ def get_meta_config():
     """
     meta_config = {
         "name": "first_love",
-        "models": ["bad_romance", "free_fallin", "cold_heart", "beautiful_people", "holy_grail"],
+        "models": ["bad_romance", 
+                   "free_fallin", 
+                   "cold_heart", 
+                   "beautiful_people", 
+                #    "holy_grail"
+                   ],
         "regression_targets": ["lr_ged_sb"],
         "level": "cm", 
         "aggregation": "concat",

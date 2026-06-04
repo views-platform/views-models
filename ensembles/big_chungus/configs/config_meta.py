@@ -13,7 +13,7 @@ def get_meta_config():
             "revolving_door", 
             "elastic_heart", 
             "new_rules", 
-            "good_life",
+            # "good_life",
             "bittersweet_symphony",
             "brown_cheese",
             "car_radio",
