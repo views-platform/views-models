@@ -15,7 +15,7 @@ logging.basicConfig(
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
 
 # Scaffold/fixture models that exist for testing purposes only.
-_FIXTURE_MODELS = {"fake_model", "test_model", "test_ensemble"}
+_FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
 
 
 
@@ -106,7 +106,7 @@ def generate_markdown_table(models_list):
     
     for model in models_list:
         
-        targets = model.get('targets', '')
+        targets = model.get('targets', '') or model.get('regression_targets', '')
         if isinstance(targets, list):
             targets = ', '.join(targets)
 
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     for model_type in base_dirs:
         if os.path.isdir(model_type):
             for model_name in sorted(os.listdir(model_type)):
-                if  ModelPathManager.validate_model_name(model_name) and model_name not in _FIXTURE_MODELS:
+                if  ModelPathManager.validate_model_name(model_name) and model_name not in _FIXTURE_ENTRIES:
                     model_path = os.path.join(model_type, model_name)
                     if os.path.isdir(model_path):  
                         if model_type=='models':

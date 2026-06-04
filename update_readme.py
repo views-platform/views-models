@@ -10,7 +10,7 @@ target_dir = Path(base_dir + "/models")
 
 # Scaffold/fixture models that exist for testing purposes only and should
 # not appear in the README or be processed by ModelPathManager.
-_FIXTURE_MODELS = {"fake_model", "test_model", "test_ensemble"}
+_FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
 
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
@@ -67,7 +67,7 @@ def generate_repo_structure(folders, scripts, model_name):
 
 
 for subfolder in target_dir.iterdir():
-    if subfolder.is_dir() and subfolder.name not in _FIXTURE_MODELS:  # Check if it's a directory
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:  # Check if it's a directory
         print(f"Model: {subfolder.name}")
         configs_dir = target_dir / subfolder.name / "configs"
         model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)
@@ -186,7 +186,7 @@ base_dir = os.getcwd()
 target_ens_dir = Path(base_dir + "/ensembles")
 
 for subfolder in target_ens_dir.iterdir():
-    if subfolder.is_dir() and subfolder.name not in _FIXTURE_MODELS:
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:
         print(f"Model: {subfolder.name}")
         configs_dir = target_ens_dir / subfolder.name / "configs"
         ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir), use_prediction_store=False)
