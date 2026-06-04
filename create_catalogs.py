@@ -15,7 +15,7 @@ logging.basicConfig(
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
 
 # Scaffold/fixture models that exist for testing purposes only.
-_FIXTURE_MODELS = {"fake_model"} 
+_FIXTURE_MODELS = {"fake_model", "test_model", "test_ensemble"}
 
 
 
