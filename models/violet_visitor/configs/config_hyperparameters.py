@@ -3,7 +3,7 @@ def get_hp_config():
     """
     Ensemble member B: "Calibration-focused" — conservative SS for MCR near 1.0.
 
-    Orthogonal design for golden_hour ensemble (3 HydraNet models × 64 samples = 192).
+    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
     Based on sweep finding: epsilon_max=0.25 delivers sb MCR=1.01 (nearest to ideal).
 
     Diversity axes vs other members:

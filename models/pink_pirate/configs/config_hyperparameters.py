@@ -3,7 +3,7 @@ def get_hp_config():
     """
     Ensemble member A: "Balanced" — per-target sigma + standard scheduled sampling.
 
-    Orthogonal design for golden_hour ensemble (3 HydraNet models × 64 samples = 192).
+    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
     Validated by production integration sweep (run 8: CRPS=0.143, MCR=0.22).
 
     Diversity axes vs other members:

@@ -667,11 +667,11 @@
 | Field | Value |
 |---|---|
 | **Tier** | 4 |
-| **Trigger** | A developer adds heavy_freighter to a production ensemble's `config_meta.models` list without realizing its hyperparameters are experimental — global grid (360×720 vs regional 180×180), 3 posterior samples (vs 64), 80 lessons (vs 150-200) |
+| **Trigger** | A developer adds heavy_freighter to a production ensemble's `config_meta.models` list without realizing it uses a global grid (360×720 vs regional 180×180), producing incompatible spatial dimensions |
 | **Source** | tech-debt-cleanup (2026-06-02) |
 | **Status** | Open |
-| **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (experimental values: `height: 360`, `width: 720`, `n_posterior_samples: 3`, `total_lessons: 80`) |
-| **Notes** | heavy_freighter's docstring identifies it as "S2a — BASELINE + Tobit censored-normal loss" validation run. Its grid dimensions, sample count, and lesson count are all set for fast experimental iteration, not production quality. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes experimental models from production models — the only signal is reading the docstring. Low severity because the model fails loudly if sample counts don't match ensemble expectations (PFE tests catch this). |
+| **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (`height: 360`, `width: 720` — global grid vs regional 180×180) |
+| **Notes** | heavy_freighter uses global grid coverage (360×720) vs the regional Africa-ME grid (180×180) used by all ensemble-eligible models. Its training params (tobit, 200 lessons, 16 samples, scheduled sampling) now match the production models — only the grid differs. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes global-grid models from regional models — the only signal is reading the config. Low severity because incompatible spatial dimensions would cause a shape mismatch error at ensemble aggregation time. |
 
 ---
 

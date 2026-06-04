@@ -3,7 +3,7 @@ def get_hp_config():
     """
     Ensemble member C: "CRPS-focused" — uniform sigma + early SS exposure.
 
-    Orthogonal design for golden_hour ensemble (3 HydraNet models × 64 samples = 192).
+    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
     Based on sweep finding: uniform sigma=1.0 with SS gives best CRPS (0.140).
 
     Diversity axes vs other members:
