@@ -5,7 +5,7 @@ def get_meta_config():
         "regression_targets": ["synth_target"],
         "level": "pgm",
         "creator": "synthetic_test",
-        "prediction_format": "dataframe",
+        "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
         "regression_point_metrics": ["MSE"],
     }
