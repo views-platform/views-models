@@ -8,8 +8,8 @@ from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathM
 base_dir = os.getcwd()
 target_dir = Path(base_dir + "/models")
 
-# Scaffold/fixture models that exist for testing purposes only and should
-# not appear in the README or be processed by ModelPathManager.
+# Scaffold/fixture entries that exist for testing purposes only and should
+# not appear in the README or be processed by path managers.
 _FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
 
 # Update repository structure:
@@ -105,9 +105,8 @@ for subfolder in target_dir.iterdir():
             if isinstance(queryset_info, dict):
                 features = queryset_info.get("features", [])
                 name = ", ".join(features) if features else queryset_info.get("source", "")
-                description = "Synthetic data ({pattern})".format(
-                    pattern=queryset_info.get("pattern", "unknown")
-                )
+                pattern = queryset_info.get("pattern", "unknown")
+                description = f"Synthetic data ({pattern})"
             else:
                 description = getattr(queryset_info, "description", None)
                 try:
