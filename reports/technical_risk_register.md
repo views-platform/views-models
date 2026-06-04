@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-02  
+**Last updated:** 2026-06-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 58 (54 concerns + 4 disagreements)  
-**Concerns:** Open 20 | Mitigated 12 | Resolved 19 | Accepted 3  
+**Concerns:** Open 19 | Mitigated 12 | Resolved 19 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---

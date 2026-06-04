@@ -1,34 +1,25 @@
-"""Falsification test stubs from audit of merge-readiness claim (PR #56).
+"""Falsification test stubs from merge-readiness audits.
 
-Generated: 2026-05-20
-Source: /falsify audit — "we are ready to accept and merge the PR"
-Findings: F4 (soft falsification)
-
-F4: pytestmark overwrite bug — test_darts_reproducibility.py assigns
-pytestmark twice (green on line 13, skipif on line 34). The second
-assignment overwrites the first, leaving 32 tests uncategorized by
-ADR-005.  test_bright_starship_readiness.py has a skipif mark but
-no ADR-005 category at all (2 tests uncategorized).
+Round 1 (2026-05-20, PR #56): F4 pytestmark overwrite bug.
+Round 2 (2026-06-04, PR #59): F1 uncommitted work, F4 stale docstrings, F6 risk register headers.
 """
 import ast
+import re
 from pathlib import Path
 
 import pytest
 
+REPO = Path(__file__).resolve().parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 
 
-class TestF4_PytestmarkOverwriteBug:
-    """F4: ADR-005 markers must not be silently overwritten.
+# === Round 1: PR #56 — pytestmark overwrite bug ===
 
-    When a test file needs both a category marker and a skipif condition,
-    pytestmark must be a list, not two separate assignments where the
-    second overwrites the first.
-    """
+class TestF4_PytestmarkOverwriteBug:
+    """F4: ADR-005 markers must not be silently overwritten."""
 
     @pytest.mark.red
     def test_darts_reproducibility_has_green_marker_effective(self):
-        """test_darts_reproducibility.py must have an effective green marker."""
         source = (TESTS_DIR / "test_darts_reproducibility.py").read_text()
         tree = ast.parse(source)
 
@@ -49,7 +40,6 @@ class TestF4_PytestmarkOverwriteBug:
 
     @pytest.mark.red
     def test_bright_starship_has_adr005_marker(self):
-        """test_bright_starship_readiness.py must have an ADR-005 category marker."""
         source = (TESTS_DIR / "test_bright_starship_readiness.py").read_text()
         has_adr005 = any(
             marker in source
@@ -62,8 +52,6 @@ class TestF4_PytestmarkOverwriteBug:
 
     @pytest.mark.red
     def test_no_pytestmark_overwrites_in_any_test_file(self):
-        """No test file should have multiple pytestmark assignments that
-        silently overwrite each other."""
         violations = []
         for f in TESTS_DIR.glob("test_*.py"):
             source = f.read_text()
@@ -84,4 +72,62 @@ class TestF4_PytestmarkOverwriteBug:
         assert violations == [], (
             f"These test files have multiple pytestmark assignments where "
             f"the last one overwrites earlier markers: {violations}"
+        )
+
+
+# === Round 2: PR #59 — merge readiness ===
+
+class TestF1_UncommittedWork:
+    """F1: Working-tree changes are committed — nothing lost on GitHub merge."""
+
+    @pytest.mark.red
+    def test_no_uncommitted_config_changes(self):
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "diff", "--name-only"],
+            capture_output=True,
+            text=True,
+            cwd=REPO,
+        )
+        changed = [
+            f
+            for f in result.stdout.strip().splitlines()
+            if f.endswith("config_hyperparameters.py")
+            or f == "tests/test_datafactory_parity.py"
+        ]
+        assert not changed, f"Uncommitted changes will be lost on merge: {changed}"
+
+
+class TestF4_StaleDocstrings:
+    """F4: Test file docstrings do not reference removed loss functions."""
+
+    @pytest.mark.red
+    def test_no_stale_loss_references_in_parity_test(self):
+        path = REPO / "tests" / "test_datafactory_parity.py"
+        text = path.read_text()
+        for stale in ["shrinkage", "basu_dpd", "lognormal_nll"]:
+            assert stale not in text, (
+                f"test_datafactory_parity.py still references '{stale}' — "
+                f"datafactory trio now uses tobit"
+            )
+
+
+class TestF6_RiskRegisterHeader:
+    """F6: Risk register header counts match actual entry statuses."""
+
+    @pytest.mark.red
+    def test_open_count_accurate(self):
+        path = REPO / "reports" / "technical_risk_register.md"
+        text = path.read_text()
+        header_match = re.search(r"\*\*Concerns:\*\* Open (\d+)", text[:500])
+        assert header_match, "Could not find Concerns Open count in header"
+        header_open = int(header_match.group(1))
+        d_start = text.find("### D-")
+        concerns_text = text[:d_start] if d_start > 0 else text
+        actual_open = len(re.findall(
+            r'\| \*\*Status\*\* \| Open(?:\s*\||\s*\()', concerns_text
+        ))
+        assert header_open == actual_open, (
+            f"Header says Open {header_open}, actual count is {actual_open}"
         )

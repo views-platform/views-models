@@ -1,10 +1,10 @@
 """Datafactory parity tests — verify the datafactory HydraNet trio and ensemble
 mirror the viewser trio (golden_hour) in every dimension except data source.
 
-The datafactory trio:
-  - bright_starship (shrinkage) — exists
-  - bold_comet (basu_dpd) — new
-  - blazing_meteor (lognormal_nll) — new
+The datafactory trio (all tobit, mirroring pink_pirate):
+  - bright_starship
+  - bold_comet
+  - blazing_meteor
 
 The datafactory ensemble:
   - stellar_horizon (concat, PredictionFrame) — new
@@ -30,22 +30,20 @@ pytestmark = [pytest.mark.green]
 
 LOSS_PARAMS = {
     "bright_starship": {
-        "loss_reg": "shrinkage",
-        "loss_reg_a": 258,
-        "loss_reg_c": 0.001,
+        "loss_reg": "tobit",
+        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
     },
     "bold_comet": {
-        "loss_reg": "basu_dpd",
-        "loss_reg_alpha": 0.3,
-        "loss_reg_sigma": 3.0,
+        "loss_reg": "tobit",
+        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
     },
     "blazing_meteor": {
-        "loss_reg": "lognormal_nll",
-        "loss_reg_sigma": 0.9,
+        "loss_reg": "tobit",
+        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
     },
 }
 
-ALL_LOSS_KEYS = {"loss_reg", "loss_reg_a", "loss_reg_c", "loss_reg_alpha", "loss_reg_sigma"}
+ALL_LOSS_KEYS = {"loss_reg", "loss_reg_sigma"}
 
 
 def _load_hp(model_name):
@@ -83,7 +81,7 @@ def _load_partitions(model_name, base_dir=None):
 
 
 class TestDatafactoryTrioConfigParity:
-    """All three datafactory models must share identical hyperparams except loss."""
+    """All three datafactory models must share identical hyperparams."""
 
     @pytest.fixture()
     def trio_hps(self):
@@ -120,8 +118,8 @@ class TestDatafactoryTrioConfigParity:
             assert hp["width"] == 180, f"{name} width"
 
     def test_identical_posterior_samples(self, trio_hps):
-        for name, hp in trio_hps.items():
-            assert hp["n_posterior_samples"] == 64, f"{name} posterior samples"
+        values = {name: hp["n_posterior_samples"] for name, hp in trio_hps.items()}
+        assert len(set(values.values())) == 1, f"n_posterior_samples mismatch: {values}"
 
     def test_identical_classification_loss(self, trio_hps):
         for name, hp in trio_hps.items():
@@ -129,9 +127,9 @@ class TestDatafactoryTrioConfigParity:
             assert hp["loss_class_alpha"] == 0.75, f"{name} loss_class_alpha"
             assert hp["loss_class_gamma"] == 1.5, f"{name} loss_class_gamma"
 
-    def test_loss_reg_differs(self, trio_hps):
+    def test_loss_reg_matches(self, trio_hps):
         loss_values = {hp["loss_reg"] for hp in trio_hps.values()}
-        assert loss_values == {"shrinkage", "basu_dpd", "lognormal_nll"}
+        assert loss_values == {"tobit"}
 
     @pytest.mark.parametrize("model_name", DATAFACTORY_TRIO)
     def test_loss_params_correct(self, model_name):
@@ -281,26 +279,22 @@ class TestCrossEnsembleParityReadiness:
         vs, df = both_metas
         assert vs["name"] != df["name"]
 
-    def test_constituent_loss_functions_parallel(self):
-        df_losses = set()
-        for name in DATAFACTORY_TRIO:
+    def test_both_trios_use_same_loss(self):
+        all_losses = {}
+        for name in VIEWSER_TRIO + DATAFACTORY_TRIO:
             hp = _load_hp(name)
-            df_losses.add(hp["loss_reg"])
-        assert df_losses == {"shrinkage", "basu_dpd", "lognormal_nll"}
-
-    def test_viewser_trio_loss_functions(self):
-        vs_losses = {}
-        for name in VIEWSER_TRIO:
-            hp = _load_hp(name)
-            vs_losses[name] = hp["loss_reg"]
-        assert set(vs_losses.values()) == {"tobit"}, (
-            f"viewser trio loss functions: {vs_losses}"
+            all_losses[name] = hp["loss_reg"]
+        assert set(all_losses.values()) == {"tobit"}, (
+            f"loss functions: {all_losses}"
         )
 
     def test_constituent_posterior_samples_match(self):
+        counts = {}
         for name in VIEWSER_TRIO + DATAFACTORY_TRIO:
             hp = _load_hp(name)
-            assert hp["n_posterior_samples"] == 64, f"{name} has {hp['n_posterior_samples']} samples"
+            counts[name] = hp["n_posterior_samples"]
+        values = set(counts.values())
+        assert len(values) == 1, f"n_posterior_samples mismatch: {counts}"
 
 
 class TestDatafactoryTrioPartitions:

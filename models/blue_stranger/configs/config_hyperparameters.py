@@ -111,7 +111,7 @@ def get_hp_config():
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        'n_posterior_samples': 64,
+        'n_posterior_samples': 16,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,

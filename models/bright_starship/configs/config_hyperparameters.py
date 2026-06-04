@@ -74,31 +74,41 @@ def get_hp_config():
         'time_steps': 36, # Checksum: Must match len(steps)
 
         # ============================================================
-        # Loss Functions
+        # Loss Functions — Tobit + per-target sigma (ADR-054/055)
         # ============================================================
-        'loss_reg': 'shrinkage',
+        'loss_reg': 'tobit',
+        'loss_reg_sigma': {
+            'lr_sb_best': 1.0,
+            'lr_ns_best': 0.75,
+            'lr_os_best': 0.5,
+        },
         'loss_class': 'focal',
-        'loss_reg_a': 258,
-        'loss_reg_c': 0.001,
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
-        'onset_bias_init': -7.0,  # Dilution study: no penalty for deeper bias; -7.0 universal default
+        'onset_bias_init': -7.0,
+
+        # ============================================================
+        # Scheduled Sampling (ADR-056)
+        # ============================================================
+        'ss_schedule': 'linear',
+        'ss_warmup_lessons': 10,
+        'ss_epsilon_max': 0.5,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 150,        
-        'max_ratio': 0.95,           
-        'min_ratio': 0.05,           
-        'slope_ratio': 0.75,         
-        'roof_ratio': 0.7,           
+        'total_lessons': 200,
+        'max_ratio': 0.95,
+        'min_ratio': 0.05,
+        'slope_ratio': 0.75,
+        'roof_ratio': 0.7,
         'min_events': 5,
         'sampling_strategy': 'threshold',
 
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        'n_posterior_samples': 64,
+        'n_posterior_samples': 16,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
 
