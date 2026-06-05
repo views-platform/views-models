@@ -42,6 +42,7 @@ def extract_models(model_class):
     
     model_dict = {}
     config_meta = os.path.join(model_class.configs, 'config_meta.py')
+    config_modelset = os.path.join(model_class.configs, 'config_modelset.py')
     config_deployment = os.path.join(model_class.configs, 'config_deployment.py')
     config_hyperparameters = os.path.join(model_class.configs, 'config_hyperparameters.py')
 
@@ -60,6 +61,13 @@ def extract_models(model_class):
         else:
             model_dict['queryset'] = 'None'
 
+
+    if os.path.exists(config_modelset):
+        logging.info(f"Found modelset config: {config_modelset}")
+        spec = importlib.util.spec_from_file_location(f"config_modelset_{Path(config_modelset).parent.parent.name}", config_modelset)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        model_dict.update(module.get_modelset_config())
 
     if os.path.exists(config_deployment):
         logging.info(f"Found deployment config: {config_deployment}")

@@ -171,20 +171,20 @@ class TestPFEEnsembleConfigReadiness:
         return request.param
 
     def test_models_list_non_empty(self, pfe_ensemble):
-        meta = _load_meta(pfe_ensemble, ENSEMBLES_DIR)
-        models = meta.get("models")
+        modelset = _load_config(ENSEMBLES_DIR, pfe_ensemble, "config_modelset")
+        models = modelset.get("models")
         assert isinstance(models, list) and len(models) > 0
 
     def test_all_constituents_exist(self, pfe_ensemble):
-        meta = _load_meta(pfe_ensemble, ENSEMBLES_DIR)
-        for model_name in meta["models"]:
+        modelset = _load_config(ENSEMBLES_DIR, pfe_ensemble, "config_modelset")
+        for model_name in modelset["models"]:
             assert (MODELS_DIR / model_name).is_dir(), (
                 f"{pfe_ensemble} references {model_name} but it doesn't exist"
             )
 
     def test_all_constituents_are_pf_models(self, pfe_ensemble):
-        meta = _load_meta(pfe_ensemble, ENSEMBLES_DIR)
-        for model_name in meta["models"]:
+        modelset = _load_config(ENSEMBLES_DIR, pfe_ensemble, "config_modelset")
+        for model_name in modelset["models"]:
             model_meta = _load_meta(model_name)
             assert model_meta.get("prediction_format") == "prediction_frame", (
                 f"{pfe_ensemble} constituent {model_name} is not a PF model"
@@ -206,8 +206,9 @@ class TestPFEEnsembleConfigReadiness:
         meta = _load_meta(pfe_ensemble, ENSEMBLES_DIR)
         if meta.get("aggregation") != "arithmetic_mean":
             pytest.skip("only applies to arithmetic_mean aggregation")
+        modelset = _load_config(ENSEMBLES_DIR, pfe_ensemble, "config_modelset")
         samples = []
-        for model_name in meta["models"]:
+        for model_name in modelset["models"]:
             hp = _load_hp(model_name)
             samples.append(_require_n_posterior_samples(hp, model_name))
         assert len(set(samples)) == 1, (
@@ -416,8 +417,9 @@ PFE_OUTPUT_IDS = [f"{c[0]}_{c[1]}" for c in PFE_OUTPUT_CASES]
 def _expected_ensemble_samples(ensemble_name):
     meta = _load_meta(ensemble_name, ENSEMBLES_DIR)
     aggregation = meta["aggregation"]
+    modelset = _load_config(ENSEMBLES_DIR, ensemble_name, "config_modelset")
     samples = []
-    for model_name in meta["models"]:
+    for model_name in modelset["models"]:
         hp = _load_hp(model_name)
         n = hp.get("n_posterior_samples")
         if n is None:
