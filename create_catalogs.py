@@ -16,7 +16,12 @@ logging.basicConfig(
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
 
 # Scaffold/fixture entries that exist for testing purposes only.
-_FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
+_FIXTURE_ENTRIES = {
+    "fake_model", "test_model", "test_ensemble",
+    "diagonal_dream", "horizontal_dream", "lucid_dream",
+    "vertical_dream", "vivid_dream", "waking_dream",
+    "synthetic_chant", "synthetic_choir", "synthetic_chorus",
+}
 
 
 def get_implementation_date(config_meta_path, default_date="2026-01-01"):

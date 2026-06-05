@@ -89,7 +89,12 @@ def _build_markdown_table(headers, rows):
 
 
 def _format_name_cell(model):
-    """Exact copy of create_catalogs.py::_format_name_cell."""
+    """Simplified approximation of create_catalogs.py::_format_name_cell.
+
+    The real function calls create_link() which computes a relative path
+    and prepends GITHUB_URL. This copy uses the raw model_dir_path value
+    since create_link() requires views_pipeline_core.
+    """
     name = model.get('name', '')
     model_dir = model.get('model_dir_path')
     return f"[{name}]({model_dir})" if model_dir else name
