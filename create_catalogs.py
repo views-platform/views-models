@@ -112,7 +112,7 @@ def generate_markdown_table(models_list):
     markdown_table: a markdown table with links to the querysets and hyperparameters
     """
 
-    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Non-default Hyperparameters', 'Forecasting Type', 'Implementation Status', 'Implementation Date', 'Author']
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
     
     markdown_table = '| ' + ' '.join([f"{header} |" for header in headers]) + '\n'
     markdown_table += '| ' + ' '.join(['-' * len(header) + ' |' for header in headers]) + '\n'
@@ -129,8 +129,7 @@ def generate_markdown_table(models_list):
             str(model.get('algorithm', '')).split('(')[0],
             targets,
             model.get('queryset', ''),
-            model.get('hyperparameters',''),
-            'None',#Direct multi-step',
+            model.get('hyperparameters', ''),
             model.get('deployment_status', ''),
             'NA',
             model.get('creator', '')

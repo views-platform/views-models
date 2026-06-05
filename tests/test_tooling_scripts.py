@@ -83,7 +83,7 @@ def _generate_markdown_table(models_list):
     """Exact copy of create_catalogs.py::generate_markdown_table."""
     headers = [
         'Model Name', 'Algorithm', 'Targets', 'Input Features',
-        'Non-default Hyperparameters', 'Forecasting Type',
+        'Hyperparameters',
         'Implementation Status', 'Implementation Date', 'Author',
     ]
     markdown_table = '| ' + ' '.join([f"{header} |" for header in headers]) + '\n'
@@ -98,7 +98,6 @@ def _generate_markdown_table(models_list):
             targets,
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
-            'None',
             model.get('deployment_status', ''),
             'NA',
             model.get('creator', ''),
@@ -141,8 +140,7 @@ class TestGenerateMarkdownTable:
         result = _generate_markdown_table(models)
         lines = result.strip().split('\n')
         assert len(lines) == 3
-        # Row should have 9 pipe-separated cells (all empty except 'None' and 'NA')
-        assert 'None' in lines[2]
+        # Row should have 8 pipe-separated cells (all empty except 'NA')
         assert 'NA' in lines[2]
 
 
