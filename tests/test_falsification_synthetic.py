@@ -4,7 +4,7 @@ These tests encode findings from the falsification audit. They are
 intentionally written to FAIL until the underlying issue is addressed.
 
 F3: Ensemble model-order dependency — the ensemble's ground truth comes
-from whichever model is listed first in config_meta.models. No test
+from whichever model is listed first in config_modelset.models. No test
 guards this ordering, so a reorder silently changes the expected MSE.
 """
 import pytest
@@ -56,7 +56,7 @@ class TestSyntheticEnsembleParity:
         )
 
     @pytest.mark.green
-    def test_same_constituent_models(self, both_metas):
+    def test_same_constituent_models(self):
         chorus_ms = ENSEMBLES_DIR / "synthetic_chorus" / "configs" / "config_modelset.py"
         choir_ms = ENSEMBLES_DIR / "synthetic_choir" / "configs" / "config_modelset.py"
         chorus_models = load_config_module(chorus_ms).get_modelset_config()["models"]
