@@ -12,7 +12,8 @@ sys.path.insert(0, str(REPO_ROOT))
 try:
     from create_catalogs import (
         replace_table_in_section,
-        generate_markdown_table,
+        generate_model_table,
+        generate_ensemble_table,
         create_link,
     )
     _HAS_PIPELINE_CORE = True
@@ -92,7 +93,7 @@ class TestReplaceTableInSection:
 
 @_skip_no_pipeline
 @pytest.mark.green
-class TestGenerateMarkdownTable:
+class TestGenerateModelTable:
     def test_produces_valid_markdown_table(self):
         models_list = [
             {
@@ -105,7 +106,7 @@ class TestGenerateMarkdownTable:
                 "creator": "Test",
             }
         ]
-        table = generate_markdown_table(models_list)
+        table = generate_model_table(models_list)
         assert "test_model" in table
         assert "XGBRegressor" in table
         assert "|" in table
@@ -113,14 +114,16 @@ class TestGenerateMarkdownTable:
         assert len(lines) >= 3
 
     def test_header_row_has_expected_columns(self):
-        table = generate_markdown_table([])
+        table = generate_model_table([])
         first_line = table.strip().split("\n")[0]
         assert "Model Name" in first_line
         assert "Algorithm" in first_line
-        assert "Targets" in first_line
+        assert "Input Features" in first_line
+        assert "Hyperparameters" in first_line
+        assert "Forecasting Type" not in first_line
 
     def test_separator_row_is_valid_markdown(self):
-        table = generate_markdown_table([])
+        table = generate_model_table([])
         lines = table.strip().split("\n")
         separator = lines[1]
         cells = [c.strip() for c in separator.split("|") if c.strip()]
@@ -131,19 +134,39 @@ class TestGenerateMarkdownTable:
 
     def test_targets_list_rendered_as_comma_separated(self):
         models = [{"name": "m", "targets": ["a", "b", "c"]}]
-        table = generate_markdown_table(models)
+        table = generate_model_table(models)
         assert "a, b, c" in table
 
     def test_missing_keys_produce_empty_cells(self):
-        """A model dict with minimal keys should not crash."""
         models = [{"name": "minimal"}]
-        table = generate_markdown_table(models)
+        table = generate_model_table(models)
         assert "minimal" in table
 
     def test_empty_model_list_produces_header_only(self):
-        table = generate_markdown_table([])
+        table = generate_model_table([])
         lines = [line for line in table.strip().split("\n") if line.strip()]
         assert len(lines) == 2
+
+
+@_skip_no_pipeline
+@pytest.mark.green
+class TestGenerateEnsembleTable:
+    def test_header_has_constituent_models(self):
+        table = generate_ensemble_table([])
+        first_line = table.strip().split("\n")[0]
+        assert "Ensemble Name" in first_line
+        assert "Constituent Models" in first_line
+        assert "Input Features" not in first_line
+
+    def test_shows_aggregation_as_algorithm(self):
+        ensembles = [{"name": "test_ens", "aggregation": "mean"}]
+        table = generate_ensemble_table(ensembles)
+        assert "mean" in table
+
+    def test_shows_modelset_link(self):
+        ensembles = [{"name": "test_ens", "modelset_link": "- [link](url)"}]
+        table = generate_ensemble_table(ensembles)
+        assert "link" in table
 
 
 @_skip_no_pipeline

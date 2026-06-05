@@ -76,38 +76,77 @@ class TestReplaceTableInSection:
 
 
 # ---------------------------------------------------------------------------
-# Characterization: create_catalogs.py :: generate_markdown_table (lines 87-123)
+# Characterization: create_catalogs.py :: table generators (split functions)
 # ---------------------------------------------------------------------------
 
-def _generate_markdown_table(models_list):
-    """Exact copy of create_catalogs.py::generate_markdown_table."""
-    headers = [
-        'Model Name', 'Algorithm', 'Targets', 'Input Features',
-        'Non-default Hyperparameters', 'Forecasting Type',
-        'Implementation Status', 'Implementation Date', 'Author',
-    ]
+def _build_markdown_table(headers, rows):
+    """Exact copy of create_catalogs.py::_build_markdown_table."""
     markdown_table = '| ' + ' '.join([f"{header} |" for header in headers]) + '\n'
     markdown_table += '| ' + ' '.join(['-' * len(header) + ' |' for header in headers]) + '\n'
-    for model in models_list:
-        targets = model.get('targets', '')
-        if isinstance(targets, list):
-            targets = ', '.join(targets)
-        row = [
-            model.get('name', ''),
-            str(model.get('algorithm', '')).split('(')[0],
-            targets,
-            model.get('queryset', ''),
-            model.get('hyperparameters', ''),
-            'None',
-            model.get('deployment_status', ''),
-            'NA',
-            model.get('creator', ''),
-        ]
+    for row in rows:
         markdown_table += '| ' + ' | '.join(row) + ' |\n'
     return markdown_table
 
 
-class TestGenerateMarkdownTable:
+def _format_name_cell(model):
+    """Simplified approximation of create_catalogs.py::_format_name_cell.
+
+    The real function calls create_link() which computes a relative path
+    and prepends GITHUB_URL. This copy uses the raw model_dir_path value
+    since create_link() requires views_pipeline_core.
+    """
+    name = model.get('name', '')
+    model_dir = model.get('model_dir_path')
+    return f"[{name}]({model_dir})" if model_dir else name
+
+
+def _format_targets(model):
+    """Exact copy of create_catalogs.py::_format_targets."""
+    targets = model.get('targets', '') or model.get('regression_targets', '')
+    if isinstance(targets, list):
+        targets = ', '.join(targets)
+    return targets
+
+
+def _generate_model_table(models_list):
+    """Exact copy of create_catalogs.py::generate_model_table."""
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features',
+               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
+    for model in models_list:
+        rows.append([
+            _format_name_cell(model),
+            str(model.get('algorithm', '')).split('(')[0],
+            _format_targets(model),
+            model.get('queryset', ''),
+            model.get('hyperparameters', ''),
+            model.get('deployment_status', ''),
+            model.get('implementation_date', ''),
+            model.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
+
+
+def _generate_ensemble_table(ensembles_list):
+    """Exact copy of create_catalogs.py::generate_ensemble_table."""
+    headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models',
+               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
+    for ensemble in ensembles_list:
+        rows.append([
+            _format_name_cell(ensemble),
+            ensemble.get('aggregation', ''),
+            _format_targets(ensemble),
+            ensemble.get('modelset_link', ''),
+            ensemble.get('hyperparameters', ''),
+            ensemble.get('deployment_status', ''),
+            ensemble.get('implementation_date', ''),
+            ensemble.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
+
+
+class TestGenerateModelTable:
     def test_basic_table(self):
         models = [
             {
@@ -120,30 +159,69 @@ class TestGenerateMarkdownTable:
                 'creator': 'alice',
             }
         ]
-        result = _generate_markdown_table(models)
+        result = _generate_model_table(models)
         lines = result.strip().split('\n')
-        assert len(lines) == 3  # header + separator + 1 row
+        assert len(lines) == 3
         assert 'Model Name' in lines[0]
+        assert 'Input Features' in lines[0]
         assert 'test_model' in lines[2]
         assert 'RandomForest' in lines[2]
-        # Algorithm should strip parenthesized part
         assert 'n=100' not in lines[2]
-        # Targets list should be joined
         assert 'fatalities, ged_sb' in lines[2]
 
     def test_empty_list(self):
-        result = _generate_markdown_table([])
+        result = _generate_model_table([])
         lines = result.strip().split('\n')
-        assert len(lines) == 2  # header + separator only
+        assert len(lines) == 2
 
     def test_missing_keys_use_empty_string(self):
         models = [{}]
-        result = _generate_markdown_table(models)
+        result = _generate_model_table(models)
         lines = result.strip().split('\n')
         assert len(lines) == 3
-        # Row should have 9 pipe-separated cells (all empty except 'None' and 'NA')
-        assert 'None' in lines[2]
-        assert 'NA' in lines[2]
+        cells = lines[2].split('|')
+        assert len(cells) == 10  # 8 data cells + 2 empty boundary cells
+
+    def test_name_link_when_model_dir_present(self):
+        models = [{'name': 'linked', 'model_dir_path': '/repo/models/linked'}]
+        result = _generate_model_table(models)
+        assert '[linked](/repo/models/linked)' in result
+
+    def test_regression_targets_fallback(self):
+        models = [{'regression_targets': ['a', 'b']}]
+        result = _generate_model_table(models)
+        assert 'a, b' in result
+
+
+class TestGenerateEnsembleTable:
+    def test_basic_table(self):
+        ensembles = [
+            {
+                'name': 'test_ens',
+                'aggregation': 'mean',
+                'regression_targets': ['ged_sb'],
+                'modelset_link': '- [models](url)',
+                'deployment_status': 'deployed',
+                'creator': 'bob',
+            }
+        ]
+        result = _generate_ensemble_table(ensembles)
+        lines = result.strip().split('\n')
+        assert len(lines) == 3
+        assert 'Ensemble Name' in lines[0]
+        assert 'Constituent Models' in lines[0]
+        assert 'Input Features' not in lines[0]
+        assert 'mean' in lines[2]
+
+    def test_empty_list(self):
+        result = _generate_ensemble_table([])
+        lines = result.strip().split('\n')
+        assert len(lines) == 2
+
+    def test_shows_aggregation_as_algorithm(self):
+        ensembles = [{'aggregation': 'median'}]
+        result = _generate_ensemble_table(ensembles)
+        assert 'median' in result
 
 
 # ---------------------------------------------------------------------------
