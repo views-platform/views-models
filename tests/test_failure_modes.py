@@ -209,10 +209,10 @@ class TestEnsembleConstituentIntegrity:
     )
     def test_constituent_model_configs_are_loadable(self, ensemble_dir):
         """Every model listed in an ensemble must have loadable config_meta."""
-        meta_cfg = ensemble_dir / "configs" / "config_meta.py"
-        module = load_config_module(meta_cfg)
-        meta = module.get_meta_config()
-        for model_name in meta["models"]:
+        modelset_cfg = ensemble_dir / "configs" / "config_modelset.py"
+        module = load_config_module(modelset_cfg)
+        modelset = module.get_modelset_config()
+        for model_name in modelset["models"]:
             model_meta = MODELS_DIR / model_name / "configs" / "config_meta.py"
             if not model_meta.exists():
                 pytest.skip(f"{model_name} not present")
@@ -235,10 +235,10 @@ class TestEnsembleConstituentIntegrity:
         except (ImportError, ModuleNotFoundError):
             pytest.skip(f"{ensemble_dir.name}: uninstalled deps in config_partitions")
 
-        meta_cfg = ensemble_dir / "configs" / "config_meta.py"
-        meta = load_config_module(meta_cfg).get_meta_config()
+        modelset_cfg = ensemble_dir / "configs" / "config_modelset.py"
+        modelset = load_config_module(modelset_cfg).get_modelset_config()
 
-        for model_name in meta["models"]:
+        for model_name in modelset["models"]:
             model_parts_cfg = MODELS_DIR / model_name / "configs" / "config_partitions.py"
             if not model_parts_cfg.exists():
                 pytest.skip(f"{model_name} not present")
@@ -253,30 +253,28 @@ class TestEnsembleConstituentIntegrity:
                 )
 
     def test_malformed_model_list_type_detectable(self, tmp_path):
-        """A config_meta where models is a string (not list) should be caught."""
-        bad_meta = tmp_path / "config_meta.py"
-        bad_meta.write_text(
-            "def get_meta_config():\n"
-            "    return {'name': 'bad', 'models': 'single_model', "
-            "'regression_targets': ['t'], 'level': 'pgm', 'aggregation': 'mean'}\n"
+        """A config_modelset where models is a string (not list) should be caught."""
+        bad_modelset = tmp_path / "config_modelset.py"
+        bad_modelset.write_text(
+            "def get_modelset_config():\n"
+            "    return {'models': 'single_model'}\n"
         )
-        module = load_config_module(bad_meta)
-        meta = module.get_meta_config()
-        assert not isinstance(meta["models"], list), (
+        module = load_config_module(bad_modelset)
+        modelset = module.get_modelset_config()
+        assert not isinstance(modelset["models"], list), (
             "This test documents that a string models value loads without error"
         )
 
     def test_empty_model_list_is_detectable(self, tmp_path):
-        """A config_meta with an empty models list should be caught."""
-        bad_meta = tmp_path / "config_meta.py"
-        bad_meta.write_text(
-            "def get_meta_config():\n"
-            "    return {'name': 'bad', 'models': [], "
-            "'regression_targets': ['t'], 'level': 'pgm', 'aggregation': 'mean'}\n"
+        """A config_modelset with an empty models list should be caught."""
+        bad_modelset = tmp_path / "config_modelset.py"
+        bad_modelset.write_text(
+            "def get_modelset_config():\n"
+            "    return {'models': []}\n"
         )
-        module = load_config_module(bad_meta)
-        meta = module.get_meta_config()
-        assert meta["models"] == []
+        module = load_config_module(bad_modelset)
+        modelset = module.get_modelset_config()
+        assert modelset["models"] == []
 
 
 @pytest.mark.red

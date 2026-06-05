@@ -1,7 +1,6 @@
 def get_meta_config():
     meta_config = {
         "name": "stellar_horizon",
-        "models": ["bright_starship", "bold_comet", "blazing_meteor"],
         "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"],
         "level": "pgm",
         "aggregation": "concat",

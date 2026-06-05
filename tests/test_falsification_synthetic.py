@@ -4,7 +4,7 @@ These tests encode findings from the falsification audit. They are
 intentionally written to FAIL until the underlying issue is addressed.
 
 F3: Ensemble model-order dependency — the ensemble's ground truth comes
-from whichever model is listed first in config_meta.models. No test
+from whichever model is listed first in config_modelset.models. No test
 guards this ordering, so a reorder silently changes the expected MSE.
 """
 import pytest
@@ -24,14 +24,14 @@ class TestEnsembleModelOrderDependency:
     @pytest.mark.red
     @pytest.mark.parametrize("ensemble_name", SYNTHETIC_ENSEMBLES)
     def test_first_model_is_vertical_dream(self, ensemble_name):
-        cfg = ENSEMBLES_DIR / ensemble_name / "configs" / "config_meta.py"
+        cfg = ENSEMBLES_DIR / ensemble_name / "configs" / "config_modelset.py"
         if not cfg.exists():
             pytest.skip(f"{ensemble_name} not present")
         module = load_config_module(cfg)
-        meta = module.get_meta_config()
-        assert meta["models"][0] == "vertical_dream", (
+        modelset = module.get_modelset_config()
+        assert modelset["models"][0] == "vertical_dream", (
             f"{ensemble_name} model order changed: first model is "
-            f"'{meta['models'][0]}', expected 'vertical_dream'. "
+            f"'{modelset['models'][0]}', expected 'vertical_dream'. "
             f"This changes the ground truth and expected MSE (4.34444). "
             f"Update the README derivation if this is intentional."
         )
@@ -56,9 +56,12 @@ class TestSyntheticEnsembleParity:
         )
 
     @pytest.mark.green
-    def test_same_constituent_models(self, both_metas):
-        chorus_meta, choir_meta = both_metas
-        assert chorus_meta["models"] == choir_meta["models"]
+    def test_same_constituent_models(self):
+        chorus_ms = ENSEMBLES_DIR / "synthetic_chorus" / "configs" / "config_modelset.py"
+        choir_ms = ENSEMBLES_DIR / "synthetic_choir" / "configs" / "config_modelset.py"
+        chorus_models = load_config_module(chorus_ms).get_modelset_config()["models"]
+        choir_models = load_config_module(choir_ms).get_modelset_config()["models"]
+        assert chorus_models == choir_models
 
     @pytest.mark.green
     def test_same_regression_targets(self, both_metas):

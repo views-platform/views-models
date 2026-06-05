@@ -68,6 +68,18 @@ def _load_meta(model_name, base_dir=None):
     return mod.get_meta_config()
 
 
+def _load_modelset(ensemble_name, base_dir=None):
+    if base_dir is None:
+        base_dir = ENSEMBLES_DIR
+    path = base_dir / ensemble_name / "configs" / "config_modelset.py"
+    if not path.exists():
+        pytest.skip(f"{ensemble_name} config_modelset.py not yet created")
+    spec = importlib.util.spec_from_file_location(f"_modelset_{ensemble_name}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.get_modelset_config()
+
+
 def _load_partitions(model_name, base_dir=None):
     if base_dir is None:
         base_dir = MODELS_DIR
@@ -209,8 +221,9 @@ class TestStellarHorizonEnsembleConfig:
     def ens_meta(self):
         return _load_meta(DF_ENSEMBLE, ENSEMBLES_DIR)
 
-    def test_models_list(self, ens_meta):
-        assert ens_meta["models"] == ["bright_starship", "bold_comet", "blazing_meteor"]
+    def test_models_list(self):
+        modelset = _load_modelset(DF_ENSEMBLE)
+        assert modelset["models"] == ["bright_starship", "bold_comet", "blazing_meteor"]
 
     def test_regression_targets(self, ens_meta):
         assert ens_meta["regression_targets"] == ["lr_sb_best", "lr_ns_best", "lr_os_best"]
@@ -271,9 +284,10 @@ class TestCrossEnsembleParityReadiness:
         vs, df = both_metas
         assert vs["level"] == df["level"]
 
-    def test_same_model_count(self, both_metas):
-        vs, df = both_metas
-        assert len(vs["models"]) == len(df["models"]) == 3
+    def test_same_model_count(self):
+        vs_modelset = _load_modelset(VS_ENSEMBLE)
+        df_modelset = _load_modelset(DF_ENSEMBLE)
+        assert len(vs_modelset["models"]) == len(df_modelset["models"]) == 3
 
     def test_names_differ(self, both_metas):
         vs, df = both_metas

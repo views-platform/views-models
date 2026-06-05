@@ -5,6 +5,7 @@ from views_pipeline_core.templates.ensemble import (
     template_config_deployment,
     template_config_hyperparameters,
     template_config_meta,
+    template_config_modelset,
     template_main,
     template_run_sh,
     template_requirement_txt
@@ -58,6 +59,7 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         - config_deployment.py
         - config_hyperparameters.py
         - config_meta.py
+        - config_modelset.py
         - main.py
 
         Args:
@@ -81,6 +83,10 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
         )
         template_config_meta.generate(
             script_path=self._model.configs / "config_meta.py",
+            model_name=self._model.model_name,
+        )
+        template_config_modelset.generate(
+            script_path=self._model.configs / "config_modelset.py",
             model_name=self._model.model_name,
         )
         template_main.generate(script_path=self._model.model_dir / "main.py")
