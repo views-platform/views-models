@@ -84,6 +84,9 @@ def extract_models(model_class):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_modelset_config())
+        model_dict['modelset_link'] = create_link(
+            f"{model_class.model_name}_constituent_models", Path(config_modelset)
+        )
 
     if os.path.exists(config_deployment):
         logging.info(f"Found deployment config: {config_deployment}")
@@ -118,46 +121,64 @@ def create_link(marker, filepath: Path, prefix="- "):
 
 
 
-def generate_markdown_table(models_list):
-    """
-    Function to generate markdown table from the model dictionaries.
-
-    Parameters:
-    model_list: list of model dictionaries containing all the necessary information
-
-    Returns:
-    markdown_table: a markdown table with links to the querysets and hyperparameters
-    """
-
-    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
-    
+def _build_markdown_table(headers, rows):
+    """Build a markdown table string from headers and row data."""
     markdown_table = '| ' + ' '.join([f"{header} |" for header in headers]) + '\n'
     markdown_table += '| ' + ' '.join(['-' * len(header) + ' |' for header in headers]) + '\n'
+    for row in rows:
+        markdown_table += '| ' + ' | '.join(row) + ' |\n'
+    return markdown_table
 
-    
+
+def _format_name_cell(model):
+    """Format model/ensemble name as a clickable link or plain text."""
+    name = model.get('name', '')
+    model_dir = model.get('model_dir_path')
+    return create_link(name, model_dir, prefix="") if model_dir else name
+
+
+def _format_targets(model):
+    """Extract and format targets as a comma-separated string."""
+    targets = model.get('targets', '') or model.get('regression_targets', '')
+    if isinstance(targets, list):
+        targets = ', '.join(targets)
+    return targets
+
+
+def generate_model_table(models_list):
+    """Generate a markdown catalog table for individual models."""
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
     for model in models_list:
-        
-        targets = model.get('targets', '') or model.get('regression_targets', '')
-        if isinstance(targets, list):
-            targets = ', '.join(targets)
-
-        name = model.get('name', '')
-        model_dir = model.get('model_dir_path')
-        name_cell = create_link(name, model_dir, prefix="") if model_dir else name
-
-        row = [
-            name_cell,
+        rows.append([
+            _format_name_cell(model),
             str(model.get('algorithm', '')).split('(')[0],
-            targets,
+            _format_targets(model),
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
             model.get('deployment_status', ''),
             model.get('implementation_date', ''),
-            model.get('creator', '')
-        ]
-        markdown_table += '| ' + ' | '.join(row) + ' |\n'
-        
-    return markdown_table
+            model.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
+
+
+def generate_ensemble_table(ensembles_list):
+    """Generate a markdown catalog table for ensembles."""
+    headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
+    for ensemble in ensembles_list:
+        rows.append([
+            _format_name_cell(ensemble),
+            ensemble.get('aggregation', ''),
+            _format_targets(ensemble),
+            ensemble.get('modelset_link', ''),
+            ensemble.get('hyperparameters', ''),
+            ensemble.get('deployment_status', ''),
+            ensemble.get('implementation_date', ''),
+            ensemble.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
 
 
 
@@ -264,9 +285,9 @@ if __name__ == "__main__":
 
 
 
-    markdown_table_cm = generate_markdown_table(models_list_cm)
-    markdown_table_pgm = generate_markdown_table(models_list_pgm)
-    markdown_table_ensembles = generate_markdown_table(ensemble_list)
+    markdown_table_cm = generate_model_table(models_list_cm)
+    markdown_table_pgm = generate_model_table(models_list_pgm)
+    markdown_table_ensembles = generate_ensemble_table(ensemble_list)
 
     # Update README.md file
     update_readme_with_tables(
