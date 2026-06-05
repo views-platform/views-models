@@ -102,7 +102,7 @@ def _generate_markdown_table(models_list):
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
             model.get('deployment_status', ''),
-            'NA',
+            model.get('implementation_date', ''),
             model.get('creator', ''),
         ]
         markdown_table += '| ' + ' | '.join(row) + ' |\n'
@@ -143,8 +143,10 @@ class TestGenerateMarkdownTable:
         result = _generate_markdown_table(models)
         lines = result.strip().split('\n')
         assert len(lines) == 3
-        # Row should have 8 pipe-separated cells (all empty except 'NA')
-        assert 'NA' in lines[2]
+        # Row should have pipe-separated cells (empty for missing keys)
+        cells = lines[2].split('|')
+        # Outer pipes produce empty first/last elements; inner cells are the data
+        assert len(cells) == 10  # 8 data cells + 2 empty boundary cells
 
 
 # ---------------------------------------------------------------------------

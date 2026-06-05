@@ -1,6 +1,7 @@
 import os
 import importlib.util
 import logging
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -18,6 +19,19 @@ GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/'
 _FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
 
 
+def get_implementation_date(config_meta_path, default_date="2026-01-01"):
+    """Get the date when a config_meta.py was first added to git."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "--diff-filter=A", "--follow", "--format=%aI", "--", str(config_meta_path)],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            iso_date = result.stdout.strip().split('\n')[-1]
+            return iso_date[:10]
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return default_date
 
 
 
@@ -54,6 +68,7 @@ def extract_models(model_class):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         model_dict.update(module.get_meta_config())
+        model_dict['implementation_date'] = get_implementation_date(config_meta)
         config_queryset = os.path.join(model_class.configs, 'config_queryset.py')
         if model_class.model_name.endswith('baseline'):
             model_dict['queryset'] = 'N/A'
@@ -137,7 +152,7 @@ def generate_markdown_table(models_list):
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
             model.get('deployment_status', ''),
-            'NA',
+            model.get('implementation_date', ''),
             model.get('creator', '')
         ]
         markdown_table += '| ' + ' | '.join(row) + ' |\n'

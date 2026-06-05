@@ -18,7 +18,7 @@ jobs:
         with:
           repository: views-platform/views-models
           token: ${{ secrets.VIEWS_MODELS_ACCESS_TOKEN }}
-          #fetch-depth: 0
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
