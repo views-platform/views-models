@@ -51,7 +51,6 @@ def get_sweep_config():
         'window_dim' : {'value' : 32},
         'h_init' : {'value' : 'abs_rand_exp-100'},
         'warmup_steps' : {'value' : 100},
-        'freeze_h' : {'value' : "hl"},
         'time_steps' : {'value' : 36}
         }
 

@@ -35,7 +35,6 @@ def get_hp_config():
         'window_dim': 32,
         'output_channels': 1, # Depth per head
         'weight_init': 'xavier_norm',
-        'freeze_h': "hl",
         'h_init': 'abs_rand_exp-100',
 
         # ============================================================
