@@ -13,7 +13,10 @@ logging.basicConfig(
 )
 
 
-GITHUB_URL = 'https://github.com/views-platform/views-models/blob/main/' 
+# TODO: Change back to blob/main/ once development is merged to main.
+# Currently pointing to development so that config_modelset.py links resolve.
+# See: https://github.com/views-platform/views-models/issues/93
+GITHUB_URL = 'https://github.com/views-platform/views-models/blob/development/'
 
 # Scaffold/fixture entries that exist for testing purposes only.
 _FIXTURE_ENTRIES = {
