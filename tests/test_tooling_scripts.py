@@ -92,8 +92,11 @@ def _generate_markdown_table(models_list):
         targets = model.get('targets', '')
         if isinstance(targets, list):
             targets = ', '.join(targets)
+        name = model.get('name', '')
+        model_dir = model.get('model_dir_path')
+        name_cell = f"[{name}]({model_dir})" if model_dir else name
         row = [
-            model.get('name', ''),
+            name_cell,
             str(model.get('algorithm', '')).split('(')[0],
             targets,
             model.get('queryset', ''),

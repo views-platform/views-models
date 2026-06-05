@@ -41,6 +41,7 @@ def extract_models(model_class):
     """
     
     model_dict = {}
+    model_dict['model_dir_path'] = Path(model_class.model_dir)
     config_meta = os.path.join(model_class.configs, 'config_meta.py')
     config_modelset = os.path.join(model_class.configs, 'config_modelset.py')
     config_deployment = os.path.join(model_class.configs, 'config_deployment.py')
@@ -84,20 +85,21 @@ def extract_models(model_class):
 
 
 
-def create_link(marker, filepath: Path):
+def create_link(marker, filepath: Path, prefix="- "):
     """
-    Generates a markdown-formatted link to a specific file in the repository's main branch. It creates the link by merging the path of the repository and the relative_path created from filepath.
+    Generates a markdown-formatted link to a specific file or directory in the repository's main branch.
 
     Parameters:
     marker: a marker that will be displayed as the clickable text in the markdown link
-    filepath: absolute path of the file
+    filepath: absolute path of the file or directory
+    prefix: string prepended to the link (default "- " for list items, use "" for table cells)
 
     Returns:
-    str: A markdown link in the format `- [marker](GITHUB_URL/relative_filepath)`
+    str: A markdown link in the format `{prefix}[marker](GITHUB_URL/relative_filepath)`
     """
     relative_path = filepath.relative_to(ModelPathManager.get_root())
-    link_template = '- [{marker}]({url}{file})'
-    return link_template.format(marker=marker, url=GITHUB_URL, file=relative_path)
+    link_template = '{prefix}[{marker}]({url}{file})'
+    return link_template.format(prefix=prefix, marker=marker, url=GITHUB_URL, file=relative_path)
 
 
 
@@ -124,8 +126,12 @@ def generate_markdown_table(models_list):
         if isinstance(targets, list):
             targets = ', '.join(targets)
 
+        name = model.get('name', '')
+        model_dir = model.get('model_dir_path')
+        name_cell = create_link(name, model_dir, prefix="") if model_dir else name
+
         row = [
-            model.get('name', ''),
+            name_cell,
             str(model.get('algorithm', '')).split('(')[0],
             targets,
             model.get('queryset', ''),
