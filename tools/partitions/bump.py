@@ -38,6 +38,7 @@ from tools.partitions.domain import (
     month_id_to_date,
 )
 from tools.partitions.fileops import (
+    discover_entity_dirs,
     discover_partition_files,
     extract_values,
     rewrite_values,
@@ -180,9 +181,21 @@ def main():
     new_flat = new.to_flat_dict()
     current_flat = current.to_flat_dict()
 
-    # --- Discover files ---
+    # --- Coverage check ---
+    entity_dirs = discover_entity_dirs(REPO_ROOT)
     files = discover_partition_files(REPO_ROOT)
-    print(f"\n=== Discovered {len(files)} config_partitions.py files ===")
+    partition_parents = {f.parent.parent for f in files}
+    missing = [d for d in entity_dirs if d not in partition_parents]
+
+    if missing:
+        print(f"\n=== WARNING: Partition coverage: {len(files)}/{len(entity_dirs) + len(missing)} entities ===")
+        for d in missing:
+            print(f"  MISSING: {d.relative_to(REPO_ROOT)} — has main.py but no config_partitions.py")
+        if not dry_run:
+            print("\nERROR: Cannot bump with missing partition files. Add them first.")
+            sys.exit(1)
+    else:
+        print(f"\n=== Partition coverage: {len(entity_dirs)}/{len(entity_dirs)} entities ===")
 
     # --- Pre-flight check ---
     print("\n--- Pre-flight: all files must match current canonical ---")

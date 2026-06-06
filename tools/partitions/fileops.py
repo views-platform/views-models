@@ -13,7 +13,46 @@ OVERRIDE_MARKER = "# PARTITION_OVERRIDE:"
 
 _SEARCH_SUBDIRS = ["models", "ensembles", "extractors", "postprocessors"]
 
+_FIXTURE_NAMES = {
+    "fake_model", "test_model", "test_ensemble",
+    "diagonal_dream", "horizontal_dream", "lucid_dream",
+    "vertical_dream", "vivid_dream", "waking_dream",
+    "synthetic_chant", "synthetic_choir", "synthetic_chorus",
+}
+
 _Q = r"""[\"']"""
+
+
+def discover_entity_dirs(repo_root: Path) -> list[Path]:
+    """Find all real entity directories, excluding fixtures.
+
+    Models and ensembles require main.py (functional entities).
+    Extractors and postprocessors require configs/config_partitions.py.
+    """
+    dirs = []
+    for subdir in ("models", "ensembles"):
+        base = repo_root / subdir
+        if not base.exists():
+            continue
+        for d in sorted(base.iterdir()):
+            if (
+                d.is_dir()
+                and d.name not in _FIXTURE_NAMES
+                and (d / "main.py").exists()
+            ):
+                dirs.append(d)
+    for subdir in ("extractors", "postprocessors"):
+        base = repo_root / subdir
+        if not base.exists():
+            continue
+        for d in sorted(base.iterdir()):
+            if (
+                d.is_dir()
+                and d.name not in _FIXTURE_NAMES
+                and (d / "configs" / "config_partitions.py").exists()
+            ):
+                dirs.append(d)
+    return dirs
 
 
 def discover_partition_files(repo_root: Path) -> list[Path]:

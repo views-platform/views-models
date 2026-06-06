@@ -15,7 +15,12 @@ from tools.partitions.domain import (
     max_val_test_end,
     month_id_to_date,
 )
-from tools.partitions.fileops import extract_values, rewrite_values
+from tools.partitions.fileops import (
+    discover_entity_dirs,
+    discover_partition_files,
+    extract_values,
+    rewrite_values,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -193,6 +198,47 @@ def generate(steps: int = 36) -> dict:
                 f"Failed to parse {f.relative_to(REPO_ROOT)}"
             )
             assert result["calibration_train"] == (121, 444)
+
+
+class TestDiscoverEntityDirs:
+    def test_finds_models_with_main_py(self, tmp_path):
+        models = tmp_path / "models"
+        (models / "real_model" / "configs").mkdir(parents=True)
+        (models / "real_model" / "main.py").touch()
+        (models / "scaffold_only" / "configs").mkdir(parents=True)
+        result = discover_entity_dirs(tmp_path)
+        names = [d.name for d in result]
+        assert "real_model" in names
+        assert "scaffold_only" not in names
+
+    def test_excludes_fixtures(self, tmp_path):
+        models = tmp_path / "models"
+        (models / "fake_model").mkdir(parents=True)
+        (models / "fake_model" / "main.py").touch()
+        (models / "test_model").mkdir(parents=True)
+        (models / "test_model" / "main.py").touch()
+        result = discover_entity_dirs(tmp_path)
+        names = [d.name for d in result]
+        assert "fake_model" not in names
+        assert "test_model" not in names
+
+    def test_includes_extractors_and_postprocessors(self, tmp_path):
+        ext = tmp_path / "extractors" / "my_extractor" / "configs"
+        ext.mkdir(parents=True)
+        (ext / "config_partitions.py").touch()
+        result = discover_entity_dirs(tmp_path)
+        names = [d.name for d in result]
+        assert "my_extractor" in names
+
+    def test_coverage_matches_partition_files(self):
+        """Every real entity in the repo should have a partition file."""
+        entities = discover_entity_dirs(REPO_ROOT)
+        partition_files = discover_partition_files(REPO_ROOT)
+        partition_parents = {f.parent.parent for f in partition_files}
+        missing = [d for d in entities if d not in partition_parents]
+        assert len(missing) == 0, (
+            f"Entities missing partition files: {[d.name for d in missing]}"
+        )
 
 
 class TestRewriteRoundTrip:
