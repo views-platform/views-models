@@ -183,19 +183,38 @@ def main():
 
     # --- Coverage check ---
     entity_dirs = discover_entity_dirs(REPO_ROOT)
+    entity_set = set(entity_dirs)
     files = discover_partition_files(REPO_ROOT)
     partition_parents = {f.parent.parent for f in files}
     missing = [d for d in entity_dirs if d not in partition_parents]
 
+    entity_files = [f for f in files if f.parent.parent in entity_set]
+    fixture_files = [f for f in files if f.parent.parent not in entity_set]
+
+    print("\n=== Partition inventory ===")
     if missing:
-        print(f"\n=== WARNING: Partition coverage: {len(files)}/{len(entity_dirs) + len(missing)} entities ===")
+        print(
+            f"  WARNING: {len(entity_dirs) - len(missing)}/{len(entity_dirs)} "
+            f"production models have partition configs"
+        )
         for d in missing:
-            print(f"  MISSING: {d.relative_to(REPO_ROOT)} — has main.py but no config_partitions.py")
+            print(
+                f"    MISSING: {d.relative_to(REPO_ROOT)} "
+                f"— has main.py but no config_partitions.py"
+            )
         if not dry_run:
-            print("\nERROR: Cannot bump with missing partition files. Add them first.")
+            print(
+                "\nERROR: Cannot bump with missing partition files. "
+                "Add them first."
+            )
             sys.exit(1)
     else:
-        print(f"\n=== Partition coverage: {len(entity_dirs)}/{len(entity_dirs)} entities ===")
+        print(
+            f"  {len(entity_files)}/{len(entity_dirs)} "
+            f"production models — all have partition configs"
+        )
+    print(f"  {len(fixture_files)} test fixtures")
+    print(f"  {len(files)} total partition files")
 
     # --- Pre-flight check ---
     print("\n--- Pre-flight: all files must match current canonical ---")
