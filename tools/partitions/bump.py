@@ -231,6 +231,8 @@ def main():
         )
         for f in override_files:
             print(f"    {f.parent.parent.relative_to(REPO_ROOT)}")
+    else:
+        print("  0 research overrides")
     print(f"  {len(fixture_files)} test fixtures")
     print(f"  {len(files)} total partition files")
 
