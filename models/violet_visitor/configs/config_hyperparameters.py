@@ -97,7 +97,7 @@ def get_hp_config():
         # ============================================================
         'ss_schedule': 'linear',
         'ss_warmup_lessons': 15,
-        'ss_epsilon_max': 0.25,
+        'ss_epsilon_max': 1.0,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)

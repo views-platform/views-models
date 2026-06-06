@@ -40,7 +40,6 @@ from tools.partitions.domain import (
 from tools.partitions.fileops import (
     discover_partition_files,
     extract_values,
-    has_override,
     rewrite_values,
     verify_file,
     write_atomic,
@@ -188,19 +187,12 @@ def main():
     # --- Pre-flight check ---
     print("\n--- Pre-flight: all files must match current canonical ---")
     preflight_failures = []
-    override_files = []
     target_files = []
 
     for path in files:
         rel = path.relative_to(REPO_ROOT)
-        source = path.read_text()
 
-        if has_override(source):
-            override_files.append(path)
-            print(f"  OVERRIDE (will skip): {rel}")
-            continue
-
-        parsed = extract_values(source)
+        parsed = extract_values(path.read_text())
         if parsed is None:
             preflight_failures.append((path, "could not parse partition values"))
             print(f"  PARSE ERROR: {rel}")
@@ -229,12 +221,10 @@ def main():
         sys.exit(1)
 
     print(f"\n  {len(target_files)} files to update")
-    print(f"  {len(override_files)} files with PARTITION_OVERRIDE (skipped)")
 
     if dry_run:
         print("\n=== DRY RUN — no files modified ===")
         print(f"Would update {len(target_files)} files.")
-        print(f"Would skip {len(override_files)} override files.")
         print("\nRun with --execute to apply.")
         sys.exit(0)
 
@@ -274,33 +264,6 @@ def main():
                 print(f"    {e}")
         else:
             print(f"  Verified: {rel}")
-
-    # --- Override staleness check ---
-    stale_overrides = []
-    if bump > 0 and override_files:
-        print("\n--- Override files: stale partition warning ---")
-        for path in override_files:
-            rel = path.relative_to(REPO_ROOT)
-            parsed = extract_values(path.read_text())
-            if parsed is None:
-                continue
-            stale_keys = []
-            for key, old_val in current_flat.items():
-                if parsed.get(key) == old_val and new_flat[key] != old_val:
-                    stale_keys.append(key)
-            if stale_keys:
-                stale_overrides.append(str(rel))
-                print(
-                    f"  STALE: {rel} — still uses pre-bump values. "
-                    f"Manual update required."
-                )
-        if stale_overrides:
-            print(
-                f"\n  WARNING: {len(stale_overrides)} override file(s) use "
-                f"old partition values and need manual review."
-            )
-        else:
-            print("  All override files are up to date.")
 
     if verify_failures:
         print(f"\nFATAL: {len(verify_failures)} verification failure(s).")
@@ -349,20 +312,10 @@ def main():
             "verified": True,
         })
 
-    for path in override_files:
-        rel = path.relative_to(REPO_ROOT)
-        lock_entries.append({
-            "event": "file_skipped_override",
-            "file": str(rel),
-            "stale": str(rel) in stale_overrides,
-        })
-
     lock_entries.append({
         "event": "bump_completed",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "files_updated": len(updated),
-        "files_skipped_override": len(override_files),
-        "stale_overrides": len(stale_overrides),
         "verification_failures": 0,
     })
 
@@ -374,7 +327,6 @@ def main():
     # --- Summary ---
     print("\n=== BUMP COMPLETE ===")
     print(f"  Files updated:            {len(updated)}")
-    print(f"  Files skipped (override): {len(override_files)}")
     print("  Verification failures:    0")
     print(f"  Lockfile:                 {lock_path.relative_to(REPO_ROOT)}")
     print(f"  Git commit:               {git.get('git_commit', 'unknown')[:12]}")
