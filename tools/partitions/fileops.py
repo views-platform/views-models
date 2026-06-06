@@ -85,17 +85,27 @@ def has_partition_override(source: str) -> bool:
     return match is not None and match.group(1) == "True"
 
 
+def _strip_comments(source: str) -> str:
+    """Remove comment-only lines from Python source."""
+    return "\n".join(
+        line for line in source.splitlines()
+        if not line.lstrip().startswith("#")
+    )
+
+
 def extract_values(source: str) -> dict[str, tuple[int, int]] | None:
     """Extract calibration/validation train/test tuples from source text.
 
     Accepts both single-quoted and double-quoted Python dict keys.
+    Ignores comments to avoid matching values in documentation.
     Returns None if the expected structure is not found.
     """
+    clean = _strip_comments(source)
     result = {}
     for section in ("calibration", "validation"):
         section_match = re.search(
             rf"{_Q}{section}{_Q}:\s*\{{(.*?)\}}",
-            source,
+            clean,
             re.DOTALL,
         )
         if not section_match:
@@ -110,11 +120,20 @@ def extract_values(source: str) -> dict[str, tuple[int, int]] | None:
 
 
 def rewrite_values(source: str, new_values: dict[str, tuple[int, int]]) -> str:
-    """Replace calibration/validation tuples in source. Never touches forecasting."""
-    new_source = source
+    """Replace calibration/validation tuples in source. Never touches forecasting.
+
+    Anchors to the ``return {`` statement to avoid matching values
+    that appear in comments or docstrings.
+    """
+    return_pos = source.find("return {")
+    if return_pos == -1:
+        raise ValueError("Could not find 'return {' in source")
+    prefix = source[:return_pos]
+    body = source[return_pos:]
+    new_body = body
     for section in ("calibration", "validation"):
         section_pattern = rf"({_Q}{section}{_Q}:\s*\{{)(.*?)(\}})"
-        section_match = re.search(section_pattern, new_source, re.DOTALL)
+        section_match = re.search(section_pattern, new_body, re.DOTALL)
         if not section_match:
             raise ValueError(f"Could not find '{section}' section in source")
         block = section_match.group(2)
@@ -125,12 +144,12 @@ def rewrite_values(source: str, new_values: dict[str, tuple[int, int]]) -> str:
             new_block = re.sub(
                 key_pattern, rf"\g<1>{start}, {end}\2", new_block
             )
-        new_source = (
-            new_source[: section_match.start(2)]
+        new_body = (
+            new_body[: section_match.start(2)]
             + new_block
-            + new_source[section_match.end(2) :]
+            + new_body[section_match.end(2) :]
         )
-    return new_source
+    return prefix + new_body
 
 
 def write_atomic(path: Path, content: str) -> None:
@@ -141,7 +160,11 @@ def write_atomic(path: Path, content: str) -> None:
     ) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
-    os.replace(tmp_path, str(path))
+    try:
+        os.replace(tmp_path, str(path))
+    except OSError:
+        os.unlink(tmp_path)
+        raise
 
 
 def verify_file(path: Path, expected: dict[str, tuple[int, int]]) -> list[str]:

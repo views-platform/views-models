@@ -53,8 +53,16 @@ LOCK_DIR = REPO_ROOT / "meta"
 
 
 def _load_canonical() -> dict:
-    with open(PARTITIONS_FILE) as f:
-        return json.load(f)
+    try:
+        with open(PARTITIONS_FILE) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"ERROR: {PARTITIONS_FILE} not found.")
+        print("This file is the source of truth for partition boundaries.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: {PARTITIONS_FILE} contains invalid JSON: {e}")
+        sys.exit(1)
 
 
 def _save_canonical(canonical: dict, boundaries: PartitionBoundaries) -> None:
@@ -139,7 +147,12 @@ def main():
 
     # --- Load and validate current canonical ---
     canonical = _load_canonical()
-    current = PartitionBoundaries.from_json(canonical)
+    try:
+        current = PartitionBoundaries.from_json(canonical)
+    except (KeyError, TypeError) as e:
+        print(f"ERROR: {PARTITIONS_FILE} has invalid structure: {e}")
+        print("Expected keys: calibration.train, calibration.test, validation.train, validation.test")
+        sys.exit(1)
 
     print("=== Current partition values ===")
     _print_boundaries(current)
