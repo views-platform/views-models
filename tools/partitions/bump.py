@@ -57,12 +57,12 @@ def _load_canonical() -> dict:
 
 
 def _save_canonical(canonical: dict, boundaries: PartitionBoundaries) -> None:
-    canonical.update(boundaries.to_json_dict())
+    merged = {**canonical, **boundaries.to_json_dict()}
     dir_name = PARTITIONS_FILE.parent
     with tempfile.NamedTemporaryFile(
         mode="w", dir=dir_name, suffix=".tmp", delete=False
     ) as tmp:
-        json.dump(canonical, tmp, indent=2)
+        json.dump(merged, tmp, indent=2)
         tmp.write("\n")
         tmp_path = tmp.name
     os.replace(tmp_path, str(PARTITIONS_FILE))
@@ -96,7 +96,7 @@ def _git_state() -> dict:
     return state
 
 
-def _print_boundaries(label: str, b: PartitionBoundaries) -> None:
+def _print_boundaries(b: PartitionBoundaries) -> None:
     for name, val in [
         ("calibration train", b.cal_train),
         ("calibration test", b.cal_test),
@@ -141,7 +141,7 @@ def main():
     current = PartitionBoundaries.from_json(canonical)
 
     print("=== Current partition values ===")
-    _print_boundaries("Current", current)
+    _print_boundaries(current)
 
     pre_errors = current.validate_invariants()
     if pre_errors:
@@ -158,7 +158,7 @@ def main():
     else:
         new = current.bumped(bump)
         print(f"\n=== Bumped partition values (+{bump} month_ids) ===")
-        _print_boundaries("Bumped", new)
+        _print_boundaries(new)
 
     post_errors = new.validate_invariants()
     if post_errors:
@@ -289,7 +289,7 @@ def main():
                 if parsed.get(key) == old_val and new_flat[key] != old_val:
                     stale_keys.append(key)
             if stale_keys:
-                stale_overrides.append(rel)
+                stale_overrides.append(str(rel))
                 print(
                     f"  STALE: {rel} — still uses pre-bump values. "
                     f"Manual update required."
@@ -354,7 +354,7 @@ def main():
         lock_entries.append({
             "event": "file_skipped_override",
             "file": str(rel),
-            "stale": rel in stale_overrides,
+            "stale": str(rel) in stale_overrides,
         })
 
     lock_entries.append({
@@ -366,9 +366,8 @@ def main():
         "verification_failures": 0,
     })
 
-    with open(lock_path, "w") as f:
-        for entry in lock_entries:
-            f.write(json.dumps(entry) + "\n")
+    lock_content = "\n".join(json.dumps(entry) for entry in lock_entries) + "\n"
+    write_atomic(lock_path, lock_content)
 
     print(f"\n--- Lockfile: {lock_path.relative_to(REPO_ROOT)} ---")
 
