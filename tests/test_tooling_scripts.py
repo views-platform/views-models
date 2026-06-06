@@ -361,13 +361,16 @@ qs_test = (Queryset("test_queryset", "priogrid_month")
 
 
 # ---------------------------------------------------------------------------
-# Characterization: scripts/update_partitions.py :: update_file
+# Characterization: tools/partitions/fileops — extract, rewrite, override
 # ---------------------------------------------------------------------------
 
-import sys  # noqa: E402
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from update_partitions import update_file, OVERRIDE_MARKER  # noqa: E402
-
+from tools.partitions.fileops import (  # noqa: E402
+    extract_values,
+    has_override,
+    rewrite_values,
+    write_atomic,
+    OVERRIDE_MARKER,
+)
 
 SAMPLE_PARTITION_FILE = '''\
 from ingester3.ViewsMonth import ViewsMonth
@@ -397,51 +400,41 @@ def generate(steps: int = 36) -> dict:
     }
 '''
 
-CANONICAL = {
-    "calibration": {"train": [121, 444], "test": [445, 492]},
-    "validation": {"train": [121, 492], "test": [493, 540]},
-    "forecasting_offset": -1,
+CANONICAL_FLAT = {
+    "calibration_train": (121, 444),
+    "calibration_test": (445, 492),
+    "validation_train": (121, 492),
+    "validation_test": (493, 540),
 }
 
 
-class TestUpdatePartitionsUpdateFile:
-    def test_already_current(self, tmp_path):
-        f = tmp_path / "config_partitions.py"
-        f.write_text(SAMPLE_PARTITION_FILE)
-        assert update_file(f, CANONICAL, dry_run=False) == "already_current"
+class TestPartitionFileops:
+    def test_extract_current_values(self):
+        result = extract_values(SAMPLE_PARTITION_FILE)
+        assert result == CANONICAL_FLAT
 
-    def test_updates_stale_values(self, tmp_path):
+    def test_rewrite_stale_values(self):
         stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
         stale = stale.replace("(445, 492)", "(397, 444)")
-        f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=False) == "updated"
-        result = f.read_text()
-        assert "(121, 444)" in result
-        assert "(445, 492)" in result
-        assert "(121, 396)" not in result
+        rewritten = rewrite_values(stale, CANONICAL_FLAT)
+        assert "(121, 444)" in rewritten
+        assert "(445, 492)" in rewritten
+        assert "(121, 396)" not in rewritten
 
-    def test_dry_run_does_not_write(self, tmp_path):
-        stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
-        f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=True) == "updated"
-        assert "(121, 396)" in f.read_text()  # unchanged on disk
+    def test_rewrite_preserves_forecasting(self):
+        rewritten = rewrite_values(SAMPLE_PARTITION_FILE, CANONICAL_FLAT)
+        assert "forecasting_train_range()" in rewritten
+        assert "forecasting_test_range(steps=steps)" in rewritten
 
-    def test_skips_override(self, tmp_path):
+    def test_has_override_detects_marker(self):
         overridden = f"{OVERRIDE_MARKER} special model\n" + SAMPLE_PARTITION_FILE
-        f = tmp_path / "config_partitions.py"
-        f.write_text(overridden)
-        assert update_file(f, CANONICAL, dry_run=False) == "skipped_override"
+        assert has_override(overridden) is True
+        assert has_override(SAMPLE_PARTITION_FILE) is False
 
-    def test_updates_forecasting_offset(self, tmp_path):
-        stale = SAMPLE_PARTITION_FILE.replace("ViewsMonth.now().id - 1",
-                                              "ViewsMonth.now().id - 2")
+    def test_atomic_write(self, tmp_path):
         f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=False) == "updated"
-        assert "ViewsMonth.now().id - 1" in f.read_text()
+        write_atomic(f, SAMPLE_PARTITION_FILE)
+        assert f.read_text() == SAMPLE_PARTITION_FILE
 
-    def test_error_on_missing_file(self, tmp_path):
-        f = tmp_path / "nonexistent.py"
-        assert update_file(f, CANONICAL, dry_run=False) == "error"
+    def test_extract_returns_none_for_unparseable(self):
+        assert extract_values("not a partition file") is None

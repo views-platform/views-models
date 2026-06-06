@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-04  
+**Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 59 (55 concerns + 4 disagreements)  
-**Concerns:** Open 19 | Mitigated 12 | Resolved 20 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 60 (56 concerns + 4 disagreements)  
+**Concerns:** Open 19 | Mitigated 12 | Resolved 20 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -18,7 +18,7 @@
 | **Trigger** | A decision is made to change calibration, validation, or forecasting partition boundaries |
 | **Source** | repo-assimilation |
 | **Status** | Mitigated |
-| **Notes** | `meta/partitions.json` is now the single source of truth. `scripts/update_partitions.py` rewrites all 73 files from it. `test_config_partitions.py` reads canonical values from the same source and covers models, ensembles, extractors, and postprocessors. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations. Full resolution would require `views_pipeline_core` to support centralized partition loading. See ADR-011. |
+| **Notes** | `meta/partitions.json` is the single source of truth. `tools/partitions/bump.py` (replaces deleted `scripts/update_partitions.py`) rewrites all 100 files with invariant validation, temporal plausibility (val test end ≤ Dec previous year), post-write verification, atomic writes, and JSONL lockfile with git state. `test_config_partitions.py` enforces consistency via shared parser from `tools.partitions.fileops`. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations — see C-56 for staleness risk. **2026-06-06:** ADR-011 migration procedure still references the deleted `scripts/update_partitions.py` — must be updated to reference `python -m tools.partitions.bump`. See ADR-011. |
 
 ---
 
@@ -685,6 +685,19 @@
 | **Status** | Resolved |
 | **Location** | `tests/test_bright_starship_readiness.py:29` |
 | **Notes** | The `@pytest.mark.xfail` decorator on `TestF1_DatafactoryQueryDependency` was stale — `datafactory_query` is now installed. Removed the xfail; the test is environment-gated by the class-level `skipif(not shutil.which("conda"))`. See C-38. **Resolved 2026-06-04.** |
+
+---
+
+### C-56 — Override partition files become silently stale after annual bump
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | After an annual partition bump, the 8 PARTITION_OVERRIDE HydraNet models (blazing_meteor, bold_comet, bright_starship, heavy_freighter, heavy_strider, light_strider, shining_codex, stellar_horizon) continue using pre-bump partition values — training on less data and evaluating on a different test window than all other models |
+| **Source** | falsify: bump completeness (2026-06-06) |
+| **Status** | Open |
+| **Location** | `tools/partitions/bump.py` (skip logic), `tests/test_config_partitions.py` (pytest.skip for overrides), 8 model config files |
+| **Notes** | Override files are skipped by both the bump tool and the test suite. After a bump, their partition values are stale. The bump tool reports them as "skipped" but doesn't warn that they now have *pre-bump* values. `TestPartitionConsistency` uses `pytest.skip()` — no CI signal. `TestPartitionOverrideDeclaration` detects the mismatch but only `warnings.warn()` — the test passes. The override mechanism was designed for static partitions; with annual bumping, it creates silent staleness. Fix: add a post-bump warning listing override files that need manual update. See C-01. |
 
 ---
 

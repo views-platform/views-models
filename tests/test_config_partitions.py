@@ -18,38 +18,14 @@ from tests.conftest import (
     ALL_PARTITION_DIRS, ALL_PARTITION_NAMES,
     load_canonical_partitions,
 )
+from tools.partitions.fileops import extract_values as _extract_partition_tuples
+from tools.partitions.fileops import has_override as _has_override
 
 pytestmark = pytest.mark.green
 
 CANONICAL = load_canonical_partitions()
 
 OVERRIDE_MARKER = "# PARTITION_OVERRIDE:"
-
-
-def _extract_partition_tuples(source: str) -> dict:
-    """Extract calibration/validation train/test tuples from source code."""
-    result = {}
-    for section in ("calibration", "validation"):
-        section_match = re.search(
-            rf'"{section}":\s*\{{([^}}]+)\}}', source, re.DOTALL
-        )
-        if section_match:
-            block = section_match.group(1)
-            for key in ("train", "test"):
-                tuple_match = re.search(
-                    rf'"{key}":\s*\((\d+),\s*(\d+)\)', block
-                )
-                if tuple_match:
-                    result[f"{section}_{key}"] = (
-                        int(tuple_match.group(1)),
-                        int(tuple_match.group(2)),
-                    )
-    return result
-
-
-def _has_override(source: str) -> bool:
-    """Check if file declares a PARTITION_OVERRIDE."""
-    return OVERRIDE_MARKER in source
 
 
 def _read_partition_source(any_partition_dir):
