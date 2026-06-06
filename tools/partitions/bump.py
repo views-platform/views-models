@@ -41,6 +41,7 @@ from tools.partitions.fileops import (
     discover_entity_dirs,
     discover_partition_files,
     extract_values,
+    has_partition_override,
     rewrite_values,
     verify_file,
     write_atomic,
@@ -191,6 +192,16 @@ def main():
     entity_files = [f for f in files if f.parent.parent in entity_set]
     fixture_files = [f for f in files if f.parent.parent not in entity_set]
 
+    # --- Classify files: standard vs override vs fixture ---
+    override_files = []
+    standard_files = []
+    for f in files:
+        source = f.read_text()
+        if has_partition_override(source):
+            override_files.append(f)
+        else:
+            standard_files.append(f)
+
     print("\n=== Partition inventory ===")
     if missing:
         print(
@@ -213,15 +224,22 @@ def main():
             f"  {len(entity_files)}/{len(entity_dirs)} "
             f"production models — all have partition configs"
         )
+    if override_files:
+        print(
+            f"  {len(override_files)} research override(s) "
+            f"(custom partitions, not bumped):"
+        )
+        for f in override_files:
+            print(f"    {f.parent.parent.relative_to(REPO_ROOT)}")
     print(f"  {len(fixture_files)} test fixtures")
     print(f"  {len(files)} total partition files")
 
-    # --- Pre-flight check ---
-    print("\n--- Pre-flight: all files must match current canonical ---")
+    # --- Pre-flight check (standard files only) ---
+    print("\n--- Pre-flight: all standard files must match current canonical ---")
     preflight_failures = []
     target_files = []
 
-    for path in files:
+    for path in standard_files:
         rel = path.relative_to(REPO_ROOT)
 
         parsed = extract_values(path.read_text())
@@ -253,10 +271,14 @@ def main():
         sys.exit(1)
 
     print(f"\n  {len(target_files)} files to update")
+    if override_files:
+        print(f"  {len(override_files)} override files skipped")
 
     if dry_run:
         print("\n=== DRY RUN — no files modified ===")
         print(f"Would update {len(target_files)} files.")
+        if override_files:
+            print(f"Would skip {len(override_files)} research override(s).")
         print("\nRun with --execute to apply.")
         sys.exit(0)
 
@@ -344,10 +366,17 @@ def main():
             "verified": True,
         })
 
+    for path in override_files:
+        lock_entries.append({
+            "event": "file_skipped_research_override",
+            "file": str(path.relative_to(REPO_ROOT)),
+        })
+
     lock_entries.append({
         "event": "bump_completed",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "files_updated": len(updated),
+        "files_skipped_override": len(override_files),
         "verification_failures": 0,
     })
 
@@ -359,6 +388,8 @@ def main():
     # --- Summary ---
     print("\n=== BUMP COMPLETE ===")
     print(f"  Files updated:            {len(updated)}")
+    if override_files:
+        print(f"  Research overrides:       {len(override_files)} (not bumped)")
     print("  Verification failures:    0")
     print(f"  Lockfile:                 {lock_path.relative_to(REPO_ROOT)}")
     print(f"  Git commit:               {git.get('git_commit', 'unknown')[:12]}")

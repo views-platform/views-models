@@ -19,6 +19,7 @@ from tools.partitions.fileops import (
     discover_entity_dirs,
     discover_partition_files,
     extract_values,
+    has_partition_override,
     rewrite_values,
 )
 
@@ -238,6 +239,35 @@ class TestDiscoverEntityDirs:
         missing = [d for d in entities if d not in partition_parents]
         assert len(missing) == 0, (
             f"Entities missing partition files: {[d.name for d in missing]}"
+        )
+
+
+class TestPartitionOverrideFlag:
+    def test_detects_override_true(self):
+        source = "PARTITION_OVERRIDE = True\n\ndef generate(): pass"
+        assert has_partition_override(source) is True
+
+    def test_ignores_override_false(self):
+        source = "PARTITION_OVERRIDE = False\n\ndef generate(): pass"
+        assert has_partition_override(source) is False
+
+    def test_no_flag_means_no_override(self):
+        source = "def generate(): pass"
+        assert has_partition_override(source) is False
+
+    def test_comment_does_not_count(self):
+        source = "# PARTITION_OVERRIDE = True\n\ndef generate(): pass"
+        assert has_partition_override(source) is False
+
+    def test_real_repo_has_no_overrides_currently(self):
+        """No production model currently uses PARTITION_OVERRIDE = True."""
+        files = discover_partition_files(REPO_ROOT)
+        overrides = []
+        for f in files:
+            if has_partition_override(f.read_text()):
+                overrides.append(f.relative_to(REPO_ROOT))
+        assert len(overrides) == 0, (
+            f"Unexpected override files: {overrides}"
         )
 
 

@@ -71,6 +71,20 @@ def has_override(source: str) -> bool:
     return OVERRIDE_MARKER in source
 
 
+def has_partition_override(source: str) -> bool:
+    """Check if a config_partitions.py declares PARTITION_OVERRIDE = True.
+
+    This is a programmatic flag — not a comment. Only a real assignment
+    of True counts. False, commented-out, or absent means no override.
+    """
+    match = re.search(
+        r"^PARTITION_OVERRIDE\s*=\s*(True|False)",
+        source,
+        re.MULTILINE,
+    )
+    return match is not None and match.group(1) == "True"
+
+
 def extract_values(source: str) -> dict[str, tuple[int, int]] | None:
     """Extract calibration/validation train/test tuples from source text.
 
