@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-04  
+**Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 59 (55 concerns + 4 disagreements)  
-**Concerns:** Open 19 | Mitigated 12 | Resolved 20 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 63 (59 concerns + 4 disagreements)  
+**Concerns:** Open 21 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -18,7 +18,7 @@
 | **Trigger** | A decision is made to change calibration, validation, or forecasting partition boundaries |
 | **Source** | repo-assimilation |
 | **Status** | Mitigated |
-| **Notes** | `meta/partitions.json` is now the single source of truth. `scripts/update_partitions.py` rewrites all 73 files from it. `test_config_partitions.py` reads canonical values from the same source and covers models, ensembles, extractors, and postprocessors. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations. Full resolution would require `views_pipeline_core` to support centralized partition loading. See ADR-011. |
+| **Notes** | `meta/partitions.json` is the single source of truth. `tools/partitions/bump.py` (replaces deleted `scripts/update_partitions.py`) rewrites all 100 files with invariant validation, temporal plausibility (val test end ≤ Dec previous year), post-write verification, atomic writes, and JSONL lockfile with git state. `test_config_partitions.py` enforces consistency via shared parser from `tools.partitions.fileops`. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations — see C-56 for staleness risk. **2026-06-06:** ADR-011 migration procedure still references the deleted `scripts/update_partitions.py` — must be updated to reference `python -m tools.partitions.bump`. See ADR-011. |
 
 ---
 
@@ -685,6 +685,57 @@
 | **Status** | Resolved |
 | **Location** | `tests/test_bright_starship_readiness.py:29` |
 | **Notes** | The `@pytest.mark.xfail` decorator on `TestF1_DatafactoryQueryDependency` was stale — `datafactory_query` is now installed. Removed the xfail; the test is environment-gated by the class-level `skipif(not shutil.which("conda"))`. See C-38. **Resolved 2026-06-04.** |
+
+---
+
+### C-56 — Override partition files become silently stale after annual bump
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | After an annual partition bump, the 8 PARTITION_OVERRIDE HydraNet models continue using pre-bump partition values |
+| **Source** | falsify: bump completeness (2026-06-06) |
+| **Status** | Resolved |
+| **Notes** | **Resolved 2026-06-06:** Root cause was the ingester3 dependency — all 8 override files existed solely to avoid importing `ViewsMonth`. Removed ingester3 from all 83 files, replaced with inline `_current_month_id()`. Removed all `# PARTITION_OVERRIDE:` comment markers. Replaced with a programmatic `PARTITION_OVERRIDE = True` flag for legitimate research overrides (currently unused). The bump tool now updates all 100 files uniformly. See C-01. |
+
+---
+
+### C-57 — Regex parser matches comments instead of real dict in config_partitions.py
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer adds a comment like `# Old values: "calibration": {"train": (100, 200), "test": (201, 250)}` to a config_partitions.py file; the next bump silently writes new values into the comment and leaves the actual partition dict unchanged |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Open |
+| **Location** | `tools/partitions/fileops.py:extract_values()` and `rewrite_values()` — regex `"calibration":\s*\{(.*?)\}` matches first occurrence |
+| **Notes** | The regex matches the first occurrence of `"calibration": {` in the file. If that's in a comment, docstring, or dead code, `extract_values` reads wrong values and `rewrite_values` modifies the wrong location. No current file triggers this, but a single comment addition would cause silent corruption. **Tier 2 justification:** silent data corruption — the tool reports success while leaving the actual partition values unchanged. |
+
+---
+
+### C-58 — `_load_canonical()` has no error handling for missing/corrupt partitions.json
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `meta/partitions.json` is deleted, moved, or edited with invalid JSON; the bump tool prints a raw Python traceback instead of a helpful error message |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Open |
+| **Location** | `tools/partitions/bump.py:_load_canonical()` |
+| **Notes** | The function is two lines: `open()` + `json.load()` with no try/except. Missing file → `FileNotFoundError`. Corrupt JSON → `JSONDecodeError`. Missing keys → `KeyError` from `PartitionBoundaries.from_json()`. For annual critical infrastructure run by a maintainer, a raw traceback is a robustness failure. |
+
+---
+
+### C-59 — `write_atomic()` does not clean up temp files on `os.replace()` failure
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `os.replace()` fails during a bump (permission error, disk full) after the temp file has been written; orphaned `.tmp` files remain in config directories |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Open |
+| **Location** | `tools/partitions/fileops.py:write_atomic()` |
+| **Notes** | Creates `NamedTemporaryFile(delete=False)` and calls `os.replace()`. No try/finally to clean up the temp file if replace raises. A failed run touching 100 files could leave up to 100 orphaned `.tmp` files. Low probability in practice (os.replace rarely fails on same-filesystem renames) but easy to fix with try/except around os.replace. |
 
 ---
 

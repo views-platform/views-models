@@ -323,12 +323,12 @@ class TestDatafactoryTrioPartitions:
         assert "_current_month_id" in text
 
     @pytest.mark.parametrize("model_name", DATAFACTORY_TRIO)
-    def test_partition_override_declared(self, model_name):
+    def test_no_ingester3_dependency(self, model_name):
         path = MODELS_DIR / model_name / "configs" / "config_partitions.py"
         if not path.exists():
             pytest.skip(f"{model_name} not yet created")
         text = path.read_text()
-        assert "PARTITION_OVERRIDE" in text
+        assert "ingester3" not in text
 
     def test_calibration_validation_boundaries_identical(self):
         partitions = {}

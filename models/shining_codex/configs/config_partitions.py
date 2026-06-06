@@ -11,7 +11,6 @@ convention, not model-specific.
 Month IDs use VIEWS encoding: month_id = (year - 1980) * 12 + month.
 """
 
-# PARTITION_OVERRIDE: uses _current_month_id() to avoid ingester3 dependency (datafactory consumer path)
 from datetime import date
 
 
