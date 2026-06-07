@@ -23,6 +23,8 @@ from tools.partitions.fileops import (
     rewrite_values,
 )
 
+
+pytestmark = pytest.mark.green
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 CURRENT = PartitionBoundaries(

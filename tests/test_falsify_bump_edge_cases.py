@@ -8,7 +8,10 @@ Key findings:
 - write_atomic leaves orphaned temp files on os.replace failure
 """
 from pathlib import Path
+import pytest
 
+
+pytestmark = pytest.mark.green
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
