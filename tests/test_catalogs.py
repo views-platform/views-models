@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    from create_catalogs import (
+    from tools.catalogs.create_catalogs import (
         replace_table_in_section,
         generate_model_table,
         generate_ensemble_table,
@@ -30,7 +30,7 @@ _skip_no_pipeline = pytest.mark.skipif(
 class TestNoExecUsage:
     def test_create_catalogs_does_not_use_exec(self):
         """create_catalogs.py should use importlib, not raw exec()."""
-        source = (REPO_ROOT / "create_catalogs.py").read_text()
+        source = (REPO_ROOT / "tools" / "catalogs" / "create_catalogs.py").read_text()
         tree = ast.parse(source)
         exec_calls = [
             node for node in ast.walk(tree)
@@ -189,8 +189,33 @@ class TestCreateLink:
 
     def test_link_contains_github_url(self):
         from views_pipeline_core.managers.model import ModelPathManager
-        from create_catalogs import GITHUB_URL
+        from tools.catalogs.create_catalogs import GITHUB_URL
         root = ModelPathManager.get_root()
         test_path = root / "README.md"
         result = create_link("readme", test_path)
         assert GITHUB_URL in result
+
+
+@_skip_no_pipeline
+@pytest.mark.red
+class TestCatalogAdversarialWithPipeline:
+    """Red tests for create_catalogs.py functions that need views_pipeline_core."""
+
+    def test_create_link_empty_marker(self):
+        from views_pipeline_core.managers.model import ModelPathManager
+        root = ModelPathManager.get_root()
+        result = create_link("", root / "file.py")
+        assert "[](" in result
+
+    def test_generate_model_table_missing_all_keys(self):
+        table = generate_model_table([{}])
+        lines = [ln for ln in table.strip().split("\n") if ln.strip()]
+        assert len(lines) == 3
+
+    def test_generate_model_table_targets_is_none(self):
+        table = generate_model_table([{"name": "x", "targets": None}])
+        assert "x" in table
+
+    def test_generate_ensemble_table_missing_aggregation(self):
+        table = generate_ensemble_table([{"name": "e"}])
+        assert "e" in table

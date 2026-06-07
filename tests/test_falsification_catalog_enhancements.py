@@ -47,7 +47,7 @@ class TestSyntheticEntriesInCatalog:
         """
         import sys
         sys.path.insert(0, str(REPO_ROOT))
-        from create_catalogs import _FIXTURE_ENTRIES
+        from tools.catalogs.create_catalogs import _FIXTURE_ENTRIES
 
         synthetic_names = {
             "diagonal_dream", "horizontal_dream", "lucid_dream",

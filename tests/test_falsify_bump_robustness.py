@@ -10,7 +10,10 @@ and quote-resilient regex in fileops.extract_values().
 """
 from tools.partitions.domain import PartitionBoundaries
 from tools.partitions.fileops import extract_values
+import pytest
 
+
+pytestmark = pytest.mark.green
 CURRENT = PartitionBoundaries(
     cal_train=(121, 444),
     cal_test=(445, 492),

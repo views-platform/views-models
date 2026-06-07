@@ -1,4 +1,4 @@
-from build_model_scaffold import ModelScaffoldBuilder
+from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
 import logging
 from views_pipeline_core.configs.pipeline import PipelineConfig
 from views_pipeline_core.templates.ensemble import (

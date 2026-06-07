@@ -11,7 +11,7 @@
 
 > `EnsembleScaffoldBuilder` creates and validates the directory structure and scripts for a new ensemble model. It inherits from `ModelScaffoldBuilder` and overrides script generation to use ensemble-specific templates.
 
-Located in: `build_ensemble_scaffold.py`
+Located in: `tools/scaffold/build_ensemble_scaffold.py`
 
 ---
 

@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 63 (59 concerns + 4 disagreements)  
-**Concerns:** Open 21 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
+**Total entries:** 69 (65 concerns + 4 disagreements)  
+**Concerns:** Open 27 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -736,6 +736,84 @@
 | **Status** | Open |
 | **Location** | `tools/partitions/fileops.py:write_atomic()` |
 | **Notes** | Creates `NamedTemporaryFile(delete=False)` and calls `os.replace()`. No try/finally to clean up the temp file if replace raises. A failed run touching 100 files could leave up to 100 orphaned `.tmp` files. Low probability in practice (os.replace rarely fails on same-filesystem renames) but easy to fix with try/except around os.replace. |
+
+---
+
+### C-60 — Repo root and scripts/ mix operational tooling, scaffolding, and investigations with no structural separation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new contributor tries to understand the tooling layout and must read 8+ filenames at the root and 14+ files in scripts/ to distinguish operational tools from scaffold builders from investigation scripts |
+| **Source** | falsify: tools organization (2026-06-07) |
+| **Status** | Open |
+| **Location** | Repo root (6 Python scripts, 2 shell scripts), `scripts/` (3 Python, 11 shell, 1 log file), `tools/` (partitions only) |
+| **Notes** | Violates CCP (catalog scripts change together but aren't grouped), CRP (4 unrelated responsibilities in one directory), and screaming architecture (flat layout requires reading every filename). Fix: organize into `tools/catalogs/`, `tools/scaffold/`, `tools/partitions/`; move investigation scripts to `investigations/`; move root shell scripts to appropriate locations. See ADR-011, C-01. |
+
+---
+
+### C-61 — Fixture exclusion lists diverge across 3 locations
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new fixture model is added to `_FIXTURE_ENTRIES` in `create_catalogs.py` but not to `_FIXTURE_NAMES` in `fileops.py` or `_FIXTURE_MODELS` in `conftest.py` — causing inconsistent catalog output, bump coverage, and test discovery |
+| **Source** | repo-assimilation (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/partitions/fileops.py:_FIXTURE_NAMES` (12 entries), `tools/catalogs/create_catalogs.py:_FIXTURE_ENTRIES` (12 entries), `tests/conftest.py:_FIXTURE_MODELS` (1 entry) |
+| **Notes** | Three independent fixture exclusion sets. `_FIXTURE_MODELS` in conftest has only `fake_model` while the other two have 12 entries. The sets happen to not conflict currently because conftest uses `main.py` presence (not name) to discover models, so the extra 11 fixture names in the other lists are redundant there. But the naming inconsistency (`_FIXTURE_MODELS` vs `_FIXTURE_NAMES` vs `_FIXTURE_ENTRIES`) and the different cardinalities create confusion. Should be unified into a single source of truth. |
+
+---
+
+### C-62 — No CIC for tools/partitions/ (partition bump tool)
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer modifies `tools/partitions/domain.py` or `fileops.py` behavioral guarantees without a contract to verify against |
+| **Source** | repo-assimilation (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/partitions/` (3 modules, 37 tests, 3 falsification audits, but no CIC) |
+| **Notes** | The partition tooling is the most thoroughly tested and audited component in the repo (37 unit tests, 3 falsification rounds, expert code review). But it has no Class Intent Contract documenting its guarantees, failure modes, or boundaries. The CIC sync check workflow (`cic_sync_check.yml`) cannot flag changes to this tool. Low urgency since the test coverage is strong, but the contract gap creates a documentation asymmetry with the other tools (all have CICs). |
+
+---
+
+### C-63 — Partition bump test files missing ADR-005 category markers
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Test category analysis (red/beige/green distribution) reports inaccurate numbers because 4 test files (test_bump_partitions.py, test_falsify_bump_completeness.py, test_falsify_bump_edge_cases.py, test_falsify_bump_robustness.py) have no ADR-005 markers |
+| **Source** | test-review (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_falsify_bump_*.py` (3 files) |
+| **Notes** | ADR-005 defines the red/beige/green taxonomy for test classification. The 4 partition bump test files (37 tests total) were written without category markers. Most are green (functional correctness) with some beige (structural compliance). The falsification verification tests could be marked green (they verify fixes). Low priority but creates a documentation gap in test distribution reporting. |
+
+---
+
+### C-64 — Zero red (adversarial) tests for all 9 tool modules
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer introduces a bug in tools/partitions/ or tools/catalogs/ that only manifests with adversarial input (corrupt file, permission error, concurrent execution); no red test catches it |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_catalogs.py`, `tests/test_scaffold_builders.py`, `tests/test_tooling_scripts.py` |
+| **Notes** | **Resolved 2026-06-07:** 30 red tests now cover 8 of 9 tool modules. Partition tooling: 9 red (garbage input, partial structure, negative month_ids, missing return, missing section, negative bump, missing JSON key, non-iterable value, permission error cleanup). Scaffold: 3 red (github failure, without_directory_raises x2). Catalogs: 11 red (malformed markers, empty content, missing keys, non-list targets, empty model list, adversarial regex input). `build_package_scaffold.py` cannot be tested without `views_pipeline_core` — accepted gap. Also found: `_format_targets` crashes on non-string non-list input (TypeError) — characterized as red test. |
+
+---
+
+### C-65 — generate_features_catalog.py and update_readme.py have no core-functionality tests
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer modifies the main loop of `generate_features_catalog.py` or `update_readme.py` (model discovery, config loading, output generation); no test catches a regression in core behavior |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py` (115 lines, 4 regex characterization tests only), `tools/catalogs/update_readme.py` (276 lines, 6 helper characterization tests only) |
+| **Notes** | Both scripts have characterization tests for isolated helper functions (regex patterns, tree formatting) but zero tests for their main functionality: discovering models, loading configs via importlib, generating output, writing files. The helpers are well-tested; the orchestration is untested. See #102 for generate_features_catalog.py. |
 
 ---
 

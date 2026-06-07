@@ -4,6 +4,7 @@ Handles discovery, parsing, rewriting, and verification of partition
 config files. This is the single place that knows the file format —
 shared by the bump CLI and the test suite.
 """
+import json
 import os
 import re
 import tempfile
@@ -13,12 +14,9 @@ OVERRIDE_MARKER = "# PARTITION_OVERRIDE:"
 
 _SEARCH_SUBDIRS = ["models", "ensembles", "extractors", "postprocessors"]
 
-_FIXTURE_NAMES = {
-    "fake_model", "test_model", "test_ensemble",
-    "diagonal_dream", "horizontal_dream", "lucid_dream",
-    "vertical_dream", "vivid_dream", "waking_dream",
-    "synthetic_chant", "synthetic_choir", "synthetic_chorus",
-}
+_FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtures.json"
+with open(_FIXTURES_PATH) as _f:
+    _FIXTURE_NAMES: set[str] = set(json.load(_f))
 
 _Q = r"""[\"']"""
 
