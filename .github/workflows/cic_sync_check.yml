@@ -22,6 +22,9 @@ jobs:
           CIC_MAP["tools/scaffold/build_model_scaffold.py"]="docs/CICs/ModelScaffoldBuilder.md"
           CIC_MAP["tools/scaffold/build_ensemble_scaffold.py"]="docs/CICs/EnsembleScaffoldBuilder.md"
           CIC_MAP["tools/scaffold/build_package_scaffold.py"]="docs/CICs/PackageScaffoldBuilder.md"
+          CIC_MAP["tools/partitions/domain.py"]="docs/CICs/PartitionBoundaries.md"
+          CIC_MAP["tools/partitions/fileops.py"]="docs/CICs/PartitionFileOps.md"
+          CIC_MAP["tools/partitions/bump.py"]="docs/CICs/PartitionBump.md"
           CIC_MAP["run_integration_tests.sh"]="docs/CICs/IntegrationTestRunner.md"
 
           CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD)
