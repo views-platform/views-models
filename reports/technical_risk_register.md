@@ -798,9 +798,9 @@
 | **Tier** | 3 |
 | **Trigger** | A developer introduces a bug in tools/partitions/ or tools/catalogs/ that only manifests with adversarial input (corrupt file, permission error, concurrent execution); no red test catches it |
 | **Source** | falsify: test category completeness (2026-06-07) |
-| **Status** | Open |
-| **Location** | `tests/test_bump_partitions.py`, `tests/test_catalogs.py`, `tests/test_scaffold_builders.py`, `tests/test_tooling_scripts.py` — all marked green or beige, zero red |
-| **Notes** | 16 red tests exist in the suite but none test tools/ modules. All tool tests are green (functional correctness) or beige (structural compliance). Missing red tests for: corrupt config_partitions.py files, permission denied on atomic write, malformed meta/partitions.json beyond JSON errors, adversarial PARTITION_OVERRIDE values, scaffold builder with reserved/invalid names. The falsification audits caught edge cases but the resulting tests were marked green, not red. |
+| **Status** | Resolved |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_catalogs.py`, `tests/test_scaffold_builders.py`, `tests/test_tooling_scripts.py` |
+| **Notes** | **Resolved 2026-06-07:** 30 red tests now cover 8 of 9 tool modules. Partition tooling: 9 red (garbage input, partial structure, negative month_ids, missing return, missing section, negative bump, missing JSON key, non-iterable value, permission error cleanup). Scaffold: 3 red (github failure, without_directory_raises x2). Catalogs: 11 red (malformed markers, empty content, missing keys, non-list targets, empty model list, adversarial regex input). `build_package_scaffold.py` cannot be tested without `views_pipeline_core` — accepted gap. Also found: `_format_targets` crashes on non-string non-list input (TypeError) — characterized as red test. |
 
 ---
 
