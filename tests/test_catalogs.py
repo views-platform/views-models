@@ -194,3 +194,28 @@ class TestCreateLink:
         test_path = root / "README.md"
         result = create_link("readme", test_path)
         assert GITHUB_URL in result
+
+
+@_skip_no_pipeline
+@pytest.mark.red
+class TestCatalogAdversarialWithPipeline:
+    """Red tests for create_catalogs.py functions that need views_pipeline_core."""
+
+    def test_create_link_empty_marker(self):
+        from views_pipeline_core.managers.model import ModelPathManager
+        root = ModelPathManager.get_root()
+        result = create_link("", root / "file.py")
+        assert "[](" in result
+
+    def test_generate_model_table_missing_all_keys(self):
+        table = generate_model_table([{}])
+        lines = [ln for ln in table.strip().split("\n") if ln.strip()]
+        assert len(lines) == 3
+
+    def test_generate_model_table_targets_is_none(self):
+        table = generate_model_table([{"name": "x", "targets": None}])
+        assert "x" in table
+
+    def test_generate_ensemble_table_missing_aggregation(self):
+        table = generate_ensemble_table([{"name": "e"}])
+        assert "e" in table

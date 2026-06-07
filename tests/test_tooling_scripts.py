@@ -444,3 +444,97 @@ class TestPartitionFileops:
 
     def test_extract_returns_none_for_unparseable(self):
         assert extract_values("not a partition file") is None
+
+
+# ---------------------------------------------------------------------------
+# Red tests: adversarial inputs for catalog and readme tools
+# ---------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.red
+class TestCatalogAdversarialInputs:
+    """Adversarial inputs for create_catalogs.py pure functions."""
+
+    def test_replace_table_missing_both_markers(self):
+        result = _replace_table_in_section("no markers", "MISSING", "table")
+        assert "table" in result
+
+    def test_replace_table_empty_content(self):
+        result = _replace_table_in_section("", "X", "table")
+        assert "<!-- X_START -->" in result
+        assert "table" in result
+
+    def test_replace_table_markers_adjacent(self):
+        content = "<!-- A_START --><!-- A_END -->"
+        result = _replace_table_in_section(content, "A", "new")
+        assert "new" in result
+        assert "<!-- A_START -->" in result
+        assert "<!-- A_END -->" in result
+
+    def test_generate_model_table_empty_list(self):
+        table = _generate_model_table([])
+        lines = table.strip().split("\n")
+        assert len(lines) == 2
+
+    def test_generate_model_table_all_missing_keys(self):
+        table = _generate_model_table([{}])
+        lines = table.strip().split("\n")
+        assert len(lines) == 3
+
+    def test_generate_model_table_targets_not_list_crashes(self):
+        """Non-string, non-list targets cause TypeError in _build_markdown_table.
+        This is a known gap — _format_targets returns the raw value."""
+        with pytest.raises(TypeError):
+            _generate_model_table([{"targets": 42}])
+
+    def test_generate_ensemble_table_empty_list(self):
+        table = _generate_ensemble_table([])
+        lines = table.strip().split("\n")
+        assert len(lines) == 2
+
+
+@pytest.mark.red
+class TestRepoStructureAdversarialInputs:
+    """Adversarial inputs for update_readme.py::generate_repo_structure."""
+
+    def test_empty_folders_dict(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        result = _generate_repo_structure({"model_dir": model_dir}, {}, "m")
+        assert result == "m"
+
+    def test_script_outside_any_folder(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        scripts = {"orphan.py": str(tmp_path / "elsewhere" / "orphan.py")}
+        result = _generate_repo_structure({"model_dir": model_dir}, scripts, "m")
+        assert "m" in result
+
+    def test_deeply_nested_folders(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        deep = str(tmp_path / "m" / "a" / "b" / "c")
+        folders = {"model_dir": model_dir, "deep": deep}
+        result = _generate_repo_structure(folders, {}, "m")
+        assert "m" in result
+
+
+@pytest.mark.red
+class TestFeaturesCatalogAdversarialInputs:
+    """Adversarial inputs for generate_features_catalog.py regex patterns."""
+
+    def test_column_pattern_nested_parens(self):
+        source = 'Column("col((nested))")'
+        matches = COLUMN_PATTERN.findall(source)
+        assert len(matches) >= 1
+
+    def test_column_pattern_empty_string(self):
+        matches = COLUMN_PATTERN.findall("")
+        assert matches == []
+
+    def test_column_name_pattern_no_quotes(self):
+        matches = COLUMN_NAME_PATTERN.findall("no_quotes_here")
+        assert matches == []
+
+    def test_loa_pattern_missing_from_loa(self):
+        match = LOA_PATTERN.search('"col_name"')
+        assert match is None
