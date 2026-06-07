@@ -85,13 +85,13 @@ Additionally, the new naming convention for models in the pipeline takes the for
 ## Creating New Models 
 <a name="creating-new-models"></a>
 
-The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `build_model_scaffold.py` and `build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
+The views-models repository contains the tools for creating new models, as well as creating new model ensembles. All of the necessary components are found in the `tools/scaffold/build_model_scaffold.py` and `tools/scaffold/build_ensemble_scaffold.py` files. The goal of this part of the VIEWS pipeline is the ability to simply create models which have the right structure and fit into the VIEWS directory structure. This makes the models uniform, consistent, and allows for easier replicability. 
 
 As with other parts of the VIEWS pipeline, we aim to make interactions with our pipeline as simple and straightforward as possible. In the context of the views-models, when creating a new model or ensemble, the user is closely guided through the steps which are needed, in an intuitive manner. This allows for the model creation processes to be consistent no matter how experienced the creator is. After providing a name for the model or ensemble, guided to be in the form adjective_noun, the user can specify the desired model algorithm and the model architecture package. Currently, only [stepshift models](https://github.com/views-platform/views-stepshifter/blob/main/README.md) are supported, however, we work on expanding the list of supported algorithms and model architectures. Then, the scaffold builders create all of the model files and model directories, uniformly structured. This instantly removes possibilities of error, increases efficiency and effectiveness as it decreases manual inputs of code. Finally, this allows all of our users, no matter their level of proficiency, to seamlessly interact with out pipeline in no time.  
 
 To run the model scaffold builder, execute
 
-`python build_model_scaffold.py`
+`python tools/scaffold/build_model_scaffold.py`
 
 You will be asked to enter a name for your model in lowercase `adjective_noun` form. If the scaffolder is happy with your proposed model name, it will create a new directory with your chosen name. This directory in turn contains the scripts and folders needed to run your model and store intermediate data belonging to it. It is the responsibility of the model creator to make changes to the newly created scripts where appropriate - see below for further information on which scripts need to be updated. The scripts created are as follows (see further down for a description of the filesystem):
 
@@ -229,7 +229,7 @@ It is also possible to reconcile one ensemble with another (usually at a differe
 
 ## Creating New Ensembles 
 
-The procedure for creating a new ensemble is much the same as that for creating a new model. The `build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built. As in the case of creating new models, make sure to update the appropriate model scripts (indicated below).
+The procedure for creating a new ensemble is much the same as that for creating a new model. The `tools/scaffold/build_ensemble_scaffold.py` script is run and, once it is supplied with a legal lower case `adjective_noun` ensemble name, a filesystem very similar to that created for a new model is built. As in the case of creating new models, make sure to update the appropriate model scripts (indicated below).
 
 <a name="ensemble-scripts"></a>
 

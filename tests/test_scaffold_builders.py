@@ -28,7 +28,7 @@ class TestModelScaffoldInjectionSeams:
 
     @pytest.fixture(autouse=True)
     def _load_source(self):
-        self.source = (REPO_ROOT / "build_model_scaffold.py").read_text()
+        self.source = (REPO_ROOT / "tools" / "scaffold" / "build_model_scaffold.py").read_text()
         self.tree = ast.parse(self.source)
 
     def test_build_model_scripts_accepts_input_fn(self):
@@ -106,7 +106,7 @@ class TestEnsembleScaffoldInjectionSeams:
 
     @pytest.fixture(autouse=True)
     def _load_source(self):
-        self.source = (REPO_ROOT / "build_ensemble_scaffold.py").read_text()
+        self.source = (REPO_ROOT / "tools" / "scaffold" / "build_ensemble_scaffold.py").read_text()
         self.tree = ast.parse(self.source)
 
     def test_build_model_scripts_accepts_pipeline_config(self):
@@ -160,7 +160,7 @@ class TestModelScaffoldBuilderFunctional:
         pytest.importorskip("views_pipeline_core")
 
     def test_build_model_scripts_uses_injected_input(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
 
         builder = ModelScaffoldBuilder("fake_model")
         # Override the model directory to tmp_path
@@ -185,7 +185,7 @@ class TestModelScaffoldBuilderFunctional:
         assert builder.package_name == "views-stepshifter"
 
     def test_build_model_scripts_github_failure_graceful(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
 
         builder = ModelScaffoldBuilder("fake_model")
         builder._model.model_dir = tmp_path / "models" / "fake_model"
@@ -215,7 +215,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         pytest.importorskip("views_pipeline_core")
 
     def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
         builder._model.model_dir = target
@@ -232,7 +232,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         assert result == target
 
     def test_build_model_directory_creates_readme(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
         builder._model.model_dir = target
@@ -244,7 +244,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         assert "test_model" in content
 
     def test_build_model_directory_creates_subdirs(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
         builder._model.model_dir = target
@@ -256,7 +256,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         assert sub2.is_dir()
 
     def test_build_model_directory_creates_gitkeep(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("test_model")
         target = tmp_path / "models" / "test_model"
         builder._model.model_dir = target
@@ -266,7 +266,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         assert (sub / ".gitkeep").exists()
 
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("nonexistent_model")
         builder._model.model_dir = tmp_path / "does_not_exist"
         with pytest.raises(FileNotFoundError):
@@ -282,19 +282,19 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
         pytest.importorskip("views_pipeline_core")
 
     def test_ensemble_inherits_from_model_scaffold(self):
-        from build_model_scaffold import ModelScaffoldBuilder
-        from build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
         assert issubclass(EnsembleScaffoldBuilder, ModelScaffoldBuilder)
 
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
-        from build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
         builder = EnsembleScaffoldBuilder("nonexistent_ensemble")
         builder._model.model_dir = tmp_path / "does_not_exist"
         with pytest.raises(FileNotFoundError):
             builder.build_model_scripts()
 
     def test_build_model_directory_creates_dir(self, tmp_path):
-        from build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
         builder = EnsembleScaffoldBuilder("test_ensemble")
         target = tmp_path / "ensembles" / "test_ensemble"
         builder._model.model_dir = target
@@ -314,7 +314,7 @@ class TestPackageScaffoldBuilderStructure:
 
     @pytest.fixture(autouse=True)
     def _load_source(self):
-        self.source_path = REPO_ROOT / "build_package_scaffold.py"
+        self.source_path = REPO_ROOT / "tools" / "scaffold" / "build_package_scaffold.py"
         self.source = self.source_path.read_text()
         self.tree = ast.parse(self.source)
 

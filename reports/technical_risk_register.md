@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 63 (59 concerns + 4 disagreements)  
-**Concerns:** Open 21 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
+**Total entries:** 64 (60 concerns + 4 disagreements)  
+**Concerns:** Open 22 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -736,6 +736,19 @@
 | **Status** | Open |
 | **Location** | `tools/partitions/fileops.py:write_atomic()` |
 | **Notes** | Creates `NamedTemporaryFile(delete=False)` and calls `os.replace()`. No try/finally to clean up the temp file if replace raises. A failed run touching 100 files could leave up to 100 orphaned `.tmp` files. Low probability in practice (os.replace rarely fails on same-filesystem renames) but easy to fix with try/except around os.replace. |
+
+---
+
+### C-60 — Repo root and scripts/ mix operational tooling, scaffolding, and investigations with no structural separation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new contributor tries to understand the tooling layout and must read 8+ filenames at the root and 14+ files in scripts/ to distinguish operational tools from scaffold builders from investigation scripts |
+| **Source** | falsify: tools organization (2026-06-07) |
+| **Status** | Open |
+| **Location** | Repo root (6 Python scripts, 2 shell scripts), `scripts/` (3 Python, 11 shell, 1 log file), `tools/` (partitions only) |
+| **Notes** | Violates CCP (catalog scripts change together but aren't grouped), CRP (4 unrelated responsibilities in one directory), and screaming architecture (flat layout requires reading every filename). Fix: organize into `tools/catalogs/`, `tools/scaffold/`, `tools/partitions/`; move investigation scripts to `investigations/`; move root shell scripts to appropriate locations. See ADR-011, C-01. |
 
 ---
 

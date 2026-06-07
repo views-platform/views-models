@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    from create_catalogs import (
+    from tools.catalogs.create_catalogs import (
         replace_table_in_section,
         generate_model_table,
         generate_ensemble_table,
@@ -30,7 +30,7 @@ _skip_no_pipeline = pytest.mark.skipif(
 class TestNoExecUsage:
     def test_create_catalogs_does_not_use_exec(self):
         """create_catalogs.py should use importlib, not raw exec()."""
-        source = (REPO_ROOT / "create_catalogs.py").read_text()
+        source = (REPO_ROOT / "tools" / "catalogs" / "create_catalogs.py").read_text()
         tree = ast.parse(source)
         exec_calls = [
             node for node in ast.walk(tree)
@@ -189,7 +189,7 @@ class TestCreateLink:
 
     def test_link_contains_github_url(self):
         from views_pipeline_core.managers.model import ModelPathManager
-        from create_catalogs import GITHUB_URL
+        from tools.catalogs.create_catalogs import GITHUB_URL
         root = ModelPathManager.get_root()
         test_path = root / "README.md"
         result = create_link("readme", test_path)
