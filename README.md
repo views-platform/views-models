@@ -9,6 +9,27 @@ This repository contains all of the necesary components for creating new models 
 
 ---
 
+> **Notice (June 2026): Repository tooling has been reorganized.**
+>
+> If you're looking for scripts that used to live at the repo root or in `scripts/`, they've moved:
+>
+> | What you're looking for | Where it is now |
+> |-------------------------|-----------------|
+> | `build_model_scaffold.py` | [`tools/scaffold/build_model_scaffold.py`](tools/scaffold/build_model_scaffold.py) |
+> | `build_ensemble_scaffold.py` | [`tools/scaffold/build_ensemble_scaffold.py`](tools/scaffold/build_ensemble_scaffold.py) |
+> | `build_package_scaffold.py` | [`tools/scaffold/build_package_scaffold.py`](tools/scaffold/build_package_scaffold.py) |
+> | `create_catalogs.py` | [`tools/catalogs/create_catalogs.py`](tools/catalogs/create_catalogs.py) |
+> | `update_readme.py` | [`tools/catalogs/update_readme.py`](tools/catalogs/update_readme.py) |
+> | `generate_features_catalog.py` | [`tools/catalogs/generate_features_catalog.py`](tools/catalogs/generate_features_catalog.py) |
+> | `scripts/update_partitions.py` | Replaced by [`python -m tools.partitions.bump`](tools/partitions/bump.py) |
+> | `scripts/*.sh` (investigation scripts) | [`investigations/`](investigations/) |
+>
+> Full documentation: [`tools/README.md`](tools/README.md)
+>
+> Nothing about how models run has changed. `main.py`, `run.sh`, and all config files work exactly as before. The `ingester3` dependency was removed from all `config_partitions.py` files — they now use `datetime.date` (stdlib only).
+
+---
+
 ## .env Template
 
 ```
