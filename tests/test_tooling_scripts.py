@@ -366,10 +366,8 @@ qs_test = (Queryset("test_queryset", "priogrid_month")
 
 from tools.partitions.fileops import (  # noqa: E402
     extract_values,
-    has_override,
     rewrite_values,
     write_atomic,
-    OVERRIDE_MARKER,
 )
 
 SAMPLE_PARTITION_FILE = '''\
@@ -431,11 +429,6 @@ class TestPartitionFileops:
         rewritten = rewrite_values(SAMPLE_PARTITION_FILE, CANONICAL_FLAT)
         assert "forecasting_train_range()" in rewritten
         assert "forecasting_test_range(steps=steps)" in rewritten
-
-    def test_has_override_detects_marker(self):
-        overridden = f"{OVERRIDE_MARKER} special model\n" + SAMPLE_PARTITION_FILE
-        assert has_override(overridden) is True
-        assert has_override(SAMPLE_PARTITION_FILE) is False
 
     def test_atomic_write(self, tmp_path):
         f = tmp_path / "config_partitions.py"

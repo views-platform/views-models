@@ -10,8 +10,6 @@ import re
 import tempfile
 from pathlib import Path
 
-OVERRIDE_MARKER = "# PARTITION_OVERRIDE:"
-
 _SEARCH_SUBDIRS = ["models", "ensembles", "extractors", "postprocessors"]
 
 _FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtures.json"
@@ -63,10 +61,6 @@ def discover_partition_files(repo_root: Path) -> list[Path]:
         for path in sorted(base.glob("*/configs/config_partitions.py")):
             files.append(path)
     return files
-
-
-def has_override(source: str) -> bool:
-    return OVERRIDE_MARKER in source
 
 
 def has_partition_override(source: str) -> bool:
