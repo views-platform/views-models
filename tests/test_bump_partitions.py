@@ -312,3 +312,33 @@ def generate(steps: int = 36) -> dict:
         rewritten = rewrite_values(source, new_vals)
         assert "(121, 540)" in rewritten
         assert "(541, 541 + steps)" in rewritten
+
+
+class TestFixtureSetConsistency:
+    """All fixture exclusion lists must reference the same canonical set."""
+
+    def test_all_fixture_lists_match_canonical(self):
+        import json
+        canonical = set(json.load(open(REPO_ROOT / "meta" / "fixtures.json")))
+
+        # tools/partitions/fileops.py
+        from tools.partitions.fileops import _FIXTURE_NAMES
+        assert _FIXTURE_NAMES == canonical, (
+            f"fileops._FIXTURE_NAMES diverges from meta/fixtures.json: "
+            f"extra={_FIXTURE_NAMES - canonical}, missing={canonical - _FIXTURE_NAMES}"
+        )
+
+        # tools/catalogs/create_catalogs.py — read via AST to avoid pipeline-core import
+        import ast
+        source = (REPO_ROOT / "tools" / "catalogs" / "create_catalogs.py").read_text()
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "_FIXTURE_ENTRIES":
+                        catalog_fixtures = {elt.value for elt in node.value.elts}
+                        assert catalog_fixtures == canonical, (
+                            f"create_catalogs._FIXTURE_ENTRIES diverges: "
+                            f"extra={catalog_fixtures - canonical}, "
+                            f"missing={canonical - catalog_fixtures}"
+                        )

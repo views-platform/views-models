@@ -1,3 +1,4 @@
+import json
 import os
 import importlib.util
 import logging
@@ -18,13 +19,9 @@ logging.basicConfig(
 # See: https://github.com/views-platform/views-models/issues/93
 GITHUB_URL = 'https://github.com/views-platform/views-models/blob/development/'
 
-# Scaffold/fixture entries that exist for testing purposes only.
-_FIXTURE_ENTRIES = {
-    "fake_model", "test_model", "test_ensemble",
-    "diagonal_dream", "horizontal_dream", "lucid_dream",
-    "vertical_dream", "vivid_dream", "waking_dream",
-    "synthetic_chant", "synthetic_choir", "synthetic_chorus",
-}
+_FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtures.json"
+with open(_FIXTURES_PATH) as _f:
+    _FIXTURE_ENTRIES: set[str] = set(json.load(_f))
 
 
 def get_implementation_date(config_meta_path, default_date="2026-01-01"):
