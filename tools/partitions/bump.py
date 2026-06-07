@@ -47,55 +47,57 @@ from tools.partitions.fileops import (
     write_atomic,
 )
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-PARTITIONS_FILE = REPO_ROOT / "meta" / "partitions.json"
-LOCK_DIR = REPO_ROOT / "meta"
+_DEFAULT_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def _load_canonical() -> dict:
+def _load_canonical(partitions_file: Path) -> dict:
     try:
-        with open(PARTITIONS_FILE) as f:
+        with open(partitions_file) as f:
             return json.load(f)
     except FileNotFoundError:
-        print(f"ERROR: {PARTITIONS_FILE} not found.")
+        print(f"ERROR: {partitions_file} not found.")
         print("This file is the source of truth for partition boundaries.")
         sys.exit(1)
     except json.JSONDecodeError as e:
-        print(f"ERROR: {PARTITIONS_FILE} contains invalid JSON: {e}")
+        print(f"ERROR: {partitions_file} contains invalid JSON: {e}")
         sys.exit(1)
 
 
-def _save_canonical(canonical: dict, boundaries: PartitionBoundaries) -> None:
+def _save_canonical(
+    canonical: dict, boundaries: PartitionBoundaries, partitions_file: Path
+) -> None:
     merged = {**canonical, **boundaries.to_json_dict()}
-    dir_name = PARTITIONS_FILE.parent
+    dir_name = partitions_file.parent
     with tempfile.NamedTemporaryFile(
         mode="w", dir=dir_name, suffix=".tmp", delete=False
     ) as tmp:
         json.dump(merged, tmp, indent=2)
         tmp.write("\n")
         tmp_path = tmp.name
-    os.replace(tmp_path, str(PARTITIONS_FILE))
+    os.replace(tmp_path, str(partitions_file))
 
 
-def _git_state() -> dict:
+def _git_state(cwd: Path | None = None) -> dict:
     """Capture current git commit, branch, and dirty status."""
+    if cwd is None:
+        cwd = _DEFAULT_REPO_ROOT
     state = {}
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            capture_output=True, text=True, timeout=5, cwd=REPO_ROOT,
+            capture_output=True, text=True, timeout=5, cwd=cwd,
         )
         state["git_commit"] = result.stdout.strip() if result.returncode == 0 else "unknown"
 
         result = subprocess.run(
             ["git", "branch", "--show-current"],
-            capture_output=True, text=True, timeout=5, cwd=REPO_ROOT,
+            capture_output=True, text=True, timeout=5, cwd=cwd,
         )
         state["git_branch"] = result.stdout.strip() if result.returncode == 0 else "unknown"
 
         result = subprocess.run(
             ["git", "status", "--porcelain"],
-            capture_output=True, text=True, timeout=5, cwd=REPO_ROOT,
+            capture_output=True, text=True, timeout=5, cwd=cwd,
         )
         state["git_dirty"] = bool(result.stdout.strip()) if result.returncode == 0 else None
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -118,7 +120,12 @@ def _print_boundaries(b: PartitionBoundaries) -> None:
         )
 
 
-def main():
+def main(repo_root: Path | None = None):
+    if repo_root is None:
+        repo_root = _DEFAULT_REPO_ROOT
+    partitions_file = repo_root / "meta" / "partitions.json"
+    lock_dir = repo_root / "meta"
+
     parser = argparse.ArgumentParser(
         description="Bump VIEWS partition boundaries forward by N months.",
     )
@@ -146,11 +153,11 @@ def main():
         print(f"WARNING: --bump={bump} is not a multiple of 12 (years).")
 
     # --- Load and validate current canonical ---
-    canonical = _load_canonical()
+    canonical = _load_canonical(partitions_file)
     try:
         current = PartitionBoundaries.from_json(canonical)
     except (KeyError, TypeError) as e:
-        print(f"ERROR: {PARTITIONS_FILE} has invalid structure: {e}")
+        print(f"ERROR: {partitions_file} has invalid structure: {e}")
         print("Expected keys: calibration.train, calibration.test, validation.train, validation.test")
         sys.exit(1)
 
@@ -196,9 +203,9 @@ def main():
     current_flat = current.to_flat_dict()
 
     # --- Coverage check ---
-    entity_dirs = discover_entity_dirs(REPO_ROOT)
+    entity_dirs = discover_entity_dirs(repo_root)
     entity_set = set(entity_dirs)
-    files = discover_partition_files(REPO_ROOT)
+    files = discover_partition_files(repo_root)
     partition_parents = {f.parent.parent for f in files}
     missing = [d for d in entity_dirs if d not in partition_parents]
 
@@ -223,7 +230,7 @@ def main():
         )
         for d in missing:
             print(
-                f"    MISSING: {d.relative_to(REPO_ROOT)} "
+                f"    MISSING: {d.relative_to(repo_root)} "
                 f"— has main.py but no config_partitions.py"
             )
         if not dry_run:
@@ -243,7 +250,7 @@ def main():
             f"(custom partitions, not bumped):"
         )
         for f in override_files:
-            print(f"    {f.parent.parent.relative_to(REPO_ROOT)}")
+            print(f"    {f.parent.parent.relative_to(repo_root)}")
     else:
         print("  0 research overrides")
     print(f"  {len(fixture_files)} test fixtures")
@@ -255,7 +262,7 @@ def main():
     target_files = []
 
     for path in standard_files:
-        rel = path.relative_to(REPO_ROOT)
+        rel = path.relative_to(repo_root)
 
         parsed = extract_values(path.read_text())
         if parsed is None:
@@ -303,7 +310,7 @@ def main():
     write_errors = []
 
     for path in target_files:
-        rel = path.relative_to(REPO_ROOT)
+        rel = path.relative_to(repo_root)
         try:
             source = path.read_text()
             new_source = rewrite_values(source, new_flat)
@@ -324,7 +331,7 @@ def main():
     verify_failures = []
 
     for path in updated:
-        rel = path.relative_to(REPO_ROOT)
+        rel = path.relative_to(repo_root)
         errors = verify_file(path, new_flat)
         if errors:
             verify_failures.extend(errors)
@@ -345,15 +352,15 @@ def main():
 
     # --- Update meta/partitions.json ---
     print("\n--- Updating meta/partitions.json ---")
-    _save_canonical(canonical, new)
+    _save_canonical(canonical, new, partitions_file)
     print("  Written: meta/partitions.json")
 
     # --- Write lockfile ---
     now = datetime.datetime.now(datetime.timezone.utc)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
-    lock_path = LOCK_DIR / f"partition_bump_{timestamp}.jsonl"
+    lock_path = lock_dir / f"partition_bump_{timestamp}.jsonl"
 
-    git = _git_state()
+    git = _git_state(cwd=repo_root)
     lock_entries = []
 
     lock_entries.append({
@@ -377,14 +384,14 @@ def main():
     for path in updated:
         lock_entries.append({
             "event": "file_updated",
-            "file": str(path.relative_to(REPO_ROOT)),
+            "file": str(path.relative_to(repo_root)),
             "verified": True,
         })
 
     for path in override_files:
         lock_entries.append({
             "event": "file_skipped_research_override",
-            "file": str(path.relative_to(REPO_ROOT)),
+            "file": str(path.relative_to(repo_root)),
         })
 
     lock_entries.append({
@@ -398,7 +405,7 @@ def main():
     lock_content = "\n".join(json.dumps(entry) for entry in lock_entries) + "\n"
     write_atomic(lock_path, lock_content)
 
-    print(f"\n--- Lockfile: {lock_path.relative_to(REPO_ROOT)} ---")
+    print(f"\n--- Lockfile: {lock_path.relative_to(repo_root)} ---")
 
     # --- Summary ---
     print("\n=== BUMP COMPLETE ===")
@@ -406,7 +413,7 @@ def main():
     if override_files:
         print(f"  Research overrides:       {len(override_files)} (not bumped)")
     print("  Verification failures:    0")
-    print(f"  Lockfile:                 {lock_path.relative_to(REPO_ROOT)}")
+    print(f"  Lockfile:                 {lock_path.relative_to(repo_root)}")
     print(f"  Git commit:               {git.get('git_commit', 'unknown')[:12]}")
     print(
         f"\n  Before: val test "

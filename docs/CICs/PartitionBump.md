@@ -153,19 +153,21 @@ cd /tmp && python -m tools.partitions.bump  # ModuleNotFoundError
 
 ## 10. Test Alignment
 
+- `tests/test_bump_partitions.py::TestBumpIntegration` — 9 integration tests exercising `main(repo_root=tmp_path)` end-to-end: dry run, execute, pre-flight reject, missing JSON, temporal block, override skip, sync mode, lockfile content, partitions.json update
 - `tests/test_bump_partitions.py` — 34 unit tests covering domain, fileops, discovery, overrides
-- `tests/test_falsify_bump_robustness.py` — 3 tests verifying resolved findings (double-bump blocked, absurd bump blocked, single-quote resilience)
-- `tests/test_falsify_bump_completeness.py` — 2 tests (ADR-011 references, no override mechanism needed)
+- `tests/test_bump_partitions.py::TestAdversarialInputs` — 9 red tests for adversarial inputs
+- `tests/test_bump_partitions.py::TestStructuralCompliance` — 5 beige tests for structural compliance
+- `tests/test_falsify_bump_robustness.py` — 3 tests verifying resolved findings
+- `tests/test_falsify_bump_completeness.py` — 2 tests (ADR-011, override mechanism)
 - `tests/test_falsify_bump_edge_cases.py` — 3 tests (error handling, comment safety, temp cleanup)
-- `tests/test_config_partitions.py` — 934 tests verifying consistency across all 100 files (uses shared parser)
-- **Gap:** No integration test of `main()` end-to-end with temp directory fixtures (see #101)
+- `tests/test_config_partitions.py` — 934 tests verifying consistency across all 100 files
 
 ---
 
 ## 11. Evolution Notes
 
-- `main()` is a 300-line function. If it grows further, extract phases into named functions (compute_bump, preflight, apply, verify, write_lockfile). The current size is acceptable for a CLI entry point.
-- `REPO_ROOT` is a module-level constant derived from `__file__`. For testability, `main()` could accept a `repo_root` parameter (#101).
+- `main()` accepts an optional `repo_root: Path` parameter for testability. Defaults to the module-level `_DEFAULT_REPO_ROOT`. All internal functions (`_load_canonical`, `_save_canonical`, `_git_state`) accept path parameters.
+- `main()` is a 300-line function. If it grows further, extract phases into named functions.
 - The lockfile format is append-only JSONL. If the tool needs to read previous lockfiles (e.g., to detect the last bump date), a `read_latest_lockfile()` function would be needed.
 
 ---

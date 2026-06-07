@@ -5,9 +5,13 @@ Covers domain invariants, temporal plausibility, file parsing
 double-bump detection.
 """
 import hashlib
+import json as _json
+import sys as _sys
 from pathlib import Path
 
 import pytest
+
+from tools.partitions.bump import main as bump_main
 
 from tools.partitions.domain import (
     PartitionBoundaries,
@@ -464,3 +468,136 @@ class TestStructuralCompliance:
             assert "def generate" in source, (
                 f"{f.relative_to(REPO_ROOT)} missing generate() function"
             )
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: bump.py main() end-to-end
+# ---------------------------------------------------------------------------
+
+_CANONICAL = {
+    "calibration": {"train": [121, 444], "test": [445, 492]},
+    "validation": {"train": [121, 492], "test": [493, 540]},
+    "steps_default": 36,
+}
+
+_PARTITION_SOURCE = '''\
+from datetime import date
+
+def _current_month_id():
+    today = date.today()
+    return (today.year - 1980) * 12 + today.month
+
+def generate(steps=36):
+    return {
+        "calibration": {"train": (121, 444), "test": (445, 492)},
+        "validation": {"train": (121, 492), "test": (493, 540)},
+        "forecasting": {
+            "train": (121, _current_month_id() - 1),
+            "test": (_current_month_id(), _current_month_id() + steps),
+        },
+    }
+'''
+
+
+@pytest.fixture
+def fake_repo(tmp_path):
+    """Minimal repo structure for integration tests."""
+    repo = tmp_path / "repo"
+    meta = repo / "meta"
+    meta.mkdir(parents=True)
+    (meta / "partitions.json").write_text(_json.dumps(_CANONICAL, indent=2))
+    (meta / "fixtures.json").write_text("[]")
+
+    for name in ("alpha", "beta"):
+        model = repo / "models" / name
+        (model / "configs").mkdir(parents=True)
+        (model / "main.py").touch()
+        (model / "configs" / "config_partitions.py").write_text(_PARTITION_SOURCE)
+
+    return repo
+
+
+@pytest.mark.green
+class TestBumpIntegration:
+    """End-to-end integration tests for bump.py main()."""
+
+    def test_dry_run_modifies_nothing(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--bump", "12"])
+        with pytest.raises(SystemExit) as exc:
+            bump_main(repo_root=fake_repo)
+        assert exc.value.code == 0
+        out = capsys.readouterr().out
+        assert "DRY RUN" in out
+        assert "Would update 2 files" in out
+        for name in ("alpha", "beta"):
+            source = (fake_repo / "models" / name / "configs" / "config_partitions.py").read_text()
+            assert "(121, 444)" in source
+
+    def test_execute_rewrites_files(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "12"])
+        bump_main(repo_root=fake_repo)
+        for name in ("alpha", "beta"):
+            source = (fake_repo / "models" / name / "configs" / "config_partitions.py").read_text()
+            assert "(121, 456)" in source
+            assert "(457, 504)" in source
+
+    def test_execute_creates_lockfile(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "12"])
+        bump_main(repo_root=fake_repo)
+        lockfiles = list((fake_repo / "meta").glob("partition_bump_*.jsonl"))
+        assert len(lockfiles) == 1
+        entries = [_json.loads(ln) for ln in lockfiles[0].read_text().strip().split("\n")]
+        events = [e["event"] for e in entries]
+        assert "bump_executed" in events
+        assert "bump_completed" in events
+        assert entries[0].get("git_commit") is not None
+
+    def test_execute_updates_partitions_json(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "12"])
+        bump_main(repo_root=fake_repo)
+        updated = _json.loads((fake_repo / "meta" / "partitions.json").read_text())
+        assert updated["calibration"]["train"] == [121, 456]
+        assert updated["validation"]["test"] == [505, 552]
+
+    def test_preflight_mismatch_blocks(self, fake_repo, monkeypatch, capsys):
+        bad = (fake_repo / "models" / "alpha" / "configs" / "config_partitions.py")
+        bad.write_text(_PARTITION_SOURCE.replace("(121, 444)", "(121, 400)"))
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "12"])
+        with pytest.raises(SystemExit) as exc:
+            bump_main(repo_root=fake_repo)
+        assert exc.value.code == 1
+        assert "MISMATCH" in capsys.readouterr().out
+
+    def test_missing_partitions_json(self, fake_repo, monkeypatch, capsys):
+        (fake_repo / "meta" / "partitions.json").unlink()
+        monkeypatch.setattr(_sys, "argv", ["bump", "--bump", "12"])
+        with pytest.raises(SystemExit) as exc:
+            bump_main(repo_root=fake_repo)
+        assert exc.value.code == 1
+        assert "not found" in capsys.readouterr().out
+
+    def test_temporal_block(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--bump", "24"])
+        with pytest.raises(SystemExit) as exc:
+            bump_main(repo_root=fake_repo)
+        assert exc.value.code == 1
+        assert "exceeds" in capsys.readouterr().out
+
+    def test_override_file_skipped(self, fake_repo, monkeypatch, capsys):
+        override_src = "PARTITION_OVERRIDE = True\n\n" + _PARTITION_SOURCE
+        (fake_repo / "models" / "alpha" / "configs" / "config_partitions.py").write_text(override_src)
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "12"])
+        bump_main(repo_root=fake_repo)
+        alpha_src = (fake_repo / "models" / "alpha" / "configs" / "config_partitions.py").read_text()
+        assert "(121, 444)" in alpha_src
+        beta_src = (fake_repo / "models" / "beta" / "configs" / "config_partitions.py").read_text()
+        assert "(121, 456)" in beta_src
+
+    def test_sync_mode_no_advance(self, fake_repo, monkeypatch, capsys):
+        monkeypatch.setattr(_sys, "argv", ["bump", "--execute", "--bump", "0"])
+        bump_main(repo_root=fake_repo)
+        for name in ("alpha", "beta"):
+            source = (fake_repo / "models" / name / "configs" / "config_partitions.py").read_text()
+            assert "(121, 444)" in source
+        lockfiles = list((fake_repo / "meta").glob("partition_bump_*.jsonl"))
+        assert len(lockfiles) == 1
