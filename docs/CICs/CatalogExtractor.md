@@ -11,7 +11,7 @@
 
 > `extract_models()` loads metadata from a model's config files and produces a dictionary suitable for catalog/README generation. It is the boundary function between raw config files and documentation output.
 
-Located in: `create_catalogs.py:extract_models()`
+Located in: `tools/catalogs/create_catalogs.py:extract_models()`
 
 ---
 
@@ -67,7 +67,7 @@ No side effects beyond logging and subprocess calls to `git log`.
 ## 7. Boundaries and Interactions
 
 - Depends on: `importlib.util`, `os`, `pathlib`, `subprocess`, `views_pipeline_core.managers.model.ModelPathManager`
-- Called by: `create_catalogs.py` main block
+- Called by: `tools/catalogs/create_catalogs.py` main block
 - Feeds into: `generate_model_table()`, `generate_ensemble_table()`, `update_readme_with_tables()`
 
 ---
@@ -122,7 +122,7 @@ model_dict = extract_models("models/counting_stars")  # TypeError
 
 ## End of Contract
 
-This document defines the **intended meaning** of `create_catalogs.extract_models()`.
+This document defines the **intended meaning** of `tools/catalogs/create_catalogs.extract_models()`.
 
 Changes to behavior that violate this intent are bugs.
 Changes to intent must update this contract.

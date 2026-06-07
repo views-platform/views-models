@@ -11,7 +11,7 @@
 
 > `ModelScaffoldBuilder` creates and validates the directory structure and configuration scripts for a new forecasting model. It ensures that new models conform to the repository's structural conventions.
 
-Located in: `build_model_scaffold.py`
+Located in: `tools/scaffold/build_model_scaffold.py`
 
 ---
 
