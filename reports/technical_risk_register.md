@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-06  
+**Last updated:** 2026-06-07  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 71 (67 concerns + 4 disagreements)  
-**Concerns:** Open 28 | Mitigated 12 | Resolved 22 | Accepted 3 | Partially Resolved 1 | New 1  
+**Concerns:** Open 24 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -707,7 +707,7 @@
 | **Tier** | 2 |
 | **Trigger** | A developer adds a comment like `# Old values: "calibration": {"train": (100, 200), "test": (201, 250)}` to a config_partitions.py file; the next bump silently writes new values into the comment and leaves the actual partition dict unchanged |
 | **Source** | falsify: bump edge cases (2026-06-06) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tools/partitions/fileops.py:extract_values()` and `rewrite_values()` — regex `"calibration":\s*\{(.*?)\}` matches first occurrence |
 | **Notes** | The regex matches the first occurrence of `"calibration": {` in the file. If that's in a comment, docstring, or dead code, `extract_values` reads wrong values and `rewrite_values` modifies the wrong location. No current file triggers this, but a single comment addition would cause silent corruption. **Tier 2 justification:** silent data corruption — the tool reports success while leaving the actual partition values unchanged. |
 
@@ -720,7 +720,7 @@
 | **Tier** | 3 |
 | **Trigger** | `meta/partitions.json` is deleted, moved, or edited with invalid JSON; the bump tool prints a raw Python traceback instead of a helpful error message |
 | **Source** | falsify: bump edge cases (2026-06-06) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tools/partitions/bump.py:_load_canonical()` |
 | **Notes** | The function is two lines: `open()` + `json.load()` with no try/except. Missing file → `FileNotFoundError`. Corrupt JSON → `JSONDecodeError`. Missing keys → `KeyError` from `PartitionBoundaries.from_json()`. For annual critical infrastructure run by a maintainer, a raw traceback is a robustness failure. |
 
@@ -733,7 +733,7 @@
 | **Tier** | 4 |
 | **Trigger** | `os.replace()` fails during a bump (permission error, disk full) after the temp file has been written; orphaned `.tmp` files remain in config directories |
 | **Source** | falsify: bump edge cases (2026-06-06) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tools/partitions/fileops.py:write_atomic()` |
 | **Notes** | Creates `NamedTemporaryFile(delete=False)` and calls `os.replace()`. No try/finally to clean up the temp file if replace raises. A failed run touching 100 files could leave up to 100 orphaned `.tmp` files. Low probability in practice (os.replace rarely fails on same-filesystem renames) but easy to fix with try/except around os.replace. |
 
@@ -746,7 +746,7 @@
 | **Tier** | 3 |
 | **Trigger** | A new contributor tries to understand the tooling layout and must read 8+ filenames at the root and 14+ files in scripts/ to distinguish operational tools from scaffold builders from investigation scripts |
 | **Source** | falsify: tools organization (2026-06-07) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | Repo root (6 Python scripts, 2 shell scripts), `scripts/` (3 Python, 11 shell, 1 log file), `tools/` (partitions only) |
 | **Notes** | Violates CCP (catalog scripts change together but aren't grouped), CRP (4 unrelated responsibilities in one directory), and screaming architecture (flat layout requires reading every filename). Fix: organize into `tools/catalogs/`, `tools/scaffold/`, `tools/partitions/`; move investigation scripts to `investigations/`; move root shell scripts to appropriate locations. See ADR-011, C-01. |
 
@@ -759,7 +759,7 @@
 | **Tier** | 3 |
 | **Trigger** | A new fixture model is added to `_FIXTURE_ENTRIES` in `create_catalogs.py` but not to `_FIXTURE_NAMES` in `fileops.py` or `_FIXTURE_MODELS` in `conftest.py` — causing inconsistent catalog output, bump coverage, and test discovery |
 | **Source** | repo-assimilation (2026-06-07) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tools/partitions/fileops.py:_FIXTURE_NAMES` (12 entries), `tools/catalogs/create_catalogs.py:_FIXTURE_ENTRIES` (12 entries), `tests/conftest.py:_FIXTURE_MODELS` (1 entry) |
 | **Notes** | Three independent fixture exclusion sets. `_FIXTURE_MODELS` in conftest has only `fake_model` while the other two have 12 entries. The sets happen to not conflict currently because conftest uses `main.py` presence (not name) to discover models, so the extra 11 fixture names in the other lists are redundant there. But the naming inconsistency (`_FIXTURE_MODELS` vs `_FIXTURE_NAMES` vs `_FIXTURE_ENTRIES`) and the different cardinalities create confusion. Should be unified into a single source of truth. |
 
@@ -772,7 +772,7 @@
 | **Tier** | 4 |
 | **Trigger** | A developer modifies `tools/partitions/domain.py` or `fileops.py` behavioral guarantees without a contract to verify against |
 | **Source** | repo-assimilation (2026-06-07) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tools/partitions/` (3 modules, 37 tests, 3 falsification audits, but no CIC) |
 | **Notes** | The partition tooling is the most thoroughly tested and audited component in the repo (37 unit tests, 3 falsification rounds, expert code review). But it has no Class Intent Contract documenting its guarantees, failure modes, or boundaries. The CIC sync check workflow (`cic_sync_check.yml`) cannot flag changes to this tool. Low urgency since the test coverage is strong, but the contract gap creates a documentation asymmetry with the other tools (all have CICs). |
 
@@ -785,7 +785,7 @@
 | **Tier** | 4 |
 | **Trigger** | Test category analysis (red/beige/green distribution) reports inaccurate numbers because 4 test files (test_bump_partitions.py, test_falsify_bump_completeness.py, test_falsify_bump_edge_cases.py, test_falsify_bump_robustness.py) have no ADR-005 markers |
 | **Source** | test-review (2026-06-07) |
-| **Status** | Open |
+| **Status** | Resolved |
 | **Location** | `tests/test_bump_partitions.py`, `tests/test_falsify_bump_*.py` (3 files) |
 | **Notes** | ADR-005 defines the red/beige/green taxonomy for test classification. The 4 partition bump test files (37 tests total) were written without category markers. Most are green (functional correctness) with some beige (structural compliance). The falsification verification tests could be marked green (they verify fixes). Low priority but creates a documentation gap in test distribution reporting. |
 
