@@ -342,3 +342,125 @@ class TestFixtureSetConsistency:
                             f"extra={catalog_fixtures - canonical}, "
                             f"missing={canonical - catalog_fixtures}"
                         )
+
+
+# ---------------------------------------------------------------------------
+# Red tests: adversarial inputs and error paths
+# ---------------------------------------------------------------------------
+
+@pytest.mark.red
+class TestAdversarialInputs:
+    """Error paths and adversarial inputs for partition tooling."""
+
+    def test_extract_values_garbage_input(self):
+        assert extract_values("not python at all }{{{") is None
+
+    def test_extract_values_partial_structure(self):
+        source = '"calibration": {"train": (121, 444)}'
+        assert extract_values(source) is None
+
+    def test_extract_values_negative_month_ids_rejected(self):
+        """Regex uses \\d+ which correctly rejects negative integers."""
+        source = '''
+def generate():
+    return {
+        "calibration": {"train": (-1, -1), "test": (-1, -1)},
+        "validation": {"train": (-1, -1), "test": (-1, -1)},
+    }
+'''
+        assert extract_values(source) is None
+
+    def test_rewrite_values_no_return_statement(self):
+        with pytest.raises(ValueError, match="return"):
+            rewrite_values("x = 1", CURRENT.to_flat_dict())
+
+    def test_rewrite_values_missing_section(self):
+        source = 'return {"calibration": {"train": (1, 2), "test": (3, 4)}}'
+        with pytest.raises(ValueError, match="validation"):
+            rewrite_values(source, CURRENT.to_flat_dict())
+
+    def test_bumped_negative_is_structurally_valid(self):
+        """Negative bump goes backward — structurally valid, temporally valid
+        (within available data). No guard against this — caller must check."""
+        bumped = CURRENT.bumped(-12)
+        assert bumped.validate_invariants() == []
+        assert bumped.val_test[1] < CURRENT.val_test[1]
+
+    def test_from_json_missing_key(self):
+        with pytest.raises(KeyError):
+            PartitionBoundaries.from_json({"calibration": {"train": [1, 2]}})
+
+    def test_from_json_non_iterable_value(self):
+        with pytest.raises((TypeError, KeyError)):
+            PartitionBoundaries.from_json({
+                "calibration": {"train": 42, "test": [1, 2]},
+                "validation": {"train": [1, 2], "test": [3, 4]},
+            })
+
+    def test_write_atomic_cleans_up_on_permission_error(self, tmp_path):
+        from tools.partitions.fileops import write_atomic
+        import os
+        target = tmp_path / "readonly_dir" / "file.py"
+        target.parent.mkdir()
+        target.write_text("original")
+        os.chmod(str(target.parent), 0o444)
+        try:
+            with pytest.raises(OSError):
+                write_atomic(target, "new content")
+            tmps = list(tmp_path.rglob("*.tmp"))
+            assert len(tmps) == 0, f"Orphaned temp files: {tmps}"
+        finally:
+            os.chmod(str(target.parent), 0o755)
+
+
+# ---------------------------------------------------------------------------
+# Beige tests: structural compliance
+# ---------------------------------------------------------------------------
+
+@pytest.mark.beige
+class TestStructuralCompliance:
+    """Structural compliance checks for partition tooling."""
+
+    def test_partitions_json_has_required_keys(self):
+        import json
+        with open(REPO_ROOT / "meta" / "partitions.json") as f:
+            data = json.load(f)
+        for section in ("calibration", "validation"):
+            assert section in data, f"Missing '{section}' in partitions.json"
+            for key in ("train", "test"):
+                assert key in data[section], f"Missing '{section}.{key}'"
+                assert len(data[section][key]) == 2, (
+                    f"'{section}.{key}' must be a 2-element list"
+                )
+
+    def test_bump_module_has_main_guard(self):
+        source = (REPO_ROOT / "tools" / "partitions" / "bump.py").read_text()
+        assert 'if __name__ == "__main__"' in source
+
+    def test_domain_has_no_imports_beyond_stdlib(self):
+        source = (REPO_ROOT / "tools" / "partitions" / "domain.py").read_text()
+        import_lines = [
+            ln for ln in source.splitlines()
+            if ln.startswith("from ") or ln.startswith("import ")
+        ]
+        for line in import_lines:
+            assert not line.startswith("from tools."), (
+                f"domain.py should not import from tools/: {line}"
+            )
+            assert not line.startswith("from views_"), (
+                f"domain.py should not import external packages: {line}"
+            )
+
+    def test_fileops_has_no_domain_import(self):
+        source = (REPO_ROOT / "tools" / "partitions" / "fileops.py").read_text()
+        assert "from tools.partitions.domain" not in source, (
+            "fileops.py should not import from domain.py — they are independent"
+        )
+
+    def test_all_partition_files_have_generate_function(self):
+        files = discover_partition_files(REPO_ROOT)
+        for f in files:
+            source = f.read_text()
+            assert "def generate" in source, (
+                f"{f.relative_to(REPO_ROOT)} missing generate() function"
+            )

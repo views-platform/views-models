@@ -184,6 +184,7 @@ class TestModelScaffoldBuilderFunctional:
         assert builder._model_algorithm == "XGBModel"
         assert builder.package_name == "views-stepshifter"
 
+    @pytest.mark.red
     def test_build_model_scripts_github_failure_graceful(self, tmp_path):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
 
@@ -265,6 +266,7 @@ class TestModelScaffoldBuilderDirectoryCreation:
         builder.build_model_directory()
         assert (sub / ".gitkeep").exists()
 
+    @pytest.mark.red
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
         builder = ModelScaffoldBuilder("nonexistent_model")
@@ -286,6 +288,7 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
         from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
         assert issubclass(EnsembleScaffoldBuilder, ModelScaffoldBuilder)
 
+    @pytest.mark.red
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
         from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
         builder = EnsembleScaffoldBuilder("nonexistent_ensemble")

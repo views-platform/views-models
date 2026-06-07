@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 67 (63 concerns + 4 disagreements)  
-**Concerns:** Open 25 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
+**Total entries:** 69 (65 concerns + 4 disagreements)  
+**Concerns:** Open 27 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -788,6 +788,32 @@
 | **Status** | Open |
 | **Location** | `tests/test_bump_partitions.py`, `tests/test_falsify_bump_*.py` (3 files) |
 | **Notes** | ADR-005 defines the red/beige/green taxonomy for test classification. The 4 partition bump test files (37 tests total) were written without category markers. Most are green (functional correctness) with some beige (structural compliance). The falsification verification tests could be marked green (they verify fixes). Low priority but creates a documentation gap in test distribution reporting. |
+
+---
+
+### C-64 — Zero red (adversarial) tests for all 9 tool modules
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer introduces a bug in tools/partitions/ or tools/catalogs/ that only manifests with adversarial input (corrupt file, permission error, concurrent execution); no red test catches it |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_catalogs.py`, `tests/test_scaffold_builders.py`, `tests/test_tooling_scripts.py` — all marked green or beige, zero red |
+| **Notes** | 16 red tests exist in the suite but none test tools/ modules. All tool tests are green (functional correctness) or beige (structural compliance). Missing red tests for: corrupt config_partitions.py files, permission denied on atomic write, malformed meta/partitions.json beyond JSON errors, adversarial PARTITION_OVERRIDE values, scaffold builder with reserved/invalid names. The falsification audits caught edge cases but the resulting tests were marked green, not red. |
+
+---
+
+### C-65 — generate_features_catalog.py and update_readme.py have no core-functionality tests
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer modifies the main loop of `generate_features_catalog.py` or `update_readme.py` (model discovery, config loading, output generation); no test catches a regression in core behavior |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py` (115 lines, 4 regex characterization tests only), `tools/catalogs/update_readme.py` (276 lines, 6 helper characterization tests only) |
+| **Notes** | Both scripts have characterization tests for isolated helper functions (regex patterns, tree formatting) but zero tests for their main functionality: discovering models, loading configs via importlib, generating output, writing files. The helpers are well-tested; the orchestration is untested. See #102 for generate_features_catalog.py. |
 
 ---
 
