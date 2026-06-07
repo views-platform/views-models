@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-06  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 69 (65 concerns + 4 disagreements)  
-**Concerns:** Open 27 | Mitigated 12 | Resolved 21 | Accepted 3 | Partially Resolved 1 | New 1  
+**Total entries:** 71 (67 concerns + 4 disagreements)  
+**Concerns:** Open 28 | Mitigated 12 | Resolved 22 | Accepted 3 | Partially Resolved 1 | New 1  
 **Disagreements:** Open 4  
 
 ---
@@ -813,7 +813,33 @@
 | **Source** | falsify: test category completeness (2026-06-07) |
 | **Status** | Open |
 | **Location** | `tools/catalogs/generate_features_catalog.py` (115 lines, 4 regex characterization tests only), `tools/catalogs/update_readme.py` (276 lines, 6 helper characterization tests only) |
-| **Notes** | Both scripts have characterization tests for isolated helper functions (regex patterns, tree formatting) but zero tests for their main functionality: discovering models, loading configs via importlib, generating output, writing files. The helpers are well-tested; the orchestration is untested. See #102 for generate_features_catalog.py. |
+| **Notes** | **Partially resolved 2026-06-07:** Added 11 functional tests for `generate_features_catalog.py`: 5 for `extract_columns_from_querysets()` (single file, dedup, loa extraction, empty dir crash, non-Python ignored) and 6 for `generate_markdown_table()` (valid markdown, headers, placeholders, row count, empty crash, queryset preserved). Found 2 bugs: empty dir crashes groupby (C-66), empty DataFrame crashes tabulate (C-67). `update_readme.py` orchestration remains untestable without views_pipeline_core — accepted. |
+
+---
+
+### C-66 — `extract_columns_from_querysets()` crashes on empty directory
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `extract_columns_from_querysets()` is called on a directory with no `.py` files; pandas `groupby` raises `KeyError` on empty DataFrame |
+| **Source** | test: catalog core tests (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py:72` |
+| **Notes** | The function creates an empty `columns_info` list, converts to empty DataFrame (no columns), then tries `df.groupby(['column_name', 'loa'])` which fails because the columns don't exist. Fix: add early return if `columns_info` is empty. Characterized as red test `test_empty_directory_crashes`. |
+
+---
+
+### C-67 — `generate_markdown_table()` crashes on empty DataFrame
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `generate_markdown_table()` is called with an empty DataFrame; `tabulate()` raises `IndexError` because `colalign=("center",)` references a column that doesn't exist |
+| **Source** | test: catalog core tests (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py:97` |
+| **Notes** | The `colalign` parameter assumes at least 1 data column. Empty DataFrame has 0 columns → `IndexError`. Fix: skip `colalign` if `table_data` is empty, or return header-only table. Characterized as red test `test_empty_dataframe_crashes_tabulate`. |
 
 ---
 

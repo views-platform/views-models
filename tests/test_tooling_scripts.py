@@ -538,3 +538,120 @@ class TestFeaturesCatalogAdversarialInputs:
     def test_loa_pattern_missing_from_loa(self):
         match = LOA_PATTERN.search('"col_name"')
         assert match is None
+
+
+# ---------------------------------------------------------------------------
+# Functional tests: generate_features_catalog.py core functions
+# ---------------------------------------------------------------------------
+
+from tools.catalogs.generate_features_catalog import (  # noqa: E402
+    extract_columns_from_querysets,
+    generate_markdown_table,
+)
+import pandas as pd  # noqa: E402
+
+
+@pytest.mark.green
+class TestExtractColumnsFromQuerysets:
+    """Functional tests for extract_columns_from_querysets()."""
+
+    def test_extracts_columns_from_single_file(self, tmp_path):
+        qs_file = tmp_path / "test_queryset.py"
+        qs_file.write_text('''
+qs = (Queryset("test_qs", "priogrid_month")
+    .with_column(Column("ged_sb_dep", from_loa="priogrid_month", from_column="ged_sb_best"))
+    .with_column(Column("acled_count", from_loa="country_month", from_column="acled_count_pr"))
+)
+''')
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 2
+        assert set(df["column_name"]) == {"ged_sb_dep", "acled_count"}
+        assert "test_queryset" in df["queryset"].values[0]
+
+    def test_deduplicates_across_files(self, tmp_path):
+        for name in ("qs_a", "qs_b"):
+            (tmp_path / f"{name}.py").write_text(
+                'Column("shared_col", from_loa="priogrid_month")'
+            )
+        df = extract_columns_from_querysets(tmp_path)
+        shared = df[df["column_name"] == "shared_col"]
+        assert len(shared) == 1
+        assert "qs_a" in shared.iloc[0]["queryset"]
+        assert "qs_b" in shared.iloc[0]["queryset"]
+
+    def test_columns_with_loa_extracted(self, tmp_path):
+        (tmp_path / "qs.py").write_text(
+            'Column("with_loa", from_loa="pgm")\n'
+        )
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 1
+        assert df.iloc[0]["column_name"] == "with_loa"
+        assert df.iloc[0]["loa"] == "pgm"
+
+    @pytest.mark.red
+    def test_empty_directory_crashes(self, tmp_path):
+        """Known bug: empty directory causes KeyError in groupby on empty DataFrame."""
+        with pytest.raises(KeyError):
+            extract_columns_from_querysets(tmp_path)
+
+    def test_ignores_non_python_files(self, tmp_path):
+        (tmp_path / "readme.md").write_text('Column("not_python")')
+        (tmp_path / "real.py").write_text('Column("real_col", from_loa="pgm")')
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 1
+        assert df.iloc[0]["column_name"] == "real_col"
+
+
+@pytest.mark.green
+class TestGenerateMarkdownTable:
+    """Functional tests for generate_markdown_table()."""
+
+    def test_produces_valid_markdown(self, tmp_path):
+        df = pd.DataFrame({
+            "column_name": ["col_a", "col_b"],
+            "queryset": ["qs1", "qs2"],
+            "loa": ["pgm", "cm"],
+        })
+        table = generate_markdown_table(df)
+        assert "Name in viewser" in table
+        assert "col_a" in table
+        assert "col_b" in table
+        assert "|" in table
+
+    def test_has_correct_headers(self):
+        df = pd.DataFrame({"column_name": ["x"], "queryset": ["q"], "loa": ["l"]})
+        table = generate_markdown_table(df)
+        assert "Name in viewser" in table
+        assert "Human-readable name" in table
+        assert "Associated querysets/models" in table
+
+    def test_includes_placeholder_values(self):
+        df = pd.DataFrame({"column_name": ["x"], "queryset": ["q"], "loa": ["l"]})
+        table = generate_markdown_table(df)
+        assert "needs manual update" in table
+
+    def test_row_count_matches_input(self):
+        df = pd.DataFrame({
+            "column_name": ["a", "b", "c"],
+            "queryset": ["q1", "q2", "q3"],
+            "loa": ["pgm", "cm", "pgm"],
+        })
+        table = generate_markdown_table(df)
+        lines = [ln for ln in table.strip().split("\n") if ln.strip()]
+        assert len(lines) == 5  # header + separator + 3 data rows
+
+    @pytest.mark.red
+    def test_empty_dataframe_crashes_tabulate(self):
+        """Known bug: empty DataFrame with colalign causes IndexError in tabulate."""
+        df = pd.DataFrame({"column_name": [], "queryset": [], "loa": []})
+        with pytest.raises(IndexError):
+            generate_markdown_table(df)
+
+    def test_queryset_value_preserved(self):
+        df = pd.DataFrame({
+            "column_name": ["my_col"],
+            "queryset": ["fatalities003_conflict_history"],
+            "loa": ["pgm"],
+        })
+        table = generate_markdown_table(df)
+        assert "fatalities003_conflict_history" in table
