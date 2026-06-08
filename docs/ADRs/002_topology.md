@@ -22,7 +22,7 @@ External Packages (views_pipeline_core, views_stepshifter, etc.)
          ↑
     models/*/main.py  (each model imports ONE manager from ONE package)
          ↑
-    models/*/configs/  (config files import from ingester3, viewser)
+    models/*/configs/  (config files use stdlib only, except config_queryset.py which uses viewser)
 ```
 
 ### Self-Contained Config Files
@@ -36,7 +36,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 | From | May Depend On |
 |------|--------------|
 | `models/*/main.py` | `views_pipeline_core`, one algorithm package, `pathlib` |
-| `models/*/configs/config_partitions.py` | `ingester3` only (for `ViewsMonth`) |
+| `models/*/configs/config_partitions.py` | `datetime` only (stdlib) |
 | `models/*/configs/config_queryset.py` | `viewser`, `views_pipeline_core` |
 | `models/*/configs/config_*.py` (others) | Nothing (pure dict-returning functions) |
 | `ensembles/*/main.py` | `views_pipeline_core` |
@@ -47,7 +47,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 
 - **No cross-model imports** — `models/A/` must never import from `models/B/`
 - **No model → tooling imports** — models must not import from root-level scripts
-- **No repo-internal imports in config files** — config files must only import from installed packages (`ingester3`, `viewser`), not from repo-local modules
+- **No repo-internal imports in config files** — config files must only import from stdlib or installed packages (`viewser` for querysets), not from repo-local modules
 - **No config files with side effects** — config files must be pure functions returning dicts (exception: `config_queryset.py` which builds `Queryset` objects)
 
 ---

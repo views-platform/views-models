@@ -8,12 +8,15 @@ def get_meta_config():
     """
     meta_config = {
         "name": "first_love",
+<<<<<<< HEAD
         "models": ["bad_romance", 
                    "free_fallin", 
                    "cold_heart", 
                    "beautiful_people", 
                 #    "holy_grail"
                    ],
+=======
+>>>>>>> origin/development
         "regression_targets": ["lr_ged_sb"],
         "level": "cm", 
         "aggregation": "concat",

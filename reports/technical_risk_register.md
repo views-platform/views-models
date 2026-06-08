@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-04-22  
+**Last updated:** 2026-06-07  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 45 (41 concerns + 4 disagreements)  
-**Concerns:** Open 12 | Mitigated 10 | Resolved 16 | Accepted 3  
+**Total entries:** 71 (67 concerns + 4 disagreements)  
+**Concerns:** Open 24 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -18,7 +18,7 @@
 | **Trigger** | A decision is made to change calibration, validation, or forecasting partition boundaries |
 | **Source** | repo-assimilation |
 | **Status** | Mitigated |
-| **Notes** | `meta/partitions.json` is now the single source of truth. `scripts/update_partitions.py` rewrites all 73 files from it. `test_config_partitions.py` reads canonical values from the same source and covers models, ensembles, extractors, and postprocessors. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations. Full resolution would require `views_pipeline_core` to support centralized partition loading. See ADR-011. |
+| **Notes** | `meta/partitions.json` is the single source of truth. `tools/partitions/bump.py` (replaces deleted `scripts/update_partitions.py`) rewrites all 100 files with invariant validation, temporal plausibility (val test end ≤ Dec previous year), post-write verification, atomic writes, and JSONL lockfile with git state. `test_config_partitions.py` enforces consistency via shared parser from `tools.partitions.fileops`. Override mechanism (`# PARTITION_OVERRIDE:`) permits declared deviations — see C-56 for staleness risk. **2026-06-06:** ADR-011 migration procedure still references the deleted `scripts/update_partitions.py` — must be updated to reference `python -m tools.partitions.bump`. See ADR-011. |
 
 ---
 
@@ -186,7 +186,7 @@
 | **Trigger** | Any CIC-documented failure mode occurs in production and the system does not behave as declared |
 | **Source** | test-review (Nygard) |
 | **Status** | Mitigated |
-| **Notes** | `test_failure_modes.py` expanded from 4 to 9 tests (2026-04-06). New tests cover: empty config files, import errors, runtime errors, integration test runner exit codes. Remaining gap: no tests for scaffold builder `FileExistsError`, no tests for ensemble aggregation failure. 9 of 21 CIC failure modes now covered. |
+| **Notes** | `test_failure_modes.py` expanded from 4 to 9 tests (2026-04-06). New tests cover: empty config files, import errors, runtime errors, integration test runner exit codes. Remaining gap: no tests for scaffold builder `FileExistsError`, no tests for ensemble aggregation failure. 9 of 21 CIC failure modes now covered. **2026-05-20 (test expansion):** `test_failure_modes.py` expanded to ~30 tests with new red-team classes: `TestPartitionBoundaryValidation` (steps=0/−1/default across all models), `TestEnsembleConstituentIntegrity` (config loadability, partition alignment, malformed model lists), `TestMalformedQuerysetDescriptor` (missing keys, None return, circular import). Scaffold builder `FileNotFoundError` now tested in `test_scaffold_builders.py`. Estimated 15 of 21 CIC failure modes covered. |
 
 ---
 
@@ -197,8 +197,8 @@
 | **Tier** | 2 |
 | **Trigger** | A refactor of `build_model_scaffold.py`, `create_catalogs.py`, or any other CIC class introduces a regression |
 | **Source** | test-review (Beck, Feathers) |
-| **Status** | Open |
-| **Notes** | All 5 CIC-documented classes (`ModelScaffoldBuilder`, `EnsembleScaffoldBuilder`, `PackageScaffoldBuilder`, `CatalogExtractor`, `IntegrationTestRunner`) have zero direct unit tests. Tests validate their *outputs* (model directory structure) but never instantiate or exercise the classes. 33 CIC guarantees total, only 2 directly tested (6%), 6 indirectly tested (18%), 25 untested (76%). |
+| **Status** | Mitigated |
+| **Notes** | All 5 CIC-documented classes (`ModelScaffoldBuilder`, `EnsembleScaffoldBuilder`, `PackageScaffoldBuilder`, `CatalogExtractor`, `IntegrationTestRunner`) have zero direct unit tests. Tests validate their *outputs* (model directory structure) but never instantiate or exercise the classes. 33 CIC guarantees total, only 2 directly tested (6%), 6 indirectly tested (18%), 25 untested (76%). **2026-05-20 (test expansion):** Direct functional tests added for `ModelScaffoldBuilder` (5 tests: dir creation, README generation, subdirs, gitkeep, missing-dir error), `EnsembleScaffoldBuilder` (3 tests: inheritance, dir creation, missing-dir error), `PackageScaffoldBuilder` (8 AST-based tests: class/method existence, create+validate call chain, exception propagation, name validation), `CatalogExtractor` (8 tests: `replace_table_in_section` edge cases, `generate_markdown_table` structure, `create_link` format), `IntegrationTestRunner` (5 tests: help exit 0, nonexistent model warning, unknown flag error). CIC guarantee coverage improved from 6% to ~45%. Remaining gap: runtime behavioral tests for scaffold output satisfying structural tests, ensemble aggregation failure modes. |
 
 ---
 
@@ -282,7 +282,7 @@
 | **Trigger** | A failure mode occurs that convention/structure tests cannot detect |
 | **Source** | test-review (category distribution analysis) |
 | **Status** | Mitigated |
-| **Notes** | Red coverage improved from 4 to 9 tests (2026-04-06). New tests cover config loading edge cases and integration test runner failure modes. Distribution still heavily beige (~64%) but red category is no longer negligible. Further improvement requires testing scaffold builder and ensemble aggregation failure modes. |
+| **Notes** | Red coverage improved from 4 to 9 tests (2026-04-06). New tests cover config loading edge cases and integration test runner failure modes. Distribution still heavily beige (~64%) but red category is no longer negligible. Further improvement requires testing scaffold builder and ensemble aggregation failure modes. **2026-05-20 (test expansion):** ADR-005 pytest markers (`@pytest.mark.red/beige/green`) added to all test files and registered in `pyproject.toml`. Red tests expanded to 285 (from 9): partition boundary validation, ensemble constituent integrity checks, malformed queryset descriptors, integration runner CIC coverage. Distribution: 285 red (7%), 2726 beige (67%), 1038 green (25%), 34 unmarked (1%). Suite total: 3775 passed, 308 skipped. |
 
 ---
 
@@ -452,7 +452,7 @@
 | **Source** | review-diff (2026-04-20) |
 | **Status** | Mitigated |
 | **Location** | `models/bright_starship/configs/config_partitions.py:17-20,35` |
-| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. Residual risk: if `ViewsMonth` ever diverges from `(year - 1980) * 12 + month`, bright_starship would silently compute different partitions. See also C-01, D-01. |
+| **Notes** | bright_starship reimplements `ViewsMonth.now().id` as `_current_month_id()` to avoid `ingester3` dependency. The test regex finds zero matches, so the offset check vacuously passes. **Mitigated (2026-04-21):** added `# PARTITION_OVERRIDE:` comment so the test framework explicitly skips with a warning rather than silently passing. **2026-05-20 (fix):** Removed `_current_month_id()` from all 4 synthetic entries (vertical_dream, horizontal_dream, diagonal_dream, synthetic_chorus) by replacing dynamic forecasting ranges with fixed boundaries — train (121, 540), test (541, 541 + steps). Synthetic data has no external data availability constraint so fixed ranges are sufficient. These files no longer carry the epoch-divergence risk. Residual risk applies only to bright_starship, heavy_strider, heavy_freighter, light_strider, and shining_codex (all carry `# PARTITION_OVERRIDE:` comments). **2026-05-26 (ensemble parity dimension):** bold_comet, blazing_meteor, and stellar_horizon also use `_current_month_id()`. golden_hour (viewser ensemble) uses `ViewsMonth`. When comparing golden_hour ↔ stellar_horizon forecasting parity, the two implementations may disagree by ±1 month at month boundaries, silently shifting the forecasting train/test partition and invalidating the comparison. `test_datafactory_parity.py` only checks calibration/validation boundaries (static, identical) — it does not catch forecasting divergence. Forecasting parity comparisons in the runbook (Phase 7) must account for this. See also C-01, D-01. |
 
 ---
 
@@ -505,6 +505,341 @@
 | **Status** | Open |
 | **Location** | `models/shining_codex/` (no `tests/` directory or test files) |
 | **Notes** | bright_starship has readiness tests (`test_bright_starship_readiness.py`) that verify environment prerequisites (conda env, `datafactory_query`, `DartsForecastingModelManager` import) and config structural validity. shining_codex, cloned from bright_starship, has no equivalent tests. Without readiness tests, failures will surface only at runtime with opaque error messages (e.g., `ModuleNotFoundError` for `datafactory_query` or `views_r2darts2`). See C-38 (datafactory_query not installed), C-03 (integration tests manual-only). |
+
+---
+
+### C-42 — Synthetic models depend on unreleased `views-pipeline-core` branch
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | The `feature/hydranet_ensamble_africa_me` branch of views-pipeline-core changes its synthetic data API (pattern names, queryset descriptor keys, or `DataFrameEnsembleManager`/`PredictionFrameEnsembleManager` constructor) before merge, breaking synthetic models and ensembles |
+| **Source** | pr-review (2026-05-20) |
+| **Status** | Open |
+| **Location** | `models/vertical_dream/configs/config_queryset.py`, `models/horizontal_dream/configs/config_queryset.py`, `models/diagonal_dream/configs/config_queryset.py`, `ensembles/synthetic_chorus/main.py`, `models/lucid_dream/configs/config_queryset.py`, `models/vivid_dream/configs/config_queryset.py`, `models/waking_dream/configs/config_queryset.py`, `ensembles/synthetic_chant/main.py` |
+| **Notes** | PR #56 adds `vertical_dream`, `horizontal_dream`, `diagonal_dream`, and `synthetic_chorus` — all four depend on the `"source": "synthetic"` queryset descriptor and `DataFrameEnsembleManager`, which exist only on the `feature/hydranet_ensamble_africa_me` branch of `views-pipeline-core`. If that branch renames pattern values (e.g., `"vertical_stripe"` → `"v_stripe"`), changes required descriptor keys, or alters the `EnsembleManager` import path, the synthetic models will fail at data-load time with no structural test catching the mismatch — `test_model_structure.py` validates directory layout but not queryset descriptor validity against pipeline-core. This is the same class of cross-repo coupling as C-31 and C-38 but with a sharper trigger: the dependency is on an unreleased, in-flux branch rather than a released package. Risk resolves naturally once the pipeline-core branch merges and the API stabilizes. **2026-05-24 (PR #58):** Three additional PredictionFrame synthetic models (`lucid_dream`, `vivid_dream`, `waking_dream`) and one ensemble (`synthetic_chant`) added. These extend the dependency surface to `PredictionFrameEnsembleManager`, `ConflictologyModel`, and `MixtureBaseline` distributional outputs. All run successfully against `views-pipeline-core v2.3.0` — if that version is released, this risk may be resolved. **2026-05-26 (confirmed):** `envs/views_ensemble` created by ensemble `run.sh` installs `views-pipeline-core` from PyPI, which lacks `PredictionFrameEnsembleManager`. `synthetic_chant` ensemble failed with `ImportError: cannot import name 'PredictionFrameEnsembleManager'` until local editable install replaced the PyPI version. This confirms the trigger: any fresh clone or CI environment that creates `views_ensemble` from `requirements.txt` will fail for PredictionFrame ensembles. See also C-31 (upstream API breaks), C-38 (datafactory_query not installed), C-40 (generate() return type contract mismatch), C-50 (views-baseline version spec mismatch — same class of fresh-clone failure). |
+
+### C-43 — Ensemble ground truth is order-dependent on `config_meta.models` list
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer reorders the `models` list in `ensembles/synthetic_chorus/configs/config_meta.py` |
+| **Source** | falsify audit (2026-05-20) |
+| **Status** | Open |
+| **Location** | `ensembles/synthetic_chorus/configs/config_meta.py:4` |
+| **Notes** | The ensemble evaluation loads prediction files from constituent models in list order. The actual `synth_target` values (ground truth) come from the first model's predictions — currently `vertical_dream`. The analytically derived expected MSE (4.34444) depends on this ordering. Reordering the list silently changes which model supplies the ground truth, producing a different MSE with no error signal. Mitigated by `tests/test_falsification_synthetic.py::test_synthetic_chorus_first_model_is_vertical_dream` which asserts vertical_dream is first, and by the README which documents the order-dependency. This is a test-internal concern with no production impact — synthetic models are not deployed. |
+
+---
+
+### C-44 — Concat aggregation degrades ensemble CRPS when constituent model quality varies
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Building a concat ensemble where constituent models have heterogeneous performance on a specific target (e.g., one model's CRPS is 50%+ worse than others on that target) |
+| **Source** | golden_hour calibration run (2026-05-25) |
+| **Status** | Open |
+| **Location** | `ensembles/golden_hour/configs/config_meta.py` (`aggregation: "concat"`), `views-pipeline-core` PredictionFrameEnsembleManager concat path |
+| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. See also C-13 (no prediction quality validation before aggregation). |
+
+---
+
+### C-45 — Ensemble `-t` flag causes full retraining cascade when models are pre-trained
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Running any PredictionFrameEnsembleManager or DataFrameEnsembleManager with `-t` when constituent models already have trained artifacts in their `artifacts/` directories |
+| **Source** | golden_hour calibration run (2026-05-25) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core` EnsembleManager train path (invokes constituent `run.sh` subprocesses) |
+| **Notes** | Running `python main.py -r calibration -t -e` on a pre-trained ensemble causes: (1) retrain all constituent models via run.sh subprocess (~2h), (2) create new model artifacts with new timestamps, (3) discover no predictions exist for those new timestamps, (4) re-evaluate all constituent models via run.sh subprocess (~3h), (5) finally perform the actual aggregation (~30 min). This wasted ~6 hours on golden_hour. The correct command when models are already trained: `python main.py -r calibration -e --saved`. The `-t` flag on ensembles should either warn when artifacts already exist, or detect and reuse existing timestamps rather than creating new ones. See also C-22 (no idempotency guarantee in training artifacts). |
+
+---
+
+### C-46 — Classification targets not evaluable at PredictionFrame ensemble level
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Adding `classification_targets` to any PredictionFrame ensemble's `config_meta.py` |
+| **Source** | golden_hour design review (2026-05-24) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core` `PredictionFrameEnsembleManager.prepare_actuals_df` (identity lambda), `ensembles/golden_hour/configs/config_meta.py` (regression-only by design) |
+| **Notes** | `PredictionFrameEnsembleManager.prepare_actuals_df` is a no-op identity lambda. Classification targets (`by_sb_best`, `by_ns_best`, `by_os_best`) are derived signals not present in raw viewser data. Individual HydraNet models derive them via `DataFetcher.apply_blueprint()`, but the ensemble doesn't inherit that derivation logic. Including `classification_targets` in ensemble `config_meta` causes `KeyError` when `EvaluationStage._load_actuals()` looks for the derived columns in raw actuals. Workaround: exclude `classification_targets` from ensemble config; evaluate classification at individual model level only. golden_hour correctly implements this workaround. Fix would require `PredictionFrameEnsembleManager` to implement target derivation or delegate to constituent model blueprints. See also C-15 (CIC failure mode coverage — ensemble aggregation failure modes listed as remaining gap). |
+
+---
+
+### C-47 — Track A/B dual output produces redundant predictions with contradictory documentation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer sets `skip_predictions_delivery` back to `False` to re-enable Track B parquets without verifying the PyArrow memory fix is in place |
+| **Source** | golden_hour investigation (2026-05-25) |
+| **Status** | Mitigated |
+| **Location** | `views-pipeline-core` config (`skip_predictions_delivery` flag), `models/*/data/generated/` (both `.npy` and `.parquet` outputs coexist) |
+| **Notes** | HydraNet models produce both Track A (`.npy` PredictionFrame, 64 posterior samples) and Track B (`.parquet` DataFrame delivery, point predictions) simultaneously. **Mitigated (2026-05-26):** All 19 PredictionFrame models now have `skip_predictions_delivery: True`, suppressing Track B parquet generation. The contradictory `False, #True,` comment pattern has been removed. `test_track_parity.py` (40 tests) verified Track A and Track B produce identical values before Track B was disabled. `CoreConfigSniffer` (views-pipeline-core PR #87) now enforces the key as mandatory — models without it crash at config validation. Residual risk: if Track B is re-enabled without the PyArrow memory fix, the 5.5M Python float object allocation (~4.8–6.4 GB peak) will recur. See also C-40 (generate() return type contract mismatch). |
+
+---
+
+### C-48 — Viewser vs datafactory variable variant mismatch confounds parity comparison
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | CRPS or forecast parity comparison between golden_hour (viewser) and stellar_horizon (datafactory) shows divergence; root cause is data input differences, not pipeline differences |
+| **Source** | config diff investigation (2026-05-26) |
+| **Status** | Resolved |
+| **Location** | `models/purple_alien/configs/config_queryset.py` (`ged_sb_best_sum_nokgi`), `models/bright_starship/configs/config_queryset.py` (`ged_sb_best`), same pattern for `ged_ns_best` and `ged_os_best` |
+| **Notes** | The viewser trio (purple_alien, blue_stranger, violet_visitor) trains on `ged_*_best_sum_nokgi` — the summed, no-known-geographical-imprecision variant of UCDP fatality counts. The datafactory trio (bright_starship, bold_comet, blazing_meteor) trains on `ged_*_best` — the base variant. Despite different variable names, both deliver functionally identical values. **Resolved (2026-05-26):** Direct cell-by-cell comparison of cached training parquets (4,876,920 rows × 6 columns) showed 99.99% exact match for all three target variables: lr_sb_best (614 differing rows of 4.9M), lr_ns_best (138), lr_os_best (182). Correlations all >0.999. The `_sum_nokgi` suffix does not indicate a different aggregation — both sources deliver the same fatality sums per PRIO-GRID cell-month. The ~600 differing rows have small absolute differences reflecting timing differences in UCDP data ingestion. This concern is fully disproven as a source of prediction divergence. See `reports/parity_investigation_20260526.md` for full analysis. See also C-02 (queryset validation), C-40 (generate() contract mismatch). |
+
+---
+
+### C-49 — Feature set divergence between viewser and datafactory model configs
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Parity comparison between golden_hour and stellar_horizon produces unexplained spatial or regional bias differences |
+| **Source** | config diff investigation (2026-05-26) |
+| **Status** | Partially Resolved |
+| **Location** | `models/purple_alien/configs/config_queryset.py` (lines 22-23: `col`, `row` columns), `models/bright_starship/configs/config_queryset.py` (no spatial features) |
+| **Notes** | Originally three concerns. **Partially resolved (2026-05-26):** **(1) Spatial features: DISPROVEN.** Raw data comparison confirmed `col` and `row` are 100% identical between viewser and datafactory parquets. Both data loading paths provide them. **(2) Country encoding: CONFIRMED but metadata-only.** viewser uses VIEWS-internal `country_id` (e.g., 192); datafactory uses FAO `gaul0_code` (e.g., 159, or -1 for unassigned). 0% cell-level match. However, `c_id` is in `identity_cols`, NOT in `features` — HydraNet uses only 3 input channels (lr_sb_best, lr_ns_best, lr_os_best). Unless curriculum sampling or stratified evaluation uses `c_id` values downstream, this is a metadata-only divergence with no model impact. Downgraded from Tier 2 to Tier 4. **(3) NA handling:** Not yet investigated. See `reports/parity_investigation_20260526.md` for full analysis. See also C-48 (resolved — variable variant not a divergence source), C-02 (queryset correctness). |
+
+---
+
+### C-50 — `views-baseline` not published to PyPI; `requirements.txt` version spec unresolvable on fresh clone
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer clones the repo on a new machine and runs any baseline model's `run.sh`, which creates `envs/views-baseline` and fails at `pip install -r requirements.txt` because `views-baseline>=1.0.0,<2.0.0` has no matching distribution on PyPI |
+| **Source** | synthetic ensemble run (2026-05-26) |
+| **Status** | Open |
+| **Location** | `models/lucid_dream/requirements.txt`, `models/vivid_dream/requirements.txt`, `models/waking_dream/requirements.txt`, `models/vertical_dream/requirements.txt`, `models/horizontal_dream/requirements.txt`, `models/diagonal_dream/requirements.txt`, `models/red_ranger/requirements.txt`, `models/green_ranger/requirements.txt`, `models/blue_ranger/requirements.txt`, `models/black_ranger/requirements.txt`, `models/pink_ranger/requirements.txt`, `models/yellow_ranger/requirements.txt`, `models/white_ranger/requirements.txt`, `models/light_strider/requirements.txt`, `models/heavy_strider/requirements.txt`, `models/average_cmbaseline/requirements.txt`, `models/average_pgmbaseline/requirements.txt`, `models/zero_cmbaseline/requirements.txt`, `models/zero_pgmbaseline/requirements.txt`, `models/locf_cmbaseline/requirements.txt`, `models/locf_pgmbaseline/requirements.txt` (21 models total) |
+| **Notes** | All 21 baseline models declare `views-baseline>=1.0.0,<2.0.0` in `requirements.txt`. The `views-baseline` package is not published to PyPI at all — it is only available as a local editable install from `~/Documents/scripts/views_platform/views-baseline` at version `0.1.0`. On existing developer machines with the pre-existing `envs/views-baseline` env, the pip dry-run check succeeds because the package is already installed, and `run.sh` proceeds normally. On a fresh clone (new machine, CI, new contributor), `run.sh` creates the conda env, `pip install` fails with `No matching distribution found for views-baseline`, and the model crashes with `ModuleNotFoundError: No module named 'views_baseline'`. **Observed (2026-05-26):** All 6 synthetic model runs showed `ERROR: No matching distribution found for views-baseline<2.0.0,>=1.0.0` but succeeded because the env already had the local install. **Fix options:** (1) publish `views-baseline` to PyPI at version `>=1.0.0`, (2) change `requirements.txt` to use a git+https URL (matching the `views-datafactory` pattern in HydraNet models), (3) update `run.sh` to install from local path if available (but run.sh must not be modified — see feedback constraint). See also C-38 (same class: `datafactory_query` not installed), C-42 (same class: `views-pipeline-core` from PyPI lacks features), C-08 (requirements coherence). |
+
+---
+
+### C-51 — Datafactory trio missing `sampling_strategy` — ADR-049 required field, runtime crash
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer runs `bash models/bold_comet/run.sh -r calibration` (or bright_starship, blazing_meteor) and views-hydranet rejects the config with `'sampling_strategy' is required (ADR-049)` |
+| **Source** | review (PR #59, 2026-05-31) |
+| **Status** | Resolved |
+| **Location** | `models/bright_starship/configs/config_hyperparameters.py`, `models/bold_comet/configs/config_hyperparameters.py`, `models/blazing_meteor/configs/config_hyperparameters.py`, `models/heavy_freighter/configs/config_hyperparameters.py` |
+| **Notes** | The viewser trio (purple_alien, blue_stranger, violet_visitor) received `sampling_strategy` in this PR cycle (threshold/boltzmann/sigmoid respectively). The datafactory trio and heavy_freighter were not updated — bold_comet and blazing_meteor were cloned from bright_starship, which also lacked the field. views-hydranet's curriculum learner validates the key at config load time and raises `KeyError` on absence. All four models would fail immediately on any training run. The parity test (`test_datafactory_parity.py::TestDatafactoryTrioConfigParity::test_identical_shared_hyperparameters`) does not catch this because it strips loss keys and compares models pairwise — since all three are equally missing the field, they match each other. **Resolved (2026-06-01):** Added `'sampling_strategy': 'threshold'` to all four affected models (3 datafactory + heavy_freighter). Added `test_hydranet_has_sampling_strategy` to `test_config_completeness.py` to catch this class of omission for all HydraNet models (scoped via `meta_config["algorithm"] == "HydraNet"`) — this test is what caught heavy_freighter. See also C-05 (incomplete HP validation — covers stepshifter/baseline, not HydraNet), C-38 (datafactory_query not installed — same models, different dependency class), C-42 (unreleased pipeline-core branch — different: import availability, not config completeness). |
+
+---
+
+### C-52 — 12 PF models missing config keys required for PFE ensemble participation
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer adds any of the 12 affected models as a constituent of a PredictionFrameEnsembleManager ensemble — the ensemble will crash or produce wrong sample counts because constituent configs lack `n_posterior_samples` and/or `regression_targets` |
+| **Source** | test_pfe_production_readiness.py (TDD green tests, 2026-06-01) |
+| **Status** | Resolved |
+| **Location** | `models/{black_ranger,blue_ranger,green_ranger,lucid_dream,pink_ranger,red_ranger,vivid_dream,waking_dream,yellow_ranger}/configs/config_hyperparameters.py` (missing both `n_posterior_samples` and `regression_targets`), `models/{heavy_strider,light_strider,white_ranger}/configs/config_hyperparameters.py` (missing `n_posterior_samples` only) |
+| **Notes** | All 21 models declare `prediction_format: "prediction_frame"` in `config_meta.py`, meaning they produce PredictionFrame outputs. But 12 of them lack `n_posterior_samples` (needed by PFE to verify aggregated sample counts) and 9 of those also lack `regression_targets` (needed to know which target directories to validate). The 9 models with fully compliant configs (purple_alien, blue_stranger, violet_visitor, bright_starship, bold_comet, blazing_meteor, heavy_freighter, pink_pirate, heavy_strider partially) are the only ones eligible for PFE ensembles today. This blocks the PFE production roadmap: Steps 2-5 require running constituent models through PFE, and any model without these keys cannot participate. The ranger models (7 of 12) use an older config convention with `n_samples` instead of `n_posterior_samples` and no explicit `regression_targets` — they predate the HydraNet multi-target architecture. The dream models (lucid_dream, vivid_dream, waking_dream) are synthetic test models that also predate the convention. **Resolved (2026-06-02):** Added `n_posterior_samples` and `regression_targets` to all 12 affected `config_hyperparameters.py` files. Values derived from each model's `config_meta.py` (regression_targets) and existing `n_samples` (n_posterior_samples). xfail markers removed from `test_pfe_production_readiness.py` — all 21 PF models now pass config-level readiness tests unconditionally. See #70. |
+
+---
+
+### C-53 — Config value regression during cross-branch merges
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer merges `development` into a feature branch (or vice versa) when both branches have modified the same model `config_hyperparameters.py` with different values for the same key — git auto-resolves by picking one side, silently dropping the other's intentional change |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/blue_stranger/configs/config_hyperparameters.py`, `models/violet_visitor/configs/config_hyperparameters.py` (observed); any model config modified on both branches (systemic) |
+| **Notes** | Observed during merge of `development` into `feature/golden_hour_ensemble`: blue_stranger and violet_visitor had `skip_predictions_delivery` changed to `True` on the feature branch (intentional), while development still had `False` (pre-existing). Git auto-merged without conflict markers, silently regressing the value to `False`. Also introduced a stray `prediction_format` key in hyperparameters (belongs only in config_meta). Caught during tech-debt-cleanup verification; would have caused Track B parquet generation and potential OOM in ensemble runs. **Mitigated (2026-06-02):** Fixed in this session. No automated guard exists — mitigation is manual post-merge review of config diffs. See also C-01 (73 duplicated config files amplify this risk), C-52 (same files, different keys). |
+
+---
+
+### C-54 — Experimental model (heavy_freighter) in production model directory without marker
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer adds heavy_freighter to a production ensemble's `config_meta.models` list without realizing it uses a global grid (360×720 vs regional 180×180), producing incompatible spatial dimensions |
+| **Source** | tech-debt-cleanup (2026-06-02) |
+| **Status** | Open |
+| **Location** | `models/heavy_freighter/configs/config_hyperparameters.py` (`height: 360`, `width: 720` — global grid vs regional 180×180) |
+| **Notes** | heavy_freighter uses global grid coverage (360×720) vs the regional Africa-ME grid (180×180) used by all ensemble-eligible models. Its training params (tobit, 200 lessons, 16 samples, scheduled sampling) now match the production models — only the grid differs. It is correctly excluded from golden_hour and stellar_horizon ensembles. The risk is that no directory convention, marker file, or test distinguishes global-grid models from regional models — the only signal is reading the config. Low severity because incompatible spatial dimensions would cause a shape mismatch error at ensemble aggregation time. |
+
+---
+
+### C-55 — Stale `xfail` marker on `test_datafactory_query_importable` produces xpass noise
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer reviews CI output and sees an xpass warning for `test_datafactory_query_importable`, masking real xpass regressions |
+| **Source** | falsify Round 3 (2026-06-04) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bright_starship_readiness.py:29` |
+| **Notes** | The `@pytest.mark.xfail` decorator on `TestF1_DatafactoryQueryDependency` was stale — `datafactory_query` is now installed. Removed the xfail; the test is environment-gated by the class-level `skipif(not shutil.which("conda"))`. See C-38. **Resolved 2026-06-04.** |
+
+---
+
+### C-56 — Override partition files become silently stale after annual bump
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | After an annual partition bump, the 8 PARTITION_OVERRIDE HydraNet models continue using pre-bump partition values |
+| **Source** | falsify: bump completeness (2026-06-06) |
+| **Status** | Resolved |
+| **Notes** | **Resolved 2026-06-06:** Root cause was the ingester3 dependency — all 8 override files existed solely to avoid importing `ViewsMonth`. Removed ingester3 from all 83 files, replaced with inline `_current_month_id()`. Removed all `# PARTITION_OVERRIDE:` comment markers. Replaced with a programmatic `PARTITION_OVERRIDE = True` flag for legitimate research overrides (currently unused). The bump tool now updates all 100 files uniformly. See C-01. |
+
+---
+
+### C-57 — Regex parser matches comments instead of real dict in config_partitions.py
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer adds a comment like `# Old values: "calibration": {"train": (100, 200), "test": (201, 250)}` to a config_partitions.py file; the next bump silently writes new values into the comment and leaves the actual partition dict unchanged |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Resolved |
+| **Location** | `tools/partitions/fileops.py:extract_values()` and `rewrite_values()` — regex `"calibration":\s*\{(.*?)\}` matches first occurrence |
+| **Notes** | The regex matches the first occurrence of `"calibration": {` in the file. If that's in a comment, docstring, or dead code, `extract_values` reads wrong values and `rewrite_values` modifies the wrong location. No current file triggers this, but a single comment addition would cause silent corruption. **Tier 2 justification:** silent data corruption — the tool reports success while leaving the actual partition values unchanged. |
+
+---
+
+### C-58 — `_load_canonical()` has no error handling for missing/corrupt partitions.json
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `meta/partitions.json` is deleted, moved, or edited with invalid JSON; the bump tool prints a raw Python traceback instead of a helpful error message |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Resolved |
+| **Location** | `tools/partitions/bump.py:_load_canonical()` |
+| **Notes** | The function is two lines: `open()` + `json.load()` with no try/except. Missing file → `FileNotFoundError`. Corrupt JSON → `JSONDecodeError`. Missing keys → `KeyError` from `PartitionBoundaries.from_json()`. For annual critical infrastructure run by a maintainer, a raw traceback is a robustness failure. |
+
+---
+
+### C-59 — `write_atomic()` does not clean up temp files on `os.replace()` failure
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `os.replace()` fails during a bump (permission error, disk full) after the temp file has been written; orphaned `.tmp` files remain in config directories |
+| **Source** | falsify: bump edge cases (2026-06-06) |
+| **Status** | Resolved |
+| **Location** | `tools/partitions/fileops.py:write_atomic()` |
+| **Notes** | Creates `NamedTemporaryFile(delete=False)` and calls `os.replace()`. No try/finally to clean up the temp file if replace raises. A failed run touching 100 files could leave up to 100 orphaned `.tmp` files. Low probability in practice (os.replace rarely fails on same-filesystem renames) but easy to fix with try/except around os.replace. |
+
+---
+
+### C-60 — Repo root and scripts/ mix operational tooling, scaffolding, and investigations with no structural separation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new contributor tries to understand the tooling layout and must read 8+ filenames at the root and 14+ files in scripts/ to distinguish operational tools from scaffold builders from investigation scripts |
+| **Source** | falsify: tools organization (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | Repo root (6 Python scripts, 2 shell scripts), `scripts/` (3 Python, 11 shell, 1 log file), `tools/` (partitions only) |
+| **Notes** | Violates CCP (catalog scripts change together but aren't grouped), CRP (4 unrelated responsibilities in one directory), and screaming architecture (flat layout requires reading every filename). Fix: organize into `tools/catalogs/`, `tools/scaffold/`, `tools/partitions/`; move investigation scripts to `investigations/`; move root shell scripts to appropriate locations. See ADR-011, C-01. |
+
+---
+
+### C-61 — Fixture exclusion lists diverge across 3 locations
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A new fixture model is added to `_FIXTURE_ENTRIES` in `create_catalogs.py` but not to `_FIXTURE_NAMES` in `fileops.py` or `_FIXTURE_MODELS` in `conftest.py` — causing inconsistent catalog output, bump coverage, and test discovery |
+| **Source** | repo-assimilation (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | `tools/partitions/fileops.py:_FIXTURE_NAMES` (12 entries), `tools/catalogs/create_catalogs.py:_FIXTURE_ENTRIES` (12 entries), `tests/conftest.py:_FIXTURE_MODELS` (1 entry) |
+| **Notes** | Three independent fixture exclusion sets. `_FIXTURE_MODELS` in conftest has only `fake_model` while the other two have 12 entries. The sets happen to not conflict currently because conftest uses `main.py` presence (not name) to discover models, so the extra 11 fixture names in the other lists are redundant there. But the naming inconsistency (`_FIXTURE_MODELS` vs `_FIXTURE_NAMES` vs `_FIXTURE_ENTRIES`) and the different cardinalities create confusion. Should be unified into a single source of truth. |
+
+---
+
+### C-62 — No CIC for tools/partitions/ (partition bump tool)
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer modifies `tools/partitions/domain.py` or `fileops.py` behavioral guarantees without a contract to verify against |
+| **Source** | repo-assimilation (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | `tools/partitions/` (3 modules, 37 tests, 3 falsification audits, but no CIC) |
+| **Notes** | The partition tooling is the most thoroughly tested and audited component in the repo (37 unit tests, 3 falsification rounds, expert code review). But it has no Class Intent Contract documenting its guarantees, failure modes, or boundaries. The CIC sync check workflow (`cic_sync_check.yml`) cannot flag changes to this tool. Low urgency since the test coverage is strong, but the contract gap creates a documentation asymmetry with the other tools (all have CICs). |
+
+---
+
+### C-63 — Partition bump test files missing ADR-005 category markers
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Test category analysis (red/beige/green distribution) reports inaccurate numbers because 4 test files (test_bump_partitions.py, test_falsify_bump_completeness.py, test_falsify_bump_edge_cases.py, test_falsify_bump_robustness.py) have no ADR-005 markers |
+| **Source** | test-review (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_falsify_bump_*.py` (3 files) |
+| **Notes** | ADR-005 defines the red/beige/green taxonomy for test classification. The 4 partition bump test files (37 tests total) were written without category markers. Most are green (functional correctness) with some beige (structural compliance). The falsification verification tests could be marked green (they verify fixes). Low priority but creates a documentation gap in test distribution reporting. |
+
+---
+
+### C-64 — Zero red (adversarial) tests for all 9 tool modules
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer introduces a bug in tools/partitions/ or tools/catalogs/ that only manifests with adversarial input (corrupt file, permission error, concurrent execution); no red test catches it |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Resolved |
+| **Location** | `tests/test_bump_partitions.py`, `tests/test_catalogs.py`, `tests/test_scaffold_builders.py`, `tests/test_tooling_scripts.py` |
+| **Notes** | **Resolved 2026-06-07:** 30 red tests now cover 8 of 9 tool modules. Partition tooling: 9 red (garbage input, partial structure, negative month_ids, missing return, missing section, negative bump, missing JSON key, non-iterable value, permission error cleanup). Scaffold: 3 red (github failure, without_directory_raises x2). Catalogs: 11 red (malformed markers, empty content, missing keys, non-list targets, empty model list, adversarial regex input). `build_package_scaffold.py` cannot be tested without `views_pipeline_core` — accepted gap. Also found: `_format_targets` crashes on non-string non-list input (TypeError) — characterized as red test. |
+
+---
+
+### C-65 — generate_features_catalog.py and update_readme.py have no core-functionality tests
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer modifies the main loop of `generate_features_catalog.py` or `update_readme.py` (model discovery, config loading, output generation); no test catches a regression in core behavior |
+| **Source** | falsify: test category completeness (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py` (115 lines, 4 regex characterization tests only), `tools/catalogs/update_readme.py` (276 lines, 6 helper characterization tests only) |
+| **Notes** | **Partially resolved 2026-06-07:** Added 11 functional tests for `generate_features_catalog.py`: 5 for `extract_columns_from_querysets()` (single file, dedup, loa extraction, empty dir crash, non-Python ignored) and 6 for `generate_markdown_table()` (valid markdown, headers, placeholders, row count, empty crash, queryset preserved). Found 2 bugs: empty dir crashes groupby (C-66), empty DataFrame crashes tabulate (C-67). `update_readme.py` orchestration remains untestable without views_pipeline_core — accepted. |
+
+---
+
+### C-66 — `extract_columns_from_querysets()` crashes on empty directory
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `extract_columns_from_querysets()` is called on a directory with no `.py` files; pandas `groupby` raises `KeyError` on empty DataFrame |
+| **Source** | test: catalog core tests (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py:72` |
+| **Notes** | The function creates an empty `columns_info` list, converts to empty DataFrame (no columns), then tries `df.groupby(['column_name', 'loa'])` which fails because the columns don't exist. Fix: add early return if `columns_info` is empty. Characterized as red test `test_empty_directory_crashes`. |
+
+---
+
+### C-67 — `generate_markdown_table()` crashes on empty DataFrame
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | `generate_markdown_table()` is called with an empty DataFrame; `tabulate()` raises `IndexError` because `colalign=("center",)` references a column that doesn't exist |
+| **Source** | test: catalog core tests (2026-06-07) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/generate_features_catalog.py:97` |
+| **Notes** | The `colalign` parameter assumes at least 1 data column. Empty DataFrame has 0 columns → `IndexError`. Fix: skip `colalign` if `table_data` is empty, or return header-only table. Characterized as red test `test_empty_dataframe_crashes_tabulate`. |
 
 ---
 

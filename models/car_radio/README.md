@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  car_radio   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and Mueller & Rauh topic model features    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

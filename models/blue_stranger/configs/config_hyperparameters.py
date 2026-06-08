@@ -1,18 +1,22 @@
 
 def get_hp_config():
     """
-    Contains the hyperparameter configurations for model training.
-    This configuration is "operational" so modifying these settings will impact the model's behavior during training.
+    Ensemble member C: "CRPS-focused" — uniform sigma + early SS exposure.
 
-    Returns:
-    - hyperparameters (dict): A dictionary containing hyperparameters for training the model,
-      which determine the model's behavior during the training phase.
+    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
+    Based on sweep finding: uniform sigma=1.0 with SS gives best CRPS (0.140).
+
+    Diversity axes vs other members:
+    - Seeds: 99/99 (vs 4/4 and 42/42)
+    - Sigma: uniform 1.0 (vs per-target — completely different loss surface)
+    - SS warmup: 5 (vs 10 and 15) — early exposure to own predictions
+    - Lessons: 250 (vs 200) — deeper convergence
+    - Dropout: 0.1 (vs 0.125 and 0.15) — tighter predictions, less uncertainty
+    - Sampling: boltzmann (vs threshold and sigmoid) — different spatial focus
     """
 
     hyperparameters = {
 
-
-        
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
         # ============================================================
@@ -22,7 +26,7 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        'input_channels': 3, # Checksum: Must match len(features)
+        'input_channels': 3,
         'row_offset': 87,
         'col_offset': 310,
         'height': 180,
@@ -33,32 +37,30 @@ def get_hp_config():
         # ============================================================
         'model': 'HydraBNUNet06_LSTM4',
         'total_hidden_channels': 32,
-        'dropout_rate': 0.125,
+        'dropout_rate': 0.1,
         'window_dim': 32,
-        'output_channels': 1, # Depth per head
+        'output_channels': 1,
         'weight_init': 'xavier_norm',
-        'freeze_h': "hl",
         'h_init': 'abs_rand_exp-100',
 
         # ============================================================
         # Optimization (ADR 014 Compliance)
         # ============================================================
-        'windows_per_lesson': 3,     
+        'windows_per_lesson': 3,
         'learning_rate': 0.001,
         'weight_decay': 0.1,
         'scheduler': 'WarmupDecay',
         'warmup_steps': 100,
         'clip_grad_norm': True,
-        'torch_seed': 4,
-        'np_seed': 4,
+        'torch_seed': 99,
+        'np_seed': 99,
 
         # ============================================================
         # Multi-Task Signals (ADR 020 Compliance)
         # ============================================================
-        #'target_variable': 'lr_sb_best',
-        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'], # auto transform to by_ 
+        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
         'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        
+
         'transformations': {
             'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
             'asinh': [],
@@ -74,52 +76,44 @@ def get_hp_config():
         },
 
         'steps': list(range(1, 37)),
-        'time_steps': 36, # Checksum: Must match len(steps)
+        'time_steps': 36,
 
         # ============================================================
-        # Loss Functions
+        # Loss Functions — Tobit + uniform sigma (ADR-054)
         # ============================================================
-        # Regression: Basu Density Power Divergence (alpha=0.3, sigma=3.0)
-        # Robust loss from Basu et al. (1998). Alpha reduced from 0.5 to 0.3
-        # per metric-lab autoresearch (apr09): alpha=0.5 too aggressive for
-        # sparse UCDP data. Sigma=3.0 calibrated for log1p residual scale
-        # (dampening engages at residuals > ~5, not > ~2).
-        # See views-metric-lab/reports/experiments/autoresearch_basu_apr09_report.md
-        'loss_reg': 'basu_dpd',
-        'loss_reg_alpha': 0.3,
-        'loss_reg_sigma': 3.0,
-        # Classification: Focal Loss (unchanged from purple_alien)
+        'loss_reg': 'tobit',
+        'loss_reg_sigma': 1.0,
         'loss_class': 'focal',
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
-        'onset_bias_init': -7.0,  # Dilution study: no penalty for deeper bias; -7.0 universal default
+        'onset_bias_init': -7.0,
+
+        # ============================================================
+        # Scheduled Sampling (ADR-056) — early exposure
+        # ============================================================
+        'ss_schedule': 'linear',
+        'ss_warmup_lessons': 5,
+        'ss_epsilon_max': 0.5,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 150,        
-        'max_ratio': 0.95,           
-        'min_ratio': 0.05,           
-        'slope_ratio': 0.75,         
-        'roof_ratio': 0.7,           
-        'min_events': 5,             
+        'total_lessons': 250,
+        'max_ratio': 0.95,
+        'min_ratio': 0.05,
+        'slope_ratio': 0.75,
+        'roof_ratio': 0.7,
+        'min_events': 5,
+        'sampling_strategy': 'boltzmann',
+        'sampling_temperature': 10.0,
 
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        # Note: Internal Naming (pred_, _raw, _prob) is handled by VolumeHandler
-        'n_posterior_samples': 64,
-        #'evaluation_mode': "point", #'stochastic',
+        'n_posterior_samples': 16,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
-        # 'run_type': 'calibration',
-
-        # Track B (list-in-cell parquet delivery) is suspended at pgm scale.
-        # to_prediction_df() creates 5.5M Python float objects per target per origin
-        # (~4.8–6.4 GB peak + 2.3 GB permanent fragmentation). Track A (.npy) is
-        # written per-origin for metrics. Re-enable once Track B has a PyArrow fix.
-        'skip_predictions_delivery':  False, #True,
+        'skip_predictions_delivery': True,
     }
 
     return hyperparameters
-

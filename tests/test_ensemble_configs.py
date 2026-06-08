@@ -1,7 +1,8 @@
 """Tests for ensemble configuration completeness and dependency validation.
 
 Ensembles have different required config keys than individual models:
-- config_meta.py: name, models, regression_targets, level, aggregation
+- config_meta.py: name, regression_targets, level, aggregation
+- config_modelset.py: models (list of constituent model names)
 - config_deployment.py: deployment_status
 - config_hyperparameters.py: steps
 - config_partitions.py: generate() function
@@ -17,10 +18,13 @@ from tests.conftest import (
 )
 
 
-REQUIRED_ENSEMBLE_META_KEYS = {"name", "models", "regression_targets", "level", "aggregation"}
+pytestmark = pytest.mark.beige
+
+REQUIRED_ENSEMBLE_META_KEYS = {"name", "regression_targets", "level", "aggregation"}
 
 REQUIRED_ENSEMBLE_CONFIG_FILES = [
     "config_meta.py",
+    "config_modelset.py",
     "config_deployment.py",
     "config_hyperparameters.py",
     "config_partitions.py",
@@ -73,14 +77,6 @@ class TestEnsembleConfigMeta:
         meta = module.get_meta_config()
         assert meta["level"] in ("cm", "pgm")
 
-    def test_meta_models_is_nonempty_list(self, ensemble_dir):
-        cfg_path = ensemble_dir / "configs" / "config_meta.py"
-        module = load_config_module(cfg_path)
-        meta = module.get_meta_config()
-        assert isinstance(meta["models"], list) and len(meta["models"]) > 0, (
-            f"{ensemble_dir.name} config_meta.models must be a non-empty list"
-        )
-
     def test_no_old_targets_key(self, ensemble_dir):
         """Ensembles must use 'regression_targets', not the old 'targets' key."""
         cfg_path = ensemble_dir / "configs" / "config_meta.py"
@@ -118,16 +114,34 @@ class TestEnsembleConfigHyperparameters:
         assert "steps" in hp, f"{ensemble_dir.name} config_hp missing 'steps'"
 
 
+class TestEnsembleConfigModelset:
+    def test_modelset_has_models_key(self, ensemble_dir):
+        cfg_path = ensemble_dir / "configs" / "config_modelset.py"
+        module = load_config_module(cfg_path)
+        modelset = module.get_modelset_config()
+        assert "models" in modelset, (
+            f"{ensemble_dir.name} config_modelset missing 'models' key"
+        )
+
+    def test_modelset_models_is_nonempty_list(self, ensemble_dir):
+        cfg_path = ensemble_dir / "configs" / "config_modelset.py"
+        module = load_config_module(cfg_path)
+        modelset = module.get_modelset_config()
+        assert isinstance(modelset["models"], list) and len(modelset["models"]) > 0, (
+            f"{ensemble_dir.name} config_modelset.models must be a non-empty list"
+        )
+
+
 # ── Dependency Validation ─────────────────────────────────────────────
 
 class TestEnsembleDependencies:
     def test_all_constituent_models_exist(self, ensemble_dir):
-        """Every model listed in config_meta.models must exist as a model directory."""
-        cfg_path = ensemble_dir / "configs" / "config_meta.py"
+        """Every model listed in config_modelset.models must exist as a model directory."""
+        cfg_path = ensemble_dir / "configs" / "config_modelset.py"
         module = load_config_module(cfg_path)
-        meta = module.get_meta_config()
+        modelset = module.get_modelset_config()
         missing = [
-            m for m in meta["models"]
+            m for m in modelset["models"]
             if not (MODELS_DIR / m).is_dir()
         ]
         assert not missing, (
@@ -136,13 +150,17 @@ class TestEnsembleDependencies:
 
     def test_constituent_models_match_ensemble_level(self, ensemble_dir):
         """All models in an ensemble must have the same level (cm/pgm) as the ensemble."""
-        cfg_path = ensemble_dir / "configs" / "config_meta.py"
-        module = load_config_module(cfg_path)
-        meta = module.get_meta_config()
+        meta_path = ensemble_dir / "configs" / "config_meta.py"
+        meta_module = load_config_module(meta_path)
+        meta = meta_module.get_meta_config()
         ensemble_level = meta["level"]
 
+        modelset_path = ensemble_dir / "configs" / "config_modelset.py"
+        modelset_module = load_config_module(modelset_path)
+        modelset = modelset_module.get_modelset_config()
+
         mismatched = []
-        for model_name in meta["models"]:
+        for model_name in modelset["models"]:
             model_meta_path = MODELS_DIR / model_name / "configs" / "config_meta.py"
             if model_meta_path.exists():
                 model_module = load_config_module(model_meta_path)

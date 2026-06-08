@@ -1,36 +1,58 @@
-# Violet Visitor
+# Violet Visitor 
 ## Overview
 
-Clone of `purple_alien` with LogNormal NLL regression loss (fixed sigma=0.9).
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | HydraNet                       |
-| **Level of Analysis** | pgm                         |
-| **Parent Model**    | purple_alien                   |
-| **Key Difference**  | `loss_reg='d'` (LogNormal NLL, sigma=0.9) instead of `loss_reg='b'` (ShrinkageLoss) |
+| **Model Algorithm** | HydraNet                  |
+| **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best, by_sb_best, by_ns_best, by_os_best |
-| **Deployment Status** | shadow                       |
+| **Features**       |  violet_visitor   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Deployment Status**       |  shadow    |
 
-## Rationale
+## Repository Structure
 
-Winner of the views-metric-lab autoresearch (2026-04-09): 35 experiments, 59% CRPS
-improvement over baseline, 8/9 FAO guardrails passed. LogNormal NLL with fixed
-sigma=0.9 outperformed Basu DPD, Huber, L1, and Focal losses on sparse UCDP data.
+```
+Violet Visitor
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
 
-See: `views-metric-lab/reports/experiments/autoresearch_basu_apr09_report.md`
+## Setup Instructions
 
-## Changes from purple_alien
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
 
-| Parameter | purple_alien | violet_visitor |
-|-----------|-------------|----------------|
-| `loss_reg` | `'b'` (ShrinkageLoss) | `'d'` (LogNormalFixedSigmaLoss) |
-| `loss_reg_a` | 258 | removed |
-| `loss_reg_c` | 0.001 | removed |
-| `loss_reg_sigma` | n/a | 0.9 |
 
 ## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
 python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
 ```
+
+

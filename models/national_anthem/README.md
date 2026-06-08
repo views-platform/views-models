@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  national_anthem   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and short list of wdi features    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

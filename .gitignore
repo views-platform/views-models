@@ -6,6 +6,9 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
+# Claude Code
+.claude/
+
 # Integration test logs (allow .gitkeep through to preserve empty log dirs)
 logs/*
 !logs/.gitkeep
@@ -233,6 +236,7 @@ cython_debug/
 # data files
 *.csv
 *.npy
+*.npz
 *.parquet
 *.pt
 *.pkl 

@@ -1,0 +1,53 @@
+name: CIC Sync Check
+on:
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  cic-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check CIC-governed files have matching CIC updates
+        run: |
+          set -uo pipefail
+
+          BASE="${{ github.event.pull_request.base.sha }}"
+
+          declare -A CIC_MAP
+          CIC_MAP["tools/catalogs/create_catalogs.py"]="docs/CICs/CatalogExtractor.md"
+          CIC_MAP["tools/scaffold/build_model_scaffold.py"]="docs/CICs/ModelScaffoldBuilder.md"
+          CIC_MAP["tools/scaffold/build_ensemble_scaffold.py"]="docs/CICs/EnsembleScaffoldBuilder.md"
+          CIC_MAP["tools/scaffold/build_package_scaffold.py"]="docs/CICs/PackageScaffoldBuilder.md"
+          CIC_MAP["tools/partitions/domain.py"]="docs/CICs/PartitionBoundaries.md"
+          CIC_MAP["tools/partitions/fileops.py"]="docs/CICs/PartitionFileOps.md"
+          CIC_MAP["tools/partitions/bump.py"]="docs/CICs/PartitionBump.md"
+          CIC_MAP["run_integration_tests.sh"]="docs/CICs/IntegrationTestRunner.md"
+
+          CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD)
+
+          MISSING=()
+          for source in "${!CIC_MAP[@]}"; do
+            cic="${CIC_MAP[$source]}"
+            if echo "$CHANGED_FILES" | grep -qx "$source"; then
+              if ! echo "$CHANGED_FILES" | grep -qx "$cic"; then
+                MISSING+=("$source -> $cic")
+              fi
+            fi
+          done
+
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "::error::CIC-governed files changed without updating their CIC contract:"
+            for m in "${MISSING[@]}"; do
+              echo "  $m"
+            done
+            echo ""
+            echo "Update the CIC document to reflect behavioral changes (ADR-006)."
+            echo "If the change is purely cosmetic (whitespace, comments), add [cic-skip] to the PR title."
+            exit 1
+          fi
+
+          echo "CIC sync check passed."

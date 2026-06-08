@@ -17,13 +17,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 BRIGHT_STARSHIP = REPO_ROOT / "models" / "bright_starship"
 
-pytestmark = pytest.mark.skipif(
-    not shutil.which("conda"),
-    reason="local pre-flight check — requires conda environment",
-)
+pytestmark = [
+    pytest.mark.red,
+    pytest.mark.skipif(
+        not shutil.which("conda"),
+        reason="local pre-flight check — requires conda environment",
+    ),
+]
 
 
-@pytest.mark.xfail(reason="F-1 pre-flight blocker: datafactory_query not yet installed in views-hydranet-env", strict=False)
 class TestF1_DatafactoryQueryDependency:
     """F-1 (hard): datafactory_query must be importable in the run environment.
 
@@ -65,20 +67,3 @@ class TestF2_CalibrationParquetCached:
         )
 
 
-class TestF3_RunShEnvironment:
-    """F-3 (soft): run.sh expects conda env at envs/views-hydranet.
-
-    The env doesn't exist locally. run.sh will create it from scratch
-    (~10 min), which would install datafactory via requirements.txt.
-    Not "ready to run" — more "ready to bootstrap then run."
-    """
-
-    # def test_run_sh_conda_env_exists(self):
-    #     """The conda env expected by run.sh must exist."""
-    #     env_path = REPO_ROOT / "envs" / "views-hydranet"
-    #     assert env_path.is_dir(), (
-    #         f"Missing conda env at {env_path.relative_to(REPO_ROOT)}. "
-    #         "run.sh will attempt to create it from scratch. "
-    #         "Either run `run.sh` once to bootstrap, or use "
-    #         "`conda run -n views-hydranet-env` with datafactory_query installed."
-    #     )

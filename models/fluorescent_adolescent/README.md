@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  fluorescent_adolescent   |
 | **Feature Description**       |  Predicting lr_ged_sb, cm level Queryset with features from various sources, 'joint narrow'    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
