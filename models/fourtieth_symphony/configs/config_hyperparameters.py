@@ -9,6 +9,7 @@ def get_hp_config():
     """
     
     hyperparameters = {
+        "target_transform": "identity",
         'steps': [*range(1, 36 + 1, 1)],
         "time_steps": 36,
         'submodels_to_train': 20,
