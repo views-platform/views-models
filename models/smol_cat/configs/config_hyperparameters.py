@@ -15,16 +15,16 @@ def get_hp_config():
         "output_chunk_shift": 0,
         "hidden_size": 384,
         "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 256,
+        "temporal_decoder_hidden": 128,
         "temporal_width_past": 24,
         "temporal_width_future": 4,
-        "temporal_hidden_size_past": 64,
+        "temporal_hidden_size_past": 128,
         "temporal_hidden_size_future": 32,
         "num_encoder_layers": 3,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.25,
+        "dropout": 0.1,
         "use_static_covariates": True,
 
         # Training
@@ -36,29 +36,29 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 0.0001,
+        "weight_decay": 1e-4,
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 0.0001,
+            "weight_decay": 1e-4,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
+        "lr_scheduler_patience": 20,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 8,
+            "patience": 20,
             "min_lr": 1e-6,
-            "cooldown": 3,
+            "cooldown": 5,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
 
         # Trainer
-        "gradient_clip_val": 3,
+        "gradient_clip_val": 50,
         "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
 
