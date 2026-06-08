@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Owner:** Project maintainers
-**Last reviewed:** 2026-03-15
+**Last reviewed:** 2026-06-08
 **Related ADRs:** ADR-001, ADR-002, ADR-009
 
 ---
