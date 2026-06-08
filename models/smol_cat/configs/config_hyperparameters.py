@@ -36,10 +36,10 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0005,
-        "weight_decay": 1e-4,
+        "weight_decay": 0.0,
         "optimizer_kwargs": {
             "lr": 0.0005,
-            "weight_decay": 1e-4,
+            "weight_decay": 0.0,
         },
 
         # LR Scheduler
@@ -51,14 +51,14 @@ def get_hp_config():
             "mode": "min",
             "factor": 0.5,
             "patience": 20,
-            "min_lr": 1e-6,
+            "min_lr": 1e-5,
             "cooldown": 5,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
 
         # Trainer
-        "gradient_clip_val": 50,
+        "gradient_clip_val": 200,
         "early_stopping_patience": 35,
         "early_stopping_min_delta": 0.001,
 
