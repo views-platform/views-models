@@ -102,10 +102,14 @@ class TestF4_StaleDocstrings:
     def test_no_stale_loss_references_in_parity_test(self):
         path = REPO / "tests" / "test_datafactory_parity.py"
         text = path.read_text()
-        for stale in ["shrinkage", "basu_dpd", "lognormal_nll"]:
+        # 'lognormal_nll' removed from this list 2026-06-09 (PR #116): it is now a
+        # *live* loss — violet_visitor's Arm-1 hurdle experiment (C-71) — so a
+        # reference in the parity test is current, not stale. 'shrinkage'/'basu_dpd'
+        # remain genuinely-removed loss functions and must not reappear.
+        for stale in ["shrinkage", "basu_dpd"]:
             assert stale not in text, (
                 f"test_datafactory_parity.py still references '{stale}' — "
-                f"datafactory trio now uses tobit"
+                f"that loss function was removed"
             )
 
 
