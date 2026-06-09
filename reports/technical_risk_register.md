@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-09  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 75 (71 concerns + 4 disagreements)  
-**Concerns:** Open 26 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 81 (77 concerns + 4 disagreements)  
+**Concerns:** Open 32 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -892,6 +892,84 @@
 | **Status** | Open |
 | **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`loss_reg: lognormal_nll`), `tests/test_datafactory_parity.py::test_both_trios_use_same_loss` |
 | **Notes** | violet_visitor's regression loss was intentionally changed from `tobit` to `lognormal_nll` (Arm-1 hurdle experiment, magnitude_calibration dossier 2026-06-08, issue #85; commit 908d383). The viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) were designed to be loss-identical so golden_hour (viewser ensemble) and stellar_horizon (datafactory ensemble) could be compared apples-to-apples (the parity programme behind C-48). violet_visitor's divergence breaks that: a golden_hour↔stellar_horizon comparison now confounds the loss change with the data-source change. `test_both_trios_use_same_loss` previously asserted strict uniformity (`{"tobit"}`); it was updated (PR #116) to pin the expected diverged state (five `tobit` + violet_visitor `lognormal_nll`), so the divergence is explicit and any *further* drift is still caught. The risk is interpretive, not silent — but a reader unaware of the experiment could draw wrong parity conclusions. Revisit when Arm-1 concludes: either restore `tobit`, or promote the hurdle loss across the whole trio. See also C-48 (variable-variant parity — resolved), C-37 (forecasting parity divergence), C-44 (concat aggregation quality), C-69 (sweep config untested). |
+
+---
+
+### C-72 — violet_visitor predictions overflow to `Inf` under the Arm-1 `lognormal_nll` loss
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | golden_hour (or any consumer) is next run/aggregated against violet_visitor's calibration predictions while it runs the Arm-1 `lognormal_nll` loss — 46–63% of regression cells are `Inf` |
+| **Source** | repo-assimilation + falsify (2026-06-09) |
+| **Status** | Open |
+| **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`loss_reg: lognormal_nll`, `loss_reg_sigma: 0.9`, `hurdle_threshold: 0`); artifact `models/violet_visitor/data/generated/predictions_calibration_20260609_051916/` |
+| **Notes** | Verified directly: the 2026-06-09 calibration run has `Inf` in **63.5% / 59.4% / 46.4%** of `lr_sb_best / lr_ns_best / lr_os_best` cells (finite max 3.4e38 = float32 ceiling); the prior `tobit` run (2026-06-08) was clean (0 Inf, max ≈ 4365). Root cause: the lognormal inverse `exp(µ)` overflows float32. **Classification targets (`by_*`) are sane** — the breakage is regression-only. There **is** a signal (`tests/test_pfe_production_readiness.py::TestTransformUndoScale::test_no_inf[violet_visitor_calibration]` catches it) → Tier 2, not Tier 1. **Accepted as an active experiment**: the user has chosen to leave violet_visitor's loss as-is (issue #85, magnitude_calibration dossier, commit `908d383`); this entry documents the known state — it is **not** a request to change the model. `lognormal_nll` is a registered, valid loss in views_hydranet (`utils/utils.py:66`); this is purely numerical, not a registration issue. To make the experiment usable, tame the overflow (clamp/bound `µ` in `views_hydranet` `LogNormalFixedSigmaLoss`). Downstream: a fresh golden_hour run would ingest the Inf. See also C-71 (same change's parity impact), C-74 (golden_hour sample count), C-44 (concat aggregation). |
+
+---
+
+### C-73 — Ensemble scaffold builder imports an unreleased pipeline-core symbol; CI installs core unpinned
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | CI (or any fresh `pip install views_pipeline_core`) resolves a released pipeline-core (PyPI 2.3.0 / tag 2.3.1) that lacks `template_config_modelset` — the 3 `EnsembleScaffoldBuilder` tests fail at import and the builder is unusable |
+| **Source** | repo-assimilation + falsify (2026-06-09) |
+| **Status** | Open |
+| **Location** | `tools/scaffold/build_ensemble_scaffold.py:8`; `.github/workflows/run_tests.yml:19` (`pip install views_pipeline_core`, unpinned); `tests/test_scaffold_builders.py::TestEnsembleScaffoldBuilderDirectoryCreation` |
+| **Notes** | `build_ensemble_scaffold.py` imports `template_config_modelset` from `views_pipeline_core.templates.ensemble`. That symbol exists only on pipeline-core `development` — in **no released/tagged version**: PyPI latest is 2.3.0; git tag 2.3.1 is malformed (its `pyproject` still says `version = "2.3.0"` and it also lacks the symbol). CI installs the package **unpinned**, resolving to 2.3.0, so the 3 scaffold tests `ImportError` and the builder is broken against any release. Real fix (no skip): cut a properly-versioned pipeline-core release shipping the symbol — HEAD is **137 commits ahead of 2.3.1** (dependency removals, signature/exception changes) → likely **minor/major, not patch**; run a cross-consumer smoke-import first; prefer a minimal release branch over 2.3.0 — then pin views-models CI + the scaffold path narrowly to it. (Templates already package via poetry-core — no `packages` directive — so adding `templates/{model,ensemble,package}/__init__.py` is robustness, not the blocker.) See also C-31 (upstream API breakage), C-42 (synthetic models on unreleased core branch). |
+
+---
+
+### C-74 — golden_hour `concat` yields 12 posterior samples instead of 48
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A `PredictionFrameEnsembleManager` `concat` ensemble (golden_hour: 3 constituents × 16 samples) is aggregated and the output carries fewer samples than the sum of its constituents |
+| **Source** | falsify (2026-06-09) |
+| **Status** | Open |
+| **Location** | `ensembles/golden_hour` (`aggregation: concat`); views-pipeline-core `PredictionFrameEnsembleManager` concat path; `tests/test_pfe_production_readiness.py::TestPFEEnsembleAggregation::test_aggregated_sample_count[golden_hour_calibration]` |
+| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). |
+
+---
+
+### C-75 — bright_starship datafactory readiness test is mis-scoped for CI (false red)
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | CI runs `test_bright_starship_readiness.py::TestF1` — it shells `conda run -n views-hydranet-env` for a workstation-only env absent in CI, erroring (`EnvironmentLocationNotFound`) instead of testing a CI-checkable contract |
+| **Source** | repo-assimilation (2026-06-09) |
+| **Status** | Open |
+| **Location** | `tests/test_bright_starship_readiness.py::TestF1_DatafactoryQueryDependency` (class `skipif` only checks `shutil.which("conda")`, truthy in CI) |
+| **Notes** | The test is a local pre-flight probe (per its docstring) but executes in CI because the `skipif(not shutil.which("conda"))` guard passes (CI has miniconda) while the named env `views-hydranet-env` does not exist → false red. Real fix (no skip): provision `views-datafactory` in the CI job and assert a real `import datafactory_query` in the CI interpreter, plus static contract checks (requirements declares it; descriptor shape; spec resolvable). Add the equivalent for shining_codex (closes C-41). See also C-38 (datafactory_query availability), C-55 (prior stale-xfail on this test — resolved). |
+
+---
+
+### C-76 — `test_values_not_log_compressed` applies a false invariant to `ZeroModel`
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | The PFE log-compression test runs against a zero/constant baseline (e.g. zero_cmbaseline) and asserts `max>10`, which a correct all-zeros prediction can never satisfy |
+| **Source** | repo-assimilation + expert-review (2026-06-09) |
+| **Status** | Open |
+| **Location** | `tests/test_pfe_production_readiness.py::TestTransformUndoScale::test_values_not_log_compressed` |
+| **Notes** | The `max>10` heuristic (guarding against predictions left on `log1p` scale) is valid for learned-magnitude models but FALSE for `ZeroModel`, which correctly emits all-zeros (zero_cmbaseline max=0.0 → perpetual fail). Verified `locf_cmbaseline` (max 17412) and `average_cmbaseline` (max 4743) legitimately pass and MUST keep the guard — so the fix is to exclude **`ZeroModel` only** (keyed off `config_meta["algorithm"]`) and, better, assert `max==0 and min==0` for ZeroModel (a ZeroModel emitting nonzero is itself a bug). Local-only (CI has no prediction artifacts). A test-design correction, not a coverage skip. |
+
+---
+
+### C-77 — synthetic_chant README omits cross-pattern CRPS-inflation semantics
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A reader interprets synthetic_chant's ensemble CRPS as prediction quality, unaware it reflects cross-pattern disagreement measured against models[0]'s actuals |
+| **Source** | repo-assimilation + falsify (2026-06-09) |
+| **Status** | Open |
+| **Location** | `ensembles/synthetic_chant/README.md`; `tests/test_falsification_synthetic_runs.py::test_falsify_01_synthetic_chant_readme_documents_crps_inflation` |
+| **Notes** | Genuine documentation gap (TDD-red test). Constituents use different synthetic patterns — `lucid_dream`=`vertical_stripe` (models[0] → supplies ground-truth actuals), `vivid_dream`=`horizontal_stripe`, `waking_dream`=`diagonal_gradient`; the ensemble evaluates all predictions against models[0]'s actuals, so CRPS (constituent 0.000/0.002/0.043 → ensemble 1.044) measures cross-pattern disagreement, not prediction quality. Real fix: document these facts in the README (mirror `ensembles/synthetic_chorus/README.md`). See also C-43 (synthetic_chorus order-dependency), C-42 (synthetic models on unreleased core). |
 
 ---
 
