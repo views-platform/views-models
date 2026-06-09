@@ -9,7 +9,7 @@ def get_hp_config():
     """
     
     hyperparameters = {
-        "target_transform": "identity",
+        "target_transform": "log1p",
         'steps': [*range(1, 36 + 1, 1)],
         "time_steps": 36,
         "parameters": {
