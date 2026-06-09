@@ -186,7 +186,18 @@ def generate(steps: int = 36) -> dict:
         assert result["validation_test"] == (493, 540)
 
     def test_all_repo_variants_parse(self):
-        """Every unique config_partitions.py variant in the repo must parse."""
+        """Every unique config_partitions.py variant in the repo must parse and
+        match the canonical calibration_train from meta/partitions.json.
+
+        Compares against the canonical source of truth (not a hardcoded tuple)
+        so the test survives annual partition bumps instead of breaking on them.
+        """
+        import json
+
+        canonical = json.loads(
+            (REPO_ROOT / "meta" / "partitions.json").read_text()
+        )
+        expected_cal_train = tuple(canonical["calibration"]["train"])
         files = sorted(
             list(REPO_ROOT.glob("models/*/configs/config_partitions.py"))
             + list(REPO_ROOT.glob("ensembles/*/configs/config_partitions.py"))
@@ -204,7 +215,10 @@ def generate(steps: int = 36) -> dict:
             assert result is not None, (
                 f"Failed to parse {f.relative_to(REPO_ROOT)}"
             )
-            assert result["calibration_train"] == (121, 444)
+            assert result["calibration_train"] == expected_cal_train, (
+                f"{f.relative_to(REPO_ROOT)} calibration_train="
+                f"{result['calibration_train']} != canonical {expected_cal_train}"
+            )
 
 
 class TestDiscoverEntityDirs:
