@@ -14,7 +14,7 @@ def get_hp_config():
         "time_steps": 36,
         'submodels_to_train': 20,
         'pred_samples': 10,
-        'log_target': True,
+        'log_target': False,
         'draw_dist': 'Lognormal',
         'draw_sigma': 0.5,
         'geo_unit_samples': 1.0,
