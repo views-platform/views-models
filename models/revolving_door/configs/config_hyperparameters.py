@@ -5,7 +5,7 @@ def get_hp_config():
     Returns:
     - hyperparameters (dict): Training configuration dictionary.
     """
-
+    # r7
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
@@ -23,41 +23,42 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 35,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0005,
-        "weight_decay": 0.00005,
-        "gradient_clip_val": 20,
+        "lr": 1e-3,
+        "weight_decay": 3e-4,
+        "gradient_clip_val": 50.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_patience": 10,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 12,
+            "patience": 10,
             "min_lr": 1e-6,
-            "cooldown": 3,
+            "cooldown": 2,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
+
         "optimizer_kwargs": {
-            "lr": 0.0005,
-            "weight_decay": 0.00005,
+            "lr": 1e-3,
+            "weight_decay": 3e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.041685644972051974,
         "non_zero_threshold": 0.88,
+        "delta": 0.041685644972051974,
 
         # Scaling
         "feature_scaler": None,
@@ -107,26 +108,17 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        # Inverted pyramid: coarse stack is narrow (64), fine stack is wide (256).
-        # This matches the decomposition task — the coarse stack only needs to capture
-        # slow level shifts and physically cannot build complex crisis trend extrapolations
-        # with only 64-wide FC layers. The fine stack gets 256 width to fit spike residuals
-        # accurately, which drives MSLE down. Reverting to this from [160,80,64] which
-        # gave the coarse stack too much capacity and caused Niger-type runaway.
-        # Pooling: [4,2,1] → 9, 18, 36 FC inputs. Safe with 64-wide coarse stack +
-        # RevIN sigma cap (sigma_raw now capped to 5× batch mean, so even if n_freq=4
-        # extrapolates trend, the denorm multiplier is bounded).
         "num_stacks": 3,
-        "num_blocks": 1,
-        "num_layers": 4,
-        "layer_widths": [32, 64, 128],
-        "pooling_kernel_sizes": [[4], [2], [1]],
-        "n_freq_downsample": [[4], [2], [1]],
-        "max_pool_1d": False,
-        "activation": "GELU",
-        "dropout": 0.15,
+        "num_blocks": 2,
+        "num_layers": 3,
+        "layer_widths": 256,
+        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
+        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
+        "activation": "Tanh",
+        "dropout": 0.1,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
+        "max_pool_1d": True,
         "checkpoint_mode": "best",
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform->MaxAbsScaler",
