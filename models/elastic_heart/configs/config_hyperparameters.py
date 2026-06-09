@@ -9,7 +9,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
-        "input_chunk_length": 48,
+        "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -31,7 +31,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 50.0,
+        "gradient_clip_val": 5.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -103,13 +103,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        "num_blocks": 2,
+        "num_blocks": 3,
         "hidden_size": 64,
-        "ff_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.1,
+        "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
