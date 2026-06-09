@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-07  
+**Last updated:** 2026-06-09  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 71 (67 concerns + 4 disagreements)  
-**Concerns:** Open 24 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 75 (71 concerns + 4 disagreements)  
+**Concerns:** Open 26 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -840,6 +840,58 @@
 | **Status** | Open |
 | **Location** | `tools/catalogs/generate_features_catalog.py:97` |
 | **Notes** | The `colalign` parameter assumes at least 1 data column. Empty DataFrame has 0 columns → `IndexError`. Fix: skip `colalign` if `table_data` is empty, or return header-only table. Characterized as red test `test_empty_dataframe_crashes_tabulate`. |
+
+---
+
+### C-68 — `config_meta.py` fields duplicate operational config keys with no enforcement of doc-only status
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer edits `regression_targets` (or `level`, `algorithm`, `prediction_format`) in a model's `config_meta.py` expecting it to change training/evaluation behavior, unaware the file is documentation-only |
+| **Source** | repo-assimilation (2026-06-09) |
+| **Status** | Open |
+| **Location** | `models/*/configs/config_meta.py`, `models/*/configs/config_hyperparameters.py` |
+| **Notes** | `config_meta.py`'s docstring states "modifying it will not affect the model, the training, or the evaluation." Yet several keys it declares — notably `regression_targets` — are also required as *operational* keys in `config_hyperparameters.py` (C-52 added `regression_targets` to 9 hyperparameter files for PFE participation). The same logical field thus lives in two files with opposite semantics: inert in meta, behavioral in hyperparameters. No test asserts the two copies agree, and no warning fires when a developer edits the inert copy. A change to the meta copy is silently ignored; a stale meta copy also misleads readers and the generated catalogs (`tools/catalogs/create_catalogs.py` reads `config_meta.py`). Low severity — no model-output corruption — but a maintainability footgun amplified across 90 models. See also C-52 (regression_targets added to hyperparameters), C-53 (stray `prediction_format` key leaked into hyperparameters during merge). |
+
+---
+
+### C-69 — `config_sweep.py` has zero test coverage and no validation of swept-parameter structure
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer edits a model's `config_sweep.py` and mistypes a swept parameter — e.g., `'values': [...]` written as `'value': [...]`, or a parameter name that does not match `config_hyperparameters.py` — then launches `--sweep`; the sweep runs but silently pins or ignores the parameter |
+| **Source** | repo-assimilation (2026-06-09) |
+| **Status** | Open |
+| **Location** | `models/*/configs/config_sweep.py` (observed: `models/violet_visitor/configs/config_sweep.py`) |
+| **Notes** | Unlike `config_meta.py` (`test_config_completeness.py`), `config_partitions.py` (`test_config_partitions.py`), and `config_hyperparameters.py` (C-05 ReproducibilityGate), `config_sweep.py` has no structural or semantic test. The current working-tree rewrite of `models/violet_visitor/configs/config_sweep.py` (a 128-line hand edit mixing `{'value': ...}` and `{'values': [...]}` entries) illustrates the exposure: a `values`→`value` typo silently converts a swept dimension into a fixed constant, and a parameter key that does not correspond to a hyperparameter is silently ignored by W&B. Failures are not loud — the sweep completes but explores the wrong space, wasting GPU/compute and surfacing a misleading "best" run. Affects anyone running sweeps. See also C-05 (HP presence validation — does not cover sweep configs), D-04 (static-analysis vs behavioral-execution test gap). |
+
+---
+
+### C-70 — `run.sh` environment-bootstrap logic duplicated across ~90 protected scripts
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | The planned conda→uv migration (see `reports/conda_to_uv_migration_*`) or any change to env-bootstrap logic requires editing the near-identical `run.sh` in every model/ensemble/api/extractor/postprocessor directory |
+| **Source** | repo-assimilation (2026-06-09) |
+| **Status** | Open |
+| **Location** | `models/*/run.sh`, `ensembles/*/run.sh`, `apis/*/run.sh`, `extractors/*/run.sh`, `postprocessors/*/run.sh` (~90+ scripts) |
+| **Notes** | Every model carries a near-identical `run.sh` that bootstraps a conda env, dry-run-checks `requirements.txt`, and invokes `main.py`. The bootstrap logic is duplicated rather than sourced from a shared script, so a change must fan out across all ~90 files — and these files are production infrastructure that must not be casually modified (operating constraint). C-39 already demonstrated the fan-out cost (79 shebangs corrected in one sweep); C-50 notes `run.sh` cannot be edited to fix the local-install path. The duplication is consistent with the project's accepted self-containment stance for configs (D-01), but unlike partition configs there is no `meta/`-style single source of truth or bump tool for `run.sh` — it is accepted-by-default rather than deliberately governed. Low severity (failures are loud, at bootstrap time), but a coordination cost that recurs on every infra change. See also D-01 (intentional config duplication is load-bearing), C-39 (shebang fan-out — resolved), C-50 (`run.sh` modification constraint). |
+
+---
+
+### C-71 — violet_visitor regression loss diverged from trio parity (Arm-1 hurdle experiment)
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Someone runs or interprets a golden_hour↔stellar_horizon parity comparison assuming the viewser and datafactory trios share a regression loss — but violet_visitor now uses `lognormal_nll` while the other five trio members use `tobit` |
+| **Source** | review (PR #116, 2026-06-09) |
+| **Status** | Open |
+| **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`loss_reg: lognormal_nll`), `tests/test_datafactory_parity.py::test_both_trios_use_same_loss` |
+| **Notes** | violet_visitor's regression loss was intentionally changed from `tobit` to `lognormal_nll` (Arm-1 hurdle experiment, magnitude_calibration dossier 2026-06-08, issue #85; commit 908d383). The viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) were designed to be loss-identical so golden_hour (viewser ensemble) and stellar_horizon (datafactory ensemble) could be compared apples-to-apples (the parity programme behind C-48). violet_visitor's divergence breaks that: a golden_hour↔stellar_horizon comparison now confounds the loss change with the data-source change. `test_both_trios_use_same_loss` previously asserted strict uniformity (`{"tobit"}`); it was updated (PR #116) to pin the expected diverged state (five `tobit` + violet_visitor `lognormal_nll`), so the divergence is explicit and any *further* drift is still caught. The risk is interpretive, not silent — but a reader unaware of the experiment could draw wrong parity conclusions. Revisit when Arm-1 concludes: either restore `tobit`, or promote the hurdle loss across the whole trio. See also C-48 (variable-variant parity — resolved), C-37 (forecasting parity divergence), C-44 (concat aggregation quality), C-69 (sweep config untested). |
 
 ---
 
