@@ -16,6 +16,6 @@ def get_meta_config():
         "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar", "MCR_point"],
     }
     return meta_config
