@@ -1,18 +1,29 @@
 
 def get_hp_config():
     """
-    Ensemble member B: "Calibration-focused" — conservative SS for MCR near 1.0.
+    C-113 SS-BASELINE + Arm-1 LOSS EXPERIMENT (2026-06-07).
 
-    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
-    Based on sweep finding: epsilon_max=0.25 delivers sb MCR=1.01 (nearest to ideal).
+    Two independent things are set here — do NOT read this as an untouched baseline:
+      - Scheduled sampling: OFF (ss_epsilon_max=0.0, pure teacher forcing). This is
+        the honest zero-point for the autoregressive-runaway investigation — the
+        unfixed model, with NO exposure-bias fix mixed in.
+      - Regression loss: the Arm-1 HURDLE experiment (lognormal_nll on positive
+        cells only), NOT the tobit baseline. See the Loss Functions section below.
 
-    Diversity axes vs other members:
-    - Seeds: 42/42 (vs 4/4 and 99/99)
-    - Sigma: per-target {1.0, 0.75, 0.5} (same as member A, different from C)
-    - SS epsilon: 0.25 (vs 0.5 and 0.5) — less self-prediction, better calibration
-    - SS warmup: 15 (vs 10 and 5) — longer pure teacher forcing
-    - Dropout: 0.15 (vs 0.125 and 0.1) — more regularization, wider posteriors
-    - Sampling: sigmoid (vs threshold) — different spatial anchor selection
+    So: SS is the clean baseline, but the loss is an active experiment arm. The
+    config_sweep.py "C-113 baseline" sweep is a different setup — it keeps the
+    tobit baseline and searches dropout/learning-rate instead.
+
+    Was previously "ensemble member B" (calibration-focused) for the golden_hour
+    ensemble (3 HydraNet models × 16 samples = 48), with SS epsilon=0.25 (sweep
+    finding: epsilon_max=0.25 → sb MCR=1.01). SS was turned off for the baseline run.
+
+    Settings retained from that config:
+    - Seeds: 42/42
+    - Sigma: per-target {1.0, 0.75, 0.5}
+    - SS warmup: 15 lessons (inert while SS is off)
+    - Dropout: 0.15
+    - Sampling: sigmoid
     """
 
     hyperparameters = {
@@ -79,30 +90,34 @@ def get_hp_config():
         'time_steps': 36,
 
         # ============================================================
-        # Loss Functions — Tobit + per-target sigma (ADR-054/055)
+        # Loss Functions — Arm-1 hurdle: lognormal_nll on positive cells only
+        # (the BOUNDED last loss-level experiment — magnitude_calibration dossier
+        #  2026-06-08, issue #85). Baseline was Tobit + per-target sigma
+        #  (ADR-054/055); Tobit is censored ⇒ mutually exclusive with the hurdle
+        #  mask, so the positive-regime loss switches to lognormal_nll with a
+        #  SCALAR sigma (a per-target dict is validator-rejected for non-tobit
+        #  losses). hurdle_threshold=0 activates the C-45 positive-only mask
+        #  (training_engine.py:234-259). ONE mechanism vs the saved baseline.
         # ============================================================
-        'loss_reg': 'tobit',
-        'loss_reg_sigma': {
-            'lr_sb_best': 1.0,
-            'lr_ns_best': 0.75,
-            'lr_os_best': 0.5,
-        },
+        'loss_reg': 'lognormal_nll',
+        'loss_reg_sigma': 0.9,
+        'hurdle_threshold': 0,
         'loss_class': 'focal',
         'loss_class_alpha': 0.75,
         'loss_class_gamma': 1.5,
         'onset_bias_init': -7.0,
 
         # ============================================================
-        # Scheduled Sampling (ADR-056) — conservative for calibration
+        # Scheduled Sampling (ADR-056) — OFF (clean C-113 baseline, pure teacher forcing)
         # ============================================================
         'ss_schedule': 'linear',
         'ss_warmup_lessons': 15,
-        'ss_epsilon_max': 0.25,
+        'ss_epsilon_max': 0.0,  # 0 = scheduled sampling OFF — clean baseline (pure teacher forcing)
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 200,
+        'total_lessons': 40,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
