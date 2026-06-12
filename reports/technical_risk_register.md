@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 84 (80 concerns + 4 disagreements)  
-**Concerns:** Open 31 | Mitigated 12 | Resolved 33 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 85 (81 concerns + 4 disagreements)  
+**Concerns:** Open 32 | Mitigated 12 | Resolved 33 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1009,6 +1009,19 @@
 | **Status** | Open |
 | **Location** | `.github/workflows/run_tests.yml`; GitHub Actions history (last green: 2026-06-04 01:21) |
 | **Notes** | Every run_tests.yml run since 2026-06-04 01:21 has failed (40/40 checked). The standing red is the union of C-73 (scaffold/pipeline-core skew, since June 5), C-75 (bright_starship env probe, structural), and C-77/C-78 (README wipe, June 4). Consequence observed this week: three independent NEW breakages (June 5 scaffold skew, June 8 chunky_bunny tripwire fire, June 9 zero_cmbaseline false invariant) accumulated unnoticed because red-on-red signals nothing, and PRs #116–#126 were all merged on red CI. Tier 2: structural fragility with a realistic, recurring trigger — every merge until CI is green again. Exit: resolve C-73 + C-75 + C-77/C-78 (tracked as the CI-green umbrella issue), then adopt the policy that development merges require green CI. See also C-28 (CI only checks last exit code), C-03 (integration tests not in CI). |
+
+---
+
+### C-81 — README regeneration crashes mid-iteration on incomplete model/ensemble dirs, leaving partial regeneration
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `update_catalogs.yml` runs on a fresh checkout (where `ensembles/cruel_summer` and `ensembles/white_mustang` have no tracked `artifacts/`), or a local regeneration runs while a stray partial model dir sits in `models/` — the script crashes after rewriting an arbitrary prefix of READMEs |
+| **Source** | session verification of PR #133 (2026-06-12) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py` (both loops construct `ModelPathManager`/`EnsemblePathManager` with default `validate=True`; writes happen per-directory as iteration proceeds) |
+| **Notes** | Observed live, three separate crash points: stray untracked `models/teenage_dirtbag` and `models/cool_cat` (partial dirs, no `artifacts/`), then tracked `ensembles/white_mustang` (no `artifacts/` in git; `cruel_summer` same gap — the C-32 `.gitkeep` backfill covered models, not these ensembles). `ModelPathManager` raises `FileNotFoundError` on a missing standard dir, killing the whole run. Because the script writes each README as it iterates (`iterdir()`, unsorted), a crash leaves an arbitrary subset regenerated — locally confusing; in the workflow the step fails (post-C-28 `set -e`), so catalogs go silently stale rather than partially committed. Fix directions: (a) construct path managers with `validate=False` (catalog generation is read-only on the dir structure) or per-entry try/except + end-of-run failure summary; (b) backfill `artifacts/.gitkeep` for cruel_summer/white_mustang (C-32 extension to ensembles); (c) iterate only git-tracked dirs so workstation strays can't break tooling. See also C-32 (root cause for the tracked gaps — Mitigated, recurrence here), C-28 (exit-code masking in this workflow — Resolved), C-65 (catalog tools untested), C-78 (manual-block preservation — Resolved; orthogonal fix in the same script). |
 
 ---
 
