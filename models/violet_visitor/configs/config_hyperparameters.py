@@ -1,33 +1,31 @@
+import os
+
 
 def get_hp_config():
     """
-    C-113 SS-BASELINE + Arm-1 LOSS EXPERIMENT (2026-06-07).
+    HURDLE-NB overnight runs (2026-06-11, ZINB epic #102, decision A).
 
-    Two independent things are set here — do NOT read this as an untouched baseline:
-      - Scheduled sampling: OFF (ss_epsilon_max=0.0, pure teacher forcing). This is
-        the honest zero-point for the autoregressive-runaway investigation — the
-        unfixed model, with NO exposure-bias fix mixed in.
-      - Regression loss: the Arm-1 HURDLE experiment (lognormal_nll on positive
-        cells only), NOT the tobit baseline. See the Loss Functions section below.
+    The first config that *turns on* the hurdle-NB stack (#98-#101):
+      - output_distribution='hurdle_nb' -> softplus mu count-space head (#100)
+      - loss_reg='hurdle_nb'            -> TruncatedNBLoss body, learnable per-target theta (#99)
+      - loss_class='weighted_bce'       -> proper class-weighted gate (replaces focal; #99)
+      - freeze_multitask_balancer=True  -> equal-weight sum of the per-target NLLs (D2/C-141)
+      - scheduled sampling OFF          -> we are testing the head, not rollout training
+    Inference emits the EXACT hurdle mean E[y]=P(y>0)*mu/(1-NB0(mu,theta)) (#101).
 
-    So: SS is the clean baseline, but the loss is an active experiment arm. The
-    config_sweep.py "C-113 baseline" sweep is a different setup — it keeps the
-    tobit baseline and searches dropout/learning-rate instead.
-
-    Was previously "ensemble member B" (calibration-focused) for the golden_hour
-    ensemble (3 HydraNet models × 16 samples = 48), with SS epsilon=0.25 (sweep
-    finding: epsilon_max=0.25 → sb MCR=1.01). SS was turned off for the baseline run.
-
-    Settings retained from that config:
-    - Seeds: 42/42
-    - Sigma: per-target {1.0, 0.75, 0.5}
-    - SS warmup: 15 lessons (inert while SS is off)
-    - Dropout: 0.15
-    - Sampling: sigmoid
+    Per-run knobs come from env vars (single fresh-process runs, no per-run file edits):
+      HN_SEED        (default 42)  -> torch_seed/np_seed
+      HN_THETA_INIT  (default 1.0) -> loss_reg_theta_init (NB dispersion init)
+      HN_POS_WEIGHT  (default 10)  -> loss_class_pos_weight (gate positive-class weight)
+      HN_LESSONS     (default 40)  -> total_lessons (set 1-2 for a smoke test)
     """
 
-    hyperparameters = {
+    seed = int(os.environ.get("HN_SEED", "42"))
+    theta_init = float(os.environ.get("HN_THETA_INIT", "1.0"))
+    pos_weight = float(os.environ.get("HN_POS_WEIGHT", "10.0"))
+    total_lessons = int(os.environ.get("HN_LESSONS", "40"))
 
+    hyperparameters = {
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
         # ============================================================
@@ -53,6 +51,8 @@ def get_hp_config():
         'output_channels': 1,
         'weight_init': 'xavier_norm',
         'h_init': 'abs_rand_exp-100',
+        # #100: count-space softplus mu head for the hurdle-NB body.
+        'output_distribution': 'hurdle_nb',
 
         # ============================================================
         # Optimization (ADR 014 Compliance)
@@ -63,8 +63,10 @@ def get_hp_config():
         'scheduler': 'WarmupDecay',
         'warmup_steps': 100,
         'clip_grad_norm': True,
-        'torch_seed': 42,
-        'np_seed': 42,
+        'torch_seed': seed,
+        'np_seed': seed,
+        # D2/C-141: the per-target hurdle-NB NLLs are summed equal-weight (balancer frozen).
+        'freeze_multitask_balancer': True,
 
         # ============================================================
         # Multi-Task Signals (ADR 020 Compliance)
@@ -90,34 +92,27 @@ def get_hp_config():
         'time_steps': 36,
 
         # ============================================================
-        # Loss Functions — Arm-1 hurdle: lognormal_nll on positive cells only
-        # (the BOUNDED last loss-level experiment — magnitude_calibration dossier
-        #  2026-06-08, issue #85). Baseline was Tobit + per-target sigma
-        #  (ADR-054/055); Tobit is censored ⇒ mutually exclusive with the hurdle
-        #  mask, so the positive-regime loss switches to lognormal_nll with a
-        #  SCALAR sigma (a per-target dict is validator-rejected for non-tobit
-        #  losses). hurdle_threshold=0 activates the C-45 positive-only mask
-        #  (training_engine.py:234-259). ONE mechanism vs the saved baseline.
+        # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable theta) +
+        # class-weighted BCE gate. theta_init / pos_weight from env (the 2 swept knobs).
         # ============================================================
-        'loss_reg': 'lognormal_nll',
-        'loss_reg_sigma': 0.9,
-        'hurdle_threshold': 0,
-        'loss_class': 'focal',
-        'loss_class_alpha': 0.75,
-        'loss_class_gamma': 1.5,
+        'loss_reg': 'hurdle_nb',
+        'loss_reg_theta_init': theta_init,
+        'learnable_theta': True,
+        'loss_class': 'weighted_bce',
+        'loss_class_pos_weight': pos_weight,
         'onset_bias_init': -7.0,
 
         # ============================================================
-        # Scheduled Sampling (ADR-056) — OFF (clean C-113 baseline, pure teacher forcing)
+        # Scheduled Sampling — OFF (testing the head, not rollout training).
         # ============================================================
         'ss_schedule': 'linear',
         'ss_warmup_lessons': 15,
-        'ss_epsilon_max': 0.0,  # 0 = scheduled sampling OFF — clean baseline (pure teacher forcing)
+        'ss_epsilon_max': 0.0,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 40,
+        'total_lessons': total_lessons,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,

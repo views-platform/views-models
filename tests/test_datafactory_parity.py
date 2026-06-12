@@ -294,15 +294,19 @@ class TestCrossEnsembleParityReadiness:
         assert vs["name"] != df["name"]
 
     def test_both_trios_use_same_loss(self):
-        # 2026-06-09 (PR #116): violet_visitor was intentionally diverged to the
-        # Arm-1 hurdle loss (lognormal_nll) for the magnitude_calibration experiment
-        # (issue #85, commit 908d383). This deliberately breaks viewser<->datafactory
-        # loss parity for the golden_hour<->stellar_horizon comparison — tracked as
-        # C-71 in reports/technical_risk_register.md. We pin the expected per-model
-        # state (five tobit + violet_visitor lognormal_nll) instead of asserting
+        # 2026-06-09 (PR #116): violet_visitor was intentionally diverged from the
+        # tobit baseline for the magnitude_calibration experiments (issue #85),
+        # deliberately breaking viewser<->datafactory loss parity for the
+        # golden_hour<->stellar_horizon comparison — tracked as C-71 in
+        # reports/technical_risk_register.md.
+        # 2026-06-11: the divergence moved from the Arm-1 hurdle loss
+        # (lognormal_nll) to the hurdle-NB stack (ZINB epic #102, decision A):
+        # TruncatedNBLoss body + weighted-BCE gate. We pin the expected per-model
+        # state (five tobit + violet_visitor hurdle_nb) instead of asserting
         # strict uniformity, so the known divergence is documented in-place and any
-        # *other* drift is still caught. Revert to {"tobit"} when Arm-1 concludes.
-        EXPERIMENT_DIVERGED = {"violet_visitor": "lognormal_nll"}
+        # *other* drift is still caught. Revert to {"tobit"} when the experiment
+        # concludes.
+        EXPERIMENT_DIVERGED = {"violet_visitor": "hurdle_nb"}
         expected = {
             name: EXPERIMENT_DIVERGED.get(name, "tobit")
             for name in VIEWSER_TRIO + DATAFACTORY_TRIO

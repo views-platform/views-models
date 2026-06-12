@@ -20,7 +20,6 @@ These tests encode the readiness preconditions. They FAIL today; they pass once 
 fix is released (merged to main + published) OR the per-model envs are provisioned
 with the fixed code.
 """
-import shutil
 import subprocess
 from pathlib import Path
 

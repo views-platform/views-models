@@ -26,7 +26,7 @@ if __name__ == "__main__":
     wandb.login()
     args = ForecastingModelArgs.parse_args()
 
-    manager = YourModelManager(
+    manager = YourModelManager(  # noqa: F821 — template placeholder, replace with your manager import
         model_path=model_path,
         wandb_notifications=args.wandb_notifications,
         use_prediction_store=args.prediction_store,

@@ -2,10 +2,9 @@
 def get_hp_config():
     """
     TSMixer hyperparameters
-    Best run: elastic_heart_tsmixer_shadow_20260508_C
-    lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
+    Ported from tuning_202606 post-r8 ("fix elastic heart", 2026-06):
+    lr=3e-4, clip=20, dropout=0.4, hidden=128, es_patience=25, RevIN=True
     """
-    # r8
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -23,38 +22,36 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 25,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
+        "lr": 3e-4,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 30.0,
+        "gradient_clip_val": 20.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 10,
+            "patience": 15,
             "min_lr": 1e-6,
-            "monitor": "val_loss",
-            "cooldown": 2,
+            "cooldown": 4,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 1e-3,
+            "lr": 3e-4,
             "weight_decay": 3e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01,
         "non_zero_threshold": 0.88,
 
         # Scaling
@@ -106,12 +103,12 @@ def get_hp_config():
 
         # TSMixer Architecture
         "num_blocks": 3,
-        "hidden_size": 64,
+        "hidden_size": 128,
         "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.2,
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
