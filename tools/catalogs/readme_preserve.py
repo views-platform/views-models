@@ -29,8 +29,19 @@ _BLOCK_RE = re.compile(
 
 
 def extract_manual_blocks(text):
-    """Return all manual blocks in `text`, markers included, in order."""
-    return _BLOCK_RE.findall(text)
+    """Return all manual blocks in `text`, markers included, in order.
+
+    Raises ValueError on a dangling start marker (no closing marker):
+    silently dropping it would wipe the very content these markers
+    protect — a crashed regeneration is recoverable, deleted docs are not.
+    """
+    blocks = _BLOCK_RE.findall(text)
+    if text.count(MANUAL_START) > len(blocks):
+        raise ValueError(
+            f"unterminated {MANUAL_START} block (missing {MANUAL_END}) — "
+            "fix the README before regenerating, or its manual content would be lost"
+        )
+    return blocks
 
 
 def merge_manual_blocks(generated, blocks):

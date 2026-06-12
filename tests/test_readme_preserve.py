@@ -59,9 +59,16 @@ class TestManualBlockSurvival:
         merged_twice = merge_manual_blocks("gen v2\n", extract_manual_blocks(merged_once))
         assert extract_manual_blocks(merged_twice) == [block]
 
-    def test_unterminated_block_is_not_extracted(self):
-        """An opening marker without a closing one must not swallow the file."""
-        assert extract_manual_blocks(f"{MANUAL_START}\nno end marker\n") == []
+    def test_unterminated_block_fails_loud(self):
+        """A dangling start marker must crash the regeneration, not silently
+        drop the content it was meant to protect (the C-78 failure mode)."""
+        with pytest.raises(ValueError, match="unterminated"):
+            extract_manual_blocks(f"{MANUAL_START}\nno end marker\n")
+
+    def test_terminated_plus_dangling_still_fails_loud(self):
+        block = _block("## kept")
+        with pytest.raises(ValueError, match="unterminated"):
+            extract_manual_blocks(f"{block}\n{MANUAL_START}\ndangling\n")
 
 
 @pytest.mark.beige
