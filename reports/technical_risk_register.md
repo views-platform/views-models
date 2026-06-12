@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-09  
+**Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 81 (77 concerns + 4 disagreements)  
-**Concerns:** Open 32 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 84 (80 concerns + 4 disagreements)  
+**Concerns:** Open 35 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -891,7 +891,7 @@
 | **Source** | review (PR #116, 2026-06-09) |
 | **Status** | Open |
 | **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`loss_reg: lognormal_nll`), `tests/test_datafactory_parity.py::test_both_trios_use_same_loss` |
-| **Notes** | violet_visitor's regression loss was intentionally changed from `tobit` to `lognormal_nll` (Arm-1 hurdle experiment, magnitude_calibration dossier 2026-06-08, issue #85; commit 908d383). The viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) were designed to be loss-identical so golden_hour (viewser ensemble) and stellar_horizon (datafactory ensemble) could be compared apples-to-apples (the parity programme behind C-48). violet_visitor's divergence breaks that: a golden_hour↔stellar_horizon comparison now confounds the loss change with the data-source change. `test_both_trios_use_same_loss` previously asserted strict uniformity (`{"tobit"}`); it was updated (PR #116) to pin the expected diverged state (five `tobit` + violet_visitor `lognormal_nll`), so the divergence is explicit and any *further* drift is still caught. The risk is interpretive, not silent — but a reader unaware of the experiment could draw wrong parity conclusions. Revisit when Arm-1 concludes: either restore `tobit`, or promote the hurdle loss across the whole trio. See also C-48 (variable-variant parity — resolved), C-37 (forecasting parity divergence), C-44 (concat aggregation quality), C-69 (sweep config untested). |
+| **Notes** | violet_visitor's regression loss was intentionally changed from `tobit` to `lognormal_nll` (Arm-1 hurdle experiment, magnitude_calibration dossier 2026-06-08, issue #85; commit 908d383). The viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) were designed to be loss-identical so golden_hour (viewser ensemble) and stellar_horizon (datafactory ensemble) could be compared apples-to-apples (the parity programme behind C-48). violet_visitor's divergence breaks that: a golden_hour↔stellar_horizon comparison now confounds the loss change with the data-source change. `test_both_trios_use_same_loss` previously asserted strict uniformity (`{"tobit"}`); it was updated (PR #116) to pin the expected diverged state (five `tobit` + violet_visitor `lognormal_nll`), so the divergence is explicit and any *further* drift is still caught. The risk is interpretive, not silent — but a reader unaware of the experiment could draw wrong parity conclusions. Revisit when Arm-1 concludes: either restore `tobit`, or promote the hurdle loss across the whole trio. See also C-48 (variable-variant parity — resolved), C-37 (forecasting parity divergence), C-44 (concat aggregation quality), C-69 (sweep config untested). **2026-06-12:** the divergence persists but the loss moved again: `lognormal_nll` → `hurdle_nb` (TruncatedNB body + weighted-BCE gate; ZINB epic views-hydranet#102, decision A). `test_both_trios_use_same_loss` pin updated in the same changeset. The parity caveat is unchanged: golden_hour↔stellar_horizon comparisons still confound the loss change with the data-source change. |
 
 ---
 
@@ -904,7 +904,7 @@
 | **Source** | repo-assimilation + falsify (2026-06-09) |
 | **Status** | Open |
 | **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`loss_reg: lognormal_nll`, `loss_reg_sigma: 0.9`, `hurdle_threshold: 0`); artifact `models/violet_visitor/data/generated/predictions_calibration_20260609_051916/` |
-| **Notes** | Verified directly: the 2026-06-09 calibration run has `Inf` in **63.5% / 59.4% / 46.4%** of `lr_sb_best / lr_ns_best / lr_os_best` cells (finite max 3.4e38 = float32 ceiling); the prior `tobit` run (2026-06-08) was clean (0 Inf, max ≈ 4365). Root cause: the lognormal inverse `exp(µ)` overflows float32. **Classification targets (`by_*`) are sane** — the breakage is regression-only. There **is** a signal (`tests/test_pfe_production_readiness.py::TestTransformUndoScale::test_no_inf[violet_visitor_calibration]` catches it) → Tier 2, not Tier 1. **Accepted as an active experiment**: the user has chosen to leave violet_visitor's loss as-is (issue #85, magnitude_calibration dossier, commit `908d383`); this entry documents the known state — it is **not** a request to change the model. `lognormal_nll` is a registered, valid loss in views_hydranet (`utils/utils.py:66`); this is purely numerical, not a registration issue. To make the experiment usable, tame the overflow (clamp/bound `µ` in `views_hydranet` `LogNormalFixedSigmaLoss`). Downstream: a fresh golden_hour run would ingest the Inf. See also C-71 (same change's parity impact), C-74 (golden_hour sample count), C-44 (concat aggregation). |
+| **Notes** | Verified directly: the 2026-06-09 calibration run has `Inf` in **63.5% / 59.4% / 46.4%** of `lr_sb_best / lr_ns_best / lr_os_best` cells (finite max 3.4e38 = float32 ceiling); the prior `tobit` run (2026-06-08) was clean (0 Inf, max ≈ 4365). Root cause: the lognormal inverse `exp(µ)` overflows float32. **Classification targets (`by_*`) are sane** — the breakage is regression-only. There **is** a signal (`tests/test_pfe_production_readiness.py::TestTransformUndoScale::test_no_inf[violet_visitor_calibration]` catches it) → Tier 2, not Tier 1. **Accepted as an active experiment**: the user has chosen to leave violet_visitor's loss as-is (issue #85, magnitude_calibration dossier, commit `908d383`); this entry documents the known state — it is **not** a request to change the model. `lognormal_nll` is a registered, valid loss in views_hydranet (`utils/utils.py:66`); this is purely numerical, not a registration issue. To make the experiment usable, tame the overflow (clamp/bound `µ` in `views_hydranet` `LogNormalFixedSigmaLoss`). Downstream: a fresh golden_hour run would ingest the Inf. See also C-71 (same change's parity impact), C-74 (golden_hour sample count), C-44 (concat aggregation). **2026-06-12:** Arm-1 (`lognormal_nll`) is superseded — violet_visitor switched to `hurdle_nb` (ZINB epic views-hydranet#102, decision A), removing the overflow-prone lognormal inverse from the active config. The Inf-bearing 2026-06-09 artifact remains on disk until a fresh hurdle-NB calibration run replaces it; keep Open until a clean artifact exists (the `test_no_inf` guard stays armed). |
 
 ---
 
@@ -969,7 +969,46 @@
 | **Source** | repo-assimilation + falsify (2026-06-09) |
 | **Status** | Open |
 | **Location** | `ensembles/synthetic_chant/README.md`; `tests/test_falsification_synthetic_runs.py::test_falsify_01_synthetic_chant_readme_documents_crps_inflation` |
-| **Notes** | Genuine documentation gap (TDD-red test). Constituents use different synthetic patterns — `lucid_dream`=`vertical_stripe` (models[0] → supplies ground-truth actuals), `vivid_dream`=`horizontal_stripe`, `waking_dream`=`diagonal_gradient`; the ensemble evaluates all predictions against models[0]'s actuals, so CRPS (constituent 0.000/0.002/0.043 → ensemble 1.044) measures cross-pattern disagreement, not prediction quality. Real fix: document these facts in the README (mirror `ensembles/synthetic_chorus/README.md`). See also C-43 (synthetic_chorus order-dependency), C-42 (synthetic models on unreleased core). |
+| **Notes** | Genuine documentation gap (TDD-red test). Constituents use different synthetic patterns — `lucid_dream`=`vertical_stripe` (models[0] → supplies ground-truth actuals), `vivid_dream`=`horizontal_stripe`, `waking_dream`=`diagonal_gradient`; the ensemble evaluates all predictions against models[0]'s actuals, so CRPS (constituent 0.000/0.002/0.043 → ensemble 1.044) measures cross-pattern disagreement, not prediction quality. Real fix: document these facts in the README (mirror `ensembles/synthetic_chorus/README.md`). See also C-43 (synthetic_chorus order-dependency), C-42 (synthetic models on unreleased core). **2026-06-12 (root cause):** the documentation EXISTED — added 2026-05-26 (`8af868e`, the same commit that added the test) — and was deleted by the 2026-06-04 README regeneration (`243873a`); `tools/catalogs/update_readme.py` rebuilds READMEs from the scaffold, preserving only the `## Created on…` tail. Re-writing the docs without fixing the generator (C-78) just re-arms the failure — sequence with C-78. |
+
+---
+
+### C-78 — README regeneration silently destroys hand-written documentation
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `tools/catalogs/update_readme.py` is run (manually or via `update_catalogs.yml`) against any model/ensemble README carrying manual content outside the preserved `## Created on…` tail |
+| **Source** | session investigation (2026-06-12) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py:125-135` (scaffold rebuild, `## Created on` regex tail-preserve); `.github/workflows/update_catalogs.yml` (automated path) |
+| **Notes** | Verified incident: the synthetic_chant CRPS-semantics documentation added 2026-05-26 (`8af868e`) was deleted by the 2026-06-04 regeneration (`243873a`, "docs: regenerate model catalog tables and per-model READMEs") — the direct cause of the C-77 test failure and the first June 4 CI red. The generator rebuilds each README from `README_scaffold.md` and preserves only the `## Created on…` tail, so ANY hand-written section in any of the ~100 model/ensemble READMEs is silently destroyed on every regeneration — no diff review gate on the automated path, no error signal. Tier 3 (silent destruction of committed work product; affects every contributor who documents a model). Real fix: preserve-markers (e.g. a `<!-- manual -->` block) or regenerate only the generated tables, plus a regression test that a marked manual section survives regeneration (C-65: the tool currently has zero tests). See also C-77 (the wiped instance), C-65, C-36. |
+
+---
+
+### C-79 — Stale strict-xfail on fired chunky_bunny readiness tripwire keeps suite red
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | Anyone runs the local suite (or reads its output) while `test_target_transform_fix_is_released` still carries `@pytest.mark.xfail(strict=True)` — the XPASS registers as a hard failure and noise-trains readers to ignore red |
+| **Source** | session investigation (2026-06-12) |
+| **Status** | Open |
+| **Location** | `tests/test_chunky_bunny_readiness.py::test_target_transform_fix_is_released` |
+| **Notes** | The tripwire worked exactly as designed: it was armed 2026-06-09 against "published views-stepshifter lacks `target_transform`" and fired when views-stepshifter merged the mechanism to main on 2026-06-08/09 (`261ef6c`, PR #74 → main merge #76, released as 1.3.0). The strict-xfail marker is now stale and produces a permanent suite failure (same genre as resolved C-55). Fix: flip to a plain assertion. The two sibling tripwires remain LEGITIMATELY red and must stay armed: `test_per_model_envs_exist` (envs/views_stepshifter, envs/views_r2darts2 unprovisioned on this box) and `test_ensemble_uses_the_fixed_code_path` (validation env ≠ execution env, placeholder). I.e., the release precondition is met but chunky_bunny is NOT yet runnable via run.sh envs — the #117 dev-mode run tracker sidesteps this. See also C-55 (genre), issues #117, #114, views-stepshifter#55. |
+
+---
+
+### C-80 — No green CI baseline since 2026-06-04 — new failures arrive invisible, merges proceed unvalidated
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any PR is merged to development while run_tests.yml is red — the merge is structurally unvalidated and any NEW breakage it introduces is indistinguishable from the standing red |
+| **Source** | session investigation (2026-06-12) |
+| **Status** | Open |
+| **Location** | `.github/workflows/run_tests.yml`; GitHub Actions history (last green: 2026-06-04 01:21) |
+| **Notes** | Every run_tests.yml run since 2026-06-04 01:21 has failed (40/40 checked). The standing red is the union of C-73 (scaffold/pipeline-core skew, since June 5), C-75 (bright_starship env probe, structural), and C-77/C-78 (README wipe, June 4). Consequence observed this week: three independent NEW breakages (June 5 scaffold skew, June 8 chunky_bunny tripwire fire, June 9 zero_cmbaseline false invariant) accumulated unnoticed because red-on-red signals nothing, and PRs #116–#126 were all merged on red CI. Tier 2: structural fragility with a realistic, recurring trigger — every merge until CI is green again. Exit: resolve C-73 + C-75 + C-77/C-78 (tracked as the CI-green umbrella issue), then adopt the policy that development merges require green CI. See also C-28 (CI only checks last exit code), C-03 (integration tests not in CI). |
 
 ---
 
