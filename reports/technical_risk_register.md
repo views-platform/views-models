@@ -3,7 +3,7 @@
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 87 (83 concerns + 4 disagreements)  
-**Concerns:** Open 33 | Mitigated 12 | Resolved 34 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 31 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -465,7 +465,7 @@
 | **Source** | falsify (2026-04-21) |
 | **Status** | Open |
 | **Location** | `models/bright_starship/main.py:33` (`from configs.config_queryset import fetch_data`), `models/bright_starship/configs/config_queryset.py:115` (`from datafactory_query import load_dataset`), `models/shining_codex/main.py:27` (same pattern), `models/shining_codex/configs/config_queryset.py:90` (same pattern) |
-| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation), C-40 (generate() contract mismatch). **Cross-repo:** views-pipeline-core C-51 (`get_data()` hardcodes viewser), C-52 (drift detection loss), C-53 (`use_saved` overload). |
+| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'`. See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation), C-40 (generate() contract mismatch). **Cross-repo:** views-pipeline-core C-51 (`get_data()` hardcodes viewser), C-52 (drift detection loss), C-53 (`use_saved` overload). **2026-06-12:** the bright_starship half is fixed on this workstation — `views-hydranet-env` now has datafactory_query and the readiness probe passes locally. Still open for shining_codex (`views-r2darts2` env unprovisioned; its probe skips) and for any fresh machine — keep Open until the env story (run.sh bootstrap or release-pinned install) is settled. |
 
 ---
 
@@ -502,9 +502,9 @@
 | **Tier** | 3 |
 | **Trigger** | A developer clones the repo and runs `python main.py -r calibration` for shining_codex without the `views-r2darts2` environment and `datafactory_query` installed |
 | **Source** | tech-debt-cleanup (2026-04-21) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `models/shining_codex/` (no `tests/` directory or test files) |
-| **Notes** | bright_starship has readiness tests (`test_bright_starship_readiness.py`) that verify environment prerequisites (conda env, `datafactory_query`, `DartsForecastingModelManager` import) and config structural validity. shining_codex, cloned from bright_starship, has no equivalent tests. Without readiness tests, failures will surface only at runtime with opaque error messages (e.g., `ModuleNotFoundError` for `datafactory_query` or `views_r2darts2`). See C-38 (datafactory_query not installed), C-03 (integration tests manual-only). |
+| **Notes** | bright_starship has readiness tests (`test_bright_starship_readiness.py`) that verify environment prerequisites (conda env, `datafactory_query`, `DartsForecastingModelManager` import) and config structural validity. shining_codex, cloned from bright_starship, has no equivalent tests. Without readiness tests, failures will surface only at runtime with opaque error messages (e.g., `ModuleNotFoundError` for `datafactory_query` or `views_r2darts2`). See C-38 (datafactory_query not installed), C-03 (integration tests manual-only). **2026-06-12: Resolved** (issue #122, with C-75): `test_bright_starship_readiness.py` is parametrized over both datafactory models — shining_codex gets the same env pre-flight probe (skips while `views-r2darts2` is unprovisioned, which is truthful) and the same static dependency-contract checks (requirements / queryset import / generate()). Single parametrized file avoids the copy-paste drift this entry complained about. |
 
 ---
 
@@ -941,9 +941,9 @@
 | **Tier** | 4 |
 | **Trigger** | CI runs `test_bright_starship_readiness.py::TestF1` — it shells `conda run -n views-hydranet-env` for a workstation-only env absent in CI, erroring (`EnvironmentLocationNotFound`) instead of testing a CI-checkable contract |
 | **Source** | repo-assimilation (2026-06-09) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `tests/test_bright_starship_readiness.py::TestF1_DatafactoryQueryDependency` (class `skipif` only checks `shutil.which("conda")`, truthy in CI) |
-| **Notes** | The test is a local pre-flight probe (per its docstring) but executes in CI because the `skipif(not shutil.which("conda"))` guard passes (CI has miniconda) while the named env `views-hydranet-env` does not exist → false red. Real fix (no skip): provision `views-datafactory` in the CI job and assert a real `import datafactory_query` in the CI interpreter, plus static contract checks (requirements declares it; descriptor shape; spec resolvable). Add the equivalent for shining_codex (closes C-41). See also C-38 (datafactory_query availability), C-55 (prior stale-xfail on this test — resolved). |
+| **Notes** | The test is a local pre-flight probe (per its docstring) but executes in CI because the `skipif(not shutil.which("conda"))` guard passes (CI has miniconda) while the named env `views-hydranet-env` does not exist → false red. Real fix (no skip): provision `views-datafactory` in the CI job and assert a real `import datafactory_query` in the CI interpreter, plus static contract checks (requirements declares it; descriptor shape; spec resolvable). Add the equivalent for shining_codex (closes C-41). See also C-38 (datafactory_query availability), C-55 (prior stale-xfail on this test — resolved). **2026-06-12: Resolved** (issue #122, HYBRID design decided with maintainer): the conda probe is now a workstation pre-flight that skips truthfully when the target env is absent (`_conda_env_path` basename-matches `conda env list --json`, probes via `conda run -p`); CI-meaningful coverage moved to static contract checks (requirements declares views-datafactory; queryset imports datafactory_query; generate() exists via AST) — static because the queryset imports datafactory at module level and no pinned views-datafactory release exists (C-73 lesson: no unpinned git deps in CI). Real-install CI check deferred to a tracked follow-up issue, conditional on a datafactory release. Guard sanity itself is pinned by `TestEnvGuardSanity`. |
 
 ---
 
