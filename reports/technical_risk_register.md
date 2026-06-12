@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 85 (81 concerns + 4 disagreements)  
-**Concerns:** Open 32 | Mitigated 12 | Resolved 33 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 87 (83 concerns + 4 disagreements)  
+**Concerns:** Open 33 | Mitigated 12 | Resolved 34 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1022,6 +1022,32 @@
 | **Status** | Open |
 | **Location** | `tools/catalogs/update_readme.py` (both loops construct `ModelPathManager`/`EnsemblePathManager` with default `validate=True`; writes happen per-directory as iteration proceeds) |
 | **Notes** | Observed live, three separate crash points: stray untracked `models/teenage_dirtbag` and `models/cool_cat` (partial dirs, no `artifacts/`), then tracked `ensembles/white_mustang` (no `artifacts/` in git; `cruel_summer` same gap — the C-32 `.gitkeep` backfill covered models, not these ensembles). `ModelPathManager` raises `FileNotFoundError` on a missing standard dir, killing the whole run. Because the script writes each README as it iterates (`iterdir()`, unsorted), a crash leaves an arbitrary subset regenerated — locally confusing; in the workflow the step fails (post-C-28 `set -e`), so catalogs go silently stale rather than partially committed. Fix directions: (a) construct path managers with `validate=False` (catalog generation is read-only on the dir structure) or per-entry try/except + end-of-run failure summary; (b) backfill `artifacts/.gitkeep` for cruel_summer/white_mustang (C-32 extension to ensembles); (c) iterate only git-tracked dirs so workstation strays can't break tooling. See also C-32 (root cause for the tracked gaps — Mitigated, recurrence here), C-28 (exit-code masking in this workflow — Resolved), C-65 (catalog tools untested), C-78 (manual-block preservation — Resolved; orthogonal fix in the same script). |
+
+---
+
+### C-82 — Manual blocks duplicate when a README also carries a `## Created on` section
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A README processed by `update_readme.py` carries BOTH a `## Created on` section and a `<!-- manual -->` block, and a regeneration runs — the block is emitted twice and multiplies on every subsequent run |
+| **Source** | falsify (PR #133 audit, probe P1, 2026-06-12) |
+| **Status** | Resolved (2026-06-12) |
+| **Location** | `tools/catalogs/update_readme.py` (Created-on capture `re.search(r"(## Created on.*)", …, re.DOTALL)`, both loops); interaction with `readme_preserve.merge_manual_blocks` |
+| **Notes** | The Created-on regex captures from the heading to END OF FILE; merged manual blocks live at the end of the file, so they get swallowed into the captured created-section (re-inserted via `{{CREATED_SECTION}}`) AND re-appended by the merge → duplication, compounding per regeneration. Latent when found: no README the script processes had a Created section (test_model/test_ensemble are fixture-skipped; apis/ and postprocessors/ are not iterated). Wrong-output is duplication, not loss → Tier 4. **Resolved same day:** `readme_preserve.strip_manual_blocks()` added; both loops now run the Created-on capture on the stripped text (blocks extracted from the original first). Falsification stub `tests/test_falsification_readme_preserve.py` un-xfailed to a plain regression guard. See also C-78 (sibling failure mode — loss), C-81 (sibling failure mode — crash), C-65 (catalog tools untested — now partially chipped). |
+
+---
+
+### C-83 — `## Created on` sections are lost on the second regeneration (heading rename breaks recapture)
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A README gains a `## Created on` section and `update_readme.py` runs twice — the first run renames the heading to `## Model Created on`, which the capture regex `(## Created on.*)` no longer matches, so the second run drops the section entirely |
+| **Source** | falsify (PR #133 audit, bonus discovery while pinning C-82, 2026-06-12) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py` (both loops: `re.search(r"(## Created on.*)" …)` followed by the `[:2] + " Model"` heading rewrite) |
+| **Notes** | Pre-existing, unrelated to the C-78/C-82 fixes. The rename-then-recapture mismatch means any created-section survives exactly one regeneration — which likely explains why NO currently-processed README has one (they were silently eaten by successive catalog runs over time; only fixture/non-iterated READMEs retain theirs). Same content-loss family as C-78 but a different mechanism. Fix directions: match both headings (`(## (?:Model )?Created on.*)`) and stop re-prefixing if already prefixed, or stop renaming the heading altogether. Alternatively: deprecate the special-cased created-section in favor of the `<!-- manual -->` mechanism (C-78), which is rename-proof. See also C-78, C-82, C-65. |
 
 ---
 

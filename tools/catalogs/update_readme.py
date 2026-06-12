@@ -6,9 +6,13 @@ from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathM
 
 # Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
 try:
-    from readme_preserve import extract_manual_blocks, merge_manual_blocks
+    from readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
 except ImportError:
-    from tools.catalogs.readme_preserve import extract_manual_blocks, merge_manual_blocks
+    from tools.catalogs.readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
 
 
 base_dir = os.getcwd()
@@ -138,7 +142,11 @@ for subfolder in target_dir.iterdir():
 
         # Add created section if it exists
 
-        match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
         if match is None:
             new_string=''
         else:
@@ -239,7 +247,11 @@ for subfolder in target_ens_dir.iterdir():
 
         # Add created section if it exists
 
-        match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
         if match is None:
             new_string=''
         else:

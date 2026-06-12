@@ -44,6 +44,17 @@ def extract_manual_blocks(text):
     return blocks
 
 
+def strip_manual_blocks(text):
+    """Return `text` with all manual blocks removed.
+
+    update_readme.py must run its '## Created on' tail-capture on stripped
+    text: that regex captures to end-of-file, and merged blocks live at the
+    end — capturing them inside the created-section would emit them twice
+    (C-82: once via {{CREATED_SECTION}}, once via merge_manual_blocks).
+    """
+    return _BLOCK_RE.sub("", text)
+
+
 def merge_manual_blocks(generated, blocks):
     """Append `blocks` verbatim to `generated`, separated by blank lines.
 
