@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 84 (80 concerns + 4 disagreements)  
-**Concerns:** Open 35 | Mitigated 12 | Resolved 29 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 87 (83 concerns + 4 disagreements)  
+**Concerns:** Open 33 | Mitigated 12 | Resolved 34 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -954,9 +954,9 @@
 | **Tier** | 4 |
 | **Trigger** | The PFE log-compression test runs against a zero/constant baseline (e.g. zero_cmbaseline) and asserts `max>10`, which a correct all-zeros prediction can never satisfy |
 | **Source** | repo-assimilation + expert-review (2026-06-09) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `tests/test_pfe_production_readiness.py::TestTransformUndoScale::test_values_not_log_compressed` |
-| **Notes** | The `max>10` heuristic (guarding against predictions left on `log1p` scale) is valid for learned-magnitude models but FALSE for `ZeroModel`, which correctly emits all-zeros (zero_cmbaseline max=0.0 → perpetual fail). Verified `locf_cmbaseline` (max 17412) and `average_cmbaseline` (max 4743) legitimately pass and MUST keep the guard — so the fix is to exclude **`ZeroModel` only** (keyed off `config_meta["algorithm"]`) and, better, assert `max==0 and min==0` for ZeroModel (a ZeroModel emitting nonzero is itself a bug). Local-only (CI has no prediction artifacts). A test-design correction, not a coverage skip. |
+| **Notes** | The `max>10` heuristic (guarding against predictions left on `log1p` scale) is valid for learned-magnitude models but FALSE for `ZeroModel`, which correctly emits all-zeros (zero_cmbaseline max=0.0 → perpetual fail). Verified `locf_cmbaseline` (max 17412) and `average_cmbaseline` (max 4743) legitimately pass and MUST keep the guard — so the fix is to exclude **`ZeroModel` only** (keyed off `config_meta["algorithm"]`) and, better, assert `max==0 and min==0` for ZeroModel (a ZeroModel emitting nonzero is itself a bug). Local-only (CI has no prediction artifacts). A test-design correction, not a coverage skip. **2026-06-12: Resolved** exactly as described (issue #129) — ZeroModel branch asserts all-zeros, all other models keep the `max>10` guard. |
 
 ---
 
@@ -967,9 +967,9 @@
 | **Tier** | 4 |
 | **Trigger** | A reader interprets synthetic_chant's ensemble CRPS as prediction quality, unaware it reflects cross-pattern disagreement measured against models[0]'s actuals |
 | **Source** | repo-assimilation + falsify (2026-06-09) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `ensembles/synthetic_chant/README.md`; `tests/test_falsification_synthetic_runs.py::test_falsify_01_synthetic_chant_readme_documents_crps_inflation` |
-| **Notes** | Genuine documentation gap (TDD-red test). Constituents use different synthetic patterns — `lucid_dream`=`vertical_stripe` (models[0] → supplies ground-truth actuals), `vivid_dream`=`horizontal_stripe`, `waking_dream`=`diagonal_gradient`; the ensemble evaluates all predictions against models[0]'s actuals, so CRPS (constituent 0.000/0.002/0.043 → ensemble 1.044) measures cross-pattern disagreement, not prediction quality. Real fix: document these facts in the README (mirror `ensembles/synthetic_chorus/README.md`). See also C-43 (synthetic_chorus order-dependency), C-42 (synthetic models on unreleased core). **2026-06-12 (root cause):** the documentation EXISTED — added 2026-05-26 (`8af868e`, the same commit that added the test) — and was deleted by the 2026-06-04 README regeneration (`243873a`); `tools/catalogs/update_readme.py` rebuilds READMEs from the scaffold, preserving only the `## Created on…` tail. Re-writing the docs without fixing the generator (C-78) just re-arms the failure — sequence with C-78. |
+| **Notes** | Genuine documentation gap (TDD-red test). Constituents use different synthetic patterns — `lucid_dream`=`vertical_stripe` (models[0] → supplies ground-truth actuals), `vivid_dream`=`horizontal_stripe`, `waking_dream`=`diagonal_gradient`; the ensemble evaluates all predictions against models[0]'s actuals, so CRPS (constituent 0.000/0.002/0.043 → ensemble 1.044) measures cross-pattern disagreement, not prediction quality. Real fix: document these facts in the README (mirror `ensembles/synthetic_chorus/README.md`). See also C-43 (synthetic_chorus order-dependency), C-42 (synthetic models on unreleased core). **2026-06-12 (root cause):** the documentation EXISTED — added 2026-05-26 (`8af868e`, the same commit that added the test) — and was deleted by the 2026-06-04 README regeneration (`243873a`); `tools/catalogs/update_readme.py` rebuilds READMEs from the scaffold, preserving only the `## Created on…` tail. Re-writing the docs without fixing the generator (C-78) just re-arms the failure — sequence with C-78. **2026-06-12: Resolved together with C-78** (issues #123/#130) — semantics restored inside a `<!-- manual -->` block, which the fixed generator now preserves. |
 
 ---
 
@@ -980,9 +980,9 @@
 | **Tier** | 3 |
 | **Trigger** | `tools/catalogs/update_readme.py` is run (manually or via `update_catalogs.yml`) against any model/ensemble README carrying manual content outside the preserved `## Created on…` tail |
 | **Source** | session investigation (2026-06-12) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `tools/catalogs/update_readme.py:125-135` (scaffold rebuild, `## Created on` regex tail-preserve); `.github/workflows/update_catalogs.yml` (automated path) |
-| **Notes** | Verified incident: the synthetic_chant CRPS-semantics documentation added 2026-05-26 (`8af868e`) was deleted by the 2026-06-04 regeneration (`243873a`, "docs: regenerate model catalog tables and per-model READMEs") — the direct cause of the C-77 test failure and the first June 4 CI red. The generator rebuilds each README from `README_scaffold.md` and preserves only the `## Created on…` tail, so ANY hand-written section in any of the ~100 model/ensemble READMEs is silently destroyed on every regeneration — no diff review gate on the automated path, no error signal. Tier 3 (silent destruction of committed work product; affects every contributor who documents a model). Real fix: preserve-markers (e.g. a `<!-- manual -->` block) or regenerate only the generated tables, plus a regression test that a marked manual section survives regeneration (C-65: the tool currently has zero tests). See also C-77 (the wiped instance), C-65, C-36. |
+| **Notes** | Verified incident: the synthetic_chant CRPS-semantics documentation added 2026-05-26 (`8af868e`) was deleted by the 2026-06-04 regeneration (`243873a`, "docs: regenerate model catalog tables and per-model READMEs") — the direct cause of the C-77 test failure and the first June 4 CI red. The generator rebuilds each README from `README_scaffold.md` and preserves only the `## Created on…` tail, so ANY hand-written section in any of the ~100 model/ensemble READMEs is silently destroyed on every regeneration — no diff review gate on the automated path, no error signal. Tier 3 (silent destruction of committed work product; affects every contributor who documents a model). Real fix: preserve-markers (e.g. a `<!-- manual -->` block) or regenerate only the generated tables, plus a regression test that a marked manual section survives regeneration (C-65: the tool currently has zero tests). See also C-77 (the wiped instance), C-65, C-36. **2026-06-12: Resolved** (issue #130) — `tools/catalogs/readme_preserve.py` extracts `<!-- manual -->…<!-- /manual -->` blocks from the old README and re-appends them after regeneration (wired into both loops of `update_readme.py`); regression tests in `tests/test_readme_preserve.py` (chips at C-65). |
 
 ---
 
@@ -993,9 +993,9 @@
 | **Tier** | 4 |
 | **Trigger** | Anyone runs the local suite (or reads its output) while `test_target_transform_fix_is_released` still carries `@pytest.mark.xfail(strict=True)` — the XPASS registers as a hard failure and noise-trains readers to ignore red |
 | **Source** | session investigation (2026-06-12) |
-| **Status** | Open |
+| **Status** | Resolved (2026-06-12) |
 | **Location** | `tests/test_chunky_bunny_readiness.py::test_target_transform_fix_is_released` |
-| **Notes** | The tripwire worked exactly as designed: it was armed 2026-06-09 against "published views-stepshifter lacks `target_transform`" and fired when views-stepshifter merged the mechanism to main on 2026-06-08/09 (`261ef6c`, PR #74 → main merge #76, released as 1.3.0). The strict-xfail marker is now stale and produces a permanent suite failure (same genre as resolved C-55). Fix: flip to a plain assertion. The two sibling tripwires remain LEGITIMATELY red and must stay armed: `test_per_model_envs_exist` (envs/views_stepshifter, envs/views_r2darts2 unprovisioned on this box) and `test_ensemble_uses_the_fixed_code_path` (validation env ≠ execution env, placeholder). I.e., the release precondition is met but chunky_bunny is NOT yet runnable via run.sh envs — the #117 dev-mode run tracker sidesteps this. See also C-55 (genre), issues #117, #114, views-stepshifter#55. |
+| **Notes** | The tripwire worked exactly as designed: it was armed 2026-06-09 against "published views-stepshifter lacks `target_transform`" and fired when views-stepshifter merged the mechanism to main on 2026-06-08/09 (`261ef6c`, PR #74 → main merge #76, released as 1.3.0). The strict-xfail marker is now stale and produces a permanent suite failure (same genre as resolved C-55). Fix: flip to a plain assertion. The two sibling tripwires remain LEGITIMATELY red and must stay armed: `test_per_model_envs_exist` (envs/views_stepshifter, envs/views_r2darts2 unprovisioned on this box) and `test_ensemble_uses_the_fixed_code_path` (validation env ≠ execution env, placeholder). I.e., the release precondition is met but chunky_bunny is NOT yet runnable via run.sh envs — the #117 dev-mode run tracker sidesteps this. See also C-55 (genre), issues #117, #114, views-stepshifter#55. **2026-06-12: Resolved** (issue #128) — xfail removed; the test is now a plain regression guard with a `skipif` when the sibling views-stepshifter checkout is absent (CI-safe, the C-75 lesson applied proactively). The two sibling tripwires remain armed. |
 
 ---
 
@@ -1009,6 +1009,45 @@
 | **Status** | Open |
 | **Location** | `.github/workflows/run_tests.yml`; GitHub Actions history (last green: 2026-06-04 01:21) |
 | **Notes** | Every run_tests.yml run since 2026-06-04 01:21 has failed (40/40 checked). The standing red is the union of C-73 (scaffold/pipeline-core skew, since June 5), C-75 (bright_starship env probe, structural), and C-77/C-78 (README wipe, June 4). Consequence observed this week: three independent NEW breakages (June 5 scaffold skew, June 8 chunky_bunny tripwire fire, June 9 zero_cmbaseline false invariant) accumulated unnoticed because red-on-red signals nothing, and PRs #116–#126 were all merged on red CI. Tier 2: structural fragility with a realistic, recurring trigger — every merge until CI is green again. Exit: resolve C-73 + C-75 + C-77/C-78 (tracked as the CI-green umbrella issue), then adopt the policy that development merges require green CI. See also C-28 (CI only checks last exit code), C-03 (integration tests not in CI). |
+
+---
+
+### C-81 — README regeneration crashes mid-iteration on incomplete model/ensemble dirs, leaving partial regeneration
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | `update_catalogs.yml` runs on a fresh checkout (where `ensembles/cruel_summer` and `ensembles/white_mustang` have no tracked `artifacts/`), or a local regeneration runs while a stray partial model dir sits in `models/` — the script crashes after rewriting an arbitrary prefix of READMEs |
+| **Source** | session verification of PR #133 (2026-06-12) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py` (both loops construct `ModelPathManager`/`EnsemblePathManager` with default `validate=True`; writes happen per-directory as iteration proceeds) |
+| **Notes** | Observed live, three separate crash points: stray untracked `models/teenage_dirtbag` and `models/cool_cat` (partial dirs, no `artifacts/`), then tracked `ensembles/white_mustang` (no `artifacts/` in git; `cruel_summer` same gap — the C-32 `.gitkeep` backfill covered models, not these ensembles). `ModelPathManager` raises `FileNotFoundError` on a missing standard dir, killing the whole run. Because the script writes each README as it iterates (`iterdir()`, unsorted), a crash leaves an arbitrary subset regenerated — locally confusing; in the workflow the step fails (post-C-28 `set -e`), so catalogs go silently stale rather than partially committed. Fix directions: (a) construct path managers with `validate=False` (catalog generation is read-only on the dir structure) or per-entry try/except + end-of-run failure summary; (b) backfill `artifacts/.gitkeep` for cruel_summer/white_mustang (C-32 extension to ensembles); (c) iterate only git-tracked dirs so workstation strays can't break tooling. See also C-32 (root cause for the tracked gaps — Mitigated, recurrence here), C-28 (exit-code masking in this workflow — Resolved), C-65 (catalog tools untested), C-78 (manual-block preservation — Resolved; orthogonal fix in the same script). |
+
+---
+
+### C-82 — Manual blocks duplicate when a README also carries a `## Created on` section
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A README processed by `update_readme.py` carries BOTH a `## Created on` section and a `<!-- manual -->` block, and a regeneration runs — the block is emitted twice and multiplies on every subsequent run |
+| **Source** | falsify (PR #133 audit, probe P1, 2026-06-12) |
+| **Status** | Resolved (2026-06-12) |
+| **Location** | `tools/catalogs/update_readme.py` (Created-on capture `re.search(r"(## Created on.*)", …, re.DOTALL)`, both loops); interaction with `readme_preserve.merge_manual_blocks` |
+| **Notes** | The Created-on regex captures from the heading to END OF FILE; merged manual blocks live at the end of the file, so they get swallowed into the captured created-section (re-inserted via `{{CREATED_SECTION}}`) AND re-appended by the merge → duplication, compounding per regeneration. Latent when found: no README the script processes had a Created section (test_model/test_ensemble are fixture-skipped; apis/ and postprocessors/ are not iterated). Wrong-output is duplication, not loss → Tier 4. **Resolved same day:** `readme_preserve.strip_manual_blocks()` added; both loops now run the Created-on capture on the stripped text (blocks extracted from the original first). Falsification stub `tests/test_falsification_readme_preserve.py` un-xfailed to a plain regression guard. See also C-78 (sibling failure mode — loss), C-81 (sibling failure mode — crash), C-65 (catalog tools untested — now partially chipped). |
+
+---
+
+### C-83 — `## Created on` sections are lost on the second regeneration (heading rename breaks recapture)
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A README gains a `## Created on` section and `update_readme.py` runs twice — the first run renames the heading to `## Model Created on`, which the capture regex `(## Created on.*)` no longer matches, so the second run drops the section entirely |
+| **Source** | falsify (PR #133 audit, bonus discovery while pinning C-82, 2026-06-12) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py` (both loops: `re.search(r"(## Created on.*)" …)` followed by the `[:2] + " Model"` heading rewrite) |
+| **Notes** | Pre-existing, unrelated to the C-78/C-82 fixes. The rename-then-recapture mismatch means any created-section survives exactly one regeneration — which likely explains why NO currently-processed README has one (they were silently eaten by successive catalog runs over time; only fixture/non-iterated READMEs retain theirs). Same content-loss family as C-78 but a different mechanism. Fix directions: match both headings (`(## (?:Model )?Created on.*)`) and stop re-prefixing if already prefixed, or stop renaming the heading altogether. Alternatively: deprecate the special-cased created-section in favor of the `<!-- manual -->` mechanism (C-78), which is rename-proof. See also C-78, C-82, C-65. |
 
 ---
 

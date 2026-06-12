@@ -4,6 +4,16 @@ import re
 from views_pipeline_core.managers.model import ModelManager, ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathManager
 
+# Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
+try:
+    from readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
+except ImportError:
+    from tools.catalogs.readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
+
 
 base_dir = os.getcwd()
 target_dir = Path(base_dir + "/models")
@@ -132,7 +142,11 @@ for subfolder in target_dir.iterdir():
 
         # Add created section if it exists
 
-        match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
         if match is None:
             new_string=''
         else:
@@ -175,7 +189,12 @@ for subfolder in target_dir.iterdir():
         updated_readme = content.replace("## Repository Structure",
                 f"## Repository Structure\n\n{formatted_structure}",
             )
-        
+
+        # Re-attach hand-written <!-- manual --> blocks from the old README (C-78)
+        updated_readme = merge_manual_blocks(
+            updated_readme, extract_manual_blocks(old_readme_content)
+        )
+
         # Write the updated content to README.md
         with open(readme_path, "w") as file:
             file.write(updated_readme)
@@ -228,7 +247,11 @@ for subfolder in target_ens_dir.iterdir():
 
         # Add created section if it exists
 
-        match = re.search(r"(## Created on.*)", old_readme_content, re.DOTALL)
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
         if match is None:
             new_string=''
         else:
@@ -268,7 +291,11 @@ for subfolder in target_ens_dir.iterdir():
         updated_readme = content.replace("## Repository Structure",
                 f"## Repository Structure\n\n{formatted_structure}",
             )
-        
+
+        # Re-attach hand-written <!-- manual --> blocks from the old README (C-78)
+        updated_readme = merge_manual_blocks(
+            updated_readme, extract_manual_blocks(old_readme_content)
+        )
 
         # Write the updated content to README.md
         with open(readme_path, "w") as file:
