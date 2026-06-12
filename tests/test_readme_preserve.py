@@ -84,6 +84,17 @@ class TestGeneratorWiring:
             "update_readme.py must merge manual blocks in BOTH the models and ensembles loops"
         )
 
+    def test_created_on_capture_runs_on_stripped_text(self):
+        """C-82 guard: the duplication tests replicate the script's logic, so
+        they cannot detect a revert in the script itself — this pins that both
+        Created-on captures actually search strip_manual_blocks(...) output."""
+        source = UPDATE_README.read_text()
+        assert source.count("strip_manual_blocks(old_readme_content)") >= 2, (
+            "both '## Created on' captures in update_readme.py must search "
+            "strip_manual_blocks(old_readme_content), or end-of-file manual "
+            "blocks get swallowed into the created section and duplicate (C-82)"
+        )
+
 
 @pytest.mark.beige
 class TestSyntheticChantRestoration:
