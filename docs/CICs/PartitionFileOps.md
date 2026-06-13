@@ -30,7 +30,7 @@ Located in: `tools/partitions/fileops.py`
 - `discover_entity_dirs(repo_root)` — finds all real entity directories (main.py for models/ensembles, config_partitions.py for extractors/postprocessors), excluding fixtures from `meta/fixtures.json`
 - `extract_values(source)` — parses calibration/validation train/test tuples from Python source text. Accepts both single and double quotes. Strips comments before matching. Returns `None` if unparseable.
 - `rewrite_values(source, new_values)` — replaces calibration/validation tuples in source text. Anchors to `return {` to avoid matching comments. Never touches the forecasting section. Raises `ValueError` if the expected structure is not found.
-- `write_atomic(path, content)` — writes via tempfile + `os.replace`. Cleans up temp file on failure.
+- `write_atomic(path, content)` — writes via tempfile + `os.replace`. **Preserves the destination file's permission bits when overwriting an existing file; applies a umask-respecting default (typically `0o644`) for a new file.** Cleans up temp file on failure.
 - `verify_file(path, expected)` — re-reads a file after writing and compares against expected values. Returns list of error strings.
 - `has_partition_override(source)` — checks for `PARTITION_OVERRIDE = True` as a real Python variable (not a comment)
 - Fixture names loaded from `meta/fixtures.json` at module import time
@@ -50,7 +50,7 @@ Located in: `tools/partitions/fileops.py`
 
 - `extract_values()` — pure, no side effects, returns `dict[str, tuple[int, int]] | None`
 - `rewrite_values()` — pure, returns modified source string
-- `write_atomic()` — writes to filesystem. Atomic: either the file is fully written or nothing changes.
+- `write_atomic()` — writes to filesystem. Atomic: either the file is fully written or nothing changes. Permission bits of an existing target are preserved across the replace (a new target gets the umask default, not `NamedTemporaryFile`'s `0o600`).
 - `verify_file()` — reads from filesystem. No writes.
 - `discover_*()` — reads filesystem (directory listing). No writes.
 

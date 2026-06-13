@@ -376,6 +376,15 @@ class TestTransformUndoScale:
         if target.startswith("synth_"):
             pytest.skip(f"{name}/{target}: synthetic target, log-compression check N/A")
         y = np.load(origin / target / "y_pred.npy", mmap_mode="r")
+        if _load_meta(name)["algorithm"] == "ZeroModel":
+            # C-76: a zero baseline correctly emits all-zeros — the max>10
+            # heuristic is a false invariant for it. Assert the inverse:
+            # a ZeroModel emitting nonzero is itself a bug.
+            assert y.max() == 0 and y.min() == 0, (
+                f"{name}/{target}: ZeroModel must predict all zeros, got "
+                f"[{y.min():.4f}, {y.max():.4f}]"
+            )
+            return
         assert y.max() > 10, (
             f"{name}/{target}: max value {y.max():.4f} suggests log-scale — "
             f"measurement-scale fatality counts should exceed 10 in high-conflict cells"

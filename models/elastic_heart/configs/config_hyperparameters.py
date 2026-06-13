@@ -2,8 +2,8 @@
 def get_hp_config():
     """
     TSMixer hyperparameters
-    Best run: elastic_heart_tsmixer_shadow_20260508_C
-    lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
+    Ported from tuning_202606 post-r8 ("fix elastic heart", 2026-06):
+    lr=3e-4, clip=20, dropout=0.4, hidden=128, es_patience=25, RevIN=True
     """
     # r8
     hyperparameters = {

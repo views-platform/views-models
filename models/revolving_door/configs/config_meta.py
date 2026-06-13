@@ -17,9 +17,13 @@ def get_meta_config():
         "level": "cm",
         "creator": "Dylan",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+<<<<<<< HEAD
         "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
+=======
+        "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
+>>>>>>> origin/development
         "regression_sample_metrics": ["CRPS", "y_hat_bar"],
-        "regression_sample_baselines": ["red_ranger"],
+        # "regression_sample_baselines": ["red_ranger"],  # commented to match elastic_heart/new_rules/smol_cat; red_ranger's latest wandb run is stale (pre +12mo bump) and trips the report partition check. Does not affect chunky_bunny (point baselines only).
         "rolling_origin_stride": 1,
         "prediction_format": "dataframe",
     }

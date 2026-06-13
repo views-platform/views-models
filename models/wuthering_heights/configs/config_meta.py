@@ -17,7 +17,7 @@ def get_meta_config():
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
         "queryset": "uncertainty_deep_conflict_nolog",
         "rolling_origin_stride": 1,
     }

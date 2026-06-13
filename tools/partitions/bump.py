@@ -27,10 +27,8 @@ Usage:
 import argparse
 import datetime
 import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 from tools.partitions.domain import (
@@ -67,14 +65,9 @@ def _save_canonical(
     canonical: dict, boundaries: PartitionBoundaries, partitions_file: Path
 ) -> None:
     merged = {**canonical, **boundaries.to_json_dict()}
-    dir_name = partitions_file.parent
-    with tempfile.NamedTemporaryFile(
-        mode="w", dir=dir_name, suffix=".tmp", delete=False
-    ) as tmp:
-        json.dump(merged, tmp, indent=2)
-        tmp.write("\n")
-        tmp_path = tmp.name
-    os.replace(tmp_path, str(partitions_file))
+    # Delegate to write_atomic so meta/partitions.json inherits the same
+    # mode-preserving atomic write as the config files (no duplicated pattern).
+    write_atomic(partitions_file, json.dumps(merged, indent=2) + "\n")
 
 
 def _git_state(cwd: Path | None = None) -> dict:

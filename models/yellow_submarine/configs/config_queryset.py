@@ -22,24 +22,28 @@ def generate():
 
     # .with_column(Column('raw_ged_os', from_loa='country_month', from_column='ged_os_best_sum_nokgi'))
 
-    .with_column(Column('lr_imfweo_ngdp_rpch', from_loa='country_year', from_column='ngdp_rpch')
-        .transform.missing.replace_na(0)
-        )
+    # NOTE (2026-06-09, views-models#125): the imfweo_ngdp_rpch (IMF WEO annual GDP,
+    # country_year) columns fail the viewser fetch ("Input is not a df or a df index"),
+    # likely no annual data for the bumped +12-month window. Commented out so the model
+    # can fetch + run; restore once the viewser data is confirmed available.
+    # .with_column(Column('lr_imfweo_ngdp_rpch', from_loa='country_year', from_column='ngdp_rpch')
+    #     .transform.missing.replace_na(0)
+    #     )
 
-    .with_column(Column('lr_imfweo_ngdp_rpch_tlag12', from_loa='country_year', from_column='ngdp_rpch')
-        .transform.missing.replace_na(0)
-        .transform.temporal.tlag(12)
-        )
+    # .with_column(Column('lr_imfweo_ngdp_rpch_tlag12', from_loa='country_year', from_column='ngdp_rpch')
+    #     .transform.missing.replace_na(0)
+    #     .transform.temporal.tlag(12)
+    #     )
 
-    .with_column(Column('lr_imfweo_ngdp_rpch_tlag24', from_loa='country_year', from_column='ngdp_rpch')
-        .transform.missing.replace_na(0)
-        .transform.temporal.tlag(24)
-        )
+    # .with_column(Column('lr_imfweo_ngdp_rpch_tlag24', from_loa='country_year', from_column='ngdp_rpch')
+    #     .transform.missing.replace_na(0)
+    #     .transform.temporal.tlag(24)
+    #     )
 
-    .with_column(Column('lr_imfweo_ngdp_rpch_tlag36', from_loa='country_year', from_column='ngdp_rpch')
-        .transform.missing.replace_na(0)
-        .transform.temporal.tlag(36)
-        )
+    # .with_column(Column('lr_imfweo_ngdp_rpch_tlag36', from_loa='country_year', from_column='ngdp_rpch')
+    #     .transform.missing.replace_na(0)
+    #     .transform.temporal.tlag(36)
+    #     )
 
     # .with_column(Column('lr_ged_sb_dep', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
     #     # .transform.ops.ln()

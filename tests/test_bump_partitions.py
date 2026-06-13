@@ -186,7 +186,18 @@ def generate(steps: int = 36) -> dict:
         assert result["validation_test"] == (493, 540)
 
     def test_all_repo_variants_parse(self):
-        """Every unique config_partitions.py variant in the repo must parse."""
+        """Every unique config_partitions.py variant in the repo must parse and
+        match the canonical calibration_train from meta/partitions.json.
+
+        Compares against the canonical source of truth (not a hardcoded tuple)
+        so the test survives annual partition bumps instead of breaking on them.
+        """
+        import json
+
+        canonical = json.loads(
+            (REPO_ROOT / "meta" / "partitions.json").read_text()
+        )
+        expected_cal_train = tuple(canonical["calibration"]["train"])
         files = sorted(
             list(REPO_ROOT.glob("models/*/configs/config_partitions.py"))
             + list(REPO_ROOT.glob("ensembles/*/configs/config_partitions.py"))
@@ -204,7 +215,10 @@ def generate(steps: int = 36) -> dict:
             assert result is not None, (
                 f"Failed to parse {f.relative_to(REPO_ROOT)}"
             )
-            assert result["calibration_train"] == (121, 444)
+            assert result["calibration_train"] == expected_cal_train, (
+                f"{f.relative_to(REPO_ROOT)} calibration_train="
+                f"{result['calibration_train']} != canonical {expected_cal_train}"
+            )
 
 
 class TestDiscoverEntityDirs:
@@ -415,6 +429,40 @@ def generate():
             assert len(tmps) == 0, f"Orphaned temp files: {tmps}"
         finally:
             os.chmod(str(target.parent), 0o755)
+
+
+class TestWriteAtomicModePreservation:
+    """write_atomic must keep an existing file's permission bits and use a
+    umask-respecting default for new files. Regression: a partition bump once
+    silently flipped 101 config files 755->644 because os.replace kept the temp
+    file's 0o600. See docs/CICs/PartitionFileOps.md.
+    """
+
+    def test_write_atomic_preserves_existing_file_mode(self, tmp_path):
+        import os
+        import stat
+        from tools.partitions.fileops import write_atomic
+
+        target = tmp_path / "config_partitions.py"
+        target.write_text("old")
+        os.chmod(target, 0o755)
+        write_atomic(target, "new content")
+        assert stat.S_IMODE(target.stat().st_mode) == 0o755
+        assert target.read_text() == "new content"
+
+    def test_write_atomic_new_file_uses_umask_default_not_0o600(self, tmp_path):
+        import os
+        import stat
+        from tools.partitions.fileops import write_atomic
+
+        target = tmp_path / "new_lockfile.jsonl"
+        write_atomic(target, "x")
+        current_umask = os.umask(0)
+        os.umask(current_umask)
+        expected = 0o666 & ~current_umask
+        actual = stat.S_IMODE(target.stat().st_mode)
+        assert actual == expected, f"new file mode {oct(actual)} != {oct(expected)}"
+        assert actual != 0o600
 
 
 # ---------------------------------------------------------------------------

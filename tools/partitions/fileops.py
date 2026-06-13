@@ -7,6 +7,7 @@ shared by the bump CLI and the test suite.
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path
 
@@ -145,14 +146,32 @@ def rewrite_values(source: str, new_values: dict[str, tuple[int, int]]) -> str:
 
 
 def write_atomic(path: Path, content: str) -> None:
-    """Write content to path atomically via tempfile + os.replace."""
+    """Write content to path atomically via tempfile + os.replace.
+
+    Preserves the destination file's permission bits when overwriting an
+    existing file; for a new file, applies the umask-respecting default
+    (typically 0o644). Without this, the replace would leave the file with
+    NamedTemporaryFile's restrictive 0o600 and drop any execute bit — which
+    is exactly what silently changed 101 config modes during a partition bump.
+    Cleans up the temp file if the chmod or replace fails.
+    """
     dir_name = path.parent
+    try:
+        dest_mode = stat.S_IMODE(os.stat(path).st_mode)
+    except FileNotFoundError:
+        dest_mode = None
     with tempfile.NamedTemporaryFile(
         mode="w", dir=dir_name, suffix=".tmp", delete=False
     ) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
     try:
+        if dest_mode is not None:
+            os.chmod(tmp_path, dest_mode)
+        else:
+            current_umask = os.umask(0)
+            os.umask(current_umask)
+            os.chmod(tmp_path, 0o666 & ~current_umask)
         os.replace(tmp_path, str(path))
     except OSError:
         os.unlink(tmp_path)

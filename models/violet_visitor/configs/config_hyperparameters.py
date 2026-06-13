@@ -1,22 +1,31 @@
+import os
+
 
 def get_hp_config():
     """
-    Ensemble member B: "Calibration-focused" — conservative SS for MCR near 1.0.
+    HURDLE-NB overnight runs (2026-06-11, ZINB epic #102, decision A).
 
-    Orthogonal design for golden_hour ensemble (3 HydraNet models × 16 samples = 48).
-    Based on sweep finding: epsilon_max=0.25 delivers sb MCR=1.01 (nearest to ideal).
+    The first config that *turns on* the hurdle-NB stack (#98-#101):
+      - output_distribution='hurdle_nb' -> softplus mu count-space head (#100)
+      - loss_reg='hurdle_nb'            -> TruncatedNBLoss body, learnable per-target theta (#99)
+      - loss_class='weighted_bce'       -> proper class-weighted gate (replaces focal; #99)
+      - freeze_multitask_balancer=True  -> equal-weight sum of the per-target NLLs (D2/C-141)
+      - scheduled sampling OFF          -> we are testing the head, not rollout training
+    Inference emits the EXACT hurdle mean E[y]=P(y>0)*mu/(1-NB0(mu,theta)) (#101).
 
-    Diversity axes vs other members:
-    - Seeds: 42/42 (vs 4/4 and 99/99)
-    - Sigma: per-target {1.0, 0.75, 0.5} (same as member A, different from C)
-    - SS epsilon: 0.25 (vs 0.5 and 0.5) — less self-prediction, better calibration
-    - SS warmup: 15 (vs 10 and 5) — longer pure teacher forcing
-    - Dropout: 0.15 (vs 0.125 and 0.1) — more regularization, wider posteriors
-    - Sampling: sigmoid (vs threshold) — different spatial anchor selection
+    Per-run knobs come from env vars (single fresh-process runs, no per-run file edits):
+      HN_SEED        (default 42)  -> torch_seed/np_seed
+      HN_THETA_INIT  (default 1.0) -> loss_reg_theta_init (NB dispersion init)
+      HN_POS_WEIGHT  (default 10)  -> loss_class_pos_weight (gate positive-class weight)
+      HN_LESSONS     (default 40)  -> total_lessons (set 1-2 for a smoke test)
     """
 
-    hyperparameters = {
+    seed = int(os.environ.get("HN_SEED", "42"))
+    theta_init = float(os.environ.get("HN_THETA_INIT", "1.0"))
+    pos_weight = float(os.environ.get("HN_POS_WEIGHT", "10.0"))
+    total_lessons = int(os.environ.get("HN_LESSONS", "40"))
 
+    hyperparameters = {
         # ============================================================
         # Ledger / Topology (ADR 007 Compliance)
         # ============================================================
@@ -26,7 +35,11 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        'input_channels': 3,
+        # Coordinate experiment (#110, ADR-061): +2 static (row/col) coord channels.
+        # input_channels = 3 dynamic + 2 static = 5. Both checksums hold:
+        # 3*output_channels + len(static_channels) == len(features) + len(static_channels) == 5.
+        'input_channels': 5,
+        'static_channels': ['row_coord', 'col_coord'],
         'row_offset': 87,
         'col_offset': 310,
         'height': 180,
@@ -42,6 +55,8 @@ def get_hp_config():
         'output_channels': 1,
         'weight_init': 'xavier_norm',
         'h_init': 'abs_rand_exp-100',
+        # #100: count-space softplus mu head for the hurdle-NB body.
+        'output_distribution': 'hurdle_nb',
 
         # ============================================================
         # Optimization (ADR 014 Compliance)
@@ -52,8 +67,10 @@ def get_hp_config():
         'scheduler': 'WarmupDecay',
         'warmup_steps': 100,
         'clip_grad_norm': True,
-        'torch_seed': 42,
-        'np_seed': 42,
+        'torch_seed': seed,
+        'np_seed': seed,
+        # D2/C-141: the per-target hurdle-NB NLLs are summed equal-weight (balancer frozen).
+        'freeze_multitask_balancer': True,
 
         # ============================================================
         # Multi-Task Signals (ADR 020 Compliance)
@@ -79,30 +96,27 @@ def get_hp_config():
         'time_steps': 36,
 
         # ============================================================
-        # Loss Functions — Tobit + per-target sigma (ADR-054/055)
+        # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable theta) +
+        # class-weighted BCE gate. theta_init / pos_weight from env (the 2 swept knobs).
         # ============================================================
-        'loss_reg': 'tobit',
-        'loss_reg_sigma': {
-            'lr_sb_best': 1.0,
-            'lr_ns_best': 0.75,
-            'lr_os_best': 0.5,
-        },
-        'loss_class': 'focal',
-        'loss_class_alpha': 0.75,
-        'loss_class_gamma': 1.5,
+        'loss_reg': 'hurdle_nb',
+        'loss_reg_theta_init': theta_init,
+        'learnable_theta': True,
+        'loss_class': 'weighted_bce',
+        'loss_class_pos_weight': pos_weight,
         'onset_bias_init': -7.0,
 
         # ============================================================
-        # Scheduled Sampling (ADR-056) — conservative for calibration
+        # Scheduled Sampling — OFF (testing the head, not rollout training).
         # ============================================================
         'ss_schedule': 'linear',
         'ss_warmup_lessons': 15,
-        'ss_epsilon_max': 0.25,
+        'ss_epsilon_max': 0.0,
 
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': 200,
+        'total_lessons': total_lessons,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
@@ -118,6 +132,9 @@ def get_hp_config():
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,
+        # #110/C-154: abort before the ~2.5 GB prediction writes if the volume is short
+        # (the S3_seed4 baseline run was truncated by disk-full). Guard added in #107.
+        'min_free_disk_gb': 10.0,
     }
 
     return hyperparameters

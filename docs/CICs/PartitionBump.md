@@ -38,10 +38,10 @@ Invocation: `python -m tools.partitions.bump [--execute] [--bump N] [--force REA
 ### Execute mode (`--execute`)
 All of the above, plus:
 - Rewrites calibration/validation tuples in all standard config_partitions.py files
-- Uses atomic writes (tempfile + os.replace) — no partial file corruption
+- Uses atomic writes (`fileops.write_atomic`: tempfile + os.replace) — no partial file corruption, and existing files keep their permission bits (mode is preserved)
 - Re-reads and verifies every written file before proceeding
 - Skips files with `PARTITION_OVERRIDE = True`
-- Updates `meta/partitions.json` with new canonical values
+- Updates `meta/partitions.json` with new canonical values (via `write_atomic`, so its mode is preserved too — `_save_canonical` delegates rather than duplicating the tempfile/replace pattern)
 - Writes a JSONL lockfile to `meta/partition_bump_YYYYMMDD_HHMMSS.jsonl` recording: before/after values, dates, git state, every file updated, every file skipped, verification status
 
 ### Safety checks (both modes)

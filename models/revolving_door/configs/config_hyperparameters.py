@@ -58,6 +58,7 @@ def get_hp_config():
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
+        "delta": 0.041685644972051974,
 
         # Scaling
         "feature_scaler": None,
