@@ -13,7 +13,7 @@ def get_hp_config():
         "num_blocks": 2,
         "num_layers": 3,
         "layer_widths": 256,
-        "expansion_coefficient_dim": 512,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.1,
@@ -109,7 +109,6 @@ def get_hp_config():
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
-        "delta": 0.07139486580318413,
 
         # --- Prediction ---
         "likelihood": None,
