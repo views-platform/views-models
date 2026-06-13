@@ -81,17 +81,19 @@ def get_sweep_config():
         'time_steps': {'value': 36},
 
         # ============================================================
-        # Loss Functions — TOBIT baseline + per-target sigma (ADR-054/055).
-        # This sweep keeps the tobit baseline; config_hyperparameters.py runs the
-        # Arm-1 hurdle loss (lognormal_nll) instead. 'hurdle_threshold' is
-        # intentionally omitted here — tobit is censored and does not use it.
+        # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable per-target theta)
+        # + class-weighted BCE gate. ALIGNED with config_hyperparameters.py (the canonical run
+        # config for the hurdle-NB / coordinate-grounding direction, epic #105); the abandoned
+        # tobit/focal stack was removed so a sweep cannot silently benchmark against it (C-155).
         # ============================================================
-        'loss_reg': {'value': 'tobit'},
-        'loss_reg_sigma': {'value': {'lr_sb_best': 1.0, 'lr_ns_best': 0.75, 'lr_os_best': 0.5}},
-        'loss_class': {'value': 'focal'},
-        'loss_class_alpha': {'value': 0.75},
-        'loss_class_gamma': {'value': 1.5},
+        'output_distribution': {'value': 'hurdle_nb'},
+        'loss_reg': {'value': 'hurdle_nb'},
+        'loss_reg_theta_init': {'value': 1.0},
+        'learnable_theta': {'value': True},
+        'loss_class': {'value': 'weighted_bce'},
+        'loss_class_pos_weight': {'value': 10.0},
         'onset_bias_init': {'value': -7.0},
+        'freeze_multitask_balancer': {'value': True},
 
         # ============================================================
         # Scheduled Sampling (ADR-056) — OFF for clean C-113 baseline
@@ -103,7 +105,7 @@ def get_sweep_config():
         # ============================================================
         # Strategy (Curriculum)
         # ============================================================
-        'total_lessons': {'value': 80},
+        'total_lessons': {'value': 40},
         'max_ratio': {'value': 0.95},
         'min_ratio': {'value': 0.05},
         'slope_ratio': {'value': 0.75},
