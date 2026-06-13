@@ -1,6 +1,3 @@
-import os
-
-
 def get_hp_config():
     """
     HURDLE-NB overnight runs (2026-06-11, ZINB epic #102, decision A).
@@ -13,17 +10,10 @@ def get_hp_config():
       - scheduled sampling OFF          -> we are testing the head, not rollout training
     Inference emits the EXACT hurdle mean E[y]=P(y>0)*mu/(1-NB0(mu,theta)) (#101).
 
-    Per-run knobs come from env vars (single fresh-process runs, no per-run file edits):
-      HN_SEED        (default 42)  -> torch_seed/np_seed
-      HN_THETA_INIT  (default 1.0) -> loss_reg_theta_init (NB dispersion init)
-      HN_POS_WEIGHT  (default 10)  -> loss_class_pos_weight (gate positive-class weight)
-      HN_LESSONS     (default 40)  -> total_lessons (set 1-2 for a smoke test)
+    Run parameters are fixed literals below (standard config style, no env vars):
+    torch_seed/np_seed=42, loss_reg_theta_init=1.0, loss_class_pos_weight=10.0,
+    total_lessons=40.
     """
-
-    seed = int(os.environ.get("HN_SEED", "42"))
-    theta_init = float(os.environ.get("HN_THETA_INIT", "1.0"))
-    pos_weight = float(os.environ.get("HN_POS_WEIGHT", "10.0"))
-    total_lessons = int(os.environ.get("HN_LESSONS", "40"))
 
     hyperparameters = {
         # ============================================================
@@ -35,11 +25,7 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        # Coordinate experiment (#110, ADR-061): +2 static (row/col) coord channels.
-        # input_channels = 3 dynamic + 2 static = 5. Both checksums hold:
-        # 3*output_channels + len(static_channels) == len(features) + len(static_channels) == 5.
-        'input_channels': 5,
-        'static_channels': ['row_coord', 'col_coord'],
+        'input_channels': 3,
         'row_offset': 87,
         'col_offset': 310,
         'height': 180,
@@ -67,8 +53,8 @@ def get_hp_config():
         'scheduler': 'WarmupDecay',
         'warmup_steps': 100,
         'clip_grad_norm': True,
-        'torch_seed': seed,
-        'np_seed': seed,
+        'torch_seed': 42,
+        'np_seed': 42,
         # D2/C-141: the per-target hurdle-NB NLLs are summed equal-weight (balancer frozen).
         'freeze_multitask_balancer': True,
 
@@ -97,13 +83,13 @@ def get_hp_config():
 
         # ============================================================
         # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable theta) +
-        # class-weighted BCE gate. theta_init / pos_weight from env (the 2 swept knobs).
+        # class-weighted BCE gate.
         # ============================================================
         'loss_reg': 'hurdle_nb',
-        'loss_reg_theta_init': theta_init,
+        'loss_reg_theta_init': 1.0,
         'learnable_theta': True,
         'loss_class': 'weighted_bce',
-        'loss_class_pos_weight': pos_weight,
+        'loss_class_pos_weight': 10.0,
         'onset_bias_init': -7.0,
 
         # ============================================================
@@ -116,7 +102,7 @@ def get_hp_config():
         # ============================================================
         # Strategy (Curriculum ADR 011/012 Compliance)
         # ============================================================
-        'total_lessons': total_lessons,
+        'total_lessons': 40,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
