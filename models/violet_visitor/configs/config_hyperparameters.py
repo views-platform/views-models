@@ -35,7 +35,11 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
-        'input_channels': 3,
+        # Coordinate experiment (#110, ADR-061): +2 static (row/col) coord channels.
+        # input_channels = 3 dynamic + 2 static = 5. Both checksums hold:
+        # 3*output_channels + len(static_channels) == len(features) + len(static_channels) == 5.
+        'input_channels': 5,
+        'static_channels': ['row_coord', 'col_coord'],
         'row_offset': 87,
         'col_offset': 310,
         'height': 180,
@@ -128,6 +132,9 @@ def get_hp_config():
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,
+        # #110/C-154: abort before the ~2.5 GB prediction writes if the volume is short
+        # (the S3_seed4 baseline run was truncated by disk-full). Guard added in #107.
+        'min_free_disk_gb': 10.0,
     }
 
     return hyperparameters
