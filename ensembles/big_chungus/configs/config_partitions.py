@@ -1,4 +1,11 @@
-from ingester3.ViewsMonth import ViewsMonth
+from datetime import date
+
+
+def _current_month_id() -> int:
+    """VIEWS month_id for the current calendar month. Epoch: January 1980."""
+    today = date.today()
+    return (today.year - 1980) * 12 + today.month
+
 
 
 def generate(steps: int = 36) -> dict:
@@ -12,30 +19,28 @@ def generate(steps: int = 36) -> dict:
     Partition details:
         - 'calibration': Uses fixed index ranges for training and testing.
         - 'validation': Uses fixed index ranges for training and testing.
-        - 'forecasting': Uses callables that accept ViewsMonth (and optionally step) to dynamically determine
-          training and testing index ranges based on the current month.
+        - 'forecasting': Uses the current month to dynamically determine training and testing index ranges.
 
     Note:
-        - The 'forecasting' partition's 'train' and 'test' values are functions that require the ViewsMonth
-          object (and step for 'test') to compute the appropriate indices.
+        - The 'forecasting' partition's 'train' and 'test' ranges are computed from the current month.
     """
 
     def forecasting_train_range():
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (121, month_last)
 
     def forecasting_test_range(steps):
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (month_last + 1, month_last + 1 + steps)
 
     return {
         "calibration": {
-            "train": (121, 444),
-            "test": (445, 492),
+            "train": (121, 456),
+            "test": (457, 504),
         },
         "validation": {
-            "train": (121, 492),
-            "test": (493, 540),
+            "train": (121, 504),
+            "test": (505, 552),
         },
         "forecasting": {
             "train": forecasting_train_range(),
