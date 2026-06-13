@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 87 (83 concerns + 4 disagreements)  
-**Concerns:** Open 31 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 88 (84 concerns + 4 disagreements)  
+**Concerns:** Open 32 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1048,6 +1048,19 @@
 | **Status** | Open |
 | **Location** | `tools/catalogs/update_readme.py` (both loops: `re.search(r"(## Created on.*)" …)` followed by the `[:2] + " Model"` heading rewrite) |
 | **Notes** | Pre-existing, unrelated to the C-78/C-82 fixes. The rename-then-recapture mismatch means any created-section survives exactly one regeneration — which likely explains why NO currently-processed README has one (they were silently eaten by successive catalog runs over time; only fixture/non-iterated READMEs retain theirs). Same content-loss family as C-78 but a different mechanism. Fix directions: match both headings (`(## (?:Model )?Created on.*)`) and stop re-prefixing if already prefixed, or stop renaming the heading altogether. Alternatively: deprecate the special-cased created-section in favor of the `<!-- manual -->` mechanism (C-78), which is rename-proof. See also C-78, C-82, C-65. |
+
+---
+
+### C-84 — Constituent wandb partition metadata diverges after a partial re-run, blocking the ensemble evaluation report
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A subset of an ensemble's constituents is re-run after a partition bump (or any config change) while the rest keep older runs — their *latest* wandb run configs then disagree, and `EnsembleManager … -e -re` aborts the report with `Partition metadata mismatch between models` |
+| **Source** | execution incident (chunky_bunny re-aggregate, 2026-06-13) |
+| **Status** | Open |
+| **Location** | `views-reporting/views_reporting/templates/reports/evaluation.py:189-211` (reads `get_latest_run(...).config` per constituent and requires `{run_type: {train,test}}` to match across all); `views-pipeline-core/views_pipeline_core/modules/wandb/utils.py:358` (`get_latest_run`) |
+| **Notes** | The report's consistency guard checks each constituent's **latest wandb run config**, NOT the on-disk prediction windows. On 2026-06-13, re-running elastic_heart (post #119 +12-month bump) then re-aggregating chunky_bunny crashed the report: 20 constituents' latest wandb run held `{test [457,504]}`, smol_cat held the pre-bump `{test [445,492]}`, and new_rules/revolving_door had no findable wandb project (silently skipped — only 21 of 23 are even checked). **The aggregation itself was correct** — all on-disk predictions (incl. the outlier) align at month window `[457,492]`, and the ensemble predictions + metrics (MSLE 0.634) were written fine; only the report HTML was blocked. So the guard fails on metadata provenance even when the data is sound. Recurring hazard: whenever constituents are run across a config change at different times, their newest wandb runs diverge and the report breaks until the laggards are re-run. Mitigations to consider: read partition from the saved prediction metadata (the actual data) rather than the latest wandb run; warn-and-skip a divergent constituent instead of hard-failing; or document that an ensemble report requires all constituents on the same config epoch. Workaround used: re-run the stale constituent (smol_cat, issue #141) so its latest wandb run logs the current partition. The new_rules/revolving_door "no wandb project" skip is a related latent reporting gap (constituents absent from the metadata check and baseline comparison). Cross-refs: C-56 (config-file partition staleness — different layer, resolved), C-43 (ensemble order-dependence), C-74 (golden_hour sample count). |
 
 ---
 
