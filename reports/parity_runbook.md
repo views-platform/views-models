@@ -1,5 +1,15 @@
 # Parity Validation Runbook (v2 — post-curriculum-learner fix)
 
+> ⚠️ **DO NOT use this runbook to check determinism / bit-reproducibility (added 2026-06-15).**
+> Its weight fingerprint is a **`sha256sum` of the `.pt` file, which is UNRELIABLE** — `torch.save` writes a zip
+> embedding non-deterministic mtimes, so the *same* `state_dict` saved twice yields *different* file shas
+> (`fe07ce3d` ≠ `1fc215d0`, proven). It therefore cannot distinguish identical from different weights. Likewise
+> `investigations/compare_parity.py` measures *similarity* (pearson `r`, "EXCELLENT" at `r>0.99`) and collapses
+> posterior samples to their mean — similarity ≠ identity. For determinism checks use the reliable
+> **weight-tensor hash** method and procedure in
+> **`views-hydranet/reports/reproducibility_runbook.md`** (+ `scripts/compare_run_determinism.py`). This runbook's
+> *ground rules* (one model on GPU at a time, frozen data, log every run) remain sound; its fingerprint does not.
+
 **Created:** 2026-05-26
 **Supersedes:** parity_runbook v1 (same file, pre-purge)
 **Experiment log:** [`reports/parity_experiment_log.md`](parity_experiment_log.md)
