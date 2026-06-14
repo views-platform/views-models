@@ -16,7 +16,7 @@ def get_hp_config():
         "expansion_coefficient_dim": 64,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.30,
+        "dropout": 0.20,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-3,
         "weight_decay": 0,
-        "gradient_clip_val": 50.0,
+        "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
             "lr": 1e-3,
             "weight_decay": 0,
