@@ -36,11 +36,11 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
+        "lr": 5e-4,
         "weight_decay": 0,
         "gradient_clip_val": 200.0,
         "optimizer_kwargs": {
-            "lr": 1e-3,
+            "lr": 5e-4,
             "weight_decay": 0,
         },
 
