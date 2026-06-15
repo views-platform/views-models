@@ -36,11 +36,11 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
+        "lr": 5e-4,
         "weight_decay": 3e-4,
         "gradient_clip_val": 50.0,
         "optimizer_kwargs": {
-            "lr": 1e-3,
+            "lr": 5e-4,
             "weight_decay": 3e-4,
         },
 
@@ -109,6 +109,7 @@ def get_hp_config():
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
+        # "delta": 0.07139486580318413,
 
         # --- Prediction ---
         "likelihood": None,

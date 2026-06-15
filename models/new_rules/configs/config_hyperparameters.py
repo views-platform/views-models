@@ -9,14 +9,14 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 3,
-        "num_blocks": 3,
+        "num_stacks": 2,
+        "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 512,
-        "expansion_coefficient_dim": 64,
+        "layer_widths": 256,
+        "expansion_coefficient_dim": 512,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.20,
+        "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -37,11 +37,11 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 5e-4,
-        "weight_decay": 0,
-        "gradient_clip_val": 200.0,
+        "weight_decay": 3e-4,
+        "gradient_clip_val": 50.0,
         "optimizer_kwargs": {
             "lr": 5e-4,
-            "weight_decay": 0,
+            "weight_decay": 3e-4,
         },
 
         # --- LR Scheduler ---
@@ -109,6 +109,7 @@ def get_hp_config():
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
+        # "delta": 0.07139486580318413,
 
         # --- Prediction ---
         "likelihood": None,
