@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-3,
+        "lr": 5e-4,
         "weight_decay": 3e-4,
         "gradient_clip_val": 50.0,
 
@@ -49,7 +49,7 @@ def get_hp_config():
         },
 
         "optimizer_kwargs": {
-            "lr": 1e-3,
+            "lr": 5e-4,
             "weight_decay": 3e-4,
         },
 
@@ -78,10 +78,10 @@ def get_hp_config():
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # ln_ged temporal lags — explicit trajectory for TiDE (no recurrence)
-                    "ln_ged_sb_tlag_1", "ln_ged_sb_tlag_2", "ln_ged_sb_tlag_3",
-                    "ln_ged_sb_tlag_4", "ln_ged_sb_tlag_5", "ln_ged_sb_tlag_6",
-                    "ln_ged_os_tlag_1",
+                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+                    "lr_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
                     "lr_topic_tokens_t1", "lr_topic_tokens_t2",
@@ -111,11 +111,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 256,
+        "layer_widths": 512,
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "Tanh",
-        "dropout": 0.1,
+        "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
