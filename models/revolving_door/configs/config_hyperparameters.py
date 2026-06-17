@@ -23,20 +23,20 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 25,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 5e-4,
-        "weight_decay": 3e-4,
+        "weight_decay": 5e-4,
         "gradient_clip_val": 50.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
@@ -50,7 +50,7 @@ def get_hp_config():
 
         "optimizer_kwargs": {
             "lr": 5e-4,
-            "weight_decay": 3e-4,
+            "weight_decay": 5e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -111,11 +111,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 512,
+        "layer_widths": 256,
         "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "Tanh",
-        "dropout": 0.2,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
