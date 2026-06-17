@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 88 (84 concerns + 4 disagreements)  
-**Concerns:** Open 32 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 90 (86 concerns + 4 disagreements)  
+**Concerns:** Open 34 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -532,16 +532,16 @@
 
 ---
 
-### C-44 — Concat aggregation degrades ensemble CRPS when constituent model quality varies
+### C-44 — Quality-blind ensemble aggregation (concat *and* mean) degrades the ensemble below its best constituents
 
 | Field | Value |
 |---|---|
 | **Tier** | 3 |
-| **Trigger** | Building a concat ensemble where constituent models have heterogeneous performance on a specific target (e.g., one model's CRPS is 50%+ worse than others on that target) |
-| **Source** | golden_hour calibration run (2026-05-25) |
+| **Trigger** | Building a `concat` **or** `mean` ensemble whose constituents have heterogeneous quality on a target (one constituent materially worse than others), with `aggregation` set as a bare config string and no constituent-quality gate |
+| **Source** | golden_hour calibration run (2026-05-25); broadened by repo-assimilation + chunky_bunny (2026-06-13) |
 | **Status** | Open |
-| **Location** | `ensembles/golden_hour/configs/config_meta.py` (`aggregation: "concat"`), `views-pipeline-core` PredictionFrameEnsembleManager concat path |
-| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. See also C-13 (no prediction quality validation before aggregation). |
+| **Location** | `ensembles/*/configs/config_meta.py` (`aggregation`); `views-pipeline-core` ensemble aggregation paths (PredictionFrameEnsembleManager concat; mean) |
+| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. **2026-06-13 (repo-assimilation R7 — merged here): the same quality-blindness affects `aggregation: "mean"`.** chunky_bunny (equal-weight mean of 23 constituents) scored MSLE **0.590**, worse than 14 of its own constituents and Pareto-dominated by smol_cat alone (0.503 MSLE / 0.872 MCR vs the ensemble's 0.590 / 0.584): the mean blends timid stepshifters (MCR 0.2–0.3) with honest DL/Hurdle models and lands in a mediocre middle. `aggregation` is a bare string in `config_meta.py` with no quality gate, for either method. See also C-13 (no prediction quality validation before aggregation), C-86 (constituent feature incoherence), [[project-mcr-timid-prophet]]. |
 
 ---
 
@@ -1061,6 +1061,32 @@
 | **Status** | Open |
 | **Location** | `views-reporting/views_reporting/templates/reports/evaluation.py:189-211` (reads `get_latest_run(...).config` per constituent and requires `{run_type: {train,test}}` to match across all); `views-pipeline-core/views_pipeline_core/modules/wandb/utils.py:358` (`get_latest_run`) |
 | **Notes** | The report's consistency guard checks each constituent's **latest wandb run config**, NOT the on-disk prediction windows. On 2026-06-13, re-running elastic_heart (post #119 +12-month bump) then re-aggregating chunky_bunny crashed the report: 20 constituents' latest wandb run held `{test [457,504]}`, smol_cat held the pre-bump `{test [445,492]}`, and new_rules/revolving_door had no findable wandb project (silently skipped — only 21 of 23 are even checked). **The aggregation itself was correct** — all on-disk predictions (incl. the outlier) align at month window `[457,492]`, and the ensemble predictions + metrics (MSLE 0.634) were written fine; only the report HTML was blocked. So the guard fails on metadata provenance even when the data is sound. Recurring hazard: whenever constituents are run across a config change at different times, their newest wandb runs diverge and the report breaks until the laggards are re-run. Mitigations to consider: read partition from the saved prediction metadata (the actual data) rather than the latest wandb run; warn-and-skip a divergent constituent instead of hard-failing; or document that an ensemble report requires all constituents on the same config epoch. Workaround used: re-run the stale constituent (smol_cat, issue #141) so its latest wandb run logs the current partition. The new_rules/revolving_door "no wandb project" skip is a related latent reporting gap (constituents absent from the metadata check and baseline comparison). Cross-refs: C-56 (config-file partition staleness — different layer, resolved), C-43 (ensemble order-dependence), C-74 (golden_hour sample count). |
+
+---
+
+### C-85 — Ensemble silently aggregates whichever constituent prediction file is newest, with no freshness/epoch guard
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | An ensemble is re-aggregated (`--saved`) while a constituent's `data/generated/` holds a stale, partial, or wrong-epoch prediction set that happens to carry a newer timestamp than the intended one |
+| **Source** | repo-assimilation (R8) + chunky_bunny incident (2026-06-13) |
+| **Status** | Open |
+| **Location** | ensemble constituent loading — `views-pipeline-core/.../managers/ensemble/ensemble.py` `_get_generated_predictions_data_file_paths` (sorted newest-first); driven by the per-model `models/<name>/data/generated/` layout owned by views-models |
+| **Notes** | The ensemble picks each constituent's **newest** prediction file by timestamp, with no check that it is the intended/complete set or that it matches the ensemble's config epoch. Observed 2026-06-13: the chunky_bunny report-crash run wrote a superseded ensemble prediction set (`…_125706`, built on smol_cat's OLD predictions) that sat alongside the authoritative set (`…_170420`) until manually removed — and at the constituent level the same newest-wins rule would silently aggregate a stale set if one were left behind. Combined with C-84 (wandb-metadata epoch divergence), an aggregate's provenance is under-guarded from two angles: the data picker trusts timestamp recency, the report guard trusts wandb metadata, and neither verifies the actual prediction windows agree. No test asserts constituent prediction freshness or cross-constituent alignment. Mitigations to consider: assert all constituents' prediction windows match before aggregating; pin the run set by timestamp rather than newest-wins. Cross-refs: C-84 (epoch divergence at report time), C-74 (golden_hour sample count), C-44 (quality-blind aggregation). |
+
+---
+
+### C-86 — Ensemble constituents can have incoherent / near-mono-family feature sets with no comparability check
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | An ensemble is assembled (via `config_modelset.py`) from constituents whose querysets share little — and the result is read as a coherent model family rather than a mix of disjoint feature experiments |
+| **Source** | repo-assimilation (R9) + Hurdle-model investigation (2026-06-13) |
+| **Status** | Open |
+| **Location** | `models/*/configs/config_queryset.py`; `ensembles/*/configs/config_modelset.py` (no cross-constituent feature check) |
+| **Notes** | The 6 chunky_bunny Hurdle constituents have feature sets ranging **29→79** with only **5 features common to all six**; several are near-mono-family — `fast_car` is **89% V-Dem** (slow country-year democracy indices, almost no conflict history), `twin_flame` is **94% topic/NLP**, `high_hopes` is pure conflict-history with no structural covariates. They are not a designed family with a shared backbone — they read as separate feature experiments that happen to share the Hurdle wrapper. Nothing in config or tests asserts cross-constituent feature comparability, so an ensemble can silently combine models built on disjoint, individually-questionable feature bases, making the ensemble's behaviour hard to attribute or reason about. Distinct from C-48/C-49 (viewser-vs-datafactory *cross-source* parity). Maintainability/interpretability risk, not a correctness fault → Tier 4. Cross-refs: C-44 (quality-blind aggregation), C-48, C-49. |
 
 ---
 
