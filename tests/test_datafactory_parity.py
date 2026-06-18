@@ -318,12 +318,26 @@ class TestCrossEnsembleParityReadiness:
         assert actual == expected, f"loss functions: {actual}; expected: {expected}"
 
     def test_constituent_posterior_samples_match(self):
-        counts = {}
+        # 2026-06-16: violet_visitor's n_posterior_samples was reduced 16 -> 8 as an
+        # interim eval-stage OOM workaround (tracked as C-116/#124 in views-hydranet;
+        # to be restored to 16 once fixed) — tracked as C-87 in
+        # reports/technical_risk_register.md. This intentionally breaks the trio
+        # sample-count parity for the golden_hour<->stellar_horizon comparison. We pin
+        # the expected per-model state (five at 16 + violet_visitor at 8) instead of
+        # asserting strict uniformity, so the known divergence is documented in-place
+        # and any *other* drift is still caught. Restore to a strict single-value
+        # assertion when violet_visitor returns to 16. (Same pattern as
+        # test_both_trios_use_same_loss / C-71.)
+        EXPERIMENT_DIVERGED = {"violet_visitor": 8}
+        expected = {
+            name: EXPERIMENT_DIVERGED.get(name, 16)
+            for name in VIEWSER_TRIO + DATAFACTORY_TRIO
+        }
+        actual = {}
         for name in VIEWSER_TRIO + DATAFACTORY_TRIO:
             hp = _load_hp(name)
-            counts[name] = hp["n_posterior_samples"]
-        values = set(counts.values())
-        assert len(values) == 1, f"n_posterior_samples mismatch: {counts}"
+            actual[name] = hp["n_posterior_samples"]
+        assert actual == expected, f"n_posterior_samples: {actual}; expected: {expected}"
 
 
 class TestDatafactoryTrioPartitions:

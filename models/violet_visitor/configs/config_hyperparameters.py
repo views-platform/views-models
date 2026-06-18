@@ -114,7 +114,10 @@ def get_hp_config():
         # ============================================================
         # Outbound / Evaluation
         # ============================================================
-        'n_posterior_samples': 16,
+        # Experiment operating point (2026-06-16, #128): 8 samples — gated by the 8-sample OOM
+        # check (one run must complete without the C-116 eval-stage OOM). Reduced from 16 as the
+        # interim memory workaround; restore to 16 once C-116/#124 is fixed.
+        'n_posterior_samples': 8,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,
