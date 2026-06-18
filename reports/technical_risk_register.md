@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 87 (83 concerns + 4 disagreements)  
-**Concerns:** Open 31 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 91 (87 concerns + 4 disagreements)  
+**Concerns:** Open 35 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -532,16 +532,16 @@
 
 ---
 
-### C-44 — Concat aggregation degrades ensemble CRPS when constituent model quality varies
+### C-44 — Quality-blind ensemble aggregation (concat *and* mean) degrades the ensemble below its best constituents
 
 | Field | Value |
 |---|---|
 | **Tier** | 3 |
-| **Trigger** | Building a concat ensemble where constituent models have heterogeneous performance on a specific target (e.g., one model's CRPS is 50%+ worse than others on that target) |
-| **Source** | golden_hour calibration run (2026-05-25) |
+| **Trigger** | Building a `concat` **or** `mean` ensemble whose constituents have heterogeneous quality on a target (one constituent materially worse than others), with `aggregation` set as a bare config string and no constituent-quality gate |
+| **Source** | golden_hour calibration run (2026-05-25); broadened by repo-assimilation + chunky_bunny (2026-06-13) |
 | **Status** | Open |
-| **Location** | `ensembles/golden_hour/configs/config_meta.py` (`aggregation: "concat"`), `views-pipeline-core` PredictionFrameEnsembleManager concat path |
-| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. See also C-13 (no prediction quality validation before aggregation). |
+| **Location** | `ensembles/*/configs/config_meta.py` (`aggregation`); `views-pipeline-core` ensemble aggregation paths (PredictionFrameEnsembleManager concat; mean) |
+| **Notes** | Observed 53% CRPS degradation on `lr_sb_best` vs best individual model (golden_hour: 0.233 vs purple_alien: 0.152). blue_stranger (0.223) contributed 64 poor-quality samples that diluted the 128 better samples from purple_alien and violet_visitor. Concat treats all posterior samples equally — no mechanism to down-weight poor contributors. For future ensembles, consider weighted aggregation or model selection for targets where constituent quality varies significantly. Models were uncalibrated so this finding may not hold after hyperparameter optimization. **2026-06-13 (repo-assimilation R7 — merged here): the same quality-blindness affects `aggregation: "mean"`.** chunky_bunny (equal-weight mean of 23 constituents) scored MSLE **0.590**, worse than 14 of its own constituents and Pareto-dominated by smol_cat alone (0.503 MSLE / 0.872 MCR vs the ensemble's 0.590 / 0.584): the mean blends timid stepshifters (MCR 0.2–0.3) with honest DL/Hurdle models and lands in a mediocre middle. `aggregation` is a bare string in `config_meta.py` with no quality gate, for either method. See also C-13 (no prediction quality validation before aggregation), C-86 (constituent feature incoherence), [[project-mcr-timid-prophet]]. |
 
 ---
 
@@ -930,7 +930,7 @@
 | **Source** | falsify (2026-06-09) |
 | **Status** | Open |
 | **Location** | `ensembles/golden_hour` (`aggregation: concat`); views-pipeline-core `PredictionFrameEnsembleManager` concat path; `tests/test_pfe_production_readiness.py::TestPFEEnsembleAggregation::test_aggregated_sample_count[golden_hour_calibration]` |
-| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). |
+| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). **2026-06-18:** the expected total changed from 48 to **40** — violet_visitor dropped to 8 samples (C-87), so golden_hour's constituents are now 16+16+8; factor this into the fresh-run check. |
 
 ---
 
@@ -1048,6 +1048,58 @@
 | **Status** | Open |
 | **Location** | `tools/catalogs/update_readme.py` (both loops: `re.search(r"(## Created on.*)" …)` followed by the `[:2] + " Model"` heading rewrite) |
 | **Notes** | Pre-existing, unrelated to the C-78/C-82 fixes. The rename-then-recapture mismatch means any created-section survives exactly one regeneration — which likely explains why NO currently-processed README has one (they were silently eaten by successive catalog runs over time; only fixture/non-iterated READMEs retain theirs). Same content-loss family as C-78 but a different mechanism. Fix directions: match both headings (`(## (?:Model )?Created on.*)`) and stop re-prefixing if already prefixed, or stop renaming the heading altogether. Alternatively: deprecate the special-cased created-section in favor of the `<!-- manual -->` mechanism (C-78), which is rename-proof. See also C-78, C-82, C-65. |
+
+---
+
+### C-84 — Constituent wandb partition metadata diverges after a partial re-run, blocking the ensemble evaluation report
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A subset of an ensemble's constituents is re-run after a partition bump (or any config change) while the rest keep older runs — their *latest* wandb run configs then disagree, and `EnsembleManager … -e -re` aborts the report with `Partition metadata mismatch between models` |
+| **Source** | execution incident (chunky_bunny re-aggregate, 2026-06-13) |
+| **Status** | Open |
+| **Location** | `views-reporting/views_reporting/templates/reports/evaluation.py:189-211` (reads `get_latest_run(...).config` per constituent and requires `{run_type: {train,test}}` to match across all); `views-pipeline-core/views_pipeline_core/modules/wandb/utils.py:358` (`get_latest_run`) |
+| **Notes** | The report's consistency guard checks each constituent's **latest wandb run config**, NOT the on-disk prediction windows. On 2026-06-13, re-running elastic_heart (post #119 +12-month bump) then re-aggregating chunky_bunny crashed the report: 20 constituents' latest wandb run held `{test [457,504]}`, smol_cat held the pre-bump `{test [445,492]}`, and new_rules/revolving_door had no findable wandb project (silently skipped — only 21 of 23 are even checked). **The aggregation itself was correct** — all on-disk predictions (incl. the outlier) align at month window `[457,492]`, and the ensemble predictions + metrics (MSLE 0.634) were written fine; only the report HTML was blocked. So the guard fails on metadata provenance even when the data is sound. Recurring hazard: whenever constituents are run across a config change at different times, their newest wandb runs diverge and the report breaks until the laggards are re-run. Mitigations to consider: read partition from the saved prediction metadata (the actual data) rather than the latest wandb run; warn-and-skip a divergent constituent instead of hard-failing; or document that an ensemble report requires all constituents on the same config epoch. Workaround used: re-run the stale constituent (smol_cat, issue #141) so its latest wandb run logs the current partition. The new_rules/revolving_door "no wandb project" skip is a related latent reporting gap (constituents absent from the metadata check and baseline comparison). Cross-refs: C-56 (config-file partition staleness — different layer, resolved), C-43 (ensemble order-dependence), C-74 (golden_hour sample count). |
+
+---
+
+### C-85 — Ensemble silently aggregates whichever constituent prediction file is newest, with no freshness/epoch guard
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | An ensemble is re-aggregated (`--saved`) while a constituent's `data/generated/` holds a stale, partial, or wrong-epoch prediction set that happens to carry a newer timestamp than the intended one |
+| **Source** | repo-assimilation (R8) + chunky_bunny incident (2026-06-13) |
+| **Status** | Open |
+| **Location** | ensemble constituent loading — `views-pipeline-core/.../managers/ensemble/ensemble.py` `_get_generated_predictions_data_file_paths` (sorted newest-first); driven by the per-model `models/<name>/data/generated/` layout owned by views-models |
+| **Notes** | The ensemble picks each constituent's **newest** prediction file by timestamp, with no check that it is the intended/complete set or that it matches the ensemble's config epoch. Observed 2026-06-13: the chunky_bunny report-crash run wrote a superseded ensemble prediction set (`…_125706`, built on smol_cat's OLD predictions) that sat alongside the authoritative set (`…_170420`) until manually removed — and at the constituent level the same newest-wins rule would silently aggregate a stale set if one were left behind. Combined with C-84 (wandb-metadata epoch divergence), an aggregate's provenance is under-guarded from two angles: the data picker trusts timestamp recency, the report guard trusts wandb metadata, and neither verifies the actual prediction windows agree. No test asserts constituent prediction freshness or cross-constituent alignment. Mitigations to consider: assert all constituents' prediction windows match before aggregating; pin the run set by timestamp rather than newest-wins. Cross-refs: C-84 (epoch divergence at report time), C-74 (golden_hour sample count), C-44 (quality-blind aggregation). |
+
+---
+
+### C-86 — Ensemble constituents can have incoherent / near-mono-family feature sets with no comparability check
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | An ensemble is assembled (via `config_modelset.py`) from constituents whose querysets share little — and the result is read as a coherent model family rather than a mix of disjoint feature experiments |
+| **Source** | repo-assimilation (R9) + Hurdle-model investigation (2026-06-13) |
+| **Status** | Open |
+| **Location** | `models/*/configs/config_queryset.py`; `ensembles/*/configs/config_modelset.py` (no cross-constituent feature check) |
+| **Notes** | The 6 chunky_bunny Hurdle constituents have feature sets ranging **29→79** with only **5 features common to all six**; several are near-mono-family — `fast_car` is **89% V-Dem** (slow country-year democracy indices, almost no conflict history), `twin_flame` is **94% topic/NLP**, `high_hopes` is pure conflict-history with no structural covariates. They are not a designed family with a shared backbone — they read as separate feature experiments that happen to share the Hurdle wrapper. Nothing in config or tests asserts cross-constituent feature comparability, so an ensemble can silently combine models built on disjoint, individually-questionable feature bases, making the ensemble's behaviour hard to attribute or reason about. Distinct from C-48/C-49 (viewser-vs-datafactory *cross-source* parity). Maintainability/interpretability risk, not a correctness fault → Tier 4. Cross-refs: C-44 (quality-blind aggregation), C-48, C-49. |
+
+---
+
+### C-87 — violet_visitor `n_posterior_samples` diverged from trio parity (16→8 OOM workaround)
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Someone runs or interprets a golden_hour↔stellar_horizon parity comparison, or aggregates golden_hour, assuming the six trio members share one `n_posterior_samples` — but violet_visitor now uses **8** while the other five use **16** |
+| **Source** | review-diff (2026-06-18) |
+| **Status** | Open |
+| **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`n_posterior_samples: 8`); invariant enforced by `tests/test_datafactory_parity.py::test_constituent_posterior_samples_match` (lines ~320-326) |
+| **Notes** | violet_visitor's `n_posterior_samples` was reduced **16 → 8** on 2026-06-16 as an **interim OOM workaround** — the eval stage OOMs at 16 samples; 8 is gated by an "one run completes without the eval-stage OOM" check, to be **restored to 16 once the OOM is fixed** (tracked as `C-116`/`#124` in **views-hydranet**, outside this repo's register). Consequence in this repo: it breaks the trio sample-count parity invariant — the viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) are designed to share one `n_posterior_samples` so golden_hour↔stellar_horizon is comparable; violet_visitor at 8 vs the rest at 16 confounds that (same family as C-71's loss divergence). `test_constituent_posterior_samples_match` was updated (review-diff, same change) to **pin the intentional divergence** (mirroring the C-71 pin in `test_both_trios_use_same_loss`) rather than assert strict uniformity, so the divergence is explicit and any *further* drift is still caught. It also shifts golden_hour's expected concat sample total from 48 to **40** (16+16+8) — see C-74. **Revisit when C-116/#124 is fixed: restore violet_visitor to 16 and revert the test pin.** See also C-71 (violet_visitor loss divergence — same model, same parity confound), C-74 (golden_hour sample count), C-48/C-49 (trio parity), C-72 (violet_visitor experiment state). |
 
 ---
 
