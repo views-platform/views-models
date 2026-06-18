@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 90 (86 concerns + 4 disagreements)  
-**Concerns:** Open 34 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 91 (87 concerns + 4 disagreements)  
+**Concerns:** Open 35 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -930,7 +930,7 @@
 | **Source** | falsify (2026-06-09) |
 | **Status** | Open |
 | **Location** | `ensembles/golden_hour` (`aggregation: concat`); views-pipeline-core `PredictionFrameEnsembleManager` concat path; `tests/test_pfe_production_readiness.py::TestPFEEnsembleAggregation::test_aggregated_sample_count[golden_hour_calibration]` |
-| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). |
+| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). **2026-06-18:** the expected total changed from 48 to **40** — violet_visitor dropped to 8 samples (C-87), so golden_hour's constituents are now 16+16+8; factor this into the fresh-run check. |
 
 ---
 
@@ -1087,6 +1087,19 @@
 | **Status** | Open |
 | **Location** | `models/*/configs/config_queryset.py`; `ensembles/*/configs/config_modelset.py` (no cross-constituent feature check) |
 | **Notes** | The 6 chunky_bunny Hurdle constituents have feature sets ranging **29→79** with only **5 features common to all six**; several are near-mono-family — `fast_car` is **89% V-Dem** (slow country-year democracy indices, almost no conflict history), `twin_flame` is **94% topic/NLP**, `high_hopes` is pure conflict-history with no structural covariates. They are not a designed family with a shared backbone — they read as separate feature experiments that happen to share the Hurdle wrapper. Nothing in config or tests asserts cross-constituent feature comparability, so an ensemble can silently combine models built on disjoint, individually-questionable feature bases, making the ensemble's behaviour hard to attribute or reason about. Distinct from C-48/C-49 (viewser-vs-datafactory *cross-source* parity). Maintainability/interpretability risk, not a correctness fault → Tier 4. Cross-refs: C-44 (quality-blind aggregation), C-48, C-49. |
+
+---
+
+### C-87 — violet_visitor `n_posterior_samples` diverged from trio parity (16→8 OOM workaround)
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Someone runs or interprets a golden_hour↔stellar_horizon parity comparison, or aggregates golden_hour, assuming the six trio members share one `n_posterior_samples` — but violet_visitor now uses **8** while the other five use **16** |
+| **Source** | review-diff (2026-06-18) |
+| **Status** | Open |
+| **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`n_posterior_samples: 8`); invariant enforced by `tests/test_datafactory_parity.py::test_constituent_posterior_samples_match` (lines ~320-326) |
+| **Notes** | violet_visitor's `n_posterior_samples` was reduced **16 → 8** on 2026-06-16 as an **interim OOM workaround** — the eval stage OOMs at 16 samples; 8 is gated by an "one run completes without the eval-stage OOM" check, to be **restored to 16 once the OOM is fixed** (tracked as `C-116`/`#124` in **views-hydranet**, outside this repo's register). Consequence in this repo: it breaks the trio sample-count parity invariant — the viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) are designed to share one `n_posterior_samples` so golden_hour↔stellar_horizon is comparable; violet_visitor at 8 vs the rest at 16 confounds that (same family as C-71's loss divergence). `test_constituent_posterior_samples_match` was updated (review-diff, same change) to **pin the intentional divergence** (mirroring the C-71 pin in `test_both_trios_use_same_loss`) rather than assert strict uniformity, so the divergence is explicit and any *further* drift is still caught. It also shifts golden_hour's expected concat sample total from 48 to **40** (16+16+8) — see C-74. **Revisit when C-116/#124 is fixed: restore violet_visitor to 16 and revert the test pin.** See also C-71 (violet_visitor loss divergence — same model, same parity confound), C-74 (golden_hour sample count), C-48/C-49 (trio parity), C-72 (violet_visitor experiment state). |
 
 ---
 
