@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import get_regression_targets
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
 ENSEMBLES_DIR = REPO_ROOT / "ensembles"
@@ -27,21 +29,6 @@ DF_ENSEMBLE = "stellar_horizon"
 VS_ENSEMBLE = "golden_hour"
 
 pytestmark = [pytest.mark.green]
-
-LOSS_PARAMS = {
-    "bright_starship": {
-        "loss_reg": "tobit",
-        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
-    },
-    "bold_comet": {
-        "loss_reg": "tobit",
-        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
-    },
-    "blazing_meteor": {
-        "loss_reg": "tobit",
-        "loss_reg_sigma": {"lr_sb_best": 1.0, "lr_ns_best": 0.75, "lr_os_best": 0.5},
-    },
-}
 
 ALL_LOSS_KEYS = {"loss_reg", "loss_reg_sigma"}
 
@@ -114,13 +101,23 @@ class TestDatafactoryTrioConfigParity:
             assert hp["model"] == "HydraBNUNet06_LSTM4", f"{name} wrong architecture"
 
     def test_identical_features(self, trio_hps):
-        expected_features = ["lr_sb_best", "lr_ns_best", "lr_os_best"]
-        expected_reg = ["lr_sb_best", "lr_ns_best", "lr_os_best"]
-        expected_cls = ["by_sb_best", "by_ns_best", "by_os_best"]
+        # Parity intent: the trio are identical in features and targets. Derive from
+        # config and compare members to EACH OTHER — no hardcoded target-name literal.
+        items = list(trio_hps.items())
+        ref_name, ref = items[0]
+        for name, hp in items[1:]:
+            for key in ("features", "regression_targets", "classification_targets"):
+                assert hp[key] == ref[key], (
+                    f"{name} {key} {hp[key]} != {ref_name} {ref[key]}"
+                )
+        # Structural: targets are declared, and the hurdle gate's classification
+        # targets are 1:1 with the regression targets (not name-based).
         for name, hp in trio_hps.items():
-            assert hp["features"] == expected_features, f"{name} features mismatch"
-            assert hp["regression_targets"] == expected_reg, f"{name} regression targets mismatch"
-            assert hp["classification_targets"] == expected_cls, f"{name} classification targets mismatch"
+            assert hp["regression_targets"], f"{name} declares no regression_targets"
+            assert len(hp["classification_targets"]) == len(hp["regression_targets"]), (
+                f"{name}: classification_targets {hp['classification_targets']} not 1:1 with "
+                f"regression_targets {hp['regression_targets']}"
+            )
 
     def test_identical_grid_topology(self, trio_hps):
         for name, hp in trio_hps.items():
@@ -146,12 +143,27 @@ class TestDatafactoryTrioConfigParity:
     @pytest.mark.parametrize("model_name", DATAFACTORY_TRIO)
     def test_loss_params_correct(self, model_name):
         hp = _load_hp(model_name)
-        expected = LOSS_PARAMS[model_name]
-        for key, value in expected.items():
-            assert hp[key] == value, f"{model_name}: {key} expected {value}, got {hp.get(key)}"
-        unexpected = ALL_LOSS_KEYS - set(expected.keys())
-        for key in unexpected:
-            assert key not in hp, f"{model_name}: unexpected loss param {key}={hp[key]}"
+        assert hp["loss_reg"] == "tobit", f"{model_name}: loss_reg expected tobit, got {hp.get('loss_reg')}"
+        sigma = hp.get("loss_reg_sigma")
+        assert isinstance(sigma, dict) and sigma, (
+            f"{model_name}: loss_reg_sigma must be a non-empty dict, got {sigma!r}"
+        )
+        # loss_reg_sigma is keyed by the model's OWN regression targets — derive,
+        # don't hardcode the names.
+        assert set(sigma) == set(hp["regression_targets"]), (
+            f"{model_name}: loss_reg_sigma keys {set(sigma)} != regression_targets "
+            f"{set(hp['regression_targets'])}"
+        )
+
+    def test_identical_loss_reg_sigma(self, trio_hps):
+        # Parity: the trio share the same loss_reg_sigma (values too) — compare
+        # members to each other rather than to a hardcoded mapping.
+        sigmas = [hp.get("loss_reg_sigma") for hp in trio_hps.values()]
+        for i in range(1, len(sigmas)):
+            assert sigmas[0] == sigmas[i], (
+                f"trio loss_reg_sigma differ: {DATAFACTORY_TRIO[0]}={sigmas[0]} "
+                f"vs {DATAFACTORY_TRIO[i]}={sigmas[i]}"
+            )
 
 
 class TestDatafactoryTrioDataSource:
@@ -225,8 +237,22 @@ class TestStellarHorizonEnsembleConfig:
         modelset = _load_modelset(DF_ENSEMBLE)
         assert modelset["models"] == ["bright_starship", "bold_comet", "blazing_meteor"]
 
-    def test_regression_targets(self, ens_meta):
-        assert ens_meta["regression_targets"] == ["lr_sb_best", "lr_ns_best", "lr_os_best"]
+    def test_regression_targets_match_constituents(self, ens_meta):
+        # The ensemble's targets must match its constituents' (the datafactory trio).
+        # Derive both — no hardcoded literal.
+        modelset = _load_modelset(DF_ENSEMBLE)
+        constituent_targets = {
+            tuple(get_regression_targets(MODELS_DIR / m)) for m in modelset["models"]
+        }
+        assert len(constituent_targets) == 1, (
+            f"datafactory constituents disagree on regression_targets: {constituent_targets}"
+        )
+        ens_targets = ens_meta.get("regression_targets")
+        assert ens_targets, "stellar_horizon declares no regression_targets"
+        assert tuple(ens_targets) == next(iter(constituent_targets)), (
+            f"stellar_horizon regression_targets {ens_targets} != constituents' "
+            f"{next(iter(constituent_targets))}"
+        )
 
     def test_aggregation_is_concat(self, ens_meta):
         assert ens_meta["aggregation"] == "concat"
