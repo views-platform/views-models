@@ -32,18 +32,53 @@ So the guard is two-tier:
     documents that the two snapshots are not identical (expected, per C-48),
     without redding CI. Remove the xfail if/when the snapshots are reconciled.
 """
+import ast
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.red
 
 WINDOW = (480, 485)  # fixed 6-month window for deterministic comparison
 REGION = "africa_me_legacy"
-# new datafactory feature -> (old viewser source column, renamed target)
-TARGETS = {
-    "ged_sb_best": ("ged_sb_best_sum_nokgi", "lr_ged_sb"),
-    "ged_ns_best": ("ged_ns_best_sum_nokgi", "lr_ged_ns"),
-    "ged_os_best": ("ged_os_best_sum_nokgi", "lr_ged_os"),
+
+# Each datafactory feature's corresponding viewser source column (the equivalence
+# pairing — source-side, fixed by the upstream UCDP/viewser schemas).
+VIEWSER_SOURCE = {
+    "ged_sb_best": "ged_sb_best_sum_nokgi",
+    "ged_ns_best": "ged_ns_best_sum_nokgi",
+    "ged_os_best": "ged_os_best_sum_nokgi",
 }
+
+_UN_FAO_QUERYSET = (
+    Path(__file__).resolve().parent.parent
+    / "postprocessors" / "un_fao" / "configs" / "config_queryset.py"
+)
+
+
+def _un_fao_feature_rename() -> dict:
+    """The un_fao descriptor's datafactory-feature -> target-name map, read from
+    source (AST — no import, works without datafactory installed). Single source
+    of truth for what the postprocessor renames features to; the test derives the
+    target names from it rather than hardcoding them (EPIC #154)."""
+    tree = ast.parse(_UN_FAO_QUERYSET.read_text())
+    for stmt in tree.body:
+        if (
+            isinstance(stmt, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "FEATURE_RENAME" for t in stmt.targets)
+            and isinstance(stmt.value, ast.Dict)
+        ):
+            return {
+                k.value: v.value
+                for k, v in zip(stmt.value.keys, stmt.value.values)
+                if isinstance(k, ast.Constant) and isinstance(v, ast.Constant)
+            }
+    raise RuntimeError("FEATURE_RENAME not found in un_fao config_queryset.py")
+
+
+# datafactory feature -> (viewser source column, model target name from the descriptor)
+_FEATURE_RENAME = _un_fao_feature_rename()
+TARGETS = {df: (VIEWSER_SOURCE[df], _FEATURE_RENAME[df]) for df in VIEWSER_SOURCE}
 # Bounds that tolerate C-48 ingestion-timing skew but catch a structural change.
 # Observed 2026-06-24: max differing-cell fraction ≈0.014%, max net ≈1.3% of total.
 MAX_DIFF_CELL_FRACTION = 0.01   # a structural aggregation change hits orders more cells
