@@ -10,7 +10,19 @@ Prerequisites:
 
 from __future__ import annotations
 
-from datafactory_query.defaults import DEFAULT_REMOTE
+try:
+    from datafactory_query.defaults import DEFAULT_REMOTE
+except ImportError as e:  # fail loud with the fix, not a bare ModuleNotFoundError (#95)
+    raise RuntimeError(
+        "The un_fao postprocessor requires views-datafactory (provides the "
+        "`datafactory_query` module), which is not installed in this environment.\n"
+        "Install it:\n"
+        "    pip install 'views-datafactory @ "
+        "git+https://github.com/views-platform/views-datafactory.git@development'\n"
+        "and add a ~/.netrc entry for host 204.168.219.108 (the Zarr store; see "
+        "the bright_starship model README)."
+    ) from e
+
 from views_pipeline_core.managers.model import ModelPathManager
 
 model_name = ModelPathManager.get_model_name_from_path(__file__)
