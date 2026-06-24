@@ -41,6 +41,8 @@ These ADRs define system philosophy and governance:
 
 - **[ADR-010](010_technical_risk_register.md)** — Technical Risk Register as a Governance Artifact
 - **[ADR-011](011_partition_semantics.md)** — Partition Boundary Semantics
+- **[ADR-012](012_target_scale_and_prefix_convention.md)** — Target Scale and Prefix Convention
+- **[ADR-013](013_regression_target_name_agnosticism.md)** — Regression-Target Name Agnosticism (config is the single source of truth)
 
 Candidates for future ADRs:
 
