@@ -25,6 +25,8 @@ def get_hp_config():
         'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
         "index_names": ['month_id', 'priogrid_gid'],
         'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+        # No-coords hurdle floor (R4 baseline) — coords parked (R5/C-167..169; side-probe net-negative).
+        'static_channels': [],
         'input_channels': 3,
         'row_offset': 87,
         'col_offset': 310,
@@ -41,7 +43,8 @@ def get_hp_config():
         'output_channels': 1,
         'weight_init': 'xavier_norm',
         'h_init': 'abs_rand_exp-100',
-        # #100: count-space softplus mu head for the hurdle-NB body.
+        # Hurdle-NB head (#100): softplus mu count-space head. (reg_activation flag omitted ⇒
+        # default softplus under hurdle_nb — Exp-B-only override removed.)
         'output_distribution': 'hurdle_nb',
 
         # ============================================================
@@ -85,10 +88,16 @@ def get_hp_config():
         # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable theta) +
         # class-weighted BCE gate.
         # ============================================================
+        # Restored no-coords hurdle floor (R4 baseline). Unused shrinkage/focal params (loss_reg_a/c,
+        # loss_class_alpha/gamma) left from overnight runs — harmless (registry reads only selected loss).
         'loss_reg': 'hurdle_nb',
+        'loss_reg_a': 258,
+        'loss_reg_c': 0.001,
         'loss_reg_theta_init': 1.0,
         'learnable_theta': True,
         'loss_class': 'weighted_bce',
+        'loss_class_alpha': 0.75,
+        'loss_class_gamma': 1.5,
         'loss_class_pos_weight': 10.0,
         'onset_bias_init': -7.0,
 
