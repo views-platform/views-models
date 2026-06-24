@@ -1,7 +1,7 @@
 """Tests that every model has complete and consistent config files."""
 import pytest
 
-from tests.conftest import load_config_module
+from tests.conftest import get_regression_targets, load_config_module
 
 pytestmark = pytest.mark.beige
 
@@ -73,28 +73,22 @@ class TestConfigMeta:
             f"rename to 'regression_point_metrics'"
         )
 
-    def test_regression_targets_canonical(self, model_dir, meta_config):
-        """Regression targets must use the canonical lr_ged_{sb,ns,os} name (#151).
+    def test_regression_targets_present_if_metrics(self, model_dir, meta_config):
+        """A model that declares regression evaluation must resolve at least one
+        regression target (so the metric has something to score).
 
-        Guards against the historical drift (lr_sb_best, lr_ged_sb_dep, lr_*_best)
-        re-entering as a *target*. Checks regression_targets only — feature columns
-        may legitimately use other names. Stays until the pipeline-core scaffold
-        template (views-pipeline-core#201) stops seeding non-canonical names.
+        Name-agnostic (EPIC #154): derives targets via the single accessor
+        (``conftest.get_regression_targets``) and asserts nothing about what they
+        are *called*. Replaces the former hardcoded-canonical guard. Cross-location
+        agreement is enforced in ``tests/test_regression_targets.py``.
         """
-        canonical = {"lr_ged_sb", "lr_ged_ns", "lr_ged_os"}
-        synthetic = {"synth_target"}  # synthetic pipeline-test models (e.g. *_dream) are exempt
-        # Non-canonical targets that can't be flipped config-only because stored
-        # prediction artifacts embed the old name — pending regeneration (#152).
-        pending_regeneration = {"black_ranger", "green_ranger", "pink_ranger", "yellow_ranger"}
-        targets = meta_config.get("regression_targets")
-        if not targets or any(t in synthetic for t in targets):
-            pytest.skip(f"{model_dir.name} has no real regression_targets")
-        if model_dir.name in pending_regeneration:
-            pytest.skip(f"{model_dir.name}: ns/os target rename pending prediction regeneration (#152)")
-        noncanonical = [t for t in targets if t not in canonical]
-        assert not noncanonical, (
-            f"{model_dir.name} uses non-canonical regression target(s) {noncanonical} — "
-            f"standardize to lr_ged_sb/ns/os (#151)"
+        if not meta_config.get("regression_point_metrics"):
+            pytest.skip(f"{model_dir.name} declares no regression_point_metrics")
+        targets = get_regression_targets(model_dir)
+        assert targets, (
+            f"{model_dir.name} declares regression_point_metrics but no resolvable "
+            f"regression_targets in config_meta or config_hyperparameters — the metric "
+            f"has nothing to score"
         )
 
 
