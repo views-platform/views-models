@@ -74,6 +74,58 @@ def load_config_module(config_path: Path, module_name: str = None):
     return module
 
 
+# ── Regression targets: single source of truth (EPIC #154 / S1 #155) ───────
+# A model may declare ``regression_targets`` in config_meta.py and/or
+# config_hyperparameters.py. The pipeline merges both with config_meta taking
+# precedence (ConfigurationManager.get_combined_config). These helpers are the
+# ONE way views-models code should obtain a model's targets — derive, never
+# hardcode a target-name literal.
+
+def _read_regression_targets(config_path: Path, getter_name: str):
+    """Return the regression_targets list declared in one config file, or None
+    if the file / accessor / key is absent. A bare string is normalized to a list."""
+    if not config_path.exists():
+        return None
+    module = load_config_module(config_path)
+    getter = getattr(module, getter_name, None)
+    if getter is None:
+        return None
+    config = getter() or {}
+    targets = config.get("regression_targets")
+    if targets is None:
+        return None
+    if isinstance(targets, str):
+        targets = [targets]
+    return list(targets)
+
+
+def regression_targets_by_location(model_dir: Path) -> dict:
+    """Map each config location that declares regression_targets to its list.
+
+    Keys are a subset of {"meta", "hp"}; a location absent from the dict did not
+    declare the key. Used to enforce cross-location agreement.
+    """
+    config_dir = model_dir / "configs"
+    out = {}
+    meta = _read_regression_targets(config_dir / "config_meta.py", "get_meta_config")
+    if meta is not None:
+        out["meta"] = meta
+    hp = _read_regression_targets(config_dir / "config_hyperparameters.py", "get_hp_config")
+    if hp is not None:
+        out["hp"] = hp
+    return out
+
+
+def get_regression_targets(model_dir: Path) -> list[str]:
+    """The single source of truth for a model's regression targets.
+
+    Mirrors the pipeline merge precedence (config_meta wins over
+    config_hyperparameters; hp is the fallback). Returns ``[]`` if undeclared.
+    """
+    located = regression_targets_by_location(model_dir)
+    return located.get("meta") or located.get("hp") or []
+
+
 @pytest.fixture(params=ALL_MODEL_DIRS, ids=MODEL_NAMES)
 def model_dir(request):
     """Parametrized fixture yielding each model directory."""

@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from tests.conftest import load_config_module
+from tests.conftest import load_config_module, regression_targets_by_location
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
@@ -149,16 +149,16 @@ class TestPFModelConfigReadiness:
         )
 
     def test_regression_targets_consistent_meta_hp(self, pf_model):
-        meta = _load_meta(pf_model)
-        hp = _load_hp(pf_model)
-        meta_targets = meta.get("regression_targets")
-        hp_targets = hp.get("regression_targets")
-        if not meta_targets or not hp_targets:
-            pytest.skip(f"{pf_model}: one or both configs missing regression_targets")
-        assert sorted(meta_targets) == sorted(hp_targets), (
-            f"{pf_model}: config_meta regression_targets {meta_targets} != "
-            f"config_hyperparameters regression_targets {hp_targets}"
-        )
+        # Delegates to the single source of truth (conftest). The repo-wide
+        # agreement guard lives in tests/test_regression_targets.py (all models).
+        located = regression_targets_by_location(MODELS_DIR / pf_model)
+        if "meta" in located and "hp" in located:
+            assert sorted(located["meta"]) == sorted(located["hp"]), (
+                f"{pf_model}: config_meta regression_targets {located['meta']} != "
+                f"config_hyperparameters regression_targets {located['hp']}"
+            )
+        else:
+            pytest.skip(f"{pf_model}: regression_targets not declared in both configs")
 
 
 class TestPFEEnsembleConfigReadiness:
