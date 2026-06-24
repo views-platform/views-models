@@ -12,6 +12,7 @@ Ensembles do NOT have config_sweep.py or config_queryset.py.
 import pytest
 
 from tests.conftest import (
+    get_regression_targets,
     load_config_module,
     MODELS_DIR,
     ENSEMBLES_DIR,
@@ -170,6 +171,39 @@ class TestEnsembleDependencies:
         assert not mismatched, (
             f"{ensemble_dir.name} is level='{ensemble_level}' but contains "
             f"models with different levels: {mismatched}"
+        )
+
+    def test_constituents_cover_ensemble_targets(self, ensemble_dir):
+        """Every constituent must declare (and so produce) all of the ensemble's
+        regression_targets.
+
+        The ensemble pools constituent predictions BY target name — it looks for
+        each declared target under each constituent's output and fails at run time
+        if one is missing. This is the ONE place target-name agreement is
+        structurally required (making it removable is pipeline-core
+        views-pipeline-core#203). Config-derived via ``conftest.get_regression_targets``
+        — no hardcoded target-name literal (EPIC #154 / S6).
+        """
+        meta_module = load_config_module(ensemble_dir / "configs" / "config_meta.py")
+        ensemble_targets = set(meta_module.get_meta_config().get("regression_targets") or [])
+        if not ensemble_targets:
+            pytest.skip(f"{ensemble_dir.name} declares no regression_targets")
+
+        modelset_module = load_config_module(ensemble_dir / "configs" / "config_modelset.py")
+        constituents = modelset_module.get_modelset_config().get("models", [])
+
+        gaps = {}
+        for model_name in constituents:
+            model_dir = MODELS_DIR / model_name
+            if not model_dir.is_dir():
+                continue  # existence is covered by test_all_constituent_models_exist
+            missing = ensemble_targets - set(get_regression_targets(model_dir))
+            if missing:
+                gaps[model_name] = sorted(missing)
+        assert not gaps, (
+            f"{ensemble_dir.name} declares regression_targets {sorted(ensemble_targets)} but "
+            f"these constituents do not produce all of them: {gaps} — the ensemble pools by "
+            f"target name and would fail at run time"
         )
 
     def test_reconcile_with_target_exists(self, ensemble_dir):
