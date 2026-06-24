@@ -37,6 +37,9 @@ COLOR_NS = "#4878A8"
 COLOR_OS = "#D4752E"
 COLOR_GRAY = "#666666"
 
+# Presentation-only style lookups (color / short label per target). These are
+# documented plot constants, NOT load-bearing logic — keyed by name purely for
+# display; missing keys fall back to neutral defaults at the call sites (EPIC #154 / S5).
 TARGET_COLORS = {
     "lr_sb_best": COLOR_SB,
     "lr_ns_best": COLOR_NS,

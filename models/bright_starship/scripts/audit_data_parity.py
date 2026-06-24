@@ -25,6 +25,7 @@ Prerequisites:
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 import time
 from pathlib import Path
@@ -41,19 +42,23 @@ PURPLE_ALIEN_PARQUET = (
 
 ZARR_URL = DEFAULT_REMOTE.zarr_url
 REGION = "africa_me_legacy"
-FACTORY_FEATURES = ["ged_sb_best", "ged_ns_best", "ged_os_best", "gaul0_code"]
-FEATURE_RENAME = {
-    "ged_sb_best": "lr_sb_best",
-    "ged_ns_best": "lr_ns_best",
-    "ged_os_best": "lr_os_best",
-    "gaul0_code": "c_id",
-}
+# Derive the datafactory descriptor from bright_starship's own config_queryset
+# (single source of truth) instead of duplicating the feature/target names here
+# (EPIC #154 / S5).
+_QS_PATH = Path(__file__).resolve().parents[1] / "configs" / "config_queryset.py"
+_qs_spec = importlib.util.spec_from_file_location("_bright_starship_queryset", _QS_PATH)
+_qs = importlib.util.module_from_spec(_qs_spec)
+_qs_spec.loader.exec_module(_qs)
+FACTORY_FEATURES = _qs.FACTORY_FEATURES
+FEATURE_RENAME = _qs.FEATURE_RENAME
+
 NCOL = 720
 CALIBRATION_TRAIN = (121, 444)
 CALIBRATION_TEST = (445, 492)
 
-EVENT_COLS = ["lr_sb_best", "lr_ns_best", "lr_os_best"]
 IDENTITY_COLS = ["c_id", "row", "col"]
+# Event (fatality) columns = the descriptor's renamed features minus identity cols.
+EVENT_COLS = [name for name in FEATURE_RENAME.values() if name not in IDENTITY_COLS]
 
 
 def fetch_from_hetzner() -> pd.DataFrame:
