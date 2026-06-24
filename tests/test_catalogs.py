@@ -99,7 +99,7 @@ class TestGenerateModelTable:
             {
                 "name": "test_model",
                 "algorithm": "XGBRegressor",
-                "targets": "lr_ged_sb",
+                "targets": "target_a",  # arbitrary fixture label — table rendering is name-agnostic
                 "queryset": "test_qs",
                 "hyperparameters": "test_hp",
                 "deployment_status": "shadow",
