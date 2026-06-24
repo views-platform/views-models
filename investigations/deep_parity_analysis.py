@@ -10,22 +10,25 @@ REPO = Path(__file__).resolve().parent.parent
 PA_DIR = REPO / "models/purple_alien/data/generated/predictions_calibration_20260525_063227"
 BS_DIR = REPO / "models/bright_starship/data/generated/predictions_calibration_20260526_013733"
 
-TARGETS = ["lr_sb_best", "lr_ns_best", "lr_os_best"]
-TARGET_LABELS = {
-    "lr_sb_best": "State-based fatalities (best estimate)",
-    "lr_ns_best": "Non-state fatalities (best estimate)",
-    "lr_os_best": "One-sided violence fatalities (best estimate)",
-}
-VARIABLE_MAP = {
-    "lr_sb_best": ("ged_sb_best_sum_nokgi", "ged_sb_best"),
-    "lr_ns_best": ("ged_ns_best_sum_nokgi", "ged_ns_best"),
-    "lr_os_best": ("ged_os_best_sum_nokgi", "ged_os_best"),
-}
+def _discover_targets(pred_dir):
+    """Targets produced in the prediction store — agnostic, never hardcoded
+    (EPIC #154 / S5)."""
+    origin = pred_dir / "origin_0"
+    if not origin.is_dir():
+        return []
+    return sorted(d.name for d in origin.iterdir() if d.is_dir())
+
+
+TARGETS = _discover_targets(BS_DIR)
+# Optional presentation only — human labels / UCDP source-column pairing for the
+# diagnostic printout; absent keys degrade gracefully. Annotations, not load-bearing.
+TARGET_LABELS = {}
+VARIABLE_MAP = {}
 
 
 def analyze_target(target):
-    viewser_var, factory_var = VARIABLE_MAP[target]
-    label = TARGET_LABELS[target]
+    viewser_var, factory_var = VARIABLE_MAP.get(target, ("?", "?"))
+    label = TARGET_LABELS.get(target, target)
 
     print(f"\n{'='*72}")
     print(f"TARGET: {target}")

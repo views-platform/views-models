@@ -25,7 +25,21 @@ MODEL_PAIRS = [
 
 ENSEMBLE_PAIR = ("golden_hour", "stellar_horizon")
 
-TARGETS = ["lr_sb_best", "lr_ns_best", "lr_os_best"]
+def _discover_targets(pred_dir):
+    """Target subdir names produced under the prediction store — agnostic, never
+    hardcoded (EPIC #154 / S5)."""
+    origin = pred_dir / "origin_0"
+    if not origin.is_dir():
+        origins = sorted(pred_dir.glob("origin_*"))
+        origin = origins[0] if origins else None
+    if origin is None or not origin.is_dir():
+        return []
+    return sorted(d.name for d in origin.iterdir() if d.is_dir())
+
+
+def _short(target):
+    """Short column label for a target name (presentation only)."""
+    return target[:8]
 
 
 def find_prediction_dir(name, kind, run_type):
@@ -125,9 +139,10 @@ def compare_pair(name_a, name_b, kind, run_type):
     if not dir_b:
         return {"status": "MISSING", "detail": f"{name_b} has no {run_type} predictions"}
 
+    targets = _discover_targets(dir_a)
     results = {"status": "OK", "dir_a": str(dir_a.name), "dir_b": str(dir_b.name), "targets": {}}
 
-    for target in TARGETS:
+    for target in targets:
         preds_a, ids_a = load_origins(dir_a, target)
         preds_b, ids_b = load_origins(dir_b, target)
 
@@ -215,23 +230,24 @@ def print_summary(all_results):
     print(f"\n{'='*72}")
     print("PARITY SUMMARY")
     print(f"{'='*72}")
-    print(f"\n{'Pair':<35} {'Run':<14} {'lr_sb':>8} {'lr_ns':>8} {'lr_os':>8} {'Verdict':>10}")
-    print(f"{'-'*35:<35} {'-'*14:<14} {'-'*8:>8} {'-'*8:>8} {'-'*8:>8} {'-'*10:>10}")
+    # Target columns are discovered from the results — no hardcoded names.
+    targets = sorted({t for _, res in all_results for t in (res.get("targets") or {})})
+    header = " ".join(f"{_short(t):>8}" for t in targets)
+    sep = " ".join(f"{'-'*8:>8}" for _ in targets)
+    print(f"\n{'Pair':<35} {'Run':<14} {header} {'Verdict':>10}")
+    print(f"{'-'*35:<35} {'-'*14:<14} {sep} {'-'*10:>10}")
+    rank = {"EXCELLENT": 5, "GOOD": 4, "FAIR": 3, "POOR": 2, "DIVERGENT": 1, "N/A": 0, "—": 0}
     for (na, nb, kind, run_type), res in all_results:
         label = f"{na} ↔ {nb}"
         if res["status"] == "MISSING":
-            print(f"{label:<35} {run_type:<14} {'—':>8} {'—':>8} {'—':>8} {'MISSING':>10}")
+            cells = " ".join(f"{'—':>8}" for _ in targets)
+            print(f"{label:<35} {run_type:<14} {cells} {'MISSING':>10}")
             continue
-        grades = []
-        for t in TARGETS:
-            g = res["targets"].get(t, {}).get("grade", "—")
-            grades.append(g)
-        worst = "MISSING"
-        rank = {"EXCELLENT": 5, "GOOD": 4, "FAIR": 3, "POOR": 2, "DIVERGENT": 1, "N/A": 0, "—": 0}
-        valid = [g for g in grades if g in rank and rank[g] > 0]
-        if valid:
-            worst = min(valid, key=lambda g: rank[g])
-        print(f"{label:<35} {run_type:<14} {grades[0]:>8} {grades[1]:>8} {grades[2]:>8} {worst:>10}")
+        grades = [res["targets"].get(t, {}).get("grade", "—") for t in targets]
+        valid = [g for g in grades if rank.get(g, 0) > 0]
+        worst = min(valid, key=lambda g: rank[g]) if valid else "MISSING"
+        cells = " ".join(f"{g:>8}" for g in grades)
+        print(f"{label:<35} {run_type:<14} {cells} {worst:>10}")
 
 
 def main():
