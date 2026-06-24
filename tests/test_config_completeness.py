@@ -73,6 +73,30 @@ class TestConfigMeta:
             f"rename to 'regression_point_metrics'"
         )
 
+    def test_regression_targets_canonical(self, model_dir, meta_config):
+        """Regression targets must use the canonical lr_ged_{sb,ns,os} name (#151).
+
+        Guards against the historical drift (lr_sb_best, lr_ged_sb_dep, lr_*_best)
+        re-entering as a *target*. Checks regression_targets only — feature columns
+        may legitimately use other names. Stays until the pipeline-core scaffold
+        template (views-pipeline-core#201) stops seeding non-canonical names.
+        """
+        canonical = {"lr_ged_sb", "lr_ged_ns", "lr_ged_os"}
+        synthetic = {"synth_target"}  # synthetic pipeline-test models (e.g. *_dream) are exempt
+        # Non-canonical targets that can't be flipped config-only because stored
+        # prediction artifacts embed the old name — pending regeneration (#152).
+        pending_regeneration = {"black_ranger", "green_ranger", "pink_ranger", "yellow_ranger"}
+        targets = meta_config.get("regression_targets")
+        if not targets or any(t in synthetic for t in targets):
+            pytest.skip(f"{model_dir.name} has no real regression_targets")
+        if model_dir.name in pending_regeneration:
+            pytest.skip(f"{model_dir.name}: ns/os target rename pending prediction regeneration (#152)")
+        noncanonical = [t for t in targets if t not in canonical]
+        assert not noncanonical, (
+            f"{model_dir.name} uses non-canonical regression target(s) {noncanonical} — "
+            f"standardize to lr_ged_sb/ns/os (#151)"
+        )
+
 
 # ── config_deployment.py ───────────────────────────────────────────────
 

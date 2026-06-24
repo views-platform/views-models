@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "fourtieth_symphony", 
         "algorithm": "ShurfModel",
-        "regression_targets": ["lr_sb_best"],
+        "regression_targets": ["lr_ged_sb"],
         "level": "cm",
         "creator": "Håvard",
         "prediction_format": "dataframe",
