@@ -336,30 +336,32 @@ class TestFixtureSetConsistency:
     """All fixture exclusion lists must reference the same canonical set."""
 
     def test_all_fixture_lists_match_canonical(self):
+        """Every consumer must derive its fixture-exclusion set from the single
+        canonical meta/fixtures.json — none may hardcode a literal (C-61, #99)."""
         import json
+        import re
         canonical = set(json.load(open(REPO_ROOT / "meta" / "fixtures.json")))
 
-        # tools/partitions/fileops.py
+        # fileops.py is import-light → check the loaded value directly.
         from tools.partitions.fileops import _FIXTURE_NAMES
         assert _FIXTURE_NAMES == canonical, (
             f"fileops._FIXTURE_NAMES diverges from meta/fixtures.json: "
             f"extra={_FIXTURE_NAMES - canonical}, missing={canonical - _FIXTURE_NAMES}"
         )
 
-        # tools/catalogs/create_catalogs.py — read via AST to avoid pipeline-core import
-        import ast
-        source = (REPO_ROOT / "tools" / "catalogs" / "create_catalogs.py").read_text()
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Name) and target.id == "_FIXTURE_ENTRIES":
-                        catalog_fixtures = {elt.value for elt in node.value.elts}
-                        assert catalog_fixtures == canonical, (
-                            f"create_catalogs._FIXTURE_ENTRIES diverges: "
-                            f"extra={catalog_fixtures - canonical}, "
-                            f"missing={canonical - catalog_fixtures}"
-                        )
+        # create_catalogs.py + update_readme.py import views_pipeline_core at top, so
+        # check the SOURCE: each must load meta/fixtures.json and must NOT hardcode a
+        # fixture set literal (the literal is the C-61 drift this guards — an earlier
+        # AST check matched only set literals and went vacuous once they switched to JSON).
+        for rel in ("tools/catalogs/create_catalogs.py", "tools/catalogs/update_readme.py"):
+            src = (REPO_ROOT / rel).read_text()
+            assert "fixtures.json" in src, (
+                f"{rel} must derive its fixtures from meta/fixtures.json, not hardcode them"
+            )
+            hardcoded = re.search(r"_FIXTURE_\w+\s*=\s*\{\s*[\"']", src)
+            assert hardcoded is None, (
+                f"{rel} hardcodes a fixture set literal — load meta/fixtures.json instead (C-61)"
+            )
 
 
 # ---------------------------------------------------------------------------

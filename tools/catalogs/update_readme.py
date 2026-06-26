@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import re
@@ -19,8 +20,12 @@ base_dir = os.getcwd()
 target_dir = Path(base_dir + "/models")
 
 # Scaffold/fixture entries that exist for testing purposes only and should
-# not appear in the README or be processed by path managers.
-_FIXTURE_ENTRIES = {"fake_model", "test_model", "test_ensemble"}
+# not appear in the README or be processed by path managers. Single source of
+# truth: meta/fixtures.json (shared with create_catalogs.py + tools/partitions/
+# fileops.py; consistency enforced by test_bump_partitions.TestFixtureSetConsistency). C-61.
+_FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtures.json"
+with open(_FIXTURES_PATH) as _f:
+    _FIXTURE_ENTRIES: set[str] = set(json.load(_f))
 
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
