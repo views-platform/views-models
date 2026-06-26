@@ -11,14 +11,14 @@
 
 Wire the reconciler Dependency-Inversion seam at the views-models composition root.
 views-pipeline-core defines the `Reconciler` port and fails loud if a `pgm_cm_point`
-run finds no injected reconciler; views-postprocessing provides the concrete
+run finds no injected reconciler; views-frames provides the concrete
 `ReconciliationModule(map_keys, map_vals)`. This layer is the single sanctioned
 place that builds the geography and constructs the concrete, injected by reconciling
 ensemble `main.py` files as `reconciler=`.
 
 ## 2. Non-Goals (Explicit Exclusions)
 
-- It does **not** implement reconciliation math (that is views-postprocessing).
+- It does **not** implement reconciliation math (that is views-frames).
 - It does **not** embed geography statically (it is built per run from the data source).
 - It does **not** decide *whether* an ensemble reconciles (that is `config_meta.reconciliation`).
 - It does **not** touch non-reconciling ensembles (they pass `reconciler=None`).
@@ -28,13 +28,13 @@ ensemble `main.py` files as `reconciler=`.
 - `CountryMapping` — immutable `(time, priogrid_gid) -> country_id` value with shape/dtype invariants.
 - `CountryMappingProvider` (port) — `build() -> CountryMapping`; the stable abstraction.
 - `ViewserCountryMappingProvider` — the VIEWS-`country_id` concrete; **parity-preserving** (matches the current path: `priogrid_month` `country_id` from `country_month`, `.first()` per grid).
-- `build_reconciler(start, end, source="viewser", provider=None) -> Reconciler` — selects the provider, builds the mapping, constructs the concrete; the **only** file importing `views_postprocessing`.
+- `build_reconciler(start, end, source="viewser", provider=None) -> Reconciler` — selects the provider, builds the mapping, constructs the concrete; the **only** file importing `views_frames_reconcile`.
 - `build_reconciler_for_run(ensemble_dir) -> Reconciler` — sizes the window from the ensemble's partition config and builds. Called by `main.py`.
 
 ## 4. Inputs and Assumptions
 
 - A forecast month window (derived from `config_partitions`; union of test ranges + buffer — a superset is safe).
-- viewser available at composition time (the provider fetches the country mapping); pipeline-core seam + views-postprocessing dev-installed.
+- viewser available at composition time (the provider fetches the country mapping); pipeline-core seam + `views-frames>=1.7.0` (published, PyPI) installed.
 
 ## 5. Outputs and Side Effects
 
@@ -49,7 +49,7 @@ ensemble `main.py` files as `reconciler=`.
 
 ## 7. Boundaries and Interactions
 
-- **Only new cross-repo coupling:** views-models → `views_postprocessing`, confined to `reconciler_factory.py`, typed as the pipeline-core port (ADP: no cycle; SDP: depends on the stable abstraction).
+- **Only new cross-repo coupling:** views-models → `views_frames_reconcile`, confined to `reconciler_factory.py`, typed as the pipeline-core port (ADP: no cycle; SDP: depends on the stable abstraction).
 - Imported only by reconciling `ensembles/*/main.py` (composition root), via a `sys.path` bootstrap (run.sh is immutable).
 - **Future (lower coupling):** geography could flow from the data layer (pipeline-core's PGM dataset already has `_country_id_cache`), dropping the viewser touch to zero — a pipeline-core seam follow-up; the provider port keeps it open.
 
@@ -67,7 +67,7 @@ manager = EnsembleManager(ensemble_path=..., reconciler=reconciler)
 
 ```python
 # Wrong: importing the concrete reconciler outside reconciler_factory.py
-# from views_postprocessing.reconciliation import ReconciliationModule  # NO — breaks ADR-014
+# from views_frames_reconcile import ReconciliationModule  # NO — breaks ADR-014
 
 # Wrong: wiring a reconciler into a non-reconciling ensemble (CRP violation)
 ```
@@ -80,6 +80,7 @@ manager = EnsembleManager(ensemble_path=..., reconciler=reconciler)
 
 - **Source is derived, not hardcoded (EPIC #192, C-88):** `composition._derive_source` reads the source from the `reconcile_with` CM partner's constituents (`source_detection.detect_ensemble_source`) and **fails loud** if the source has no provider (datafactory before #196) or if PGM↔CM sources disagree — never a silent viewser fallback.
 - **Migration-proof:** adding a datafactory-sourced reconciling ensemble = one `_PROVIDERS` entry + one `datafactory_country_mapping_provider.py` (`gaul0_code`, #196); no caller change (OCP). Different country-id system → its own parity validation.
-- **Transitional substrate (C-89):** the viewser provider depends on viewser + pandas (being phased out); the reconciliation flow still rides pipeline-core's `_PGDataset`/`_CDataset` adapter. Retired by the datafactory provider (#196) + the `views-frames-reconciler` relocation.
-- **Lockstep:** depends on pipeline-core #194/#195/#217 (the seam) + views-postprocessing dev (the concrete); integrated on dev branches (no release needed). Closing this seam unblocks views-reporting#72.
+- **Frames cutover landed (#191, Epic 11 / ADR-023):** the concrete is now the frames-native, published `views_frames_reconcile.ReconciliationModule` (was `views_postprocessing`). Drop-in (same `(map_keys, map_vals)` ctor + `reconcile(cm_frame, pgm_frame)`); views-frames bit-identity-gated the port against the old reconciler, so numbers are unchanged. Unblocks the views-postprocessing reconciler retirement (C2).
+- **Transitional substrate (C-89, narrowed):** the `views-frames-reconciler` relocation has landed (above); the residual is the viewser + pandas *geography fetch* in `ViewserCountryMappingProvider` and pipeline-core's `_PGDataset`/`_CDataset` adapter. Retired by the datafactory provider (#196).
+- **Lockstep:** depends on pipeline-core #194/#195/#217 (the seam) + `views-frames>=1.7.0` (the published concrete, Epic 11); integrated on dev branches (no release needed). Closing this seam unblocks views-reporting#72.
 - **white_mustang:** deployed and wired (reconciles with `cruel_summer`) but **not in `monthly_run.sh`** — runs on demand. To schedule it monthly, add `cruel_summer` then `white_mustang` to `monthly_run.sh` (CM before PGM).

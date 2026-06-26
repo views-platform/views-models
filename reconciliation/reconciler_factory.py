@@ -1,8 +1,10 @@
 """The reconciler factory — the single concrete-binding wire (EPIC #172 / S3 #176).
 
 This is the **only** file that imports the concrete reconciler
-(`views_postprocessing.reconciliation.ReconciliationModule`) — the one sanctioned,
-irreducible composition wire (ADR-014; CCP/DIP). It selects a geography provider,
+(`views_frames_reconcile.ReconciliationModule`) — the one sanctioned, irreducible
+composition wire (ADR-014; CCP/DIP). The concrete moved from
+`views_postprocessing.reconciliation` to the frames-native `views_frames_reconcile`
+sibling in the Epic 11 cutover (views-frames ADR-023, #191). It selects a geography provider,
 builds the `(time, priogrid_gid) -> country_id` mapping, constructs the concrete,
 and returns it typed as the pipeline-core `Reconciler` port so callers depend only
 on the abstraction.
@@ -50,7 +52,8 @@ def build_reconciler(
 
     mapping = provider.build()
 
-    # The single concrete import — confined to this file (ADR-014).
-    from views_postprocessing.reconciliation import ReconciliationModule
+    # The single concrete import — confined to this file (ADR-014). Frames-native
+    # since the Epic 11 cutover (views-frames ADR-023, #191).
+    from views_frames_reconcile import ReconciliationModule
 
     return ReconciliationModule(mapping.map_keys, mapping.map_vals)
