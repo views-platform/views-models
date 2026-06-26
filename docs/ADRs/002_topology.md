@@ -40,7 +40,9 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 | `models/*/configs/config_queryset.py` | `viewser`, `views_pipeline_core` |
 | `models/*/configs/config_*.py` (others) | Nothing (pure dict-returning functions) |
 | `ensembles/*/main.py` | `views_pipeline_core`; **reconciling** ensembles may also import the `reconciliation/` composition layer (ADR-014) |
-| `reconciliation/` (composition layer) | `views_pipeline_core` (the `Reconciler` port); `views_postprocessing` (the concrete reconciler — in `reconciler_factory.py` only); `viewser`/`views-datafactory` (geography — in provider files only). See ADR-014. |
+| `postprocessors/*/main.py` | `views_pipeline_core`, one external postprocessor manager (`views_postprocessing`), `pathlib`. Delegates fetch/transform/deliver to that manager (ADR-001 Postprocessors). |
+| `apis/*/main.py` | `views_pipeline_core` + the external `views-*` API package it launches (`views-faoapi`, `views-seldon`), installed by its `run.sh`. The service code lives in that package (ADR-001 APIs). |
+| `reconciliation/` (composition layer) | `views_pipeline_core` (the `Reconciler` port — `domain.reconciliation_port`, split out by pipeline-core #237); `views_frames_reconcile` (the concrete reconciler — in `reconciler_factory.py` only; moved from `views_postprocessing` by Epic 11 / #191); `viewser`/`views-datafactory` (geography — in provider files only). See ADR-014. |
 | Tooling scripts (root) | `views_pipeline_core`, `importlib`, standard library |
 | `tests/` | `conftest.py` helpers, `importlib`, standard library |
 
@@ -56,7 +58,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 ## Known Deviations
 
 - `config_queryset.py` files import from `viewser` and `views_pipeline_core`, making them impossible to load without these packages installed. This is an accepted deviation — querysets require the VIEWS data layer.
-- **Reconciliation composition root (ADR-014):** reconciling `ensembles/*/main.py` import the repo-internal `reconciliation/` composition layer (and bootstrap the repo root onto `sys.path`, since `run.sh` is immutable). That layer constructs the concrete `views_postprocessing` reconciler — the single sanctioned cross-repo composition wire. Config files remain self-contained.
+- **Reconciliation composition root (ADR-014):** reconciling `ensembles/*/main.py` import the repo-internal `reconciliation/` composition layer (and bootstrap the repo root onto `sys.path`, since `run.sh` is immutable). That layer constructs the concrete `views_frames_reconcile` reconciler (moved from `views_postprocessing` by Epic 11 / #191) — the single sanctioned cross-repo composition wire. Config files remain self-contained.
 
 ---
 
