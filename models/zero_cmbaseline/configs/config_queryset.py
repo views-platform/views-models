@@ -22,15 +22,15 @@ def generate():
             # .transform.ops.ln()
             .transform.missing.replace_na())
         
-        # Create a new column 'lr_ns_best' using data from 'priogrid_month' and 'ged_ns_best_count_nokgi' column
+        # Create a new column 'lr_ged_ns' using data from 'priogrid_month' and 'ged_ns_best_count_nokgi' column
         # Apply logarithmic transformation, handle missing values by replacing them with NA
-        .with_column(Column("lr_ns_best", from_loa="country_month", from_column="ged_ns_best_count_nokgi")
+        .with_column(Column("lr_ged_ns", from_loa="country_month", from_column="ged_ns_best_sum_nokgi")
             # .transform.ops.ln()
             .transform.missing.replace_na())
         
-        # Create a new column 'lr_os_best' using data from 'priogrid_month' and 'ged_os_best_count_nokgi' column
+        # Create a new column 'lr_ged_os' using data from 'priogrid_month' and 'ged_os_best_count_nokgi' column
         # Apply logarithmic transformation, handle missing values by replacing them with NA
-        .with_column(Column("lr_os_best", from_loa="country_month", from_column="ged_os_best_count_nokgi")
+        .with_column(Column("lr_ged_os", from_loa="country_month", from_column="ged_os_best_sum_nokgi")
             # .transform.ops.ln()
             .transform.missing.replace_na())
         
