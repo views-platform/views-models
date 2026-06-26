@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/zsh
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
@@ -15,7 +15,7 @@ fi
 
 script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
-env_path="$project_path/envs/views_ensemble"
+env_path="$project_path/envs/views_r2darts2"
 
 eval "$(conda shell.bash hook)"
 
