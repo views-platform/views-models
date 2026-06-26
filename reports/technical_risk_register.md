@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-26  
+**Last updated:** 2026-06-27  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 96 (92 concerns + 4 disagreements)  
-**Concerns:** Open 38 | Mitigated 14 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 97 (93 concerns + 4 disagreements)  
+**Concerns:** Open 39 | Mitigated 14 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1159,6 +1159,19 @@
 | **Status** | Mitigated (reconciliation suite) — pattern open elsewhere |
 | **Location** | `tests/test_reconciliation_{composition,factory,e2e}.py` (fixed); same pattern at `tests/test_scaffold_builders.py:160,216,284` (`importorskip("views_pipeline_core")`) |
 | **Notes** | The reconciliation tests `importorskip`-gated on `views_postprocessing.reconciliation` and `views_pipeline_core.domain.reconciliation`. Both moved/deleted upstream (vpp C2 deleted the former; pipeline-core #237 split the latter into `domain.reconciliation_port`), so **two real breakages went undetected** — `importorskip` turned the missing modules into SKIPs, CI stayed green, and the tests that validate the reconciler wiring were no-ops until #206/#212 caught it. **Mitigated (PR #212):** the guards were repointed to the live modules, and the reconciliation *package* now hard-imports `domain.reconciliation_port` at load, so a future upstream move ERRORs at collection (loud) rather than skipping. **Residual:** the pattern persists at other `importorskip` sites — prefer a hard import (declared deps should fail loud) or a fixture that asserts the dep is present, over `importorskip`, for any dependency that is a *declared* requirement rather than a genuinely optional one. See also C-42 / C-31 (cross-repo coupling), C-89 (reconciliation substrate). |
+
+---
+
+### C-93 — `update_readme.py` runs the full catalog regeneration at module import time (no `__main__` guard)
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A developer or tool `import`s `tools/catalogs/update_readme.py` to reuse one of its functions (e.g. `generate_repo_structure`) or to unit-test a helper — the import executes both top-level `for subfolder in target_dir.iterdir()` loops, regenerating every model/ensemble README as a side effect and crashing on the first incomplete dir |
+| **Source** | session verification of #99 (2026-06-27) |
+| **Status** | Open |
+| **Location** | `tools/catalogs/update_readme.py:84` (models loop) and `:215` (ensembles loop) — both at module top level, no `if __name__ == "__main__"` guard, no enclosing function |
+| **Notes** | Unlike C-04/C-65 (which frame the module as merely *untestable* because importing pulls in `views_pipeline_core`), the sharper failure is that even with the runtime present the import **does work and mutates the repo / crashes**: during #99, `python -c "from tools.catalogs.update_readme import _FIXTURE_ENTRIES"` raised `FileNotFoundError` on `models/teenage_dirtbag/artifacts` because the import ran the whole generation. This is why the #99 `TestFixtureSetConsistency` check had to **source-read** the file (`read_text` + regex) instead of importing it to inspect `_FIXTURE_ENTRIES` — the canonical-fixture value cannot be asserted by import. Root cause is structural (top-level loops), distinct from C-81 (crash *robustness* when run as intended — same loops, but C-81 is about partial-regeneration on `iterdir()` order) and from C-92 (import**or**skip). Fix: wrap each loop in a `def main()` behind `if __name__ == "__main__"`, so the module exposes an importable API and only regenerates when run as a script. See also C-81 (crash-on-incomplete-dir, same loops), C-65 (catalog tools untested), C-04 (catalog scripts not importable), C-61 (fixture source-of-truth, the #99 trigger). |
 
 ---
 
