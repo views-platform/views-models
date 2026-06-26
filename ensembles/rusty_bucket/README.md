@@ -11,7 +11,7 @@ This folder contains code for the Rusty Bucket model — the **FAO forecast deli
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Aggregation**       |  concat (pooled draws, no point collapse)   |
-| **Samples**       |  128 per constituent → 128 pooled (concat resamples to a fixed size; ADR-015)    |
+| **Samples**       |  128 per constituent → 1024 pooled (concat concatenates the sample axis: 8 × 128; ADR-015)    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

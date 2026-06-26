@@ -246,11 +246,13 @@ class TestEnsembleDependencies:
           (a) expected_models == len(config_modelset["models"]), and
           (b) every constituent declares n_posterior_samples == expected_samples_per_model.
 
-        concat pools by resampling to a FIXED size (= each constituent's count) and
-        pipeline-core's aggregator hard-requires equal counts (modules/aggregation/
-        aggregator.py:627), so a single declared number is correct. This pulls that
-        check forward to CI — a mismatch fails in seconds, not at minute-45 of a run.
-        Ensembles that do not declare the fields are skipped (legacy-compatible).
+        PFE concat concatenates draws on the sample axis (pipeline-core
+        prediction_frame_ensemble.py:99), so the pooled total is
+        expected_models × expected_samples_per_model. Equal per-model counts give each
+        constituent equal weight in the pooled mixture and a predictable pooled
+        dimension — so a single declared number is the right contract, checked here at
+        CI rather than discovered at run time. Ensembles that do not declare the fields
+        are skipped (legacy-compatible).
         """
         hp = load_config_module(
             ensemble_dir / "configs" / "config_hyperparameters.py"
@@ -283,6 +285,6 @@ class TestEnsembleDependencies:
             assert not mismatches, (
                 f"{ensemble_dir.name}: declares expected_samples_per_model="
                 f"{expected_samples} but these constituents declare a different "
-                f"n_posterior_samples: {mismatches} — concat requires equal counts "
-                f"(pipeline-core aggregator.py:627); normalize them (ADR-015)."
+                f"n_posterior_samples: {mismatches} — equal counts keep each constituent "
+                f"equally weighted in the pooled mixture; normalize them (ADR-015)."
             )

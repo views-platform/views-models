@@ -438,6 +438,11 @@ def _expected_ensemble_samples(ensemble_name):
             )
         samples.append(n)
     if aggregation == "concat":
+        # PFE concat = np.concatenate on the sample axis
+        # (pipeline-core managers/ensemble/prediction_frame_ensemble.py:99), so the
+        # pooled draw count is the SUM of constituent counts (empirically: synthetic_chant
+        # 3×64 → 192; rusty_bucket 8×128 → 1024). golden_hour's 12-vs-40 is a separate
+        # stale-artifact anomaly tracked as #131 / C-74 — not a contract-encoding error.
         return sum(samples)
     elif aggregation == "arithmetic_mean":
         return samples[0]
