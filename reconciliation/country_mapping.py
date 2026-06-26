@@ -22,7 +22,7 @@ class CountryMapping:
     - ``map_vals``: ``(M,)`` int array; ``map_vals[i]`` is the ``country_id`` for
       ``map_keys[i]`` (1-to-1, same order).
 
-    Shapes line up with `views_postprocessing.reconciliation.ReconciliationModule`,
+    Shapes line up with `views_frames_reconcile.ReconciliationModule`,
     which is constructed as ``ReconciliationModule(map_keys, map_vals)``.
     """
 
