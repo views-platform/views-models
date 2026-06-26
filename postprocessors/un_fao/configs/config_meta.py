@@ -14,7 +14,12 @@ def get_meta_config():
         "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         # "queryset": "escwa001_cflong",
         "level": "pgm",
-        "ensemble": "orange_ensemble"
+        # The forecast ensemble whose .env credentials / upload metadata this
+        # postprocessor uses (it does NOT pool the ensemble by target name — it
+        # renames its own datafactory actuals via config_queryset.FEATURE_RENAME).
+        # rusty_bucket is the FAO global-land forecast ensemble (#77, #143);
+        # replaces the ghost orange_ensemble.
+        "ensemble": "rusty_bucket"
         # "creator": "Your name here",
     }
     return meta_config

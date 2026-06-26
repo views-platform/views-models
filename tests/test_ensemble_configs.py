@@ -12,6 +12,7 @@ Ensembles do NOT have config_sweep.py or config_queryset.py.
 import pytest
 
 from tests.conftest import (
+    get_n_posterior_samples,
     get_regression_targets,
     load_config_module,
     MODELS_DIR,
@@ -236,3 +237,54 @@ class TestEnsembleDependencies:
             f"does not wire a reconciler (expected build_reconciler(...) + reconciler=) — "
             f"it will fail loud at runtime. See EPIC #172 / ADR-014."
         )
+
+    def test_declared_modelset_and_sample_counts_match_reality(self, ensemble_dir):
+        """Opt-in belt-and-suspenders contract (ADR-015): an ensemble that declares
+        ``expected_models`` / ``expected_samples_per_model`` in config_hyperparameters
+        must have those numbers match reality —
+
+          (a) expected_models == len(config_modelset["models"]), and
+          (b) every constituent declares n_posterior_samples == expected_samples_per_model.
+
+        PFE concat concatenates draws on the sample axis (pipeline-core
+        prediction_frame_ensemble.py:99), so the pooled total is
+        expected_models × expected_samples_per_model. Equal per-model counts give each
+        constituent equal weight in the pooled mixture and a predictable pooled
+        dimension — so a single declared number is the right contract, checked here at
+        CI rather than discovered at run time. Ensembles that do not declare the fields
+        are skipped (legacy-compatible).
+        """
+        hp = load_config_module(
+            ensemble_dir / "configs" / "config_hyperparameters.py"
+        ).get_hp_config()
+        expected_models = hp.get("expected_models")
+        expected_samples = hp.get("expected_samples_per_model")
+        if expected_models is None and expected_samples is None:
+            pytest.skip(f"{ensemble_dir.name} declares no expected_models/samples contract")
+
+        models = load_config_module(
+            ensemble_dir / "configs" / "config_modelset.py"
+        ).get_modelset_config().get("models", [])
+
+        if expected_models is not None:
+            assert expected_models == len(models), (
+                f"{ensemble_dir.name}: config declares expected_models={expected_models} "
+                f"but config_modelset lists {len(models)} ({models}) — declare them "
+                f"explicitly and keep them in sync (ADR-015)."
+            )
+
+        if expected_samples is not None:
+            mismatches = {}
+            for model_name in models:
+                model_dir = MODELS_DIR / model_name
+                if not model_dir.is_dir():
+                    continue  # existence covered by test_all_constituent_models_exist
+                n = get_n_posterior_samples(model_dir)
+                if n != expected_samples:
+                    mismatches[model_name] = n
+            assert not mismatches, (
+                f"{ensemble_dir.name}: declares expected_samples_per_model="
+                f"{expected_samples} but these constituents declare a different "
+                f"n_posterior_samples: {mismatches} — equal counts keep each constituent "
+                f"equally weighted in the pooled mixture; normalize them (ADR-015)."
+            )
