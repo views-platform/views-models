@@ -77,11 +77,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 1,
         "num_layers": 3,                       # Capacity depth (3 layers per block)
-        "layer_widths": 256,                   # Uniform width of 256 across all blocks to capture unique country trajectories without collapsing to templates
+        "layer_widths": 256,                   # Increased capacity: uniform width of 256 across all blocks to capture unique country trajectories without collapsing to templates (original run notes validate uniform 256)
         "pooling_kernel_sizes": [[6], [3], [1]], # Coarse (6:1), medium (3:1), fine (1:1) pooling downsampling
         "n_freq_downsample": [[6], [2], [1]],    # Hierarchical frequency representation matching basis interpolation
         "activation": "GELU",                  
-        "dropout": 0.30,                       # Slightly increased from 0.25 to 0.30 to smooth high-amplitude overpredictions and improve global generalization
+        "dropout": 0.2,                       # Standard regularization to prevent memorize-overfitting while preserving expressive capacity
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": False,                 
