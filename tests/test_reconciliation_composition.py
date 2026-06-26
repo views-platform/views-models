@@ -12,9 +12,9 @@ from reconciliation.country_mapping import CountryMapping
 pytestmark = pytest.mark.green
 
 Reconciler = pytest.importorskip(
-    "views_pipeline_core.domain.reconciliation"
+    "views_pipeline_core.domain.reconciliation_port"
 ).Reconciler
-pytest.importorskip("views_postprocessing.reconciliation")
+pytest.importorskip("views_frames_reconcile")
 
 
 def test_forecast_window_is_union_of_test_ranges_plus_buffer():

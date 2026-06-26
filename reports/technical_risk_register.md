@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 95 (91 concerns + 4 disagreements)  
-**Concerns:** Open 38 | Mitigated 13 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 96 (92 concerns + 4 disagreements)  
+**Concerns:** Open 38 | Mitigated 14 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1148,6 +1148,17 @@
 | **Status** | Open |
 | **Location** | `ensembles/rusty_bucket/configs/config_hyperparameters.py` (`expected_samples_per_model: 128`); `docs/ADRs/015_posterior_sample_count_standard.md` |
 | **Notes** | ADR-015 sets 128 as the *integration-period* per-model sample standard. For zero-inflated, right-skewed, heavy-tailed conflict posteriors, tail quantiles (90/95% HDI bounds) estimated from 128 draws are noisy; the pooled total (8×128 = 1024) helps, but per-constituent resolution still bounds tail stability. Fine for integration/shadow; ADR-015 explicitly flags revisiting (512–1024 per constituent) before production. The summarizer redesign (views-frames#89) is the consumer that should specify the required draw count. Not silent corruption — the draws are correct, only the tail estimates are noisy. See also C-90, C-44. |
+
+### C-92 — `importorskip` on cross-repo deps converts breakage into silent skips
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A test `pytest.importorskip("<cross-repo module path>")`s a dependency, and that module is later **moved, renamed, or deleted** upstream — the test then silently SKIPs instead of failing, so a real regression ships green |
+| **Source** | review-diff / register-risk (2026-06-26, PR #212) |
+| **Status** | Mitigated (reconciliation suite) — pattern open elsewhere |
+| **Location** | `tests/test_reconciliation_{composition,factory,e2e}.py` (fixed); same pattern at `tests/test_scaffold_builders.py:160,216,284` (`importorskip("views_pipeline_core")`) |
+| **Notes** | The reconciliation tests `importorskip`-gated on `views_postprocessing.reconciliation` and `views_pipeline_core.domain.reconciliation`. Both moved/deleted upstream (vpp C2 deleted the former; pipeline-core #237 split the latter into `domain.reconciliation_port`), so **two real breakages went undetected** — `importorskip` turned the missing modules into SKIPs, CI stayed green, and the tests that validate the reconciler wiring were no-ops until #206/#212 caught it. **Mitigated (PR #212):** the guards were repointed to the live modules, and the reconciliation *package* now hard-imports `domain.reconciliation_port` at load, so a future upstream move ERRORs at collection (loud) rather than skipping. **Residual:** the pattern persists at other `importorskip` sites — prefer a hard import (declared deps should fail loud) or a fixture that asserts the dep is present, over `importorskip`, for any dependency that is a *declared* requirement rather than a genuinely optional one. See also C-42 / C-31 (cross-repo coupling), C-89 (reconciliation substrate). |
 
 ---
 

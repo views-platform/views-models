@@ -1,6 +1,6 @@
 """S5 (#178) — the parity / conservation gate.
 
-Proves the *wired* reconciler (factory → views_postprocessing ReconciliationModule)
+Proves the *wired* reconciler (factory → views_frames_reconcile ReconciliationModule)
 reconciles grid forecasts to CM country totals (the conservation invariant) and
 preserves the all-zero-country edge case — i.e. the wiring computes the right thing.
 A real-viewser-geography build is exercised skip-when-unavailable.
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.green
 
 SpatialLevel = pytest.importorskip("views_frames").SpatialLevel
 prediction_frame_from_arrays = pytest.importorskip(
-    "views_postprocessing.reconciliation.frames"
+    "views_frames_reconcile.frames"
 ).prediction_frame_from_arrays
 
 
@@ -84,7 +84,7 @@ def test_real_viewser_geography_wires_end_to_end():
     from pathlib import Path
 
     reconciler_port = pytest.importorskip(
-        "views_pipeline_core.domain.reconciliation"
+        "views_pipeline_core.domain.reconciliation_port"
     ).Reconciler
     skinny_love = Path(__file__).resolve().parent.parent / "ensembles" / "skinny_love"
     try:

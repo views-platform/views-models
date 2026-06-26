@@ -13,9 +13,9 @@ from reconciliation.reconciler_factory import _PROVIDERS, build_reconciler
 pytestmark = pytest.mark.green
 
 Reconciler = pytest.importorskip(
-    "views_pipeline_core.domain.reconciliation"
+    "views_pipeline_core.domain.reconciliation_port"
 ).Reconciler
-pytest.importorskip("views_postprocessing.reconciliation")
+pytest.importorskip("views_frames_reconcile")
 
 
 class _FakeProvider:
