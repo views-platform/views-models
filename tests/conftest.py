@@ -163,6 +163,12 @@ def ensemble_dir(request):
     return request.param
 
 
+@pytest.fixture(params=ALL_POSTPROCESSOR_DIRS, ids=POSTPROCESSOR_NAMES)
+def postprocessor_dir(request):
+    """Parametrized fixture yielding each postprocessor directory."""
+    return request.param
+
+
 @pytest.fixture(params=ALL_MODEL_DIRS + ALL_ENSEMBLE_DIRS,
                 ids=MODEL_NAMES + ENSEMBLE_NAMES)
 def any_model_dir(request):
