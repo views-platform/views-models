@@ -60,7 +60,8 @@ Once the CM model finishes, run the PGM model:
 
 ## 4. Notes
 
-* Always ensure the **CM model finishes before running PGM model**.
+* Always ensure the **CM model finishes before running PGM model**. The PGM ensemble (`skinny_love`) reconciles its grid forecast to the CM totals from `pink_ponyclub`, so the CM forecast must already exist.
+* **Reconciliation is wired automatically.** Reconciling ensembles (`reconciliation: "pgm_cm_point"` in `config_meta`) inject a reconciler at their composition root (`main.py`) via the `reconciliation/` layer — no manual step. The geography mapping is sourced from viewser (VIEWS `country_id`, parity-preserving). See `docs/CICs/ReconciliationWiring.md` and ADR-014. `white_mustang`→`cruel_summer` is also wired but runs on demand (not in `monthly_run.sh`).
 * The `-o [EndOfHistory]` argument specifies the last available month for data; replace `[EndOfHistory]` with the appropriate **VIEWS month** as needed.
 * If you encounter issues with W&B authentication, you can manually log in using:
 
