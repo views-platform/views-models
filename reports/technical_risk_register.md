@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-06-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 93 (89 concerns + 4 disagreements)  
-**Concerns:** Open 36 | Mitigated 13 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 95 (91 concerns + 4 disagreements)  
+**Concerns:** Open 38 | Mitigated 13 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -930,7 +930,7 @@
 | **Source** | falsify (2026-06-09) |
 | **Status** | Open |
 | **Location** | `ensembles/golden_hour` (`aggregation: concat`); views-pipeline-core `PredictionFrameEnsembleManager` concat path; `tests/test_pfe_production_readiness.py::TestPFEEnsembleAggregation::test_aggregated_sample_count[golden_hour_calibration]` |
-| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). **2026-06-18:** the expected total changed from 48 to **40** — violet_visitor dropped to 8 samples (C-87), so golden_hour's constituents are now 16+16+8; factor this into the fresh-run check. |
+| **Notes** | golden_hour (concat, 3×16) should aggregate to **48** posterior samples; its calibration artifact (`predictions_calibration_20260603_135314`, June 3 — **predates** the violet_visitor Inf, so NOT caused by C-72) has only **12**. 12 is not a clean multiple of 48, so this is unlikely to be mere staleness of one constituent (that would give 16/32) — it points to a real defect in the concat path (samples dropped/sub-sampled rather than concatenated), which would **silently understate ensemble uncertainty**. Verify with a fresh run: 48 → it was staleness; still 12 → real concat bug to fix in views-pipeline-core. See also C-44 (concat CRPS quality), C-45 (ensemble `-t` cascade), C-46 (PFE classification targets). **2026-06-18:** the expected total changed from 48 to **40** — violet_visitor dropped to 8 samples (C-87), so golden_hour's constituents are now 16+16+8; factor this into the fresh-run check. **2026-06-26 (rusty_bucket work):** a control falsifies the "concat-path-wide" hypothesis — `synthetic_chant` (3×64, equal constituents) aggregates to exactly **192 = sum**, confirming PFE concat *does* concatenate the sample axis correctly (`prediction_frame_ensemble.py:99`). So golden_hour's **12** is a golden_hour-specific defect (its unequal 16/16/8 constituents + a stale June-3 artifact), **not** a views-pipeline-core concat bug and **not** a test mis-encoding: `_expected_ensemble_samples` correctly expects `sum(samples)` (verified and kept). The `test_aggregated_sample_count` failure is artifact-dependent — it **skips in CI** (fresh clone has no artifacts) and fails only on stale local artifacts. Fresh-run check still owed: rerun golden_hour → 40 = staleness; still 12 = a real golden_hour aggregation defect. See also C-90 (degenerate-mixture stand-ins), C-91 (sample-count adequacy). |
 
 ---
 
@@ -1126,6 +1126,28 @@
 | **Status** | Open |
 | **Location** | `reconciliation/viewser_country_mapping_provider.py` (viewser + pandas fetch); views-pipeline-core `modules/reconciliation/adapter.py` + `data/handlers.py` (`_PGDataset`/`_CDataset`) |
 | **Notes** | The reconciliation geography is fetched via a viewser `Queryset` returning a pandas frame — viewser and pandas are both being phased out for views-datafactory / views-frames. The `reconciliation/` package does **not** use the old custom `_PGDataset`/`_CDataset` directly (it is frames-native + numpy), but the reconciliation *flow* still rides them via pipeline-core's `reconcile_datasets` adapter — those custom dataframes were never sanctioned and do not scale to global PGM with posterior samples. The viewser provider carries a `TRANSITIONAL` comment. **Resolution path:** the per-source provider port (C-88 fix) lets a views-datafactory provider replace the viewser one (one file, #196); and the algorithm is slated to move to a `views-frames-reconciler` sister package (separate epic), which together retire the dependence. Not a correctness risk today (viewser is the current source) — a structural/migration risk. |
+
+### C-90 — rusty_bucket pools 8 identical baseline stand-ins (degenerate mixture until real constituents land)
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | `rusty_bucket` is promoted out of `deployment_status: shadow`, added to `monthly_run.sh`, or its forecasts are delivered to FAO via `un_fao`, **before** the 8 `temporary_*` clones are replaced by the real ~8 global HydraNets (#146) |
+| **Source** | review-diff / register-risk (2026-06-26) |
+| **Status** | Open |
+| **Location** | `ensembles/rusty_bucket/configs/config_modelset.py` (8 `temporary_*` constituents); `models/temporary_{otter,robin,finch,heron,lynx,bison,crane,fox}/` |
+| **Notes** | `rusty_bucket`'s 8 constituents are identical clones of the `heavy_strider` global-land baseline — interim stand-ins (#143/#146). PFE concat pools them to 8×128 = 1024 draws, but because all 8 are identical the pooled distribution is **degenerate** — statistically equivalent to one `heavy_strider` resampled, not a genuine 8-model mixture. The interim state is documented (README, `config_modelset` docstring, `deployment_status: shadow`, the non-blocking sample-count report) and is intentional: it validates the pooled-draw machinery at the correct global-land shape, not forecast quality. The risk is purely if `rusty_bucket` is run/delivered as a real forecast before #146 swaps in the diverse HydraNets — FAO would receive a single-baseline forecast that is, in the data itself, indistinguishable from a real ensemble. Retired by #146. Distinct from C-44 (heterogeneous quality dilution) — this is *homogeneous* degeneracy. See also C-44, C-91, #143/#146. |
+
+### C-91 — 128 posterior samples may be too few for stable HDI tails in production FAO delivery
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A concat ensemble (`rusty_bucket` or successor) is shipped to **production** FAO delivery at 128 draws/constituent and the summarizer (views-frames#89) computes 90/95% HDI / credible-interval bounds from the pooled draws without the per-model count being raised |
+| **Source** | register-risk (2026-06-26, ADR-015) |
+| **Status** | Open |
+| **Location** | `ensembles/rusty_bucket/configs/config_hyperparameters.py` (`expected_samples_per_model: 128`); `docs/ADRs/015_posterior_sample_count_standard.md` |
+| **Notes** | ADR-015 sets 128 as the *integration-period* per-model sample standard. For zero-inflated, right-skewed, heavy-tailed conflict posteriors, tail quantiles (90/95% HDI bounds) estimated from 128 draws are noisy; the pooled total (8×128 = 1024) helps, but per-constituent resolution still bounds tail stability. Fine for integration/shadow; ADR-015 explicitly flags revisiting (512–1024 per constituent) before production. The summarizer redesign (views-frames#89) is the consumer that should specify the required draw count. Not silent corruption — the draws are correct, only the tail estimates are noisy. See also C-90, C-44. |
 
 ---
 
