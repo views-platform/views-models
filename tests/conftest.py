@@ -126,6 +126,31 @@ def get_regression_targets(model_dir: Path) -> list[str]:
     return located.get("meta") or located.get("hp") or []
 
 
+def get_n_posterior_samples(model_dir: Path) -> int | None:
+    """A model's declared posterior sample count, or None if undeclared.
+
+    config_hyperparameters is the primary location (where DL/baseline models
+    declare it), config_meta the fallback. Derive-don't-hardcode, mirroring
+    get_regression_targets — the single way views-models obtains this number for
+    the ensemble sample-count contract (ADR-015).
+    """
+    config_dir = model_dir / "configs"
+    for fname, getter_name in (
+        ("config_hyperparameters.py", "get_hp_config"),
+        ("config_meta.py", "get_meta_config"),
+    ):
+        path = config_dir / fname
+        if not path.exists():
+            continue
+        getter = getattr(load_config_module(path), getter_name, None)
+        if getter is None:
+            continue
+        val = (getter() or {}).get("n_posterior_samples")
+        if val is not None:
+            return int(val)
+    return None
+
+
 @pytest.fixture(params=ALL_MODEL_DIRS, ids=MODEL_NAMES)
 def model_dir(request):
     """Parametrized fixture yielding each model directory."""
