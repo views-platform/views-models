@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "new_rules", 
         "algorithm": "NBEATSModel",
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Dylan",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
