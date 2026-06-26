@@ -1,4 +1,4 @@
-# Smol Cat 
+# Dark Necessities
 ## Overview
 
 
@@ -6,8 +6,8 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TiDEModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb |
-| **Features**       |  smol_cat   |
+| **Targets**         | lr_ged_ns |
+| **Features**       |  dark_necessities   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
@@ -15,7 +15,7 @@
 ## Repository Structure
 
 ```
-Smol Cat
+Dark Necessities
 ├── README.md
 ├── main.py
 ├── requirements.txt
