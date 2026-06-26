@@ -25,6 +25,14 @@ from reconciliation.country_mapping import CountryMapping
 FetchCountryMetadata = Callable[[int, int], "object"]
 
 
+# ─── TRANSITIONAL (C-89) ──────────────────────────────────────────────────────
+# This provider depends on viewser + pandas — both being PHASED OUT for
+# views-datafactory / views-frames. It is the parity source for *viewser*-sourced
+# ensembles only; a datafactory `gaul0_code` provider (#196) is selected per
+# ensemble for datafactory-sourced ones. Do NOT extend the viewser/pandas surface
+# here — and the whole reconciliation algorithm is slated to move to a
+# `views-frames-reconciler` sister package. See risk register C-89.
+# ──────────────────────────────────────────────────────────────────────────────
 class ViewserCountryMappingProvider:
     """Builds the VIEWS-`country_id` geography mapping for a forecast window."""
 

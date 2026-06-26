@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-12  
+**Last updated:** 2026-06-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 91 (87 concerns + 4 disagreements)  
-**Concerns:** Open 35 | Mitigated 12 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 93 (89 concerns + 4 disagreements)  
+**Concerns:** Open 36 | Mitigated 13 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1100,6 +1100,32 @@
 | **Status** | Open |
 | **Location** | `models/violet_visitor/configs/config_hyperparameters.py` (`n_posterior_samples: 8`); invariant enforced by `tests/test_datafactory_parity.py::test_constituent_posterior_samples_match` (lines ~320-326) |
 | **Notes** | violet_visitor's `n_posterior_samples` was reduced **16 → 8** on 2026-06-16 as an **interim OOM workaround** — the eval stage OOMs at 16 samples; 8 is gated by an "one run completes without the eval-stage OOM" check, to be **restored to 16 once the OOM is fixed** (tracked as `C-116`/`#124` in **views-hydranet**, outside this repo's register). Consequence in this repo: it breaks the trio sample-count parity invariant — the viewser trio (pink_pirate, blue_stranger, violet_visitor) and datafactory trio (bright_starship, bold_comet, blazing_meteor) are designed to share one `n_posterior_samples` so golden_hour↔stellar_horizon is comparable; violet_visitor at 8 vs the rest at 16 confounds that (same family as C-71's loss divergence). `test_constituent_posterior_samples_match` was updated (review-diff, same change) to **pin the intentional divergence** (mirroring the C-71 pin in `test_both_trios_use_same_loss`) rather than assert strict uniformity, so the divergence is explicit and any *further* drift is still caught. It also shifts golden_hour's expected concat sample total from 48 to **40** (16+16+8) — see C-74. **Revisit when C-116/#124 is fixed: restore violet_visitor to 16 and revert the test pin.** See also C-71 (violet_visitor loss divergence — same model, same parity confound), C-74 (golden_hour sample count), C-48/C-49 (trio parity), C-72 (violet_visitor experiment state). |
+
+---
+
+### C-88 — Reconciliation geography source was not derived from the data (silent country-ID corruption risk)
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | A reconciling ensemble (`reconciliation: "pgm_cm_point"`) is migrated from viewser to views-datafactory while the reconciliation wiring assumes viewser geography |
+| **Source** | maintainer review of EPIC #172 |
+| **Status** | Mitigated |
+| **Location** | `reconciliation/composition.py` (`_derive_source`, `build_reconciler_for_run`), `reconciliation/source_detection.py`, `reconciliation/reconciler_factory.py` |
+| **Notes** | viewser uses VIEWS `country_id`; views-datafactory uses `gaul0_code` (different ids, 0% overlap). The original reconciliation wiring (#172) **hardcoded `source="viewser"`** and never inspected the ensemble's data source — and the docstrings/ADR-014 *claimed* a derivation that was not implemented. A reconciling ensemble migrated to datafactory would have silently built viewser geography against `gaul0_code` data → plausible-but-wrong reconciled forecasts, no crash. **Mitigated (2026-06-26, EPIC #192 / S2 #194):** the geography source is now **derived** from the data — the `reconcile_with` CM partner's constituents (`source_detection.detect_ensemble_source`) — and **fails loud** if (a) the source has no registered provider (datafactory has none yet → clear crash, never a silent viewser fallback) or (b) the PGM ensemble and its CM partner disagree on source. All four reconciliation ensembles are viewser today (parity unchanged). Residual: the datafactory `gaul0_code` provider is not built (#196) — until then datafactory reconciliation fails loud by design. See C-40 (generate() contract), C-49 (viewser↔datafactory geography divergence), C-51 (pipeline-core `get_data` hardcodes viewser). |
+
+---
+
+### C-89 — Reconciliation wiring depends on the phasing-out viewser/pandas substrate
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | viewser / pandas / the custom `_PGDataset`/`_CDataset` are removed (the views-datafactory + views-frames migration) before reconciliation is re-platformed |
+| **Source** | maintainer review of EPIC #172 |
+| **Status** | Open |
+| **Location** | `reconciliation/viewser_country_mapping_provider.py` (viewser + pandas fetch); views-pipeline-core `modules/reconciliation/adapter.py` + `data/handlers.py` (`_PGDataset`/`_CDataset`) |
+| **Notes** | The reconciliation geography is fetched via a viewser `Queryset` returning a pandas frame — viewser and pandas are both being phased out for views-datafactory / views-frames. The `reconciliation/` package does **not** use the old custom `_PGDataset`/`_CDataset` directly (it is frames-native + numpy), but the reconciliation *flow* still rides them via pipeline-core's `reconcile_datasets` adapter — those custom dataframes were never sanctioned and do not scale to global PGM with posterior samples. The viewser provider carries a `TRANSITIONAL` comment. **Resolution path:** the per-source provider port (C-88 fix) lets a views-datafactory provider replace the viewser one (one file, #196); and the algorithm is slated to move to a `views-frames-reconciler` sister package (separate epic), which together retire the dependence. Not a correctness risk today (viewser is the current source) — a structural/migration risk. |
 
 ---
 

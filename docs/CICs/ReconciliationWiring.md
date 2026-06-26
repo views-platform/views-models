@@ -78,6 +78,8 @@ manager = EnsembleManager(ensemble_path=..., reconciler=reconciler)
 
 ## 11. Evolution Notes
 
-- **Migration-proof:** adding a datafactory-sourced reconciling ensemble = one `_PROVIDERS` entry + one `datafactory_country_mapping_provider.py` (`gaul0_code`); no caller change (OCP). Different country-id system → its own parity validation.
+- **Source is derived, not hardcoded (EPIC #192, C-88):** `composition._derive_source` reads the source from the `reconcile_with` CM partner's constituents (`source_detection.detect_ensemble_source`) and **fails loud** if the source has no provider (datafactory before #196) or if PGM↔CM sources disagree — never a silent viewser fallback.
+- **Migration-proof:** adding a datafactory-sourced reconciling ensemble = one `_PROVIDERS` entry + one `datafactory_country_mapping_provider.py` (`gaul0_code`, #196); no caller change (OCP). Different country-id system → its own parity validation.
+- **Transitional substrate (C-89):** the viewser provider depends on viewser + pandas (being phased out); the reconciliation flow still rides pipeline-core's `_PGDataset`/`_CDataset` adapter. Retired by the datafactory provider (#196) + the `views-frames-reconciler` relocation.
 - **Lockstep:** depends on pipeline-core #194/#195/#217 (the seam) + views-postprocessing dev (the concrete); integrated on dev branches (no release needed). Closing this seam unblocks views-reporting#72.
 - **white_mustang:** deployed and wired (reconciles with `cruel_summer`) but **not in `monthly_run.sh`** — runs on demand. To schedule it monthly, add `cruel_summer` then `white_mustang` to `monthly_run.sh` (CM before PGM).
