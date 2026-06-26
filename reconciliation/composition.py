@@ -12,7 +12,7 @@ import importlib.util
 from pathlib import Path
 from typing import Optional
 
-from views_pipeline_core.domain.reconciliation import Reconciler
+from views_pipeline_core.domain.reconciliation_port import Reconciler
 
 from reconciliation.country_mapping_provider import CountryMappingProvider
 from reconciliation.reconciler_factory import build_reconciler

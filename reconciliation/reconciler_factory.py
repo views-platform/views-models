@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from views_pipeline_core.domain.reconciliation import Reconciler
+from views_pipeline_core.domain.reconciliation_port import Reconciler
 
 from reconciliation.country_mapping_provider import CountryMappingProvider
 from reconciliation.viewser_country_mapping_provider import ViewserCountryMappingProvider
