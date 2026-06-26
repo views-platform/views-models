@@ -217,3 +217,22 @@ class TestEnsembleDependencies:
                 f"{ensemble_dir.name} declares reconcile_with='{target}' "
                 f"but no ensemble directory '{target}' exists"
             )
+
+    def test_pgm_cm_point_ensemble_wires_a_reconciler(self, ensemble_dir):
+        """An ensemble declaring reconciliation: 'pgm_cm_point' MUST inject a
+        reconciler in its main.py, or the run fails loud at the seam
+        (RECONCILER_NOT_INJECTED). This catches a new unwired reconciling ensemble
+        at CI instead of at the monthly run (EPIC #172 / ADR-014) — the wired/
+        unwired state is declared and visible, never accidental.
+        """
+        meta = load_config_module(
+            ensemble_dir / "configs" / "config_meta.py"
+        ).get_meta_config()
+        if meta.get("reconciliation") != "pgm_cm_point":
+            pytest.skip(f"{ensemble_dir.name} does not declare pgm_cm_point reconciliation")
+        main_text = (ensemble_dir / "main.py").read_text()
+        assert "build_reconciler" in main_text and "reconciler=" in main_text, (
+            f"{ensemble_dir.name} declares reconciliation='pgm_cm_point' but its main.py "
+            f"does not wire a reconciler (expected build_reconciler(...) + reconciler=) — "
+            f"it will fail loud at runtime. See EPIC #172 / ADR-014."
+        )
