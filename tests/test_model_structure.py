@@ -107,3 +107,21 @@ class TestModelDirectoryStructure:
             f"the directory will be absent on fresh clone and crash "
             f"ModelPathManager validation. Add a .gitkeep file."
         )
+
+
+class TestPostprocessorDirectoryStructure:
+    """Postprocessors run through PostprocessorPathManager, which validates the
+    SAME standard subdirectories as models — a missing one crashes on fresh clone.
+    The model contract above never covered ``postprocessors/``, which let un_fao
+    ship with 7 missing dirs and crash at runtime (C-32/C-33 recurrence, found via
+    the vpp#24 smoke test). Git-index check, not filesystem.
+    """
+
+    @pytest.mark.parametrize("subdir", REQUIRED_SUBDIRS)
+    def test_required_subdirectory_tracked(self, postprocessor_dir, subdir):
+        rel_path = (postprocessor_dir / subdir).relative_to(REPO_ROOT)
+        assert _git_tracks_path(rel_path), (
+            f"{postprocessor_dir.name} (postprocessor) has no tracked files under "
+            f"{subdir}/ — absent on fresh clone, crashes PostprocessorPathManager "
+            f"validation. Add a .gitkeep file."
+        )
