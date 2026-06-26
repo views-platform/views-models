@@ -3,15 +3,17 @@
 **Status:** Accepted
 **Date:** 2026-06-26
 **Deciders:** Simon, VIEWS platform team
-**Related ADRs:** [ADR-002](002_topology.md) (Topology), [ADR-009](009_boundary_contracts.md) (Boundary Contracts), [ADR-013](013_regression_target_name_agnosticism.md) (config is the single source of truth); views-pipeline-core #194/#195 (Reconciler port), views-frames ADR-014 (geography is injected, never embedded)
+**Related ADRs:** [ADR-002](002_topology.md) (Topology), [ADR-009](009_boundary_contracts.md) (Boundary Contracts), [ADR-013](013_regression_target_name_agnosticism.md) (config is the single source of truth); views-pipeline-core #194/#195 (Reconciler port), views-frames ADR-014 (geography is injected, never embedded), views-frames ADR-023 (reconciliation is a frames sibling)
+
+**Amended 2026-06-26 (#191):** the concrete reconciler moved from `views_postprocessing.reconciliation` to the frames-native, **published** `views_frames_reconcile` sibling (views-frames Epic 11 / ADR-023, PyPI v1.7.0). The composition-root decision below is unchanged — only the concrete's home repo changed, and the dependency went from dev-only to a declared `views-frames>=1.7.0` pin. References updated accordingly.
 
 ---
 
 ## Context
 
-views-pipeline-core converted ensemble reconciliation from a hardwired `from views_reporting.reconciliation import ReconciliationModule` into a **Dependency-Inversion seam**: `EnsembleManager(reconciler=None)` accepting a `Reconciler` **Protocol** (`views_pipeline_core.domain.reconciliation`), with a fail-loud `RECONCILER_NOT_INJECTED` if a `pgm_cm_point` run finds no injected reconciler. pipeline-core deliberately does **not** know the concrete reconciler — that is views-postprocessing's frames-native `ReconciliationModule(map_keys, map_vals)`, built with geography that the leaf never embeds (it is injected by the caller).
+views-pipeline-core converted ensemble reconciliation from a hardwired `from views_reporting.reconciliation import ReconciliationModule` into a **Dependency-Inversion seam**: `EnsembleManager(reconciler=None)` accepting a `Reconciler` **Protocol** (`views_pipeline_core.domain.reconciliation`), with a fail-loud `RECONCILER_NOT_INJECTED` if a `pgm_cm_point` run finds no injected reconciler. pipeline-core deliberately does **not** know the concrete reconciler — that is the frames-native `ReconciliationModule(map_keys, map_vals)`, built with geography that the leaf never embeds (it is injected by the caller).
 
-The **composition root** — the place that constructs the concrete and injects it — is **views-models**. But [ADR-002](002_topology.md) restricts `ensembles/*/main.py` to importing `views_pipeline_core` only, and forbids repo-internal imports in config files. Wiring a reconciler needs to import the concrete (`views_postprocessing`) and source geography (`viewser`/`views-datafactory`). This ADR sanctions exactly that, in a controlled way, and pins where the (irreducible) cross-repo wire is allowed to live.
+The **composition root** — the place that constructs the concrete and injects it — is **views-models**. But [ADR-002](002_topology.md) restricts `ensembles/*/main.py` to importing `views_pipeline_core` only, and forbids repo-internal imports in config files. Wiring a reconciler needs to import the concrete (`views_frames_reconcile`) and source geography (`viewser`/`views-datafactory`). This ADR sanctions exactly that, in a controlled way, and pins where the (irreducible) cross-repo wire is allowed to live.
 
 ## Decision
 
@@ -36,16 +38,16 @@ This is allowed **only** in the entrypoint `main.py` of reconciling ensembles, *
 ### 3. The composition layer's allowed dependencies
 The `reconciliation/` layer may depend on:
 - `views_pipeline_core` — the `Reconciler` **port** (the abstraction it returns).
-- `views_postprocessing` — the concrete `ReconciliationModule` — **confined to `reconciler_factory.py`** (the single file that knows the concrete; CCP/DIP).
+- `views_frames_reconcile` — the concrete `ReconciliationModule` — **confined to `reconciler_factory.py`** (the single file that knows the concrete; CCP/DIP).
 - `viewser` (today) / `views-datafactory` (later) — the geography source, **confined to the provider files**, behind the `CountryMappingProvider` port.
 
-The **only new cross-repo coupling** is views-models → `views_postprocessing`, in one file, typed as the port. A composition root must construct its concrete — this wire is irreducible, but it is single, explicit, and named.
+The **only new cross-repo coupling** is views-models → `views_frames_reconcile`, in one file, typed as the port. A composition root must construct its concrete — this wire is irreducible, but it is single, explicit, and named.
 
 ### 4. The geography source is pluggable and config-derived
 Country ids differ across data sources (viewser VIEWS `country_id` vs datafactory `gaul0_code`); during the viewser→datafactory migration both coexist. The source is therefore a **`CountryMappingProvider` port** with a concrete **selected per ensemble, derived from its data source** (ADR-013: derive from config, don't hardcode). **Implemented** in `reconciliation/source_detection.py` + `composition._derive_source` (EPIC #192): the source is read from the `reconcile_with` CM partner's constituents, with **fail-loud guards** — an unsupported source (datafactory before its provider exists) or a PGM↔CM source mismatch crashes, never a silent viewser fallback (risk register **C-88**). Adding the datafactory provider is a pure one-file extension (OCP); reconciliation never re-wires when an ensemble migrates.
 
 ### 5. Dependency direction (ADP / SDP)
-`ensembles/*/main.py` → `reconciliation/` → {`views_pipeline_core` port, `views_postprocessing` concrete, geography source}. No cycle. The ensemble (unstable) depends on the composition layer, which depends on stable abstractions (the port). Geography flowing from the **data layer** instead of views-models (zero geography coupling) is a future pipeline-core seam improvement, kept open by this design.
+`ensembles/*/main.py` → `reconciliation/` → {`views_pipeline_core` port, `views_frames_reconcile` concrete, geography source}. No cycle. The ensemble (unstable) depends on the composition layer, which depends on stable abstractions (the port). Geography flowing from the **data layer** instead of views-models (zero geography coupling) is a future pipeline-core seam improvement, kept open by this design.
 
 ## Consequences
 
@@ -55,7 +57,7 @@ Country ids differ across data sources (viewser VIEWS `country_id` vs datafactor
 - The viewser→datafactory migration cannot re-block reconciliation: the source is pluggable.
 
 ### Negative
-- One new cross-repo dependency (views-models → views-postprocessing) — irreducible for a composition root; minimized to one file.
+- One new cross-repo dependency (views-models → views-frames) — irreducible for a composition root; minimized to one file.
 - `main.py` `sys.path` bootstrap is a small deliberate deviation, forced by run.sh immutability.
 
 ## Implementation Notes
@@ -66,4 +68,4 @@ Country ids differ across data sources (viewser VIEWS `country_id` vs datafactor
 ## References
 - EPIC #172; stories #173–#180; tracking #182.
 - [ADR-002](002_topology.md) (amended — composition-layer row), [ADR-013](013_regression_target_name_agnosticism.md), [ADR-006](006_intent_contracts.md) (CIC for the package).
-- views-pipeline-core #194/#195 (port + seam); views-postprocessing `ReconciliationModule`; views-frames ADR-014 (injected geography).
+- views-pipeline-core #194/#195 (port + seam); views-frames `ReconciliationModule`; views-frames ADR-014 (injected geography).
