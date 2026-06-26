@@ -39,7 +39,8 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 | `models/*/configs/config_partitions.py` | `datetime` only (stdlib) |
 | `models/*/configs/config_queryset.py` | `viewser`, `views_pipeline_core` |
 | `models/*/configs/config_*.py` (others) | Nothing (pure dict-returning functions) |
-| `ensembles/*/main.py` | `views_pipeline_core` |
+| `ensembles/*/main.py` | `views_pipeline_core`; **reconciling** ensembles may also import the `reconciliation/` composition layer (ADR-014) |
+| `reconciliation/` (composition layer) | `views_pipeline_core` (the `Reconciler` port); `views_postprocessing` (the concrete reconciler — in `reconciler_factory.py` only); `viewser`/`views-datafactory` (geography — in provider files only). See ADR-014. |
 | Tooling scripts (root) | `views_pipeline_core`, `importlib`, standard library |
 | `tests/` | `conftest.py` helpers, `importlib`, standard library |
 
@@ -55,6 +56,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 ## Known Deviations
 
 - `config_queryset.py` files import from `viewser` and `views_pipeline_core`, making them impossible to load without these packages installed. This is an accepted deviation — querysets require the VIEWS data layer.
+- **Reconciliation composition root (ADR-014):** reconciling `ensembles/*/main.py` import the repo-internal `reconciliation/` composition layer (and bootstrap the repo root onto `sys.path`, since `run.sh` is immutable). That layer constructs the concrete `views_postprocessing` reconciler — the single sanctioned cross-repo composition wire. Config files remain self-contained.
 
 ---
 

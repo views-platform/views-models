@@ -43,6 +43,7 @@ These ADRs define system philosophy and governance:
 - **[ADR-011](011_partition_semantics.md)** — Partition Boundary Semantics
 - **[ADR-012](012_target_scale_and_prefix_convention.md)** — Target Scale and Prefix Convention
 - **[ADR-013](013_regression_target_name_agnosticism.md)** — Regression-Target Name Agnosticism (config is the single source of truth)
+- **[ADR-014](014_reconciliation_composition_root.md)** — Reconciliation Composition Root (the sanctioned DIP wiring layer for the reconciler port)
 
 Candidates for future ADRs:
 
