@@ -593,3 +593,60 @@ class TestPFEEnsembleAggregation:
         assert "time" in ids and "unit" in ids, (
             f"{name}: identifiers.npz missing keys, got {list(ids.keys())}"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Epic #216 — point/stochastic contract lockdown (positive + negative)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestPointStochasticReadinessContract:
+    """Pin the point/stochastic readiness contract so it cannot silently
+    regress (#216/#221).
+
+    A point model must OMIT ``n_posterior_samples``; a stochastic model must
+    declare a positive int; a missing ``evaluation_mode`` defaults to
+    stochastic. These tests are config/logic-level (no prediction artifacts).
+    """
+
+    pytestmark = [pytest.mark.green]
+
+    # ── negative: point honesty — declaring any count (the old fake-1) is rejected
+    @pytest.mark.parametrize("n,ok", [(None, True), (1, False), (5, False)])
+    def test_point_must_omit_samples(self, n, ok):
+        assert _n_posterior_samples_ok("point", n) is ok
+
+    # ── negative: stochastic honesty — must declare a positive int
+    @pytest.mark.parametrize("n,ok", [(None, False), (0, False), (1, True), (128, True)])
+    def test_stochastic_requires_positive_int(self, n, ok):
+        assert _n_posterior_samples_ok("stochastic", n) is ok
+
+    # ── back-compat: a model with no evaluation_mode resolves to stochastic
+    def test_missing_evaluation_mode_defaults_stochastic(self, monkeypatch):
+        monkeypatch.setattr(
+            "tests.test_pfe_production_readiness._load_meta",
+            lambda name, base_dir=MODELS_DIR: {"prediction_format": "prediction_frame"},
+        )
+        assert _model_eval_mode("anything") == "stochastic"
+
+    # ── output/aggregation: a point model contributes a single column
+    def test_point_output_width_and_constituent_count_are_one(self, monkeypatch):
+        monkeypatch.setattr(
+            "tests.test_pfe_production_readiness._model_eval_mode",
+            lambda *a, **k: "point",
+        )
+        assert _expected_output_width("any") == 1
+        assert _constituent_sample_count("any", "ens") == 1
+
+    # ── positive: real shipped point models pass honestly (re-faking is caught here)
+    @pytest.mark.parametrize(
+        "name", ["zero_cmbaseline", "locf_pgmbaseline", "diagonal_dream"]
+    )
+    def test_real_point_models_pass_without_samples(self, name):
+        assert _model_eval_mode(name) == "point", (
+            f"{name}: expected evaluation_mode=point in config_meta"
+        )
+        n = _load_hp(name).get("n_posterior_samples")
+        assert n is None, (
+            f"{name}: point model must not declare n_posterior_samples (got {n})"
+        )
+        assert _n_posterior_samples_ok("point", n) is True
