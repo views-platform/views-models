@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-06-27  
+**Last updated:** 2026-06-28  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 97 (93 concerns + 4 disagreements)  
-**Concerns:** Open 39 | Mitigated 14 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 98 (94 concerns + 4 disagreements)  
+**Concerns:** Open 40 | Mitigated 14 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -709,7 +709,7 @@
 | **Source** | falsify: bump edge cases (2026-06-06) |
 | **Status** | Resolved |
 | **Location** | `tools/partitions/fileops.py:extract_values()` and `rewrite_values()` — regex `"calibration":\s*\{(.*?)\}` matches first occurrence |
-| **Notes** | The regex matches the first occurrence of `"calibration": {` in the file. If that's in a comment, docstring, or dead code, `extract_values` reads wrong values and `rewrite_values` modifies the wrong location. No current file triggers this, but a single comment addition would cause silent corruption. **Tier 2 justification:** silent data corruption — the tool reports success while leaving the actual partition values unchanged. |
+| **Notes** | The regex matches the first occurrence of `"calibration": {` in the file. If that's in a comment, docstring, or dead code, `extract_values` reads wrong values and `rewrite_values` modifies the wrong location. No current file triggers this, but a single comment addition would cause silent corruption. **Tier 2 justification:** silent data corruption — the tool reports success while leaving the actual partition values unchanged. **2026-06-28 (pattern recurrence, config_meta):** the same comment-vs-real-dict regex hazard recurred *outside* the partition tooling — an ad-hoc model-cloning script (12 CM datafactory models) patched `config_meta.py` `regression_targets` with a `count=1` regex that matched a **commented** template line (`# "regression_targets": [...]`) ahead of the real key, leaving the real target wrong. Caught by per-model spot-check before commit (not shipped → C-57 stays **Resolved**). Confirms the pattern is general to **any regex-based config edit**: source models carry commented template key-lines in `config_meta.py`, so config-patching tooling must skip commented lines. Logged so future model-cloning/config tooling guards against it. |
 
 ---
 
@@ -1172,6 +1172,19 @@
 | **Status** | Open |
 | **Location** | `tools/catalogs/update_readme.py:84` (models loop) and `:215` (ensembles loop) — both at module top level, no `if __name__ == "__main__"` guard, no enclosing function |
 | **Notes** | Unlike C-04/C-65 (which frame the module as merely *untestable* because importing pulls in `views_pipeline_core`), the sharper failure is that even with the runtime present the import **does work and mutates the repo / crashes**: during #99, `python -c "from tools.catalogs.update_readme import _FIXTURE_ENTRIES"` raised `FileNotFoundError` on `models/teenage_dirtbag/artifacts` because the import ran the whole generation. This is why the #99 `TestFixtureSetConsistency` check had to **source-read** the file (`read_text` + regex) instead of importing it to inspect `_FIXTURE_ENTRIES` — the canonical-fixture value cannot be asserted by import. Root cause is structural (top-level loops), distinct from C-81 (crash *robustness* when run as intended — same loops, but C-81 is about partial-regeneration on `iterdir()` order) and from C-92 (import**or**skip). Fix: wrap each loop in a `def main()` behind `if __name__ == "__main__"`, so the module exposes an importable API and only regenerates when run as a script. See also C-81 (crash-on-incomplete-dir, same loops), C-65 (catalog tools untested), C-04 (catalog scripts not importable), C-61 (fixture source-of-truth, the #99 trigger). |
+
+---
+
+### C-94 — Datafactory `country_month` aggregation sums intensive features silently; CM datafactory models must stay count-only
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer adds an intensive feature (a V-Dem index, most WDI rates) to a `country_month` views-datafactory model's `config_queryset.py` feature set — e.g. the 12 `{warring,ravaging,roaming}_{mage,cleric,fighter,thief}` CM models — before datafactory ships per-feature weighted-mean aggregation |
+| **Source** | session investigation (2026-06-28, 12 CM datafactory model scaffold) |
+| **Status** | Open |
+| **Location** | views-datafactory `src/datafactory_adapters/grid_to_country_month.py` (`.groupby(["month_id","country_id"]).sum()` on all features); consumed by views-models `models/{warring,ravaging,roaming}_{mage,cleric,fighter,thief}/configs/config_queryset.py` (`loa: "country_month"`) |
+| **Notes** | `grid_to_country_month` aggregates grid→country by **summing every feature**. Correct for **extensive/count** features (`ged_*_best`, `acled_*` — the minimal UCDP set these 12 CM models use), **wrong for intensive** features (indices/rates: V-Dem, most WDI) — summing an index across a country's grid cells is meaningless. The adapter only **warns** for known intensive prefixes (`_INTENSIVE_PREFIXES = shdi/healthindex/edindex/incindex/vdem_/ghs_built_`) and **still sums them**; critically, **WDI is in neither the intensive list nor the extensive (`ged_/acled_`) list, so WDI rates are summed with NO warning** — pure silent corruption of model inputs. datafactory **ADR-040 explicitly defers** intensive aggregation ("weighted average, not sum") to a future ADR. **Why this is a views-models concern:** the 12 CM datafactory "label" models (the gaul0 `reconcile_with` target for the reconciling rusty_bucket clone #144 — see project memory) are deliberately scoped to UCDP **counts only**; that constraint is **load-bearing, not stylistic**. Adding V-Dem/WDI before the datafactory per-feature weighted-mean aggregation lands feeds silently-wrong summed indices into training. Tier 2: structural fragility, clear trigger (add an intensive feature), **silent** failure (no error; meaningless values) — read with Tier-1 caution. Exit (datafactory-side): a per-feature aggregation registry (sum vs weighted-mean + a population/area weight) + fail-loud on unclassified features; then these models can gain richer features safely. The minimal-UCDP draft (branch `feature/datafactory-cm-r2darts-models`) carries this constraint as a comment in each `config_queryset.py`. See also C-48 (ged variant parity), C-13 / C-44 (quality-blind aggregation), C-89 (viewser→datafactory migration substrate). |
 
 ---
 
