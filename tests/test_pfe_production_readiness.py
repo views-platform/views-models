@@ -4,6 +4,13 @@ TDD tests for the PFE production roadmap (views-pipeline-core
 2026-06-01_pfe_production_roadmap.md). All expectations are derived
 from model and ensemble configs — nothing is hardcoded.
 
+The contract is point-aware (ADR-016, epic #216): a model's
+``config_meta.evaluation_mode`` (``point`` | ``stochastic``; missing ⇒
+stochastic) selects how it is validated. Point models do no sampling — they
+omit ``n_posterior_samples`` and emit ``(N, 1)``; stochastic models declare a
+positive-int ``n_posterior_samples`` and emit ``(N, n)``. In ensemble
+aggregation a point constituent contributes one column.
+
 Green tests (config-level) always run.
 Red tests (output-level) skip when prediction outputs don't exist.
 """
