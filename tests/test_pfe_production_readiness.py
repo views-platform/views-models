@@ -57,6 +57,30 @@ def _require_n_posterior_samples(hp, name):
     return n
 
 
+def _model_eval_mode(name, base_dir=MODELS_DIR):
+    """Resolve a PF model's content mode (``point``|``stochastic``) from config.
+
+    The discriminator is ``config_meta.evaluation_mode`` (epic #216, decided in
+    #217 — mirrors HydraNet's ``evaluation_mode``). A missing value defaults to
+    ``stochastic`` so existing stochastic models are unaffected and only point
+    models must opt in.
+    """
+    return _load_meta(name, base_dir).get("evaluation_mode", "stochastic")
+
+
+def _n_posterior_samples_ok(mode, n):
+    """Pure sampling-count predicate, branched on ``evaluation_mode`` (#216/#217).
+
+    - ``point``  → the model does no sampling, so it must **omit**
+      ``n_posterior_samples`` (``n is None``); declaring any count (even 1) is
+      incoherent — that was the dishonest workaround this epic removes.
+    - otherwise (``stochastic``) → ``n_posterior_samples`` must be a positive int.
+    """
+    if mode == "point":
+        return n is None
+    return isinstance(n, int) and n > 0
+
+
 def _discover_pf_models():
     """Return names of all models with prediction_format == 'prediction_frame'."""
     pf_models = []
@@ -124,10 +148,22 @@ class TestPFModelConfigReadiness:
         return request.param
 
     def test_has_n_posterior_samples(self, pf_model):
+        """Sampling-count contract, branched on ``evaluation_mode`` (#216/#217).
+
+        Point models do no sampling and must omit ``n_posterior_samples``;
+        stochastic models must declare a positive int. Missing
+        ``evaluation_mode`` defaults to stochastic.
+        """
         hp = _load_hp(pf_model)
         n = hp.get("n_posterior_samples")
-        assert isinstance(n, int) and n > 0, (
-            f"{pf_model}: n_posterior_samples must be a positive int, got {n}"
+        mode = _model_eval_mode(pf_model)
+        assert _n_posterior_samples_ok(mode, n), (
+            f"{pf_model} (evaluation_mode={mode}): "
+            + (
+                f"point model must omit n_posterior_samples (does no sampling), got {n}"
+                if mode == "point"
+                else f"n_posterior_samples must be a positive int, got {n}"
+            )
         )
 
     def test_has_prediction_format(self, pf_model):
