@@ -81,6 +81,39 @@ def _n_posterior_samples_ok(mode, n):
     return isinstance(n, int) and n > 0
 
 
+def _expected_output_width(name, base_dir=MODELS_DIR):
+    """Expected ``y_pred`` sample-axis width for a single PF model (#216/#219).
+
+    point ⇒ 1 (collapsed to a scalar per cell, à la HydraNet's
+    ``collapse_to_point``); stochastic ⇒ ``n_posterior_samples`` (skip if absent
+    — the green config test owns that failure).
+    """
+    if _model_eval_mode(name, base_dir) == "point":
+        return 1
+    hp = _load_hp(name, base_dir)
+    return _require_n_posterior_samples(hp, name)
+
+
+def _constituent_sample_count(model_name, ensemble_name=None):
+    """Sample-axis columns contributed by one PF constituent (#216/#219).
+
+    A point constituent contributes a single column; a stochastic constituent
+    contributes its ``n_posterior_samples`` (skip if missing — the green config
+    test owns that failure). Keeps ``concat`` (sum) and ``arithmetic_mean``
+    expectations correct for ensembles mixing point + stochastic constituents.
+    """
+    if _model_eval_mode(model_name) == "point":
+        return 1
+    hp = _load_hp(model_name)
+    n = hp.get("n_posterior_samples")
+    if n is None:
+        pytest.skip(
+            f"{ensemble_name or model_name}: constituent {model_name} missing "
+            f"n_posterior_samples (green test catches this)"
+        )
+    return n
+
+
 def _discover_pf_models():
     """Return names of all models with prediction_format == 'prediction_frame'."""
     pf_models = []
@@ -243,10 +276,10 @@ class TestPFEEnsembleConfigReadiness:
         if meta.get("aggregation") != "arithmetic_mean":
             pytest.skip("only applies to arithmetic_mean aggregation")
         modelset = _load_config(ENSEMBLES_DIR, pfe_ensemble, "config_modelset")
-        samples = []
-        for model_name in modelset["models"]:
-            hp = _load_hp(model_name)
-            samples.append(_require_n_posterior_samples(hp, model_name))
+        samples = [
+            _constituent_sample_count(model_name, pfe_ensemble)
+            for model_name in modelset["models"]
+        ]
         assert len(set(samples)) == 1, (
             f"{pfe_ensemble} uses arithmetic_mean but constituents have "
             f"different n_posterior_samples: {samples}"
@@ -309,7 +342,7 @@ class TestPredictionFrameOutput:
         name = pf_case[0]
         hp = _load_hp(name)
         targets = _require_regression_targets(hp, name)
-        expected_samples = _require_n_posterior_samples(hp, name)
+        expected_samples = _expected_output_width(name)
         first_origin = self._origins(pf_case)[0]
         y = np.load(first_origin / targets[0] / "y_pred.npy", mmap_mode="r")
         assert y.ndim == 2, f"{name}: y_pred must be 2D, got {y.ndim}D"
@@ -463,16 +496,10 @@ def _expected_ensemble_samples(ensemble_name):
     meta = _load_meta(ensemble_name, ENSEMBLES_DIR)
     aggregation = meta["aggregation"]
     modelset = _load_config(ENSEMBLES_DIR, ensemble_name, "config_modelset")
-    samples = []
-    for model_name in modelset["models"]:
-        hp = _load_hp(model_name)
-        n = hp.get("n_posterior_samples")
-        if n is None:
-            pytest.skip(
-                f"{ensemble_name}: constituent {model_name} missing "
-                f"n_posterior_samples (green test catches this)"
-            )
-        samples.append(n)
+    samples = [
+        _constituent_sample_count(model_name, ensemble_name)
+        for model_name in modelset["models"]
+    ]
     if aggregation == "concat":
         # PFE concat = np.concatenate on the sample axis
         # (pipeline-core managers/ensemble/prediction_frame_ensemble.py:99), so the
