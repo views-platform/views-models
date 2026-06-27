@@ -6,6 +6,7 @@ def get_meta_config():
         "level": "pgm",
         "creator": "synthetic_test",
         "prediction_format": "prediction_frame",
+        "evaluation_mode": "point",
         "rolling_origin_stride": 1,
         "regression_point_metrics": ["MSE"],
     }
