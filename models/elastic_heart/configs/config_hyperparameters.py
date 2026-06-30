@@ -21,7 +21,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 128,
+        "batch_size": 256,
         "n_epochs": 300,
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
@@ -109,7 +109,7 @@ def get_hp_config():
         "num_blocks": 2,
         "hidden_size": 256,
         "ff_size": 512,
-        "activation": "ReLU",
+        "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": False,
         "dropout": 0.4,

@@ -24,21 +24,21 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.10,
+        "dropout": 0.3,
         "use_static_covariates": True,
 
         # Training
         "n_epochs": 300,
-        "batch_size": 128,
+        "batch_size": 256,
         "random_state": 67,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 7e-4,
+        "lr": 3e-4,
         "weight_decay": 1e-4,
         "optimizer_kwargs": {
-            "lr": 7e-4,
+            "lr": 3e-4,
             "weight_decay": 1e-4,
         },
 
@@ -59,7 +59,7 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 5,
+        "gradient_clip_val": 40.0,
         "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
 

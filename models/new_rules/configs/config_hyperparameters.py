@@ -12,11 +12,11 @@ def get_hp_config():
         "num_stacks": 2,
         "num_blocks": 2,
         "num_layers": 3,
-        "layer_widths": 256,
-        "expansion_coefficient_dim": 512,
+        "layer_widths": 128,
+        "expansion_coefficient_dim": 128,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.1,
+        "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -28,19 +28,19 @@ def get_hp_config():
         "output_chunk_shift": 0,
 
         # --- Training ---
-        "batch_size": 128,
+        "batch_size": 256,
         "n_epochs": 300,
-        "early_stopping_patience": 15,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 5e-4,
+        "lr": 3e-4,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 50.0,
+        "gradient_clip_val": 40.0,
         "optimizer_kwargs": {
-            "lr": 5e-4,
+            "lr": 3e-4,
             "weight_decay": 3e-4,
         },
 
@@ -58,8 +58,6 @@ def get_hp_config():
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
-        "early_stopping_monitor": "val_metrics/MSLE",
-        "lr_scheduler_monitor": "val_metrics/MSLE",
 
         # --- Scaling ---
         "target_scaler": "AsinhTransform",
@@ -67,7 +65,7 @@ def get_hp_config():
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
-                    # "lr_ged_ns", "lr_ged_os",
+                    "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
@@ -111,7 +109,7 @@ def get_hp_config():
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
-        # "delta": 0.07139486580318413,
+        "delta": 0.07139486580318413,
 
         # --- Prediction ---
         "likelihood": None,
