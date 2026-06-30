@@ -39,8 +39,9 @@ def get_hp_config():
             "cooldown": 5,                     # Give parameters time to settle post-decay
             "threshold": 0.005,                # Require clear improvement
             "threshold_mode": "rel",
-            "monitor": "val_loss",
         },
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         "optimizer_kwargs": {
             "lr": 0.0003,
             "weight_decay": 0.001,
