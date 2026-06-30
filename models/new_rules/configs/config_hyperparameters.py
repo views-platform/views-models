@@ -58,6 +58,8 @@ def get_hp_config():
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
 
         # --- Scaling ---
         "target_scaler": "AsinhTransform",
