@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Training
         "n_epochs": 300,
-        "batch_size": 128,
+        "batch_size": 512,
         "random_state": 67,
         "force_reset": True,
 
