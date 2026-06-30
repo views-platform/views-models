@@ -30,7 +30,7 @@ def get_hp_config():
         # --- Training ---
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 20,
+        "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
@@ -58,6 +58,8 @@ def get_hp_config():
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
 
         # --- Scaling ---
         "target_scaler": "AsinhTransform",
@@ -65,7 +67,7 @@ def get_hp_config():
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
-                    "lr_ged_ns", "lr_ged_os",
+                    # "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",

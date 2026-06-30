@@ -2,7 +2,7 @@ def get_hp_config():
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1)],
-        "input_chunk_length": 36,
+        "input_chunk_length": 48,              # Expanded context window (36 -> 48): Provides stable 4-year sequence background. This enables coarser stacks to build far tighter scaling trends, neutralizing positive event overprediction.
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
@@ -39,8 +39,9 @@ def get_hp_config():
             "cooldown": 5,                     # Give parameters time to settle post-decay
             "threshold": 0.005,                # Require clear improvement
             "threshold_mode": "rel",
-            "monitor": "val_loss",
         },
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         "optimizer_kwargs": {
             "lr": 0.0003,
             "weight_decay": 0.001,
@@ -53,7 +54,8 @@ def get_hp_config():
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
-                "lr_ged_ns", "lr_ged_os", "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                # "lr_ged_ns", "lr_ged_os", 
+                "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                 "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                 "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                 "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
@@ -81,7 +83,7 @@ def get_hp_config():
         "pooling_kernel_sizes": [[6], [3], [1]], # Coarse (6:1), medium (3:1), fine (1:1) pooling downsampling
         "n_freq_downsample": [[6], [2], [1]],    # Hierarchical frequency representation matching basis interpolation
         "activation": "GELU",                  
-        "dropout": 0.25,                       # Standard regularization to prevent memorize-overfitting while preserving expressive capacity
+        "dropout": 0.2,                       # Standard regularization to prevent memorize-overfitting while preserving expressive capacity
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": False,                 

@@ -18,7 +18,7 @@ model_name = ModelPathManager.get_model_name_from_path(__file__)
 
 # Data source URL — load_dataset() detects zarr vs npy from the path.
 # Zarr over HTTP requires ~/.netrc credentials (see README.md).
-ZARR_URL = "204.168.219.108"
+ZARR_URL = "DEFAULT_REMOTE.zarr_url"
 
 # 64,818 PRIO-GRID land cells (global coverage, excluding water)
 REGION = "land"

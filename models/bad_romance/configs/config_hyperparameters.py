@@ -45,21 +45,22 @@ def get_hp_config():
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 30,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 30,
+            "patience": 15,
             "min_lr": 1e-6,
             "cooldown": 5,
-            "threshold": 0.005,
+            "threshold": 0.01,
             "threshold_mode": "rel",
         },
-
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
         "gradient_clip_val": 5,
-        "early_stopping_patience": 35,
+        "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
 
         # Loss
@@ -79,7 +80,7 @@ def get_hp_config():
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
-                    "lr_ged_ns", "lr_ged_os",
+                    # "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",

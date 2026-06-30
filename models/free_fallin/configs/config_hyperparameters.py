@@ -23,18 +23,21 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 25,
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4, 
+        "lr": 3e-4,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 250.0,
+        "gradient_clip_val": 40.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
+        
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
@@ -61,7 +64,7 @@ def get_hp_config():
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
-                    "lr_ged_ns", "lr_ged_os",
+                    # "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
