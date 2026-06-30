@@ -21,7 +21,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 256,
+        "batch_size": 64,
         "n_epochs": 300,
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
