@@ -116,7 +116,7 @@ def get_hp_config():
         "layer_widths": 128,
         "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
         "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
-        "activation": "LeakyReLU",
+        "activation": "Tanh",
         "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
