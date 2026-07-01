@@ -25,7 +25,7 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.35,
+        "dropout": 0.3,
         "use_static_covariates": True,
 
         # Training
@@ -36,32 +36,32 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 1.5e-4,
         "weight_decay": 1e-4,
         "optimizer_kwargs": {
-            "lr": 2e-4,
+            "lr": 1.5e-4,
             "weight_decay": 1e-4,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 10,
+        "lr_scheduler_patience": 12,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 10,
+            "patience": 12,
             "min_lr": 1e-6,
-            "cooldown": 5,
-            "threshold": 0.01,
+            "cooldown": 3,
+            "threshold": 0.005,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 30.0,
-        "early_stopping_patience": 15,
+        "gradient_clip_val": 20.0,
+        "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
 
         # Loss
