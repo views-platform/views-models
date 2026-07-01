@@ -45,24 +45,24 @@ def get_hp_config():
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 12,
+        "lr_scheduler_factor": 0.3,
+        "lr_scheduler_patience": 3,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.5,
-            "patience": 12,
+            "factor": 0.3,
+            "patience": 3,
             "min_lr": 1e-6,
-            "cooldown": 3,
-            "threshold": 0.005,
+            "cooldown": 0,
+            "threshold": 0.002,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
         "gradient_clip_val": 20.0,
-        "early_stopping_patience": 20,
-        "early_stopping_min_delta": 0.001,
+        "early_stopping_patience": 8,
+        "early_stopping_min_delta": 0.002,
 
         # Loss
         # "loss_function": "SpotlightLossLogcosh",
