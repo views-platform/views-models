@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4,
+        "lr": 1.5e-4,
         "weight_decay": 3e-4,
-        "gradient_clip_val": 40.0,
+        "gradient_clip_val": 20.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -51,7 +51,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
 
         "optimizer_kwargs": {
-            "lr": 3e-4,
+            "lr": 1.5e-4,
             "weight_decay": 3e-4,
         },
 
@@ -119,7 +119,7 @@ def get_hp_config():
         # IMPORTANT: For this N-HiTS setup, non-Tanh activations have shown
         # irreversible calibration blow-ups in early epochs.
         "activation": "Tanh",
-        "dropout": 0.3,
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
