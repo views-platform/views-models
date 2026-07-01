@@ -21,7 +21,7 @@ def get_hp_config():
         "n_jobs": -1,
 
         # Training
-        "batch_size": 64,
+        "batch_size": 128,
         "n_epochs": 300,
         "early_stopping_patience": 20,
         "early_stopping_min_delta": 0.001,
@@ -116,6 +116,8 @@ def get_hp_config():
         "layer_widths": 128,
         "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
         "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
+        # IMPORTANT: For this N-HiTS setup, non-Tanh activations have shown
+        # irreversible calibration blow-ups in early epochs.
         "activation": "Tanh",
         "dropout": 0.3,
         "use_static_covariates": True,
