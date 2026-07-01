@@ -14,7 +14,7 @@ def get_meta_config():
         "model_reg": "LGBMRegressor",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
         "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "queryset": "fatalities003_conflict_history",
         "level": "cm",
         "creator": "Borbála",
