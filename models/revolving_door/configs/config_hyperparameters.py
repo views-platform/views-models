@@ -118,7 +118,7 @@ def get_hp_config():
         "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
         # IMPORTANT: For this N-HiTS setup, non-Tanh activations have shown
         # irreversible calibration blow-ups in early epochs.
-        "activation": "LeakyReLU",
+        "activation": "Tanh",
         "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
