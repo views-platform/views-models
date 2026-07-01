@@ -13,7 +13,6 @@ import random
 import numpy as np
 import torch
 
-
 warnings.filterwarnings("ignore")
 
 
@@ -61,7 +60,10 @@ if __name__ == "__main__":
         start_doccano_server()
 
     # Initialize dataset with multi-label support
-    dataframe = read_dataframe("/home/sonja/Desktop/Kristine_MT/data/acled_train.csv")
+    # dataframe = read_dataframe("/home/sonja/Desktop/Kristine_MT/data/acled_train.csv")
+    dataframe = read_dataframe(
+        "/home/sonja/Desktop/views-platform/experiments/data/icr_events_extracted.csv"
+    )
     # dataframe = read_dataframe("/home/sonja/Downloads/icr_examples.csv")
     # HOME = Path.home()
     # file_path = HOME / 'views-platform/experiments/data/edattack_synthetic_data/combined_icr_acled.csv'
@@ -84,8 +86,8 @@ if __name__ == "__main__":
         dataset=partial(
             ViewsTextDataset,
             dataframe=dataframe.head(5000),
-            text_col="notes",
-            id_col="event_id_cnty",
+            text_col="event_sentence_text",
+            id_col="event_id",
             label_col=None,
         ),
     )

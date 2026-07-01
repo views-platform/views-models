@@ -41,6 +41,12 @@ def get_hp_config():
             "Edattack_Annotator4_Sonja",
             "Consensus_Edattack",
         ],
+        "coders": [
+            {"username": "gudrun", "password": "ChangeMe123!"},
+            {"username": "roos", "password": "ChangeMe123!"},
+            {"username": "kristine", "password": "ChangeMe123!"},
+            {"username": "sonja", "password": "ChangeMe123!"},
+        ],
         "max_iterations": 10,
         "disagreement_strategy": 1,
         "query_size": 10,
