@@ -13,14 +13,14 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 384,
-        "decoder_output_dim": 96,
-        "temporal_decoder_hidden": 128,
-        "temporal_width_past": 48,
-        "temporal_width_future": 4,
-        "temporal_hidden_size_past": 128,
-        "temporal_hidden_size_future": 32,
-        "num_encoder_layers": 3,
+        "hidden_size": 256,
+        "decoder_output_dim": 64,
+        "temporal_decoder_hidden": 96,
+        "temporal_width_past": 32,
+        "temporal_width_future": 3,
+        "temporal_hidden_size_past": 96,
+        "temporal_hidden_size_future": 16,
+        "num_encoder_layers": 2,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Training
         "n_epochs": 300,
-        "batch_size": 256,
+        "batch_size": 128,
         "random_state": 67,
         "force_reset": True,
 
@@ -42,26 +42,26 @@ def get_hp_config():
             "weight_decay": 1e-4,
         },
 
-        # LR Scheduler
+# LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 15,
-        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_patience": 5,
+        "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 15,
-            "min_lr": 1e-6,
-            "cooldown": 5,
-            "threshold": 0.01,
+            "patience": 5,
+            "min_lr": 3e-6,
+            "cooldown": 0,
+            "threshold": 0.002,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 40.0,
-        "early_stopping_patience": 15,
-        "early_stopping_min_delta": 0.001,
+        "gradient_clip_val": 25.0,
+        "early_stopping_patience": 12,
+        "early_stopping_min_delta": 0.002,
 
         # Loss
         # "loss_function": "SpotlightLossLogcosh",
