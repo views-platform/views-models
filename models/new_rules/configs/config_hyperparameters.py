@@ -2,7 +2,7 @@ def get_hp_config():
     """
     N-BEATS hyperparameters
     """
-    # r8
+    # r9
     hyperparameters = {
         # --- Forecast horizon ---
         "steps": list(range(1, 37)),
@@ -36,23 +36,23 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 1.2e-4,
-        "weight_decay": 5e-5,
-        "gradient_clip_val": 25.0,
+        "lr": 8e-5,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 8.0,
         "optimizer_kwargs": {
-            "lr": 1.2e-4,
-            "weight_decay": 5e-5,
+            "lr": 8e-5,
+            "weight_decay": 1e-4,
         },
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 5,
+        "lr_scheduler_patience": 8,
         "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 5,
+            "patience": 8,
             "min_lr": 3e-6,
             "cooldown": 0,
             "threshold": 0.002,
