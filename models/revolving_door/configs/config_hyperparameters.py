@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4,
+        "lr": 2e-4,
         "weight_decay": 5e-5,
         "gradient_clip_val": 25.0,
 
@@ -51,7 +51,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
 
         "optimizer_kwargs": {
-            "lr": 3e-4,
+            "lr": 2e-4,
             "weight_decay": 5e-5,
         },
 
@@ -114,14 +114,16 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        "num_stacks": 3,
+        "num_stacks": 2,
         "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 256,
-        "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
-        "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
+        "layer_widths": 192,
+        # Mild multi-scale decomposition: one coarse-to-fine stack + one
+        # high-frequency stack to preserve local spikes.
+        "pooling_kernel_sizes": [[2, 1], [1, 1]],
+        "n_freq_downsample": [[2, 1], [1, 1]],
         "activation": "GELU",
-        "dropout": 0.4,
+        "dropout": 0.25,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
