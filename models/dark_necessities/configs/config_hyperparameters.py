@@ -115,6 +115,7 @@ def get_hp_config():
                 "lr_decay_ged_os_100",
                 "lr_decay_ged_os_500",
                 "lr_decay_ged_ns_5",
+                "lr_decay_ged_ns_1",
                 "lr_decay_ged_ns_25",
                 "lr_decay_ged_ns_100",
                 "lr_decay_ged_ns_500",
@@ -122,6 +123,25 @@ def get_hp_config():
                 # Spatial-temporal lag features
                 "lr_splag_1_1_sb_1",
                 "lr_splag_1_decay_ged_sb_1",
+                "lr_splag_1_decay_ged_os_1",
+                "lr_splag_1_decay_ged_ns_1",
+
+                # Graph/tree and space-time spillover features
+                "lr_treelag_1_sb",
+                "lr_treelag_2_sb",
+                "lr_treelag_1_os",
+                "lr_treelag_2_os",
+                "lr_treelag_1_ns",
+                "lr_treelag_2_ns",
+                "lr_sptime_dist_k1_ged_sb",
+                "lr_sptime_dist_k10_ged_sb",
+                "lr_sptime_dist_k001_ged_sb",
+                "lr_sptime_dist_k1_ged_os",
+                "lr_sptime_dist_k10_ged_os",
+                "lr_sptime_dist_k001_ged_os",
+                "lr_sptime_dist_k1_ged_ns",
+                "lr_sptime_dist_k10_ged_ns",
+                "lr_sptime_dist_k001_ged_ns",
             ],
         },
 

@@ -16,8 +16,10 @@ def get_meta_config():
         "prediction_format": "dataframe",
         "model_reg": "XGBRegressor",
         "model_clf": "XGBClassifier",
-        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
+        # "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
+        # "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+        "regression_sample_baselines": ["red_ranger", "maroon_ranger"],
         "queryset": "uncertainty_broad_nolog",
         "rolling_origin_stride": 1,
     }
