@@ -30,30 +30,30 @@ def get_hp_config():
         # --- Training ---
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 8,
+        "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
         "force_reset": True,
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 12.0,
+        "lr": 1.2e-4,
+        "weight_decay": 5e-5,
+        "gradient_clip_val": 25.0,
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 1e-4,
+            "lr": 1.2e-4,
+            "weight_decay": 5e-5,
         },
 
         # --- LR Scheduler ---
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.3,
-        "lr_scheduler_patience": 3,
-        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 5,
+        "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.3,
-            "patience": 3,
-            "min_lr": 1e-6,
+            "factor": 0.5,
+            "patience": 5,
+            "min_lr": 3e-6,
             "cooldown": 0,
             "threshold": 0.002,
             "threshold_mode": "rel",

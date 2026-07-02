@@ -23,26 +23,26 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 8,
+        "early_stopping_patience": 14,
         "early_stopping_min_delta": 0.002,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 12.0,
+        "lr": 3e-4,
+        "weight_decay": 5e-5,
+        "gradient_clip_val": 25.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.3,
-        "lr_scheduler_patience": 3,
-        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 6,
+        "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.3,
-            "patience": 3,
-            "min_lr": 1e-6,
+            "factor": 0.5,
+            "patience": 6,
+            "min_lr": 3e-6,
             "cooldown": 0,
             "threshold": 0.002,
             "threshold_mode": "rel",
@@ -51,8 +51,8 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
 
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 1e-4,
+            "lr": 3e-4,
+            "weight_decay": 5e-5,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -117,13 +117,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 96,
+        "layer_widths": 80,
         "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
         "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
-        # IMPORTANT: For this N-HiTS setup, non-Tanh activations have shown
-        # irreversible calibration blow-ups in early epochs.
-        "activation": "Tanh",
-        "dropout": 0.35,
+        "activation": "GELU",
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,

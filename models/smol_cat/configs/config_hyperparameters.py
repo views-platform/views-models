@@ -36,23 +36,23 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1.5e-4,
-        "weight_decay": 1e-4,
+        "lr": 2e-4,
+        "weight_decay": 5e-5,
         "optimizer_kwargs": {
-            "lr": 1.5e-4,
-            "weight_decay": 1e-4,
+            "lr": 2e-4,
+            "weight_decay": 5e-5,
         },
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
-        "lr_scheduler_factor": 0.3,
-        "lr_scheduler_patience": 3,
-        "lr_scheduler_min_lr": 1e-6,
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 5,
+        "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
-            "factor": 0.3,
-            "patience": 3,
-            "min_lr": 1e-6,
+            "factor": 0.5,
+            "patience": 5,
+            "min_lr": 3e-6,
             "cooldown": 0,
             "threshold": 0.002,
             "threshold_mode": "rel",
@@ -60,8 +60,8 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 20.0,
-        "early_stopping_patience": 8,
+        "gradient_clip_val": 25.0,
+        "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
 
         # Loss

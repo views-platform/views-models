@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'higher_hopes'
+        'name': 'demon_weeks'
     }
 
     # Example metric setup:
