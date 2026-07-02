@@ -115,11 +115,11 @@ def get_hp_config():
 
         # N-HiTS Architecture
         "num_stacks": 3,
-        "num_blocks": 2,
+        "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 80,
-        "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
-        "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
+        "pooling_kernel_sizes": [[1], [1], [1]],
+        "n_freq_downsample": [[1], [1], [1]],
         "activation": "GELU",
         "dropout": 0.4,
         "use_static_covariates": True,

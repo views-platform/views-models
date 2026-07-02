@@ -11,7 +11,7 @@ def get_hp_config():
         "generic_architecture": True,
         "num_stacks": 2,
         "num_blocks": 2,
-        "num_layers": 3,
+        "num_layers": 2,
         "layer_widths": 96,
         "expansion_coefficient_dim": 96,
         "trend_polynomial_degree": 2,
