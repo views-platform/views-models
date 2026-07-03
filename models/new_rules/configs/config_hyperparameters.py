@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 8e-5,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 8.0,
+        "gradient_clip_val": 50.0,
         "optimizer_kwargs": {
             "lr": 8e-5,
             "weight_decay": 1e-4,
