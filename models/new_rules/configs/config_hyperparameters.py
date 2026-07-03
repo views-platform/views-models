@@ -36,12 +36,12 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 8e-5,
-        "weight_decay": 1e-4,
+        "lr": 5e-4,
+        "weight_decay": 3e-4,
         "gradient_clip_val": 50.0,
         "optimizer_kwargs": {
-            "lr": 8e-5,
-            "weight_decay": 1e-4,
+            "lr": 5e-4,
+            "weight_decay": 3e-4,
         },
 
         # --- LR Scheduler ---
