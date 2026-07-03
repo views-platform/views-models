@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 3e-4,
         "weight_decay": 5e-5,
-        "gradient_clip_val": 25.0,
+        "gradient_clip_val": 50.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -51,7 +51,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
 
         "optimizer_kwargs": {
-            "lr": 2e-4,
+            "lr": 3e-4,
             "weight_decay": 5e-5,
         },
 
@@ -60,7 +60,6 @@ def get_hp_config():
         # learned interpolation coefficients from growing unbounded.
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
-        "delta": 0.041685644972051974,
 
         # Scaling
         "feature_scaler": None,
@@ -80,7 +79,6 @@ def get_hp_config():
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
                     "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
                     "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
                     "lr_ged_ns_tlag_1", "lr_ged_ns_tlag_2", "lr_ged_ns_tlag_3",
@@ -114,16 +112,14 @@ def get_hp_config():
         },
 
         # N-HiTS Architecture
-        "num_stacks": 2,
+        "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 192,
-        # Mild multi-scale decomposition: one coarse-to-fine stack + one
-        # high-frequency stack to preserve local spikes.
-        "pooling_kernel_sizes": [[2, 1], [1, 1]],
-        "n_freq_downsample": [[2, 1], [1, 1]],
+        "layer_widths": 128,
+        "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
+        "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
         "activation": "GELU",
-        "dropout": 0.25,
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
