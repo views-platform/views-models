@@ -11,10 +11,15 @@ def get_meta_config():
         "models": ["smol_cat", 
                    "revolving_door", 
                    "elastic_heart", 
-                   "new_rules", 
+                   "new_rules",
+                   "bus_radio",
+                   "demon_weeks",
+                   "higher_hopes",
+                   "fluorescent_adult",
+                   "unpopular_monster"
                 #    "good_life"
                    ],
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm", 
         "aggregation": "mean",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
