@@ -115,7 +115,7 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 128,
+        "layer_widths": 256,
         "pooling_kernel_sizes": [[1, 1], [1, 1], [1, 1]],
         "n_freq_downsample": [[1, 1], [1, 1], [1, 1]],
         "activation": "GELU",
