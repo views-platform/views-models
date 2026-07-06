@@ -9,7 +9,8 @@ def get_modelset_config():
         "models": ["bad_romance", 
                    "free_fallin", 
                    "cold_heart", 
-                   "beautiful_people", 
+                   "beautiful_people",
+                   "lovely_creature",
                 #    "holy_grail"
                    ],
     }

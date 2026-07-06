@@ -11,7 +11,8 @@ def get_meta_config():
         "models": ["bad_romance", 
                    "free_fallin", 
                    "cold_heart", 
-                   "beautiful_people", 
+                   "beautiful_people",
+                   "lovely_creature",
                 #    "holy_grail"
                    ],
         "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
