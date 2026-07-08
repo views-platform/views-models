@@ -13,7 +13,7 @@ def get_hp_config():
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "expansion_coefficient_dim": 64,
+        "expansion_coefficient_dim": 512,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.1,
