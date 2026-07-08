@@ -33,11 +33,11 @@ def generate():
     #         # .transform.missing.replace_na()
     #         ) # Life expectancy at birth
 
-     .with_column(
-        Column("lr_chex_gd_zs", from_loa="country_year", from_column="wdi_sh_xpd_chex_gd_zs")
-            # .transform.missing.fill()
-            # .transform.missing.replace_na()
-            ) # Current health expenditure (% of GDP) further recompute:  multiply this by GDP per capita and divide by 100
+    #  .with_column(
+    #     Column("lr_chex_gd_zs", from_loa="country_year", from_column="wdi_sh_xpd_chex_gd_zs")
+    #         # .transform.missing.fill()
+    #         # .transform.missing.replace_na()
+    #         ) # Current health expenditure (% of GDP) further recompute:  multiply this by GDP per capita and divide by 100
 
     #---------------------------------
     # Food security

@@ -29,7 +29,7 @@ def generate(steps: int = 36) -> dict:
 
     return {
         "calibration": {
-            "train": (241, 444),
+            "train": (121, 444),
             "test": (445, 540),
         },
         "forecasting": {

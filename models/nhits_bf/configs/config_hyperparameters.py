@@ -103,6 +103,10 @@ def get_hp_config():
                 "method": "denton-cholette",
                 "conversion": "average",
             },
+            "lr_chex_gd_pcap": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
             "lr_stnt_me_zs": {
                 "method": "denton-cholette",
                 "conversion": "average",
