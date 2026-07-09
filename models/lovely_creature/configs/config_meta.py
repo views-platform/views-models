@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "lovely_creature", 
         "algorithm": "ShurfModel",
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Håvard",
         "prediction_format": "dataframe",
