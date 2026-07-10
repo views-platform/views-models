@@ -4,9 +4,9 @@ Defines temporal boundaries for each run type. These are identical
 to all other VIEWS cm models — the partitions are a platform
 convention, not model-specific.
 
-    calibration:  train 121-444, test 445-492  (Jan 1990 – Dec 2020)
-    validation:   train 121-492, test 493-540  (Jan 1990 – Dec 2024)
-    forecasting:  train 121-now,  test now+1 to now+steps  (dynamic)
+    See ``meta/partitions.json`` for the canonical calibration/validation
+    train/test ranges (rewritten across all models by the partition bump
+    tool); forecasting is dynamic from the current month.
 
 Month IDs use VIEWS encoding: month_id = (year - 1980) * 12 + month.
 """
