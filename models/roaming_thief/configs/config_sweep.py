@@ -59,45 +59,8 @@ def get_sweep_config():
         # ==============================================================================
         # SCALING
         # ==============================================================================
-        "feature_scaler": {"values": [None]},
+        "feature_scaler": {"values": ["AsinhTransform->MaxAbsScaler"]},  # global chain; covariates derive from the queryset (ADR-013, C-95)
         "target_scaler": {"values": ["AsinhTransform"]},
-        "feature_scaler_map": {
-            "values": [{
-                # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
-                # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
-                "AsinhTransform->MaxAbsScaler": [
-                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
-                    "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
-                    
-                    "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
-                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs",
-                    "lr_wdi_ms_mil_xpnd_gd_zs",
-
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc", "lr_vdem_v2x_diagacc",
-                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlpol", "lr_vdem_v2xpe_exlgeo",
-                    "lr_vdem_v2xpe_exlgender", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_divparctrl", "lr_vdem_v2x_ex_party",
-                    "lr_vdem_v2x_ex_military", "lr_vdem_v2x_genpp",
-                    "lr_vdem_v2xeg_eqdr", "lr_vdem_v2xcl_prpty",
-                    "lr_vdem_v2xeg_eqprotec", "lr_vdem_v2xcl_dmove",
-                    "lr_vdem_v2x_clphy",
-
-                    "lr_wdi_sp_pop_grow",          # signed, zero is meaningful inflection
-
-                    "lr_wdi_sl_tlf_totl_fe_zs",    # bounded positive, no meaningful zero → [0,1]
-                    "lr_wdi_se_enr_prim_fm_zs",    
-                    "lr_wdi_sp_urb_totl_in_zs",    
-
-                    "lr_wdi_sp_dyn_imrt_fe_in",   # Infant mortality
-                    "lr_wdi_sh_sta_stnt_zs",      # Stunting
-                    "lr_wdi_sh_sta_maln_zs",      # Malnutrition
-                ],
-            }],
-        },
         # ==============================================================================
         # N-HiTS ARCHITECTURE
         # ==============================================================================
