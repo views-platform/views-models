@@ -23,8 +23,8 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_monitor": "val_metrics/MSLE",
-        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "early_stopping_monitor": "val_metrics/BALANCE_GM_RATIO",
+        "lr_scheduler_monitor": "val_metrics/BALANCE_GM_RATIO",
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
         "force_reset": True,
