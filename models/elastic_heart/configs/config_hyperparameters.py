@@ -120,11 +120,11 @@ def get_hp_config():
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
-        "static_covariate_stats": {
-            "transform": "AsinhTransform->MaxAbsScaler",
-            "inject": True,
-            # "stats": ["trend", "sparsity"],
-        },
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "inject": True,
+        #     # "stats": ["trend", "sparsity"],
+        # },
 
         "use_cyclic_encoders": True,
     }
