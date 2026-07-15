@@ -13,7 +13,7 @@ def get_hp_config():
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 128,
-        "expansion_coefficient_dim": 64,
+        "expansion_coefficient_dim": 512,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
         "dropout": 0.1,
@@ -36,12 +36,12 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 5e-4,
-        "weight_decay": 3e-4,
-        "gradient_clip_val": 40.0,
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 5.0,
         "optimizer_kwargs": {
-            "lr": 5e-4,
-            "weight_decay": 3e-4,
+            "lr": 1e-4,
+            "weight_decay": 1e-4,
         },
 
         # --- LR Scheduler ---
@@ -125,7 +125,6 @@ def get_hp_config():
         # --- Other ---
         "random_state": 67,
         "time_steps": 36,  # Checksum: Must match len(steps)
-        # "static_covariate_stats": {"transform": "AsinhTransform"},
 
         # --- other ---
         "n_jobs": -1
