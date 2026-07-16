@@ -13,7 +13,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 256,
+        "hidden_size": 1024,
         "decoder_output_dim": 64,
         "temporal_decoder_hidden": 96,
         "temporal_width_past": 32,
