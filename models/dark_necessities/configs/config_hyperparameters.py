@@ -4,6 +4,7 @@ def get_hp_config():
     """
     
     hyperparameters = {
+        # Steps
         "steps": [*range(1, 36 + 1, 1)],
         "time_steps": 36,  # Checksum: Must match len(steps)
         "n_jobs": -1,
@@ -12,11 +13,10 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 256,
+        "hidden_size": 1024,
         "decoder_output_dim": 64,
         "temporal_decoder_hidden": 96,
         "temporal_width_past": 32,
-        # Future covariates are 3-wide; avoid unnecessary feature expansion noise.
         "temporal_width_future": 3,
         "temporal_hidden_size_past": 96,
         "temporal_hidden_size_future": 16,
@@ -35,14 +35,14 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 5e-5,
+        "lr": 3e-4,
+        "weight_decay": 1e-4,
         "optimizer_kwargs": {
-            "lr": 2e-4,
-            "weight_decay": 5e-5,
+            "lr": 3e-4,
+            "weight_decay": 1e-4,
         },
 
-        # LR Scheduler
+# LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 5,
