@@ -9,7 +9,12 @@ def get_modelset_config():
         "models": ["smol_cat", 
                    "revolving_door", 
                    "elastic_heart", 
-                   "new_rules", 
+                   "new_rules",
+                   "bus_radio",
+                   "demon_weeks",
+                   "higher_hopes",
+                   "fluorescent_adult",
+                   "unpopular_monster"
                 #    "good_life"
                    ],
     }
