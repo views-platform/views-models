@@ -6,6 +6,7 @@ def get_hp_config():
         'lambda_mix': 0.05,
         'n_samples': 64,
         'n_posterior_samples': 64,
+        'seed': 42,
         'regression_targets': ['synth_target'],
         'skip_predictions_delivery': True,
     }
