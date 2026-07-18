@@ -13,10 +13,11 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 1024,
+        "hidden_size": 256,
         "decoder_output_dim": 64,
         "temporal_decoder_hidden": 96,
         "temporal_width_past": 32,
+        # Future covariates are 3-wide; avoid unnecessary feature expansion noise.
         "temporal_width_future": 3,
         "temporal_hidden_size_past": 96,
         "temporal_hidden_size_future": 16,
@@ -35,11 +36,11 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4,
-        "weight_decay": 1e-4,
+        "lr": 2e-4,
+        "weight_decay": 5e-5,
         "optimizer_kwargs": {
-            "lr": 3e-4,
-            "weight_decay": 1e-4,
+            "lr": 2e-4,
+            "weight_decay": 5e-5,
         },
 
 # LR Scheduler
