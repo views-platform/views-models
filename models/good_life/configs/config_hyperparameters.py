@@ -18,30 +18,34 @@ def get_hp_config():
         "activation": "SwiGLU",
         "batch_size": 128,
         "d_model": 128,
-        "dim_feedforward": 1024,
-        "dropout": 0.1,
+        "dim_feedforward": 512,
+        "dropout": 0.25,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 20,
         "feature_scaler": None,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
-                    "lr_ged_ns", "lr_ged_os",
+                    # "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os", "lr_acled_ns",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
 
                     # Decay features — conflict regime memory ∈ [0,1]
-                    "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
-                    "lr_decay_ged_os_5", "lr_decay_ged_os_100",
-                    "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
+                    "lr_decay_ged_sb_1", "lr_decay_ged_sb_5", "lr_decay_ged_sb_25", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+                    "lr_decay_ged_os_1", "lr_decay_ged_os_5", "lr_decay_ged_os_25", "lr_decay_ged_os_100", "lr_decay_ged_os_500",
+                    "lr_decay_ged_ns_1", "lr_decay_ged_ns_5", "lr_decay_ged_ns_25", "lr_decay_ged_ns_100", "lr_decay_ged_ns_500",
                     "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
                     "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
                     # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
                     "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
                     "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
-                    "lr_ged_os_tlag_1",
+                    "lr_ged_ns_tlag_1", "lr_ged_ns_tlag_2", "lr_ged_ns_tlag_3",
+                    "lr_ged_ns_tlag_4", "lr_ged_ns_tlag_5", "lr_ged_ns_tlag_6",
+                    "lr_ged_os_tlag_1", "lr_ged_os_tlag_2", "lr_ged_os_tlag_3",
+                    "lr_ged_os_tlag_4", "lr_ged_os_tlag_5", "lr_ged_os_tlag_6",
+                    "lr_ged_sb_tsum_24", "lr_ged_ns_tsum_24", "lr_ged_os_tsum_24",
 
                     # Topic/NLP features — monthly leading indicators
                     "lr_topic_tokens_t1", "lr_topic_tokens_t2",
@@ -67,11 +71,11 @@ def get_hp_config():
                 ],
         },
         "force_reset": True,
-        "gradient_clip_val": 5.0,
-        "input_chunk_length": 48,
+        "gradient_clip_val": 25.0,
+        "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
-        "lr": 3e-4,
+        "lr": 2e-4,
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 20,
@@ -93,20 +97,19 @@ def get_hp_config():
         "num_encoder_layers": 3,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
-            "lr": 3e-4,
-            "weight_decay": 3e-4,
+            "lr": 2e-4,
+            "weight_decay": 1e-5,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 3e-4,
+        "weight_decay": 1e-5,
 
         # Encoders
         "use_cyclic_encoders": True,
-        "use_static_covariates": True,
-        # "static_covariate_stats": {"transform": "AsinhTransform"},
+        "use_static_covariates": False,
     }
 
 
