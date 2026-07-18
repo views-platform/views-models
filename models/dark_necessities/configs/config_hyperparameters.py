@@ -30,7 +30,7 @@ def get_hp_config():
 
         # Training
         "n_epochs": 300,
-        "batch_size": 1024,
+        "batch_size": 256,
         "random_state": 67,
         "force_reset": True,
 
@@ -39,7 +39,7 @@ def get_hp_config():
         "lr": 2e-4,
         "weight_decay": 5e-5,
         "optimizer_kwargs": {
-            "lr": 2e-4,
+            "lr": 1e-4,
             "weight_decay": 5e-5,
         },
 
@@ -54,15 +54,15 @@ def get_hp_config():
             "patience": 5,
             "min_lr": 3e-6,
             "cooldown": 0,
-            "threshold": 0.002,
+            "threshold": 0.0003,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 25.0,
+        "gradient_clip_val": 10.0,
         "early_stopping_patience": 12,
-        "early_stopping_min_delta": 0.002,
+        "early_stopping_min_delta": 0.0003,
 
         # Loss
         # "loss_function": "SpotlightLossLogcosh",
