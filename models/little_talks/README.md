@@ -1,4 +1,4 @@
-# Dark Necessities
+# Little Talks
 ## Overview
 
 
@@ -7,7 +7,7 @@
 | **Model Algorithm** | TiDEModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
-| **Features**       |  dark_necessities   |
+| **Features**       |  little_talks   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
@@ -15,7 +15,7 @@
 ## Repository Structure
 
 ```
-Dark Necessities
+Little Talks
 ├── README.md
 ├── main.py
 ├── requirements.txt

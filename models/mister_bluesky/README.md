@@ -1,13 +1,13 @@
-# Dark Necessities
+# Mister Bluesky
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | TiDEModel                  |
+| **Model Algorithm** | TSMixerModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
-| **Features**       |  dark_necessities   |
+| **Features**       |  mister_bluesky   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
@@ -15,7 +15,7 @@
 ## Repository Structure
 
 ```
-Dark Necessities
+Mister Bluesky
 ├── README.md
 ├── main.py
 ├── requirements.txt
