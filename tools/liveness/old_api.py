@@ -6,15 +6,17 @@ fatalities run, how fresh is it, and does it actually serve rows?
 Usage:
     python -m tools.liveness.old_api      # exit 0 fresh / 1 stale-or-not-serving / 2 unreachable
 
-THE NAMING CONVENTION (encoded once, colleague-confirmable — issue #239):
+THE NAMING CONVENTION (encoded once — CONFIRMED by the API's own docs):
     Runs are named ``fatalities{generation}_{yyyy}_{mm}_t{seq}`` where
-    ``{yyyy}_{mm}`` is the DATA-CUTOFF month, not the execution month;
-    execution/publication happens ~1 month after the cutoff.
-    Evidence (2026-07-19 forensics): the wandb pink_ponyclub run executed
-    2026-06-29 trained on data through month_id 557 (May 2026) and was
-    published as ``fatalities003_2026_05_t01``. Misreading this convention
-    as execution-month produced a false "production stalled" alarm; this
-    module exists so that mistake can never be repeated.
+    ``{yyyy}_{mm}`` is the DATA-CUTOFF month, not the execution month.
+    Authoritative source (github.com/prio-data/views_api/wiki): "production
+    runs are named by means of the calendar year (YYYY) and calendar month
+    (MM) of the last data that informs a given run"; ``_tNN`` is a retry
+    counter starting at t01. Corroborating observation (2026-07-19): the
+    wandb pink_ponyclub run executed 2026-06-29 trained through month_id 557
+    (May 2026) and was published as ``fatalities003_2026_05_t01``. Misreading
+    this convention as execution-month once produced a false "production
+    stalled" alarm; this module exists so that mistake cannot recur.
 
 API facts (captured live 2026-07-19):
     GET /                      -> {"runs": [...]}  (NOT chronologically sorted)
