@@ -20,7 +20,9 @@ THE NAMING CONVENTION (encoded once — CONFIRMED by the API's own docs):
 
 API facts (captured live 2026-07-19):
     GET /                      -> {"runs": [...]}  (NOT chronologically sorted)
-    GET /{run}/cm?month={id}&pagesize=N -> {"data": [rows...]}
+    GET /{run}/{level}?month={id}&pagesize=N -> {"data": [rows...]}
+        levels: cm (country_id keys) and pgm (pg_id keys) — both confirmed
+        served by the latest run; a run empty at EITHER level is not serving
     unknown run                -> HTTP 422
 
 Design: injected fetch callable (DIP; mirrors
@@ -50,6 +52,9 @@ FRESHNESS_BUDGET_MONTHS = PUBLICATION_LAG_MONTHS + GRACE_MONTHS
 
 _FETCH_TIMEOUT_SECONDS = 20
 _SERVING_SAMPLE_PAGESIZE = 2
+
+# Both public data levels must serve rows for a run to count as serving.
+SERVING_LEVELS = ("cm", "pgm")
 
 _RUN_NAME_PATTERN = re.compile(r"^fatalities(\d+)_(\d{4})_(\d{2})_t(\d+)$")
 
@@ -104,7 +109,8 @@ class CheckReport:
     data_cutoff_date: Optional[str] = None
     now_month_id: Optional[int] = None
     months_behind: Optional[int] = None
-    serving_rows_sampled: Optional[int] = None
+    serving_rows_cm: Optional[int] = None
+    serving_rows_pgm: Optional[int] = None
     error: Optional[str] = None
 
 
@@ -121,7 +127,8 @@ def render(report: CheckReport) -> str:
         ("now_month_id", report.now_month_id),
         ("months_behind", report.months_behind),
         ("freshness_budget_months", FRESHNESS_BUDGET_MONTHS),
-        ("serving_rows_sampled", report.serving_rows_sampled),
+        ("serving_rows_cm", report.serving_rows_cm),
+        ("serving_rows_pgm", report.serving_rows_pgm),
         ("error", report.error),
     ]
     return render_facts(facts)
@@ -166,9 +173,15 @@ class OldApiCheck:
         cutoff_id = date_to_month_id(year, month)
         months_behind = now_month_id - cutoff_id
 
-        rows_sampled, serving_error = self._sample_serving_rows(latest, cutoff_id)
+        sampled = {}
+        errors = []
+        for level in SERVING_LEVELS:
+            rows, level_error = self._sample_serving_rows(latest, cutoff_id, level)
+            sampled[level] = rows
+            if level_error is not None:
+                errors.append(f"{level}: {level_error}")
 
-        if rows_sampled == 0:
+        if min(sampled.values()) == 0:
             verdict = "LIVE_NOT_SERVING"
         elif months_behind <= FRESHNESS_BUDGET_MONTHS:
             verdict = "LIVE_FRESH"
@@ -184,16 +197,17 @@ class OldApiCheck:
             data_cutoff_date=month_id_to_date(cutoff_id),
             now_month_id=now_month_id,
             months_behind=months_behind,
-            serving_rows_sampled=rows_sampled,
-            error=serving_error,
+            serving_rows_cm=sampled["cm"],
+            serving_rows_pgm=sampled["pgm"],
+            error="; ".join(errors) if errors else None,
         )
 
     def _sample_serving_rows(
-        self, run_name: str, cutoff_id: int
+        self, run_name: str, cutoff_id: int, level: str
     ) -> Tuple[int, Optional[str]]:
         """Sample rows from the run's first forecast month (cutoff + 1)."""
         url = (
-            f"{BASE_URL}/{run_name}/cm"
+            f"{BASE_URL}/{run_name}/{level}"
             f"?month={cutoff_id + 1}&pagesize={_SERVING_SAMPLE_PAGESIZE}"
         )
         try:

@@ -232,7 +232,8 @@ def test_report_contains_literal_url_and_run_name():
     assert report.run_count == len(CAPTURED_RUNS)
     assert report.data_cutoff_month_id == 557
     assert report.data_cutoff_date == "2026-05"
-    assert report.serving_rows_sampled == 2
+    assert report.serving_rows_cm == 2
+    assert report.serving_rows_pgm == 2
 
 def test_render_is_one_fact_per_line():
     fetch = _fake_fetch({"?month=": SERVING_ROWS, BASE_URL: _runs_doc(CAPTURED_RUNS)})
@@ -328,3 +329,28 @@ def test_default_fetch_uses_stdlib_urllib(monkeypatch):
         lambda url, timeout: FakeResponse(b'{"runs": []}'),
     )
     assert OldApiCheck._fetch_json("https://example.test/") == {"runs": []}
+
+
+
+# ── the pgm serving probe (both levels must serve) ────────────────────
+
+def test_not_serving_when_pgm_empty_but_cm_serves():
+    """A run that serves country-month but returns nothing at grid level is
+    NOT fully serving — the 2026-07-19 'one endpoint' gap."""
+    fetch = _fake_fetch({
+        "/pgm?": EMPTY_ROWS,
+        "?month=": SERVING_ROWS,
+        BASE_URL: _runs_doc(CAPTURED_RUNS),
+    })
+    report = OldApiCheck(fetch=fetch).run(now_month_id=CAPTURE_NOW)
+    assert report.verdict == "LIVE_NOT_SERVING"
+    assert report.serving_rows_cm == 2
+    assert report.serving_rows_pgm == 0
+
+
+def test_render_shows_both_serving_levels():
+    fetch = _fake_fetch({"?month=": SERVING_ROWS, BASE_URL: _runs_doc(CAPTURED_RUNS)})
+    text = render(OldApiCheck(fetch=fetch).run(now_month_id=CAPTURE_NOW))
+    assert "serving_rows_cm: 2" in text
+    assert "serving_rows_pgm: 2" in text
+
