@@ -1,9 +1,9 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-07-06  
+**Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 100 (96 concerns + 4 disagreements)  
-**Concerns:** Open 41 | Mitigated 15 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Total entries:** 104 (100 concerns + 4 disagreements)  
+**Concerns:** Open 45 | Mitigated 15 | Resolved 36 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1211,6 +1211,58 @@
 | **Status** | Mitigated (current partitions verified covered; re-arms on every partition bump) |
 | **Location** | views-datafactory assembled store (grid spans months 109–564; UCDP Annual v25.1 observed through ~month 540 = Dec 2024, `datafactory_harvester/sources/ucdp_annual.py:57`); warning-only guard at `datafactory_query/dataset.py:483-495`; consumers: every views-models datafactory model's `config_partitions.py` validation partition (canonical test 505–552, `meta/partitions.json`) |
 | **Notes** | The store's grid dimension covers the full validation window, so nothing errors — but `ged_*` values after the last observed UCDP month are **zero-padding, not observed zeros**. Evaluating against them silently rewards predicting zero for 2025 and contaminates CRPS/MSLE comparisons. `load_dataset` emits a `UserWarning` ("exceeds last observed data month") reading the live `.zattrs` `last_valid_month_id` — a signal, but one that survives only in run logs; the metrics themselves carry no marker. Calibration (test 457–504 = through Dec 2021) is fully observed and unaffected — pre-merge smoke runs for the 12 CM models use calibration for this reason. Same class of issue the un_fao delivery solved producer-side with `_clip_observed_history` (vpp S2/C-26); model evaluation has no equivalent clip. **Verified 2026-07-06:** live `get_last_valid_month_id()` = **558** — the current validation window (505–552) is **fully observed** (datafactory's harvest-freshness work extended coverage past UCDP v25.1's month 540). Current partitions safe → Status Mitigated; this entry is the standing tripwire and **re-arms whenever a partition bump outpaces observed coverage** — re-check the live value at every bump. Mitigation directions: evaluation-side clip of the test window to `min(test_end, last_valid_month_id)`, or a fail-loud gate when a partition's test window exceeds observed coverage. See also C-01 (partition bump machinery), C-94 (datafactory silent-behavior class), the `# PARTITION_OVERRIDE` entries (month-boundary drift). |
+
+---
+
+### C-97 — Delivery selection is by recency, not identity: consumers pull "newest forecast in the bucket" and hope
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | Any second producer uploads to the shared PROD_FORECASTS bucket before a consumer pulls — including the scripted order of `monthly_run.sh` itself (4 ensembles upload, then un_fao pulls "newest", which is now one of those 4, not its configured `rusty_bucket` → the "sequencing trap": the scripted chain should fail at the FAO step every time, statically read; unconfirmed live because no full chain has been observed) |
+| **Source** | delivery-machine map (2026-07-19) + expert-code-review adjudication |
+| **Status** | Open |
+| **Location** | vpp `unfao.py:106` (`get_latest_file_id(filters={"category":"forecast"})` — no name filter); `monthly_run.sh` (upload order); every future consumer inherits the pattern |
+| **Notes** | The interchange's addressing model is **recency-as-identity**: a consumer asks for "the newest thing anyone uploaded" and then post-hoc identity-checks it (`unfao.py:119`, S3/C-25). The guard fails loud (good), but it is **load-bearing**: it is the only thing between this design and silently delivering the wrong ensemble's forecast to a UN partner, and nothing forces future consumers (un_ocha, un_crafd) to implement one. Expert adjudication (Kleppmann/Hickey): this is a **skeleton defect, not missing ops shell** — time-of-upload is complected with identity because the artifact's identity triple (ensemble, month, version) was never reified in addressing. **Exit:** deterministic addressing — consumers request by name+month (path convention `forecasts/{ensemble}/{YYYY-MM}/` or a per-run manifest); the identity guard demotes to defense-in-depth. Must NOT be preserved per review verdict. See also C-88 (identity-system coherence), C-94/C-95 (silent-when-unenforced class), C-98 (dual store), C-100 (config-vs-reality). |
+
+---
+
+### C-98 — Two network stores receive every forecast; no declared system of record
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any consumer/tool reads the legacy views-forecasts store while another reads the Appwrite bucket for the same month (or one of the two saver uploads partially fails) — the two "truths" diverge with no detection mechanism |
+| **Source** | delivery-machine map (2026-07-19) + expert-code-review |
+| **Status** | Open |
+| **Location** | pipeline-core `savers.py:159-191` (`ViewsForecastsSaver` → legacy store, via the C-47 list-in-cell conversion) + `savers.py:122` (`AppwriteSaver` → `APPWRITE_PROD_FORECASTS_*`, `prediction_store.py:14-22`); both fire on every `--prediction_store` run |
+| **Notes** | Dual-write with no declared authority is an unresolved migration wearing architecture's clothes: which store is *the* forecast is undefined by construction, drift is unobservable, and the legacy leg still rides the OOM-prone list-in-cell DataFrame path (C-47). Expert disagreement D-β on timing: declare the authoritative store now (Kleppmann) vs after ground-truth observation of what consumers actually read (Beck) — either way it **must be decided**; the undeclared state must NOT be preserved. Exit: one store becomes the system of record; the other is demoted to explicit export or retired. See also C-47, C-97. |
+
+---
+
+### C-99 — Monthly production has no home and no heartbeat: an informal laptop rotation with no missed-month signal
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A month's run is skipped, half-completes, or fails on whoever's laptop was running it — nothing detects it; consumers (the classic store, a partner delivery) silently receive nothing |
+| **Source** | maintainer ground truth (2026-07-19): "the pipeline is run once a month on a laptop; which laptop depends on who has time" — no production server exists |
+| **Status** | Open |
+| **Location** | `monthly_run.sh` (the entire production trigger: a hand-run bash list); no scheduler, no retry, no freshness check anywhere in the platform |
+| **Notes** | Production is a **rotating human ritual**: whoever has time runs `monthly_run.sh` on their own laptop, with their own env/credentials state. Consequences: run evidence is scattered across personal machines (this workstation holds Apr/May traces only); "did month X happen?" is unanswerable from any repo; a missed or failed month is invisible until a human notices downstream. The maintainer's stated goal is a **dedicated small production server modeled on the working datafactory box** (which already runs monthly by timer) — gated on this repo's cleanup. Exit criteria for closing: (a) scheduled execution on a dedicated host, (b) a dead-man's-switch freshness alarm ("month-X artifacts absent by day D ⇒ scream"), (c) the laptop ritual retired to backup after one both-run-and-compare month. The `tools/preflight` audit (planned) is the wiring-acceptance instrument for that host. See also C-97, C-100, C-03 (no integration in CI). |
+
+---
+
+### C-100 — Config referencing external reality is validated nowhere; misconfiguration is discovered only by failing live
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any config value naming an external object (Appwrite collection/bucket IDs, store names, env var families, `.netrc` hosts) drifts from what actually exists — the next live run fails at that step (best case) or silently misbehaves (worst case) |
+| **Source** | delivery-machine map + the 2026-06-26 live failure (postmortems) |
+| **Status** | Open |
+| **Location** | Demonstrated: `APPWRITE_PROD_FORECASTS_COLLECTION_ID='forecasts_metadata'` did not exist in live Appwrite → un_fao smoke run died at store lookup (`views_pipeline_ERROR.log`, postmortem). Same class: all ~13 `APPWRITE_*` vars × both delivery sides, `.netrc` entries, store run-names |
+| **Notes** | There is no preflight anywhere that checks config-vs-reality before a run touches production surfaces; the system's first contact with a wrong drawer-label is the live failure itself. **Exit: `tools/preflight`** (maintainer-proposed, design agreed): one read-only command auditing every declared external surface — inputs (viewser, datafactory zarr incl. `last_valid_month_id` vs partitions) and outputs (both stores, partner buckets, wandb) — with OK/FAIL/SKIP-with-reason semantics (truthful degradation per the C-75 lesson), runnable identically on a laptop and on the future production host, where it doubles as the acceptance checklist. See also C-96 (the zarr-freshness row of that audit), C-97, C-99. |
 
 ---
 
