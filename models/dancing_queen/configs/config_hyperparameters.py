@@ -74,20 +74,20 @@ def get_hp_config():
                     # "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
 
                     # WDI (8 with static covs)
-                    "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
-                    "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
-                    "lr_wdi_sp_pop_grow",
-                    "lr_wdi_sp_urb_totl_in_zs",
-                    "lr_wdi_sp_dyn_imrt_fe_in",
-                    "lr_wdi_sh_sta_maln_zs",
+                    # "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+                    # "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
+                    # "lr_wdi_sp_pop_grow",
+                    # "lr_wdi_sp_urb_totl_in_zs",
+                    # "lr_wdi_sp_dyn_imrt_fe_in",
+                    # "lr_wdi_sh_sta_maln_zs",
 
                     # V-Dem (12 — pruned of redundant accountability/exclusion)
-                    "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
-                    "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
-                    "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
-                    "lr_vdem_v2xeg_eqdr",
-                    "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+                    # "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+                    # "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                    # "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+                    # "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+                    # "lr_vdem_v2xeg_eqdr",
+                    # "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
                 ],
         },
         # "static_covariate_stats": {
