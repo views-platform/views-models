@@ -38,6 +38,8 @@ from typing import Callable, List, Optional, Tuple
 
 from tools.partitions.domain import date_to_month_id, month_id_to_date
 
+from tools.liveness.report import exit_code_for, render_facts
+
 BASE_URL = "https://api.viewsforecasting.org"
 
 # Freshness budget: cadence is one run per data-month, published ~1 month
@@ -122,7 +124,7 @@ def render(report: CheckReport) -> str:
         ("serving_rows_sampled", report.serving_rows_sampled),
         ("error", report.error),
     ]
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return render_facts(facts)
 
 
 class OldApiCheck:
@@ -211,12 +213,6 @@ class OldApiCheck:
             return json.load(response)
 
 
-_EXIT_CODE_BY_VERDICT = {
-    "LIVE_FRESH": 0,
-    "LIVE_STALE": 1,
-    "LIVE_NOT_SERVING": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(
@@ -225,7 +221,7 @@ def main(
     """Run the check, print raw facts, return the exit code."""
     report = OldApiCheck(fetch=fetch).run(now_month_id=now_month_id)
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":

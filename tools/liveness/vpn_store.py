@@ -38,6 +38,8 @@ from tools.liveness.old_api import (
 )
 from tools.partitions.domain import date_to_month_id, month_id_to_date
 
+from tools.liveness.report import exit_code_for, render_facts
+
 STORE_HOST = "gjoll.muspelheim.local"
 LEGACY_SCHEMA = "forecasts_metadata"  # the phantom-collection-ID origin (see docstring)
 
@@ -87,7 +89,7 @@ def render(report: CheckReport) -> str:
         ("freshness_budget_months", FRESHNESS_BUDGET_MONTHS),
         ("error", report.error),
     ]
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return render_facts(facts)
 
 
 class VpnStoreCheck:
@@ -160,20 +162,13 @@ class VpnStoreCheck:
         return frame[["name", "min_month", "max_month"]].to_dict("records")
 
 
-_EXIT_CODE_BY_VERDICT = {
-    "STORE_FRESH": 0,
-    "VPN_REQUIRED": 0,
-    "SKIP_NO_PACKAGE": 0,
-    "STORE_STALE": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(check: Optional[VpnStoreCheck] = None, now_month_id: Optional[int] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or VpnStoreCheck()).run(now_month_id=now_month_id)
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":

@@ -22,13 +22,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Dict, Optional, Tuple
+from typing import Optional, Tuple
 
-from tools.liveness.appwrite_store import (
+from tools.liveness.appwrite_api import (
     AppwriteCredentials,
+    FetchJson,
+    fetch_json,
     newest_first_query,
     resolve_credentials,
+    stream_newest_query,
 )
+from tools.liveness.report import exit_code_for, render_facts
 
 UNFAO_BUCKET_ID = "unfao_bucket"
 FORECAST_PREFIX = "forecast_dataset_"
@@ -37,25 +41,6 @@ HISTORICAL_PREFIX = "historical_dataset_"
 # Monthly delivery cadence: a stream is "delivering" if something landed
 # within ~1.5 cycles.
 DELIVERING_WITHIN_DAYS = 45
-
-_FETCH_TIMEOUT_SECONDS = 25
-
-FetchJson = Callable[[str, Dict[str, str]], object]
-
-
-def stream_newest_query(prefix: str) -> str:
-    """Appwrite query string: newest file whose name starts with ``prefix``."""
-    import json as _json
-    from urllib.parse import quote as _quote
-
-    queries = (
-        {"method": "startsWith", "attribute": "name", "values": [prefix]},
-        {"method": "orderDesc", "attribute": "$createdAt"},
-        {"method": "limit", "values": [1]},
-    )
-    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
-
-
 
 @dataclass(frozen=True)
 class CheckReport:
@@ -101,7 +86,7 @@ def render(report: CheckReport) -> str:
         ("other_files", report.other_files),
         ("error", report.error),
     ]
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return render_facts(facts)
 
 
 def _newest(files: list) -> Optional[dict]:
@@ -119,7 +104,7 @@ class UnfaoDeliveryCheck:
         self.credentials = (
             resolve_credentials() if credentials == "RESOLVE" else credentials
         )
-        self._fetch = fetch or self._fetch_json
+        self._fetch = fetch or fetch_json
 
     def run(self, now: Optional[datetime] = None) -> CheckReport:
         if self.credentials is None:
@@ -204,30 +189,13 @@ class UnfaoDeliveryCheck:
             days,
         )
 
-    @staticmethod
-    def _fetch_json(url: str, headers: Dict[str, str]) -> object:
-        """Default fetch: stdlib urllib, lazy import, explicit timeout."""
-        import json
-        import urllib.request
-
-        request = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT_SECONDS) as response:
-            return json.load(response)
-
-
-_EXIT_CODE_BY_VERDICT = {
-    "DELIVERING": 0,
-    "SKIP_NO_CREDENTIALS": 0,
-    "DELIVERY_STALLED": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(check: Optional[UnfaoDeliveryCheck] = None, now: Optional[datetime] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or UnfaoDeliveryCheck()).run(now=now)
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":
