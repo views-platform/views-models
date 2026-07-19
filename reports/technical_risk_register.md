@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 44 | Mitigated 16 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 45 | Mitigated 16 | Resolved 37 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1263,6 +1263,32 @@
 | **Status** | Mitigated (2026-07-19: `tools/liveness` shipped, epic #238; residual = wiring it into an actual run cadence) |
 | **Location** | Demonstrated: `APPWRITE_PROD_FORECASTS_COLLECTION_ID='forecasts_metadata'` did not exist in live Appwrite → un_fao smoke run died at store lookup (`views_pipeline_ERROR.log`, postmortem). Same class: all ~13 `APPWRITE_*` vars × both delivery sides, `.netrc` entries, store run-names |
 | **Notes** | There is no preflight anywhere that checks config-vs-reality before a run touches production surfaces; the system's first contact with a wrong drawer-label is the live failure itself. **Exit: `tools/preflight`** (maintainer-proposed, design agreed): one read-only command auditing every declared external surface — inputs (viewser, datafactory zarr incl. `last_valid_month_id` vs partitions) and outputs (both stores, partner buckets, wandb) — with OK/FAIL/SKIP-with-reason semantics (truthful degradation per the C-75 lesson), runnable identically on a laptop and on the future production host, where it doubles as the acceptance checklist. **Mitigated 2026-07-19 (epic #238, S1–S8):** the exit exists as **`tools/liveness`** — `python -m tools.liveness` audits all six declared surfaces read-only (public API, datafactory zarr vs partitions, Appwrite `production_forecasts` incl. the REAL collection IDs that this entry's incident lacked, FAO `unfao_bucket` per stream, wandb execution, gjoll VPN store) with exactly the agreed semantics: raw facts, truthful SKIPs, exit 0/1/2, crash containment. The phantom `forecasts_metadata` ID is encoded as `HISTORICAL_WRONG_COLLECTION_ID` with the real IDs beside it (`tools/liveness/appwrite_store.py`), so this incident class is now machine-checkable before any live run. **Residual (why not Resolved):** the instrument is hand-run — nothing schedules it before `monthly_run.sh` or on a heartbeat (that is C-99's exit), and config *files* are still not diffed against reality (the check observes reality directly rather than validating each env var). See also C-96 (the zarr-freshness row, automated in `tools/liveness/datafactory_input.py`), C-97, C-99. |
+
+---
+
+### C-101 — tools/liveness verdict-truthfulness gaps: the instrument built to end false alarms can itself false-alarm or crash
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Running the dashboard on a machine without `datafactory_query` (reports UNREACHABLE/exit 2 instead of a truthful skip); any wandb project returning a run with a malformed/absent `created_at` (uncaught ValueError crashes the standalone check with no report); adding a new verdict without registering it in `EXIT_CODE_BY_VERDICT` (runner prints two contradictory verdict blocks for one surface); any error value containing newlines (breaks the one-fact-per-line contract — already visible in live vpn_store output) |
+| **Source** | falsify (2026-07-19, claim "tools.liveness is air and water tight" → FALSIFIED, 3 hard / 3 soft) |
+| **Status** | Resolved (2026-07-19, same-day fix: `one_line` newline escape in report.py; SKIP_NO_PACKAGE in datafactory_input; `_judge` inside the per-ensemble try; verdict classified before print in all six `main()`s; roster-mirror tripwire shipped — all enforced by `tests/test_liveness_falsifications.py`) |
+| **Location** | `tools/liveness/datafactory_input.py:101-110` (generic except swallows ImportError → UNREACHABLE, no SKIP_NO_PACKAGE unlike vpn_store); `tools/liveness/wandb_execution.py:124-131` (`_judge` outside the per-ensemble try); `tools/liveness/__main__.py:44-47` + every module `main()` (exit_code_for raises AFTER print → double block); `tools/liveness/report.py:43-45` (render_facts passes newlines through); enforcement tests: `tests/test_liveness_falsifications.py` (failing by design) |
+| **Notes** | Tier 2 rationale: structural fragility with named realistic triggers in the very instrument whose purpose is verdict truthfulness — a false UNREACHABLE from the dashboard re-creates the "who is lying?" failure mode it was built to end (C-75 class), and a crash-instead-of-report hides a surface. Root pattern (falsify pattern analysis): S7 extracted the renderer and exit map but NOT the exception/skip classification, so truthful-skip semantics are re-implemented per module and drift (vpn_store correct, datafactory_input not); contracts asserted in docstrings (one-fact-per-line, verdict-map totality, roster mirror) have no enforcement. Roster-mirror tripwire (monthly_run.sh vs MONTHLY_ENSEMBLES) ships with the fix. See also C-75 (truthful-skip lesson), C-94/C-95 (silent-when-unenforced class), C-100 (the incident class the suite mitigates). |
+
+---
+
+### C-102 — tools/liveness coverage gap vs its charter: viewser input, website host, and content-size judgment absent
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A viewser outage, a viewsforecasting.org website failure, or an empty/truncated delivered file occurring while `python -m tools.liveness` reports all-green — the dashboard's silence is read as system health for a surface it does not watch |
+| **Source** | falsify (2026-07-19, Category H adequacy probe against epic #238's charter "all input and output destinations") |
+| **Status** | Open |
+| **Location** | `tools/liveness/__main__.py` SURFACES registry: no viewser surface (the ACTUAL input of the four production ensembles; the suite watches the datafactory input production does not yet consume), no website probe (only `api.viewsforecasting.org`); `tools/liveness/unfao_delivery.py` reports `*_newest_bytes` but never judges them (a 12-byte parquet counts as DELIVERING) |
+| **Notes** | Tier 3 rationale: no wrong output is produced — the gap is scope, and the register + README non-goals note make it visible rather than silent. Closing requires a maintainer scope decision: (a) a viewser liveness surface (an S9), (b) a minimum-bytes/row-count judgment on delivered files (liveness vs content-sanity boundary), (c) whether the website is a distinct surface from the API or out of scope. Until decided, the README documents these as known non-goals so all-green cannot be over-read. See also C-99 (heartbeat), C-96 (input freshness class). |
 
 ---
 

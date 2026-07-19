@@ -40,9 +40,19 @@ EXIT_CODE_BY_VERDICT = {
 }
 
 
+def one_line(value: object) -> str:
+    """Collapse a fact value to one line — embedded newlines become ``\\n``.
+
+    The one-fact-per-line contract must hold even for error strings that
+    arrive multi-line (e.g. sqlalchemy OperationalError, C-101/P1)."""
+    return str(value).replace("\r", "").replace("\n", "\\n")
+
+
 def render_facts(facts: Iterable[Tuple[str, object]]) -> str:
     """One ``key: value`` line per fact; None values are omitted."""
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return "\n".join(
+        f"{key}: {one_line(value)}" for key, value in facts if value is not None
+    )
 
 
 def exit_code_for(verdict: str) -> int:

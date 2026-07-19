@@ -203,8 +203,11 @@ class AppwriteStoreCheck:
 def main(check: Optional[AppwriteStoreCheck] = None, now: Optional[datetime] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or AppwriteStoreCheck()).run(now=now)
+    # Classify BEFORE printing: an unregistered verdict must fail loud
+    # without emitting a half-block the runner would then contradict (C-101/P7).
+    code = exit_code_for(report.verdict)
     print(render(report))
-    return exit_code_for(report.verdict)
+    return code
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ this automates the register C-96 tripwire.
 - `INPUT_STALE` — partitions outrun observed coverage: validation-tail
   "actuals" would be zero-fill, not observations. Do not trust validation
   metrics until this is green again.
-- `UNREACHABLE`.
+- `SKIP_NO_PACKAGE` (no `datafactory_query` installed) / `UNREACHABLE`.
 
 ### `appwrite_store` — the internal Appwrite prediction shelf
 Is anything landing on the `production_forecasts` bucket, and does the REAL
@@ -128,6 +128,17 @@ injected fetch/client/clock seams (DIP); lazy imports in default clients
 only; no import-time side effects (C-93); zero new dependencies; truthful
 skips (C-75). Unknown verdicts raise `KeyError` in `report.exit_code_for` —
 add new verdicts to `EXIT_CODE_BY_VERDICT` deliberately.
+
+## Known non-goals (register C-102 — do not over-read all-green)
+
+The suite does NOT yet watch: **viewser** (the actual input of the four
+production ensembles — the datafactory surface covers the input the *next*
+system consumes), the **website** (`viewsforecasting.org` is a distinct host
+from the API that IS probed), or **content sanity** (delivered file sizes
+are reported as facts but not judged — an empty parquet counts as
+DELIVERING). Liveness ≠ correctness: green means surfaces are alive and
+fresh, not that the numbers in them are right. Closing these is a scope
+decision tracked as C-102.
 
 Run the offline suite:
 
