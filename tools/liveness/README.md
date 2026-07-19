@@ -43,7 +43,8 @@ Is the newest published fatalities run fresh, and does it actually serve rows?
   behind the current calendar month = 1 month publication lag + 1 grace).
 - `LIVE_STALE` — listed but too old; `months_behind` says how far.
 - `LIVE_NOT_SERVING` — run is listed but returned no rows for its first
-  forecast month.
+  forecast month at **either** data level (`cm` and `pgm` are both probed;
+  a run serving country-month but empty at grid level is not serving).
 - `UNREACHABLE`.
 
 ### `datafactory_input` — the datafactory zarr input store
