@@ -17,7 +17,7 @@ check encodes the REAL IDs and reports drift.
 
 Unit tests are offline (fake fetch, fake credentials, injected clock);
 secrets never appear in any rendered output (pinned test). The live test is
-@pytest.mark.red and skips truthfully.
+@pytest.mark.live and skips truthfully.
 """
 
 from datetime import datetime, timezone
@@ -30,7 +30,6 @@ from tools.liveness.appwrite_store import (
     REAL_PROD_FORECASTS_COLLECTION_ID,
     AppwriteCredentials,
     AppwriteStoreCheck,
-    CheckReport,
     load_credentials_from_env_file,
     main,
     render,
@@ -133,6 +132,7 @@ def test_active_when_newest_file_recent():
     assert report.verdict == "STORE_ACTIVE"
     assert report.days_since_newest == 9
 
+@pytest.mark.red
 def test_unreachable_when_fetch_fails():
     fetch = _fake_fetch({"/storage/": OSError("tls handshake failed")})
     report = AppwriteStoreCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
@@ -176,6 +176,7 @@ def test_real_collection_confirmed_and_wrong_id_absent():
     assert "production_forecasts" in report.collections_found
     assert HISTORICAL_WRONG_COLLECTION_ID not in report.collections_found
 
+@pytest.mark.red
 def test_collection_listing_failure_is_a_fact_not_a_crash():
     fetch = _fake_fetch({"/storage/": FILES_DOC, "/databases/": OSError("403")})
     report = AppwriteStoreCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
@@ -213,6 +214,7 @@ def test_exit_one_idle(capsys):
     fetch = _fake_fetch({"/storage/": FILES_DOC, "/databases/": COLLECTIONS_DOC})
     assert main(check=AppwriteStoreCheck(credentials=CREDS, fetch=fetch), now=NOW) == 1
 
+@pytest.mark.red
 def test_exit_two_unreachable(capsys):
     fetch = _fake_fetch({"/storage/": OSError("boom")})
     assert main(check=AppwriteStoreCheck(credentials=CREDS, fetch=fetch), now=NOW) == 2
@@ -220,7 +222,7 @@ def test_exit_two_unreachable(capsys):
 
 # ── live integration (creds + network; skips truthfully) ──────────────
 
-@pytest.mark.red
+@pytest.mark.live
 def test_live_appwrite_store_invariants():
     check = AppwriteStoreCheck()
     if check.credentials is None:
@@ -233,3 +235,50 @@ def test_live_appwrite_store_invariants():
         pytest.skip(f"appwrite unreachable: {report.error}")
     assert report.total_files and report.total_files > 0
     assert report.real_collection_present is True
+
+
+@pytest.mark.beige
+def test_structural_conventions_appwrite_store():
+    """ADR-005 beige: surface module conventions — check/render/main exposed,
+    and every verdict this surface can emit is registered in the exit map."""
+    import tools.liveness.appwrite_store as module
+    from tools.liveness.report import EXIT_CODE_BY_VERDICT
+
+    assert callable(module.main) and callable(module.render)
+    assert hasattr(module, "CheckReport")
+    for verdict in ('STORE_ACTIVE', 'STORE_IDLE', 'SKIP_NO_CREDENTIALS', 'UNREACHABLE'):
+        assert verdict in EXIT_CODE_BY_VERDICT, verdict
+
+
+def test_resolve_credentials_prefers_process_env(monkeypatch):
+    from tools.liveness import appwrite_api
+
+    monkeypatch.setenv("APPWRITE_ENDPOINT", "https://example.test/v1")
+    monkeypatch.setenv("APPWRITE_DATASTORE_PROJECT_ID", "proj")
+    monkeypatch.setenv("APPWRITE_DATASTORE_API_KEY", "key")
+    credentials = appwrite_api.resolve_credentials()
+    assert credentials == appwrite_api.AppwriteCredentials(
+        "https://example.test/v1", "proj", "key"
+    )
+
+
+def test_resolve_credentials_none_when_nothing_available(monkeypatch):
+    from tools.liveness import appwrite_api
+
+    for name in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
+                 "APPWRITE_DATASTORE_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(appwrite_api, "_known_env_files", tuple)
+    assert appwrite_api.resolve_credentials() is None
+
+
+def test_resolve_credentials_skips_env_file_missing_keys(monkeypatch, tmp_path):
+    from tools.liveness import appwrite_api
+
+    for name in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
+                 "APPWRITE_DATASTORE_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    incomplete = tmp_path / ".env"
+    incomplete.write_text("export APPWRITE_ENDPOINT=https://example.test/v1\n")
+    monkeypatch.setattr(appwrite_api, "_known_env_files", lambda: (incomplete,))
+    assert appwrite_api.resolve_credentials() is None

@@ -19,8 +19,6 @@ import pytest
 
 from tools.liveness.appwrite_store import AppwriteCredentials
 from tools.liveness.unfao_delivery import (
-    UNFAO_BUCKET_ID,
-    CheckReport,
     UnfaoDeliveryCheck,
     main,
     render,
@@ -107,6 +105,7 @@ def test_missing_stream_reported_as_never_delivered():
     assert report.forecast_verdict == "NEVER_DELIVERED"
     assert report.verdict == "DELIVERY_STALLED"
 
+@pytest.mark.red
 def test_unreachable_when_fetch_fails():
     report = UnfaoDeliveryCheck(credentials=CREDS,
                                 fetch=_fake_fetch({"unfao_bucket/files": OSError("dns fail")})).run(now=NOW)
@@ -143,6 +142,7 @@ def test_exit_one_stalled(capsys):
     fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
     assert main(check=UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch), now=NOW) == 1
 
+@pytest.mark.red
 def test_exit_two_unreachable(capsys):
     fetch = _fake_fetch({"unfao_bucket/files": OSError("boom")})
     assert main(check=UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch), now=NOW) == 2
@@ -150,7 +150,7 @@ def test_exit_two_unreachable(capsys):
 
 # ── live integration (creds + network; skips truthfully) ──────────────
 
-@pytest.mark.red
+@pytest.mark.live
 def test_live_unfao_delivery_invariants():
     check = UnfaoDeliveryCheck()
     if check.credentials is None:
@@ -163,3 +163,16 @@ def test_live_unfao_delivery_invariants():
         pytest.skip(f"unfao bucket unreachable: {report.error}")
     assert report.total_files and report.total_files > 0
     assert report.forecast_newest_name is not None
+
+
+@pytest.mark.beige
+def test_structural_conventions_unfao_delivery():
+    """ADR-005 beige: surface module conventions — check/render/main exposed,
+    and every verdict this surface can emit is registered in the exit map."""
+    import tools.liveness.unfao_delivery as module
+    from tools.liveness.report import EXIT_CODE_BY_VERDICT
+
+    assert callable(module.main) and callable(module.render)
+    assert hasattr(module, "CheckReport")
+    for verdict in ('DELIVERING', 'DELIVERY_STALLED', 'SKIP_NO_CREDENTIALS', 'UNREACHABLE'):
+        assert verdict in EXIT_CODE_BY_VERDICT, verdict

@@ -3,4 +3,5 @@ markers = [
     "red: adversarial / error-path tests (ADR-005)",
     "beige: convention and structural compliance tests (ADR-005)",
     "green: correctness and functional tests (ADR-005)",
+    "live: tests that touch real external services; skip truthfully offline (ADR-005 amendment 2026-07-19)",
 ]

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.liveness import old_api, vpn_store
+from tools.liveness import vpn_store
 from tools.liveness.__main__ import run_all
 from tools.liveness.datafactory_input import DatafactoryInputCheck
 from tools.liveness.report import exit_code_for
@@ -29,6 +29,7 @@ pytestmark = pytest.mark.green
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.mark.red
 def test_p1_multiline_error_value_stays_one_fact_per_line():
     """P1 (hard): render contract is 'one fact per line, key: value', but a
     multi-line error value (seen live: sqlalchemy OperationalError) emits
@@ -56,6 +57,7 @@ def test_p2_datafactory_input_missing_package_is_truthful_skip():
     assert exit_code_for(report.verdict) == 0
 
 
+@pytest.mark.red
 def test_p4_wandb_malformed_created_at_does_not_crash_the_check():
     """P4 (hard): _judge runs outside the per-ensemble try; one run with a
     malformed created_at crashes the whole check uncaught (standalone module
@@ -75,6 +77,7 @@ def test_p4_wandb_malformed_created_at_does_not_crash_the_check():
     assert report.error is not None  # the malformed ensemble is a reported fact
 
 
+@pytest.mark.beige
 def test_p5_monthly_ensembles_mirrors_monthly_run_sh():
     """P5 (soft): the docstring says 'update BOTH when the roster changes'
     but nothing enforced it. This IS the tripwire: it passes today and fails

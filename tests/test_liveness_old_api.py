@@ -10,7 +10,7 @@ REAL API response captured live on 2026-07-19 (CAPTURED_RUNS below, verbatim,
     published as fatalities003_2026_05_t01.
 
 Unit tests are offline (fake fetch, injected clock). The single live test is
-@pytest.mark.red and skips truthfully on any network problem (house pattern:
+@pytest.mark.live and skips truthfully on any network problem (house pattern:
 tests/test_reconciliation_viewser_provider.py).
 """
 
@@ -136,6 +136,7 @@ def test_parses_canonical_run_name():
 def test_parses_second_tag_sequence():
     assert parse_run_name("fatalities002_2023_09_t02") == (2, 2023, 9, 2)
 
+@pytest.mark.red
 def test_rejects_legacy_month_zero_names():
     # fatalities001_2022_00_t01 is real in the listing; month 00 must not
     # reach the month math (S1 review finding).
@@ -143,6 +144,7 @@ def test_rejects_legacy_month_zero_names():
 
 @pytest.mark.parametrize("name", ["escwa_2021_02_01", "d_2021_02_01", "r_2021_12_01",
                                   "escwa_features_2021_05_01", "f_2021_06_01", ""])
+@pytest.mark.red
 def test_rejects_non_fatalities_names(name):
     assert parse_run_name(name) is None
 
@@ -196,12 +198,14 @@ def test_fresh_when_cutoff_within_budget():
     assert report.months_behind == FRESHNESS_BUDGET_MONTHS == 2
     assert report.latest_run == "fatalities003_2026_05_t01"
 
+@pytest.mark.red
 def test_stale_when_cutoff_beyond_budget():
     fetch = _fake_fetch({"?month=": SERVING_ROWS, BASE_URL: _runs_doc(CAPTURED_RUNS)})
     report = OldApiCheck(fetch=fetch).run(now_month_id=CAPTURE_NOW + 1)  # Aug: 3 behind
     assert report.verdict == "LIVE_STALE"
     assert report.months_behind == 3
 
+@pytest.mark.red
 def test_unreachable_when_list_fetch_fails():
     fetch = _fake_fetch({BASE_URL: OSError("connection refused")})
     report = OldApiCheck(fetch=fetch).run(now_month_id=CAPTURE_NOW)
@@ -256,6 +260,7 @@ def test_exit_one_when_not_serving(capsys):
     fetch = _fake_fetch({"?month=": EMPTY_ROWS, BASE_URL: _runs_doc(CAPTURED_RUNS)})
     assert main(fetch=fetch, now_month_id=CAPTURE_NOW) == 1
 
+@pytest.mark.red
 def test_exit_two_when_unreachable(capsys):
     fetch = _fake_fetch({BASE_URL: OSError("no route")})
     assert main(fetch=fetch, now_month_id=CAPTURE_NOW) == 2
@@ -263,7 +268,7 @@ def test_exit_two_when_unreachable(capsys):
 
 # ── live integration (network; skips truthfully) ──────────────────────
 
-@pytest.mark.red
+@pytest.mark.live
 def test_live_old_api_invariants():
     try:
         report = OldApiCheck().run()
@@ -274,3 +279,52 @@ def test_live_old_api_invariants():
     assert report.run_count and report.run_count > 0
     assert report.latest_run is not None
     assert parse_run_name(report.latest_run) is not None
+
+
+@pytest.mark.beige
+def test_structural_conventions_old_api():
+    """ADR-005 beige: surface module conventions — check/render/main exposed,
+    and every verdict this surface can emit is registered in the exit map."""
+    import tools.liveness.old_api as module
+    from tools.liveness.report import EXIT_CODE_BY_VERDICT
+
+    assert callable(module.main) and callable(module.render)
+    assert hasattr(module, "CheckReport")
+    for verdict in ('LIVE_FRESH', 'LIVE_STALE', 'LIVE_NOT_SERVING', 'UNREACHABLE'):
+        assert verdict in EXIT_CODE_BY_VERDICT, verdict
+
+
+def test_latest_run_keeps_best_over_older_candidates():
+    assert latest_fatalities_run(
+        ["fatalities003_2026_05_t01", "fatalities001_2020_01_t01"]
+    ) == "fatalities003_2026_05_t01"
+
+
+@pytest.mark.red
+def test_serving_probe_error_is_a_fact_not_a_crash():
+    def fetch(url):
+        if url.endswith("/"):
+            return {"runs": ["fatalities003_2026_05_t01"]}
+        raise TimeoutError("serving probe timed out")
+
+    report = OldApiCheck(fetch=fetch).run(now_month_id=559)
+    assert report.verdict == "LIVE_NOT_SERVING"
+    assert "TimeoutError" in report.error
+
+
+def test_default_fetch_uses_stdlib_urllib(monkeypatch):
+    import io
+    import urllib.request
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda url, timeout: FakeResponse(b'{"runs": []}'),
+    )
+    assert OldApiCheck._fetch_json("https://example.test/") == {"runs": []}

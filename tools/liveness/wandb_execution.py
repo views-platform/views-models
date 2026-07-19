@@ -225,4 +225,4 @@ def main(check: Optional[WandbExecutionCheck] = None, now: Optional[datetime] = 
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main())  # pragma: no cover — __main__ guard

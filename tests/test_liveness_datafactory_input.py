@@ -10,7 +10,7 @@ Ground truth used below (verified live 2026-07-06/19): the store's
 last_valid_month_id was 558; meta/partitions.json currently requires 552.
 
 Unit tests are offline (injected reader + fixed requirements); the single
-live test is @pytest.mark.red and skips truthfully.
+live test is @pytest.mark.live and skips truthfully.
 """
 
 import json
@@ -19,7 +19,6 @@ from pathlib import Path
 import pytest
 
 from tools.liveness.datafactory_input import (
-    CheckReport,
     DatafactoryInputCheck,
     main,
     render,
@@ -79,6 +78,7 @@ def test_stale_when_coverage_short_of_requirement():
     assert report.verdict == "INPUT_STALE"
     assert report.margin_months == -12
 
+@pytest.mark.red
 def test_unreachable_when_reader_fails():
     report = _check(OSError("connection timed out")).run()
     assert report.verdict == "UNREACHABLE"
@@ -115,13 +115,14 @@ def test_exit_zero_when_fresh(capsys):
 def test_exit_one_when_stale(capsys):
     assert main(check=_check(500)) == 1
 
+@pytest.mark.red
 def test_exit_two_when_unreachable(capsys):
     assert main(check=_check(OSError("no route"))) == 2
 
 
 # ── live integration (network + datafactory install; skips truthfully) ─
 
-@pytest.mark.red
+@pytest.mark.live
 def test_live_datafactory_input_invariants():
     try:
         report = DatafactoryInputCheck().run()
@@ -132,3 +133,30 @@ def test_live_datafactory_input_invariants():
     assert report.last_valid_month_id is not None
     assert report.last_valid_month_id > 500  # sanity: post-2021 coverage
     assert report.required_month_id == required_month_id_from_partitions(REPO_ROOT)
+
+
+@pytest.mark.beige
+def test_structural_conventions_datafactory_input():
+    """ADR-005 beige: surface module conventions — check/render/main exposed,
+    and every verdict this surface can emit is registered in the exit map."""
+    import tools.liveness.datafactory_input as module
+    from tools.liveness.report import EXIT_CODE_BY_VERDICT
+
+    assert callable(module.main) and callable(module.render)
+    assert hasattr(module, "CheckReport")
+    for verdict in ('INPUT_FRESH', 'INPUT_STALE', 'SKIP_NO_PACKAGE', 'UNREACHABLE'):
+        assert verdict in EXIT_CODE_BY_VERDICT, verdict
+
+
+@pytest.mark.red
+def test_netrc_probe_failure_never_sinks_the_check():
+    def exploding_probe():
+        raise OSError("~/.netrc unreadable")
+
+    report = DatafactoryInputCheck(
+        read_last_valid_month_id=lambda: 558,
+        netrc_probe=exploding_probe,
+        required_month_id=552,
+    ).run()
+    assert report.netrc_present is None  # unknown, reported as such
+    assert report.verdict == "INPUT_FRESH"

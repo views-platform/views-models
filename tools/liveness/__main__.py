@@ -51,4 +51,4 @@ def run_all(surfaces: Optional[Tuple[Tuple[str, Callable[[], int]], ...]] = None
 
 
 if __name__ == "__main__":
-    raise SystemExit(run_all())
+    raise SystemExit(run_all())  # pragma: no cover — __main__ guard
