@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Optional, Tuple
 
+from tools.liveness.report import exit_code_for
+
 WANDB_ENTITY = "views_pipeline"
 
 # Mirrors monthly_run.sh (the hand-run production list). Keep in sync by hand.
@@ -71,7 +73,7 @@ class CheckReport:
 def render(report: CheckReport) -> str:
     """One fact per line, ``key: value``; per-ensemble blocks are prefixed."""
     lines = [
-        f"surface: wandb_execution",
+        "surface: wandb_execution",
         f"verdict: {report.verdict}",
         f"entity: {report.entity}",
         f"cycle_budget_days: {CYCLE_BUDGET_DAYS}",
@@ -208,19 +210,13 @@ class WandbExecutionCheck:
         }
 
 
-_EXIT_CODE_BY_VERDICT = {
-    "EXECUTION_CURRENT": 0,
-    "SKIP_NO_CREDENTIALS": 0,
-    "EXECUTION_STALE": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(check: Optional[WandbExecutionCheck] = None, now: Optional[datetime] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or WandbExecutionCheck()).run(now=now)
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":

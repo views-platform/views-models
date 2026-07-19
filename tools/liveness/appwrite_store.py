@@ -29,11 +29,9 @@ effects (C-93), zero new dependencies, truthful SKIP without credentials.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 APPWRITE_BUCKET_ID = "production_forecasts"
 REAL_METADATA_DATABASE_ID = "file_metadata"
@@ -43,89 +41,28 @@ HISTORICAL_WRONG_COLLECTION_ID = "forecasts_metadata"
 # A monthly-cadence store is "active" if something landed within ~1.5 cycles.
 ACTIVE_WITHIN_DAYS = 45
 
-_FETCH_TIMEOUT_SECONDS = 25
-
-def _known_env_files():
-    """Candidate platform .env files, discovered by walking ancestors — robust
-    to running from the main checkout AND from a git worktree under
-    .claude/worktrees/ (where fixed parent-counting breaks)."""
-    return tuple(
-        ancestor / "views-faoapi" / ".env"
-        for ancestor in Path(__file__).resolve().parents
-        if (ancestor / "views-faoapi" / ".env").exists()
-    )
-
-_ENV_LINE = re.compile(
-    r"^export\s+(APPWRITE_ENDPOINT|APPWRITE_DATASTORE_PROJECT_ID|"
-    r"APPWRITE_DATASTORE_API_KEY)\s*=\s*(.+?)\s*$"
+# Shared Appwrite plumbing lives in appwrite_api (S7 extraction, #245);
+# names are re-exported here so existing imports/tests keep working.
+from tools.liveness.appwrite_api import (  # noqa: E402  (kept near use)
+    AppwriteCredentials,
+    FetchJson,
+    fetch_json,
+    load_credentials_from_env_file,
+    newest_first_query,
+    resolve_credentials,
 )
+from tools.liveness.report import exit_code_for, render_facts  # noqa: E402
 
-FetchJson = Callable[[str, Dict[str, str]], object]
-
-
-def newest_first_query(limit: int = 5) -> str:
-    """Appwrite query string: order by $createdAt descending, capped.
-
-    Encoded once so every bucket listing in this package is immune to the
-    25-per-page default that produced the 2026-07-19 false-idle verdict.
-    """
-    import json as _json
-    from urllib.parse import quote as _quote
-
-    queries = (
-        {"method": "orderDesc", "attribute": "$createdAt"},
-        {"method": "limit", "values": [limit]},
-    )
-    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
-
-
-
-@dataclass(frozen=True)
-class AppwriteCredentials:
-    endpoint: str
-    project_id: str
-    api_key: str
-
-
-def load_credentials_from_env_file(path: Path) -> Optional[AppwriteCredentials]:
-    """Parse an export-style .env; None unless all three keys are present."""
-    try:
-        text = path.read_text()
-    except OSError:
-        return None
-    found: Dict[str, str] = {}
-    for line in text.splitlines():
-        match = _ENV_LINE.match(line.strip())
-        if match:
-            found[match.group(1)] = match.group(2).strip("\"'")
-    try:
-        return AppwriteCredentials(
-            endpoint=found["APPWRITE_ENDPOINT"],
-            project_id=found["APPWRITE_DATASTORE_PROJECT_ID"],
-            api_key=found["APPWRITE_DATASTORE_API_KEY"],
-        )
-    except KeyError:
-        return None
-
-
-def resolve_credentials() -> Optional[AppwriteCredentials]:
-    """Env vars first, then the known platform .env files."""
-    import os
-
-    env = {k: os.environ.get(k) for k in (
-        "APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID", "APPWRITE_DATASTORE_API_KEY",
-    )}
-    if all(env.values()):
-        return AppwriteCredentials(
-            env["APPWRITE_ENDPOINT"],            # type: ignore[arg-type]
-            env["APPWRITE_DATASTORE_PROJECT_ID"],  # type: ignore[arg-type]
-            env["APPWRITE_DATASTORE_API_KEY"],   # type: ignore[arg-type]
-        )
-    for candidate in _known_env_files():
-        credentials = load_credentials_from_env_file(candidate)
-        if credentials is not None:
-            return credentials
-    return None
+__all__ = [
+    "AppwriteCredentials",
+    "AppwriteStoreCheck",
+    "CheckReport",
+    "load_credentials_from_env_file",
+    "main",
+    "newest_first_query",
+    "render",
+    "resolve_credentials",
+]
 
 
 @dataclass(frozen=True)
@@ -166,7 +103,7 @@ def render(report: CheckReport) -> str:
         ("historical_wrong_collection_id", HISTORICAL_WRONG_COLLECTION_ID),
         ("error", report.error),
     ]
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return render_facts(facts)
 
 
 class AppwriteStoreCheck:
@@ -180,7 +117,7 @@ class AppwriteStoreCheck:
         self.credentials = (
             resolve_credentials() if credentials == "RESOLVE" else credentials
         )
-        self._fetch = fetch or self._fetch_json
+        self._fetch = fetch or fetch_json
 
     def run(self, now: Optional[datetime] = None) -> CheckReport:
         if self.credentials is None:
@@ -261,30 +198,13 @@ class AppwriteStoreCheck:
         except Exception:  # noqa: BLE001 — discovery is auxiliary; unknown, honestly
             return None, None
 
-    @staticmethod
-    def _fetch_json(url: str, headers: Dict[str, str]) -> object:
-        """Default fetch: stdlib urllib, lazy import, explicit timeout."""
-        import json
-        import urllib.request
-
-        request = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT_SECONDS) as response:
-            return json.load(response)
-
-
-_EXIT_CODE_BY_VERDICT = {
-    "STORE_ACTIVE": 0,
-    "SKIP_NO_CREDENTIALS": 0,
-    "STORE_IDLE": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(check: Optional[AppwriteStoreCheck] = None, now: Optional[datetime] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or AppwriteStoreCheck()).run(now=now)
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":

@@ -33,6 +33,8 @@ from typing import Callable, Optional
 
 from tools.partitions.domain import month_id_to_date
 
+from tools.liveness.report import exit_code_for, render_facts
+
 _DEFAULT_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
@@ -72,7 +74,7 @@ def render(report: CheckReport) -> str:
         ("margin_months", report.margin_months),
         ("error", report.error),
     ]
-    return "\n".join(f"{key}: {value}" for key, value in facts if value is not None)
+    return render_facts(facts)
 
 
 class DatafactoryInputCheck:
@@ -145,18 +147,13 @@ class DatafactoryInputCheck:
         return host is not None and credentials.authenticators(host) is not None
 
 
-_EXIT_CODE_BY_VERDICT = {
-    "INPUT_FRESH": 0,
-    "INPUT_STALE": 1,
-    "UNREACHABLE": 2,
-}
 
 
 def main(check: Optional[DatafactoryInputCheck] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or DatafactoryInputCheck()).run()
     print(render(report))
-    return _EXIT_CODE_BY_VERDICT[report.verdict]
+    return exit_code_for(report.verdict)
 
 
 if __name__ == "__main__":
