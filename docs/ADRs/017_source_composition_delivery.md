@@ -1,7 +1,7 @@
 # ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
 **Status:** Proposed
-**Date:** 2026-07-02
+**Date:** 2026-07-02 — **amended 2026-07-19** (new production evidence + alignment with vpp ADR-013; the decision itself is unchanged)
 **Deciders:** Simon (maintainer) — *pending review*
 **Consulted:** platform contributors
 **Informed:** All contributors
@@ -24,6 +24,27 @@ Concrete symptoms:
 - The ensemble↔constituent guard (`views-pipeline-core .../modules/validation/ensemble/check.py`) is **dead**: it branches on `single_model_dp_status == "production"`, a value the sniffer forbids, so the rule never fires. A `deployed` ensemble can silently contain `shadow` constituents — and `white_mustang` already does (`lavender_haze`, `blank_space`).
 - **Delivery routing is implicit and scattered.** The FAO edge lives on the *consumer* (`postprocessors/un_fao/configs/config_meta.py` → `"ensemble": "rusty_bucket"`); the main line is `monthly_run.sh` + the store + the API with no explicit declaration. Nothing says, in one place, "here is where forecasts leave the building."
 - **Delivering a lone model requires wrapping it in a one-model ensemble — a hack.** (The tell that a shared abstraction is missing.)
+
+**Production evidence (added 2026-07-19 — the failure this ADR predicts, observed live):**
+
+- **The FAO forecast product has never been served — because the delivery
+  relationship was declared nowhere.** The producer side stamped its *own*
+  identity on every forecast document (the ensemble's name,
+  vpp `unfao/managers/unfao.py` forecast upload), while the deployed consumer
+  resolves a *different* name (`un_fao`, injected unconditionally by
+  views-faoapi's query layer). No declaration related the two, so nothing could
+  notice they disagreed: six `orange_ensemble`-named forecast documents sat
+  invisible in `unfao_bucket`, and forecast serving has been empty for the
+  entire life of the path (confirmed live 2026-07-15; views-faoapi F1
+  ratification addendum, and the views-models seat review of vpp ADR-013,
+  `reports/expert_reviews/2026-07-19_adr013_wire_contract_review_views_models_seat.md`).
+  This is precisely the silent-failure mode §"Delivery routing is implicit and
+  scattered" argues from — now with a receipt instead of a prediction.
+- **The current vocabulary cannot express the platform's actual state.** On
+  2026-07-19, `rusty_bucket` (`deployment_status: shadow`) is the source being
+  delivered to an external UN partner — "placeholder quality, live delivery" is
+  unsayable in one label, and trivially sayable in this ADR's model
+  (`candidate` maturity + a delivery declaration ⇒ derived deployed).
 
 ## Decision
 
@@ -49,6 +70,38 @@ A small central registry (`meta/consumers.py`) names the valid consumers and the
 - a delivery to a **production-tier** consumer requires its source to be `graduate`;
 - a `graduate` **composite** requires its members to be `graduate` (the white_mustang check);
 - a delivery's `source` and `consumer` must resolve (a real source; a consumer in the registry).
+
+### 6. Relationship to vpp ADR-013 (added 2026-07-19)
+
+views-postprocessing **ADR-013** ("The Sampled-Forecast Wire Contract",
+Accepted 2026-07-15) and this ADR are companions dividing one territory:
+**013 owns the wire** (how forecast bytes travel: formats, manifests, the
+pinned consumer `name`), **017 owns the relationship** (which source is
+*declared* to ship to which consumer). Three alignment facts:
+
+- ADR-013's §0.3 ownership table and §4.1a name-pinning are the platform's
+  **first concrete delivery-layer declarations** — this ADR's delivery axis is
+  their generalization to every consumer.
+- The `un_fao` config line (`"ensemble": "rusty_bucket"`) that the Context
+  above lists as a symptom is better read as the **proto-declaration**: the
+  seed of the correct pattern, unrecognized and unnormalized. Phase 1's
+  `config_delivery.py` is a rename-and-formalize of something that already
+  exists, not a green-field structure.
+- ADR-013 assigns the *expected-target-set* knowledge to the delivery layer
+  (its §4.2a, views-postprocessing configuration) — the same "the delivery
+  unit owns the product definition" principle this ADR states from the
+  views-models side.
+
+### 7. The derived state has an instrument (added 2026-07-19)
+
+"Derived, never declared" invites the question *derived from what, verified
+how?* The declaration side is §3's rule; the verification side now exists as
+code: `tools/liveness` (epic #238) observes every delivery surface with raw
+facts and truthful skips. The operational reading of "in production" is
+therefore checkable end-to-end: **declared** (a delivery edge points at the
+source) **and observable** (the corresponding liveness surface is green).
+A declared-but-stalled delivery shows up as exactly that — a declaration whose
+surface is red — instead of a label nobody can falsify.
 
 ## Rationale (against the maintainer's principles)
 
@@ -147,6 +200,9 @@ is_in_production(source) == (maturity(source) == "graduate") and delivered_to_pr
 
 ## References
 - ADR-001 (ontology), ADR-002 (topology), ADR-003 (authority — the `deployment_status` allowed-list), ADR-016 (point/stochastic — the same "derive, don't declare" instinct).
+- views-postprocessing **ADR-013** (the sampled-forecast wire contract — the *wire* half of the territory this ADR's delivery axis governs; see Decision §6).
+- `reports/expert_reviews/2026-07-19_adr013_wire_contract_review_views_models_seat.md` (the name-invisibility production receipt, live-verified blocker status).
+- `tools/liveness` / epic #238 (the observability instrument behind Decision §7).
 - views-pipeline-core `modules/validation/core_config_sniffer.py` (`SUPPORTED_DEPLOYMENT_STATUSES`); `modules/validation/ensemble/check.py` (the dead `"production"` guard).
 - Technical risk register — the deployment_status findings (ensemble↔constituent coherence gap; dead guard; implicit/emergent routing).
 - Session design discussion, 2026-07-02.
