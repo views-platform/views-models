@@ -24,7 +24,7 @@ def get_hp_config():
         "early_stopping_patience": 12,
         "feature_scaler": None,
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

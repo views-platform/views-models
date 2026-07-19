@@ -58,7 +58,7 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -166,7 +166,7 @@ def get_hp_config():
         "likelihood": None,
 
         # "static_covariate_stats": {
-        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "transform": "AsinhTransform",
         #     "inject": False,
         # },
         "checkpoint_mode": "best",

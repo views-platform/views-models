@@ -81,7 +81,7 @@ def get_sweep_config():
                 # Decay features [0,1] and lr_ged lags [0,~10] also benefit:
                 # asinh is monotone so ordering is preserved, MaxAbs normalises range.
                 # Topic stocks are non-negative unbounded — same pipeline is appropriate.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

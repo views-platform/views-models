@@ -88,7 +88,7 @@ def get_sweep_config():
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
                 # Asinh compresses tails; MaxAbsScaler scales to [-1, 1] range.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

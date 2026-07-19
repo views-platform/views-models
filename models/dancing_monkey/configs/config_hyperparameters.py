@@ -61,7 +61,7 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                 # Primary joint target variables
                 "lr_ged_sb",
                 "lr_ged_os",
@@ -139,7 +139,7 @@ def get_hp_config():
         "use_reversible_instance_norm": True,
 
         # "static_covariate_stats": {
-        #     "transform": "AsinhTransform->MaxAbsScaler",
+        #     "transform": "AsinhTransform",
         #     "inject": True,
         #     # "stats": ["trend", "sparsity"],
         # },

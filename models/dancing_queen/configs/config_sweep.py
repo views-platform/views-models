@@ -68,7 +68,7 @@ def get_sweep_config():
                 # max absolute value. StandardScaler shifts zero-anchor and creates
                 # non-zero mean for peace series — GRU hidden state carries a
                 # persistent positive bias from the input mean.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

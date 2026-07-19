@@ -65,7 +65,7 @@ def get_sweep_config():
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
                 # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -171,7 +171,7 @@ def get_sweep_config():
         # broadband noise across peaceful series to reduce spectral loss, raising
         # peace_mean and MSLE. Consistent with elastic_heart and other models.
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.05},
-        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ModelCatalog builds the encoder dict from this flag at model-build
         # time, selecting functions based on config["level"] — JSON-safe.
         "use_cyclic_encoders": {"values": [True]},
