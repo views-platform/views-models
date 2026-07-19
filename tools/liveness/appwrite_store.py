@@ -63,6 +63,23 @@ _ENV_LINE = re.compile(
 FetchJson = Callable[[str, Dict[str, str]], object]
 
 
+def newest_first_query(limit: int = 5) -> str:
+    """Appwrite query string: order by $createdAt descending, capped.
+
+    Encoded once so every bucket listing in this package is immune to the
+    25-per-page default that produced the 2026-07-19 false-idle verdict.
+    """
+    import json as _json
+    from urllib.parse import quote as _quote
+
+    queries = (
+        {"method": "orderDesc", "attribute": "$createdAt"},
+        {"method": "limit", "values": [limit]},
+    )
+    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
+
+
+
 @dataclass(frozen=True)
 class AppwriteCredentials:
     endpoint: str
@@ -179,8 +196,14 @@ class AppwriteStoreCheck:
         }
 
         try:
+            # Server-side newest-first + limit: Appwrite returns 25/page by
+            # default, and an unsorted first page of a large bucket made this
+            # check report a FALSE newest (the 2026-07-19 pagination bug —
+            # pinned by test_storage_request_orders_server_side).
             listing = self._fetch(
-                f"{creds.endpoint}/storage/buckets/{APPWRITE_BUCKET_ID}/files", headers
+                f"{creds.endpoint}/storage/buckets/{APPWRITE_BUCKET_ID}/files"
+                f"?{newest_first_query()}",
+                headers,
             )
             files = list(listing.get("files", []))  # type: ignore[union-attr]
             total = int(listing.get("total", len(files)))  # type: ignore[union-attr]
