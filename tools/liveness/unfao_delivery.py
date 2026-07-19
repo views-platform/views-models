@@ -26,6 +26,7 @@ from typing import Callable, Dict, Optional, Tuple
 
 from tools.liveness.appwrite_store import (
     AppwriteCredentials,
+    newest_first_query,
     resolve_credentials,
 )
 
@@ -40,6 +41,20 @@ DELIVERING_WITHIN_DAYS = 45
 _FETCH_TIMEOUT_SECONDS = 25
 
 FetchJson = Callable[[str, Dict[str, str]], object]
+
+
+def stream_newest_query(prefix: str) -> str:
+    """Appwrite query string: newest file whose name starts with ``prefix``."""
+    import json as _json
+    from urllib.parse import quote as _quote
+
+    queries = (
+        {"method": "startsWith", "attribute": "name", "values": [prefix]},
+        {"method": "orderDesc", "attribute": "$createdAt"},
+        {"method": "limit", "values": [1]},
+    )
+    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
+
 
 
 @dataclass(frozen=True)
@@ -119,12 +134,19 @@ class UnfaoDeliveryCheck:
             "X-Appwrite-Key": creds.api_key,
         }
 
+        base = f"{creds.endpoint}/storage/buckets/{UNFAO_BUCKET_ID}/files"
         try:
-            listing = self._fetch(
-                f"{creds.endpoint}/storage/buckets/{UNFAO_BUCKET_ID}/files", headers
+            # Per-stream server-side newest (startsWith + orderDesc + limit):
+            # immune to Appwrite's 25-per-page default (the 2026-07-19
+            # pagination bug found in the sibling check).
+            overall = self._fetch(f"{base}?{newest_first_query(limit=1)}", headers)
+            total = int(overall.get("total", 0))  # type: ignore[union-attr]
+            forecast_doc = self._fetch(
+                f"{base}?{stream_newest_query(FORECAST_PREFIX)}", headers
             )
-            files = list(listing.get("files", []))  # type: ignore[union-attr]
-            total = int(listing.get("total", len(files)))  # type: ignore[union-attr]
+            historical_doc = self._fetch(
+                f"{base}?{stream_newest_query(HISTORICAL_PREFIX)}", headers
+            )
         except Exception as exc:  # noqa: BLE001 — any storage failure is the fact
             return CheckReport(
                 verdict="UNREACHABLE",
@@ -132,9 +154,11 @@ class UnfaoDeliveryCheck:
                 error=f"{type(exc).__name__}: {exc}",
             )
 
-        forecast_files = [f for f in files if str(f.get("name", "")).startswith(FORECAST_PREFIX)]
-        historical_files = [f for f in files if str(f.get("name", "")).startswith(HISTORICAL_PREFIX)]
-        other = len(files) - len(forecast_files) - len(historical_files)
+        forecast_files = list(forecast_doc.get("files", []))  # type: ignore[union-attr]
+        historical_files = list(historical_doc.get("files", []))  # type: ignore[union-attr]
+        forecast_total = int(forecast_doc.get("total", 0))  # type: ignore[union-attr]
+        historical_total = int(historical_doc.get("total", 0))  # type: ignore[union-attr]
+        other = total - forecast_total - historical_total
 
         f_verdict, f_facts = self._stream_verdict(forecast_files, now)
         h_verdict, h_facts = self._stream_verdict(historical_files, now)

@@ -6,7 +6,10 @@ TDD suite written BEFORE the implementation. Ground truth captured live
     database  id='file_metadata'          name='File Metadata'
     collection id='production_forecasts'  name='Production Forecasts'
     collection id='unfao'                 name='UNFAO File Metadata'
-    bucket 'production_forecasts': 318 files, newest 2025-11-27 (~34KB stubs)
+    bucket 'production_forecasts': 318 files. NOTE: an early forensic pass
+    claimed 'newest 2025-11-27' — that was the PAGINATION BUG (Appwrite's
+    25-per-page default, unsorted); the true newest was 2026-06-29. The
+    check now orders server-side; the regression test below pins it.
 
 The June 2026 live failure used collection ID 'forecasts_metadata' — which
 does not exist and never did (register C-100's founding incident). This
@@ -142,6 +145,26 @@ def test_empty_bucket_is_idle_with_no_newest():
     report = AppwriteStoreCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
     assert report.verdict == "STORE_IDLE"
     assert report.newest_file_name is None
+
+
+
+
+# ── the pagination-bug regression (2026-07-19) ────────────────────────
+# Appwrite returns 25 files/page by default; sorting one page of a 318-file
+# bucket produced a FALSE "newest = 2025-11-27" (truth: 2026-06-29). The
+# storage request must order server-side.
+
+def test_storage_request_orders_server_side():
+    captured = []
+    def recording_fetch(url, headers):
+        captured.append(url)
+        if "/storage/" in url:
+            return FILES_DOC
+        return COLLECTIONS_DOC
+    AppwriteStoreCheck(credentials=CREDS, fetch=recording_fetch).run(now=NOW)
+    storage_urls = [u for u in captured if "/storage/" in u]
+    assert storage_urls and "orderDesc" in storage_urls[0]
+    assert "createdAt" in storage_urls[0]
 
 
 # ── collection discovery facts ────────────────────────────────────────
