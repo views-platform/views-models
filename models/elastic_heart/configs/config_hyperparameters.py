@@ -60,9 +60,10 @@ def get_hp_config():
 
         # Scaling
         "feature_scaler": None,
+        "force_target_only": True,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform": [
+            "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",

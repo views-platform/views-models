@@ -65,6 +65,7 @@ def get_hp_config():
 
         # Scaling
         "feature_scaler": None,
+        "force_target_only": True,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
             "AsinhTransform->MinMaxScaler": [
