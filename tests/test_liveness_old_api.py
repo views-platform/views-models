@@ -136,6 +136,11 @@ def test_parses_canonical_run_name():
 def test_parses_second_tag_sequence():
     assert parse_run_name("fatalities002_2023_09_t02") == (2, 2023, 9, 2)
 
+def test_rejects_legacy_month_zero_names():
+    # fatalities001_2022_00_t01 is real in the listing; month 00 must not
+    # reach the month math (S1 review finding).
+    assert parse_run_name("fatalities001_2022_00_t01") is None
+
 @pytest.mark.parametrize("name", ["escwa_2021_02_01", "d_2021_02_01", "r_2021_12_01",
                                   "escwa_features_2021_05_01", "f_2021_06_01", ""])
 def test_rejects_non_fatalities_names(name):

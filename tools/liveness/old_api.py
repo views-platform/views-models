@@ -63,6 +63,11 @@ def parse_run_name(name: str) -> Optional[RunId]:
     if match is None:
         return None
     generation, year, month, seq = (int(g) for g in match.groups())
+    if not 1 <= month <= 12:
+        # Legacy quirk: names like fatalities001_2022_00_t01 exist in the
+        # listing; month 00 is not a calendar month and must not enter the
+        # month math (review finding, S2 remediation).
+        return None
     return (generation, year, month, seq)
 
 
