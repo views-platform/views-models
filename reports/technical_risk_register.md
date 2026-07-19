@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 45 | Mitigated 16 | Resolved 37 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 46 | Mitigated 16 | Resolved 37 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1289,6 +1289,19 @@
 | **Status** | Open |
 | **Location** | `tools/liveness/__main__.py` SURFACES registry: no viewser surface (the ACTUAL input of the four production ensembles; the suite watches the datafactory input production does not yet consume), no website probe (only `api.viewsforecasting.org`); `tools/liveness/unfao_delivery.py` reports `*_newest_bytes` but never judges them (a 12-byte parquet counts as DELIVERING) |
 | **Notes** | Tier 3 rationale: no wrong output is produced — the gap is scope, and the register + README non-goals note make it visible rather than silent. Closing requires a maintainer scope decision: (a) a viewser liveness surface (an S9), (b) a minimum-bytes/row-count judgment on delivered files (liveness vs content-sanity boundary), (c) whether the website is a distinct surface from the API or out of scope. Until decided, the README documents these as known non-goals so all-green cannot be over-read. See also C-99 (heartbeat), C-96 (input freshness class). |
+
+---
+
+### C-103 — liveness test-suite taxonomy contradicts ADR-005; coverage below the "fully covered" bar
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Anyone running `pytest -m red` expecting the adversarial suite (gets six live network probes instead); `pytest -m beige` expecting structural compliance of tools/liveness (gets nothing); or trusting "fully covered" while refactoring the default network clients (95% branch coverage — precisely the default clients' error paths are unwatched) |
+| **Source** | falsify (2026-07-19, claim "100% covered, green/beige/red all around" → FALSIFIED, 3 hard / 2 soft) |
+| **Status** | Open |
+| **Location** | All `tests/test_liveness_*.py`: live network probes marked `red` (ADR-005 red = adversarial/error-path, `pyproject.toml:3`); genuine error-path tests sit under file-level `green`; zero `beige` tests; measured 95% branch coverage (misses: default clients' error branches, `resolve_credentials` fallbacks, `__main__` guards). Enforcement stubs: `tests/test_liveness_taxonomy.py` |
+| **Notes** | Root cause: marker *names* read from pyproject at S1 but not their *definitions* — "red = live/dangerous" was pattern-matched from a template test and WET-propagated through all six suites. Maintainer decision (2026-07-19): **Option A** — amend ADR-005 with a fourth `live` marker for tests that touch real external services; relabel the six probes `live`; red goes to the actual error-path tests; add beige structural suites; close the coverage gap (real tests for the coverable seams, `# pragma: no cover` only for `__main__` guards, with reasons). See also C-101 (same audit series), C-03 (tests not in CI). |
 
 ---
 
