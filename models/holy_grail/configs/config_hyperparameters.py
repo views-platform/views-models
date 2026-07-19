@@ -44,10 +44,10 @@ def get_hp_config():
                     "lr_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
-                    "lr_topic_tokens_t1", "lr_topic_tokens_t2",
-                    "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
-                    "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
-                    "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
+                    # "lr_topic_tokens_t1", "lr_topic_tokens_t2",
+                    # "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
+                    # "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
+                    # "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
 
                     # WDI (8 with static covs)
                     "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
