@@ -61,7 +61,7 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                 # Primary joint target variables
                 "lr_ged_sb",
                 "lr_ged_os",
