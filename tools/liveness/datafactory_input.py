@@ -170,4 +170,4 @@ def main(check: Optional[DatafactoryInputCheck] = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main())  # pragma: no cover — __main__ guard

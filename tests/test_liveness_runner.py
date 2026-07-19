@@ -70,6 +70,7 @@ def test_run_all_prints_blocks_and_returns_worst(capsys):
     assert code == 1
     assert "alpha" in out and "beta" in out and "gamma" in out
 
+@pytest.mark.red
 def test_run_all_unreachable_dominates(capsys):
     fakes = [("a", lambda: 1), ("b", lambda: 2)]
     assert run_all(surfaces=fakes) == 2
@@ -78,6 +79,7 @@ def test_run_all_all_green(capsys):
     fakes = [("a", lambda: 0), ("b", lambda: 0)]
     assert run_all(surfaces=fakes) == 0
 
+@pytest.mark.red
 def test_run_all_survives_a_crashing_check(capsys):
     def boom():
         raise RuntimeError("check exploded")
@@ -93,3 +95,13 @@ def test_run_all_survives_a_crashing_check(capsys):
 def test_all_surface_mains_importable():
     for name, main_callable in SURFACES:
         assert callable(main_callable), name
+
+
+@pytest.mark.beige
+def test_structural_conventions_runner():
+    """ADR-005 beige: registry structure — six uniquely named surfaces, all
+    runnable, in the canonical order."""
+    names = [name for name, _ in SURFACES]
+    assert names == ["old_api", "datafactory_input", "appwrite_store",
+                     "unfao_delivery", "wandb_execution", "vpn_store"]
+    assert all(callable(run_main) for _, run_main in SURFACES)

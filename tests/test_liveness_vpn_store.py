@@ -17,14 +17,12 @@ Run-name parsing and freshness reuse S1 (tools.liveness.old_api) — one
 parser, one convention, everywhere.
 """
 
-from datetime import date
 
 import pytest
 
 from tools.liveness.old_api import FRESHNESS_BUDGET_MONTHS
 from tools.liveness.vpn_store import (
     STORE_HOST,
-    CheckReport,
     VpnStoreCheck,
     main,
     render,
@@ -60,11 +58,13 @@ def test_fresh_when_latest_within_budget():
     assert report.months_behind == FRESHNESS_BUDGET_MONTHS == 2
     assert report.latest_max_month == 593
 
+@pytest.mark.red
 def test_stale_when_latest_beyond_budget():
     report = VpnStoreCheck(list_runs=_client(RUN_ROWS)).run(now_month_id=CAPTURE_NOW + 3)
     assert report.verdict == "STORE_STALE"
     assert report.months_behind == 5
 
+@pytest.mark.red
 def test_vpn_required_on_host_resolution_failure():
     err = OSError('could not translate host name "gjoll.muspelheim.local" to address')
     report = VpnStoreCheck(list_runs=_client(err)).run(now_month_id=CAPTURE_NOW)
@@ -77,6 +77,7 @@ def test_skip_when_package_missing():
     )
     assert report.verdict == "SKIP_NO_PACKAGE"
 
+@pytest.mark.red
 def test_unreachable_on_other_errors():
     report = VpnStoreCheck(list_runs=_client(RuntimeError("password authentication failed"))).run(
         now_month_id=CAPTURE_NOW
@@ -115,13 +116,14 @@ def test_exit_zero_vpn_required(capsys):
 def test_exit_one_stale(capsys):
     assert main(check=VpnStoreCheck(list_runs=_client(RUN_ROWS)), now_month_id=CAPTURE_NOW + 6) == 1
 
+@pytest.mark.red
 def test_exit_two_unreachable(capsys):
     assert main(check=VpnStoreCheck(list_runs=_client(RuntimeError("boom"))), now_month_id=CAPTURE_NOW) == 2
 
 
 # ── live integration (VPN + package; skips truthfully) ────────────────
 
-@pytest.mark.red
+@pytest.mark.live
 def test_live_vpn_store_invariants():
     try:
         report = VpnStoreCheck().run()
@@ -130,3 +132,45 @@ def test_live_vpn_store_invariants():
     if report.verdict in ("VPN_REQUIRED", "SKIP_NO_PACKAGE", "UNREACHABLE"):
         pytest.skip(f"vpn store not reachable here: {report.verdict} {report.error or ''}")
     assert report.latest_run is not None
+
+
+@pytest.mark.beige
+def test_structural_conventions_vpn_store():
+    """ADR-005 beige: surface module conventions — check/render/main exposed,
+    and every verdict this surface can emit is registered in the exit map."""
+    import tools.liveness.vpn_store as module
+    from tools.liveness.report import EXIT_CODE_BY_VERDICT
+
+    assert callable(module.main) and callable(module.render)
+    assert hasattr(module, "CheckReport")
+    for verdict in ('STORE_FRESH', 'STORE_STALE', 'VPN_REQUIRED', 'SKIP_NO_PACKAGE', 'UNREACHABLE'):
+        assert verdict in EXIT_CODE_BY_VERDICT, verdict
+
+
+def test_default_client_flattens_the_metadata_frame(monkeypatch):
+    import sys
+    import types
+
+    class FakeFrame:
+        def reset_index(self):
+            return self
+
+        def __getitem__(self, columns):
+            return self
+
+        def to_dict(self, orient):
+            assert orient == "records"
+            return [{"name": "fatalities003_2026_05_t01",
+                     "min_month": 409, "max_month": 593}]
+
+    db_ops = types.ModuleType("views_forecasts.db_ops")
+    db_ops.ViewsMetadata = type(
+        "ViewsMetadata", (), {"get_runs": lambda self: FakeFrame()}
+    )
+    package = types.ModuleType("views_forecasts")
+    package.db_ops = db_ops
+    monkeypatch.setitem(sys.modules, "views_forecasts", package)
+    monkeypatch.setitem(sys.modules, "views_forecasts.db_ops", db_ops)
+    rows = VpnStoreCheck._list_runs_via_views_forecasts()
+    assert rows == [{"name": "fatalities003_2026_05_t01",
+                     "min_month": 409, "max_month": 593}]

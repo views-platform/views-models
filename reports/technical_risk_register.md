@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 16 | Resolved 37 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 45 | Mitigated 16 | Resolved 38 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1299,7 +1299,7 @@
 | **Tier** | 3 |
 | **Trigger** | Anyone running `pytest -m red` expecting the adversarial suite (gets six live network probes instead); `pytest -m beige` expecting structural compliance of tools/liveness (gets nothing); or trusting "fully covered" while refactoring the default network clients (95% branch coverage — precisely the default clients' error paths are unwatched) |
 | **Source** | falsify (2026-07-19, claim "100% covered, green/beige/red all around" → FALSIFIED, 3 hard / 2 soft) |
-| **Status** | Open |
+| **Status** | Resolved (2026-07-19, same-day fix: ADR-005 amended with the `live` category + pyproject marker; 6 live probes relabeled; 22 error-path tests red-marked; 8 beige structural tests added; coverage closed to 100% branch — real tests for the default clients via fake modules, pragma only on `__main__` guards; taxonomy enforced by `tests/test_liveness_taxonomy.py`) |
 | **Location** | All `tests/test_liveness_*.py`: live network probes marked `red` (ADR-005 red = adversarial/error-path, `pyproject.toml:3`); genuine error-path tests sit under file-level `green`; zero `beige` tests; measured 95% branch coverage (misses: default clients' error branches, `resolve_credentials` fallbacks, `__main__` guards). Enforcement stubs: `tests/test_liveness_taxonomy.py` |
 | **Notes** | Root cause: marker *names* read from pyproject at S1 but not their *definitions* — "red = live/dangerous" was pattern-matched from a template test and WET-propagated through all six suites. Maintainer decision (2026-07-19): **Option A** — amend ADR-005 with a fourth `live` marker for tests that touch real external services; relabel the six probes `live`; red goes to the actual error-path tests; add beige structural suites; close the coverage gap (real tests for the coverable seams, `# pragma: no cover` only for `__main__` guards, with reasons). See also C-101 (same audit series), C-03 (tests not in CI). |
 

@@ -145,3 +145,9 @@ Run the offline suite:
 ```bash
 conda run -n views_pipeline python -m pytest tests/ -k liveness
 ```
+
+Tests are marked per ADR-005 (amended 2026-07-19): `green` correctness,
+`beige` convention/structural compliance, `red` adversarial/error-path,
+`live` real-external-service probes (skip truthfully offline). Branch
+coverage of `tools/liveness` is 100% (only `__main__` guards pragma'd,
+with reasons); `tests/test_liveness_taxonomy.py` enforces the taxonomy.

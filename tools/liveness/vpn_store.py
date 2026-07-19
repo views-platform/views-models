@@ -175,4 +175,4 @@ def main(check: Optional[VpnStoreCheck] = None, now_month_id: Optional[int] = No
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main())  # pragma: no cover — __main__ guard

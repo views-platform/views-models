@@ -211,4 +211,4 @@ def main(check: Optional[AppwriteStoreCheck] = None, now: Optional[datetime] = N
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main())  # pragma: no cover — __main__ guard
