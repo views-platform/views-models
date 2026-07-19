@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 16 | Resolved 36 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 45 | Mitigated 16 | Resolved 37 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1273,7 +1273,7 @@
 | **Tier** | 2 |
 | **Trigger** | Running the dashboard on a machine without `datafactory_query` (reports UNREACHABLE/exit 2 instead of a truthful skip); any wandb project returning a run with a malformed/absent `created_at` (uncaught ValueError crashes the standalone check with no report); adding a new verdict without registering it in `EXIT_CODE_BY_VERDICT` (runner prints two contradictory verdict blocks for one surface); any error value containing newlines (breaks the one-fact-per-line contract — already visible in live vpn_store output) |
 | **Source** | falsify (2026-07-19, claim "tools.liveness is air and water tight" → FALSIFIED, 3 hard / 3 soft) |
-| **Status** | Open |
+| **Status** | Resolved (2026-07-19, same-day fix: `one_line` newline escape in report.py; SKIP_NO_PACKAGE in datafactory_input; `_judge` inside the per-ensemble try; verdict classified before print in all six `main()`s; roster-mirror tripwire shipped — all enforced by `tests/test_liveness_falsifications.py`) |
 | **Location** | `tools/liveness/datafactory_input.py:101-110` (generic except swallows ImportError → UNREACHABLE, no SKIP_NO_PACKAGE unlike vpn_store); `tools/liveness/wandb_execution.py:124-131` (`_judge` outside the per-ensemble try); `tools/liveness/__main__.py:44-47` + every module `main()` (exit_code_for raises AFTER print → double block); `tools/liveness/report.py:43-45` (render_facts passes newlines through); enforcement tests: `tests/test_liveness_falsifications.py` (failing by design) |
 | **Notes** | Tier 2 rationale: structural fragility with named realistic triggers in the very instrument whose purpose is verdict truthfulness — a false UNREACHABLE from the dashboard re-creates the "who is lying?" failure mode it was built to end (C-75 class), and a crash-instead-of-report hides a surface. Root pattern (falsify pattern analysis): S7 extracted the renderer and exit map but NOT the exception/skip classification, so truthful-skip semantics are re-implemented per module and drift (vpn_store correct, datafactory_input not); contracts asserted in docstrings (one-fact-per-line, verdict-map totality, roster mirror) have no enforcement. Roster-mirror tripwire (monthly_run.sh vs MONTHLY_ENSEMBLES) ships with the fix. See also C-75 (truthful-skip lesson), C-94/C-95 (silent-when-unenforced class), C-100 (the incident class the suite mitigates). |
 

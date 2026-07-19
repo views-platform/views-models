@@ -51,7 +51,7 @@ def required_month_id_from_partitions(repo_root: Path = _DEFAULT_REPO_ROOT) -> i
 class CheckReport:
     """Raw facts about the datafactory input store — no narration."""
 
-    verdict: str  # INPUT_FRESH | INPUT_STALE | UNREACHABLE
+    verdict: str  # INPUT_FRESH | INPUT_STALE | SKIP_NO_PACKAGE | UNREACHABLE
     netrc_present: Optional[bool] = None
     last_valid_month_id: Optional[int] = None
     last_valid_date: Optional[str] = None
@@ -100,6 +100,16 @@ class DatafactoryInputCheck:
 
         try:
             last_valid = int(self._read_last_valid())
+        except (ImportError, ModuleNotFoundError) as exc:
+            # Truthful skip, mirroring vpn_store (C-75/C-101): a machine
+            # without datafactory_query is an environment fact, not an alarm.
+            return CheckReport(
+                verdict="SKIP_NO_PACKAGE",
+                netrc_present=netrc_present,
+                required_month_id=required,
+                required_date=month_id_to_date(required),
+                error=f"{type(exc).__name__}: {exc}",
+            )
         except Exception as exc:  # noqa: BLE001 — any failure is the UNREACHABLE fact
             return CheckReport(
                 verdict="UNREACHABLE",
@@ -152,8 +162,11 @@ class DatafactoryInputCheck:
 def main(check: Optional[DatafactoryInputCheck] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or DatafactoryInputCheck()).run()
+    # Classify BEFORE printing: an unregistered verdict must fail loud
+    # without emitting a half-block the runner would then contradict (C-101/P7).
+    code = exit_code_for(report.verdict)
     print(render(report))
-    return exit_code_for(report.verdict)
+    return code
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable, Optional, Tuple
 
-from tools.liveness.report import exit_code_for
+from tools.liveness.report import exit_code_for, one_line
 
 WANDB_ENTITY = "views_pipeline"
 
@@ -94,7 +94,7 @@ def render(report: CheckReport) -> str:
         if run.days_since is not None:
             lines.append(f"{prefix}.days_since: {run.days_since}")
     if report.error is not None:
-        lines.append(f"error: {report.error}")
+        lines.append(f"error: {one_line(report.error)}")
     return "\n".join(lines)
 
 
@@ -125,10 +125,12 @@ class WandbExecutionCheck:
             project = f"{ensemble}_forecasting"
             try:
                 facts = self._latest_run(project)
+                # _judge inside the try: a malformed run (e.g. created_at=None)
+                # is a per-ensemble failure fact, never a check crash (C-101/P4).
+                runs.append(self._judge(ensemble, project, facts, now))
             except Exception as exc:  # noqa: BLE001 — collected; all-fail => UNREACHABLE
                 failures.append(f"{project}: {type(exc).__name__}: {exc}")
                 continue
-            runs.append(self._judge(ensemble, project, facts, now))
 
         if not runs:
             return CheckReport(
@@ -215,8 +217,11 @@ class WandbExecutionCheck:
 def main(check: Optional[WandbExecutionCheck] = None, now: Optional[datetime] = None) -> int:
     """Run the check, print raw facts, return the exit code."""
     report = (check or WandbExecutionCheck()).run(now=now)
+    # Classify BEFORE printing: an unregistered verdict must fail loud
+    # without emitting a half-block the runner would then contradict (C-101/P7).
+    code = exit_code_for(report.verdict)
     print(render(report))
-    return exit_code_for(report.verdict)
+    return code
 
 
 if __name__ == "__main__":
