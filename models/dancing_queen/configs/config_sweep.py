@@ -70,17 +70,17 @@ def get_sweep_config():
                 # persistent positive bias from the input mean.
                 "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
-                    "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
+                    # "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
 
                     # Decay features — conflict regime memory ∈ [0,1]
-                    # "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
-                    # "lr_decay_ged_os_5", "lr_decay_ged_os_100",
-                    # "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
-                    # "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
-                    # "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
+                    "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+                    "lr_decay_ged_os_5", "lr_decay_ged_os_100",
+                    "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
+                    "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
+                    "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
                     # # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
                     # "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",

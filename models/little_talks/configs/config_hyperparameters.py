@@ -82,9 +82,9 @@ def get_hp_config():
         "feature_scaler_map": {
             "AsinhTransform": [
                 # Primary joint target variables
-                "lr_ged_sb",
-                "lr_ged_os",
-                "lr_ged_ns",
+                # "lr_ged_sb",
+                # "lr_ged_os",
+                # "lr_ged_ns",
 
                 # Natural and Social Geography features
                 # "lr_imr_mean",
