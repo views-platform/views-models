@@ -62,30 +62,30 @@ def get_hp_config():
         "force_target_only": False,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                 # Primary joint target variables
                 "lr_ged_sb",
                 "lr_ged_os",
                 "lr_ged_ns",
 
                 # Natural and Social Geography features
-                "lr_imr_mean",
-                "lr_mountains_mean",
-                "lr_dist_diamsec",
-                "lr_dist_petroleum",
-                "lr_agri_ih",
-                "lr_barren_ih",
-                "lr_forest_ih",
-                "lr_pasture_ih",
-                "lr_savanna_ih",
-                "lr_shrub_ih",
-                "lr_urban_ih",
-                "ln_pop_gpw_sum",
-                "ln_ttime_mean",
-                "ln_gcp_mer",
-                "ln_bdist3",
-                "ln_capdist",
-                "lr_greq_1_excluded",
+                # "lr_imr_mean",
+                # "lr_mountains_mean",
+                # "lr_dist_diamsec",
+                # "lr_dist_petroleum",
+                # "lr_agri_ih",
+                # "lr_barren_ih",
+                # "lr_forest_ih",
+                # "lr_pasture_ih",
+                # "lr_savanna_ih",
+                # "lr_shrub_ih",
+                # "lr_urban_ih",
+                # "ln_pop_gpw_sum",
+                # "ln_ttime_mean",
+                # "ln_gcp_mer",
+                # "ln_bdist3",
+                # "ln_capdist",
+                # "lr_greq_1_excluded",
 
                 # Conflict decay memory features (mix of decay 12 and 24)
                 # "lr_decay_ged_sb_1",

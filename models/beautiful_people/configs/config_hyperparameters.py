@@ -66,7 +66,7 @@ def get_hp_config():
         "force_target_only": False,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -103,15 +103,15 @@ def get_hp_config():
 
                     
                 ],
-            "PassThrough": [
-                # V-Dem (12 — pruned of redundant accountability/exclusion)
-                "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
-                "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
-            ]
+            # "PassThrough": [
+            #     # V-Dem (12 — pruned of redundant accountability/exclusion)
+            #     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+            #     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+            #     "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+            #     "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+            #     "lr_vdem_v2xeg_eqdr",
+            #     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+            # ]
         },
 
         # N-HiTS Architecture

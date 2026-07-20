@@ -49,7 +49,7 @@ def get_hp_config():
         "force_target_only": False,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -57,16 +57,16 @@ def get_hp_config():
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
 
                     # Decay features — conflict regime memory ∈ [0,1]
-                    "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
-                    "lr_decay_ged_os_5", "lr_decay_ged_os_100",
-                    "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
-                    "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
-                    "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
+                    # "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+                    # "lr_decay_ged_os_5", "lr_decay_ged_os_100",
+                    # "lr_decay_ged_ns_5", "lr_decay_ged_ns_100",
+                    # "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
+                    # "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
 
-                    # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
-                    "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
-                    "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
-                    "lr_ged_os_tlag_1",
+                    # # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+                    # "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+                    # "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+                    # "lr_ged_os_tlag_1",
 
                     # Topic/NLP features — monthly leading indicators
                     # "lr_topic_tokens_t1", "lr_topic_tokens_t2",
@@ -84,15 +84,15 @@ def get_hp_config():
 
                     
                 ],
-            "PassThrough": [
-                # V-Dem (12 — pruned of redundant accountability/exclusion)
-                "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
-                "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
-                "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
-                "lr_vdem_v2xeg_eqdr",
-                "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
-            ]
+            # "PassThrough": [
+            #     # V-Dem (12 — pruned of redundant accountability/exclusion)
+            #     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+            #     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+            #     "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+            #     "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+            #     "lr_vdem_v2xeg_eqdr",
+            #     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+            # ]
         },
         # "static_covariate_stats": {
         #     "transform": "AsinhTransform",
