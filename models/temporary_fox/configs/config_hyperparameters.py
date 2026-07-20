@@ -12,8 +12,8 @@ def get_hp_config():
         "steps": list(range(1, 37)),
         "time_steps": 36,
         "window_months": 36,
-        "n_samples": 128,
-        "n_posterior_samples": 128,
+        "n_samples": 16,
+        "n_posterior_samples": 16,
         "seed": 42,
         "skip_predictions_delivery": True,
     }
