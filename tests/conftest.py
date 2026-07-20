@@ -126,13 +126,33 @@ def get_regression_targets(model_dir: Path) -> list[str]:
     return located.get("meta") or located.get("hp") or []
 
 
-def get_n_posterior_samples(model_dir: Path) -> int | None:
-    """A model's declared posterior sample count, or None if undeclared.
+# The same concept — posterior draws per cell — is named differently by each
+# model family's runtime: baseline reads `n_samples`, hydranet
+# `n_posterior_samples`, r2darts `num_samples`, stepshifter `pred_samples`
+# (register C-104). The runtime object and the ADR-013 wire already agree on one
+# name (`PredictionFrame.sample_count` / header `sample_count`); only the config
+# layer is fragmented. This getter reads whichever key a config declares rather
+# than forcing a rename (prefer-agnostic-over-uniform).
+SAMPLE_COUNT_CONFIG_KEYS = (
+    "n_posterior_samples",
+    "n_samples",
+    "num_samples",
+    "pred_samples",
+)
 
-    config_hyperparameters is the primary location (where DL/baseline models
-    declare it), config_meta the fallback. Derive-don't-hardcode, mirroring
-    get_regression_targets — the single way views-models obtains this number for
-    the ensemble sample-count contract (ADR-015).
+
+def get_n_posterior_samples(model_dir: Path) -> int | None:
+    """A model's declared posterior sample count, family-agnostic, or None.
+
+    Reads whichever of ``SAMPLE_COUNT_CONFIG_KEYS`` a config declares (C-104), so
+    the ensemble sample-count contract (ADR-015) works regardless of which family
+    name a model uses. **Divergence guard:** a config that declares more than one
+    of these keys with DIFFERENT values is the decoy trap that silently discarded
+    a sample-count change during the 2026-07-20 FAO delivery (a baseline config
+    carries both `n_samples` — the runtime key — and `n_posterior_samples` — this
+    contract's key — kept equal only by hand); such divergence fails loud here
+    (register C-85/C-104) rather than letting CI validate a value the runtime
+    ignores.
     """
     config_dir = model_dir / "configs"
     for fname, getter_name in (
@@ -145,9 +165,21 @@ def get_n_posterior_samples(model_dir: Path) -> int | None:
         getter = getattr(load_config_module(path), getter_name, None)
         if getter is None:
             continue
-        val = (getter() or {}).get("n_posterior_samples")
-        if val is not None:
-            return int(val)
+        cfg = getter() or {}
+        present = {k: int(cfg[k]) for k in SAMPLE_COUNT_CONFIG_KEYS if cfg.get(k) is not None}
+        if not present:
+            continue
+        distinct = set(present.values())
+        if len(distinct) > 1:
+            raise ValueError(
+                f"{model_dir.name}: sample-count config keys disagree: {present}. "
+                f"A model declares one concept (posterior draws per cell) under "
+                f"multiple family names; they must hold the same value — a "
+                f"divergence means the runtime and the CI contract read different "
+                f"numbers (register C-104). Set them equal, or keep only the key "
+                f"this model's runtime reads."
+            )
+        return distinct.pop()
     return None
 
 
