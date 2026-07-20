@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 17 | Resolved 38 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 47 | Mitigated 17 | Resolved 38 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1328,6 +1328,19 @@
 | **Status** | Open |
 | **Location** | the primary working checkout at `~/Documents/scripts/views_platform/views-models` (observed 2026-07-20: HEAD `e266ec48` #237 vs `origin/development` `0ab28b47` #268 — **42 commits behind**; `tools/liveness/` absent locally though present on dev) |
 | **Notes** | The worktree-based merge workflow (adopted to protect parallel sessions sharing the tree) durably decouples the primary checkout from `origin/development` — it is only ever *branched from*, never *pulled into*. Consequences: a run from the stale checkout uses old code/configs (e.g. would miss the S1/S2 sample-count guards); a grep for recently-merged files (`tools/liveness`) finds nothing though they exist on dev; and the drift interacts sharply with the **editable-install model** (the `views_pipeline` env runs sibling repos in `-e` mode, so *local checkout state IS the running code* — confirmed for views-reporting 2026-07-20). Not corruption and no wrong output on its own, but a real "what is actually running / present here?" hazard that compounds every debugging session. Mitigation direction (not applied): a periodic `git pull` / fast-forward discipline on the shared checkout, or a convention that the primary checkout tracks `origin/development`. See also C-42/C-50 (the fresh-clone/editable-install *dependency* class — related but distinct: those are about a clean env failing to resolve deps, this is about an existing checkout being out of date). |
+
+---
+
+### C-106 — STRATEGIC ROOT: the test architecture verifies declarations exhaustively but runtime behavior nowhere in CI — the config-vs-behavior gap
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A developer merges a change that is **declaration-valid but runtime-wrong** — an edited hyperparameter with wrong *semantics* (not shape), a key the runtime doesn't read, a manager-call change, a queryset/return-shape drift — the full config/structure suite passes green, the change merges, and the defect surfaces only at a manual `run_integration_tests.sh`, a hand-run ensemble, or in production |
+| **Source** | repo-assimilation + test-review (2026-07-20, "strategic") — synthesis of a recurring pattern already scattered across the register |
+| **Status** | Open |
+| **Location** | The test *architecture*: `tests/` (parse-based, `importlib`/AST, parametrized over `ALL_MODEL_DIRS` in `conftest.py`) verifies config validity, structure, and declared contracts exhaustively (~7100 passing) — while **runtime/production behavior is verified nowhere in CI**: `run_integration_tests.sh` is the only runtime check and is manual by its own CIC's non-goal (C-03); ADR-005 accepts source-based tests cannot validate runtime |
+| **Notes** | This is the **causal root** that a large cluster of existing entries are individual instances of, none of which names the pattern itself. The test strategy is deliberately declaration-oriented (fast, no-ML-deps, green in crippled CI — ADR-005) and is genuinely excellent *at that layer*. But it draws a hard line: **"the config is valid" is proven thousands of ways; "the system actually works" is proven zero ways in CI.** Every recurring silent-failure incident lives in that gap — the runtime reads a key CI never checks (C-85, C-104), a datafactory aggregation the config can't express (C-94), a feature-map that rots unseen (C-95), a `generate()` return-shape crash (C-40, C-02) — and the structural gaps that enable them are C-03 (integration not in CI), C-16 (CIC guarantees output-tested not behavior-tested), C-32/C-33 (test-passes-but-runtime-crashes), C-80 (no green baseline so even a runtime regression that *did* surface would be lost in noise). **Strategic exit (the highest-leverage single lever in the repo):** one minimal *runtime* smoke in CI — even a single tiny synthetic model trained+forecast on a 2-cell fixture — converts an entire class of currently-invisible failures into caught-at-PR failures. It does not need the full fleet or heavy deps; it needs *one* end-to-end execution path that CI actually runs. Until that exists, config-green will keep meaning "declared correctly," never "works," and the silent-failure incidents will keep recurring one config key at a time. Cross-refs (the cluster this anchors): C-03, C-16, C-02, C-40, C-32/C-33, C-80 (mechanisms/gaps); C-85, C-94, C-95, C-104 (incidents); ADR-005 (the accepted source-based-testing limitation this makes strategic). |
 
 ---
 
