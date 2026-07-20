@@ -78,7 +78,7 @@ def get_hp_config():
         # Scalers
         "target_scaler": "AsinhTransform",
         "feature_scaler": None,
-        "force_target_only": True,
+        "force_target_only": False,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                 # Primary joint target variables

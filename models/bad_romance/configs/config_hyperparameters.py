@@ -78,7 +78,7 @@ def get_hp_config():
         # Scalers
         "target_scaler": "AsinhTransform",
         "feature_scaler": None,
-        "force_target_only": True,
+        "force_target_only": False,
         "feature_scaler_map": {
             "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
@@ -116,14 +116,17 @@ def get_hp_config():
                     # "lr_wdi_sp_dyn_imrt_fe_in",
                     # "lr_wdi_sh_sta_maln_zs",
 
-                    # V-Dem (12 — pruned of redundant accountability/exclusion)
-                    # "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
-                    # "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
-                    # "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
-                    # "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
-                    # "lr_vdem_v2xeg_eqdr",
-                    # "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+                    
                 ],
+            None: [
+                # V-Dem (12 — pruned of redundant accountability/exclusion)
+                # "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+                # "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+                # "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+                # "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+                # "lr_vdem_v2xeg_eqdr",
+                # "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+            ]
         },
 
         # Encoders
