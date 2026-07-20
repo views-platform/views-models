@@ -40,6 +40,10 @@ ALGORITHM_TO_PACKAGE = {
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
     "ConflictologyModel": "views_baseline",
+    # parametric climatology (ADR-022) — real, exported views_baseline classes
+    # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
+    "ParametricConflictology": "views_baseline",
+    "ParametricHurdleConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }
