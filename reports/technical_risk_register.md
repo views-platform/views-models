@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 18 | Resolved 38 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 47 | Mitigated 18 | Resolved 38 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1341,6 +1341,19 @@
 | **Status** | Mitigated (2026-07-20, PR #272): the stated exit exists — `tests/test_runtime_smoke.py` executes 21 offline distributional-baseline models through the real config→catalog→model path (asserting sample_count==config [C-104], shape, dtype, no NaN/Inf, non-negative, determinism) in ~0.3s, and `.github/workflows/runtime_smoke.yml` runs it as a dedicated green+required PR check that dodges the published-core skew (installs no pipeline-core). One end-to-end runtime path is now verified at PR. **Residual (why not Resolved):** coverage is the baseline family only (hydranet/r2darts/stepshifter still declaration-only); it drives the catalog seam, not the full main.py→manager path; and the main suite remains red (C-80) so the smoke's green signal lives in a separate job. |
 | **Location** | The test *architecture*: `tests/` (parse-based, `importlib`/AST, parametrized over `ALL_MODEL_DIRS` in `conftest.py`) verifies config validity, structure, and declared contracts exhaustively (~7100 passing) — while **runtime/production behavior is verified nowhere in CI**: `run_integration_tests.sh` is the only runtime check and is manual by its own CIC's non-goal (C-03); ADR-005 accepts source-based tests cannot validate runtime |
 | **Notes** | This is the **causal root** that a large cluster of existing entries are individual instances of, none of which names the pattern itself. The test strategy is deliberately declaration-oriented (fast, no-ML-deps, green in crippled CI — ADR-005) and is genuinely excellent *at that layer*. But it draws a hard line: **"the config is valid" is proven thousands of ways; "the system actually works" is proven zero ways in CI.** Every recurring silent-failure incident lives in that gap — the runtime reads a key CI never checks (C-85, C-104), a datafactory aggregation the config can't express (C-94), a feature-map that rots unseen (C-95), a `generate()` return-shape crash (C-40, C-02) — and the structural gaps that enable them are C-03 (integration not in CI), C-16 (CIC guarantees output-tested not behavior-tested), C-32/C-33 (test-passes-but-runtime-crashes), C-80 (no green baseline so even a runtime regression that *did* surface would be lost in noise). **Strategic exit (the highest-leverage single lever in the repo):** one minimal *runtime* smoke in CI — even a single tiny synthetic model trained+forecast on a 2-cell fixture — converts an entire class of currently-invisible failures into caught-at-PR failures. It does not need the full fleet or heavy deps; it needs *one* end-to-end execution path that CI actually runs. Until that exists, config-green will keep meaning "declared correctly," never "works," and the silent-failure incidents will keep recurring one config key at a time. Cross-refs (the cluster this anchors): C-03, C-16, C-02, C-40, C-32/C-33, C-80 (mechanisms/gaps); C-85, C-94, C-95, C-104 (incidents); ADR-005 (the accepted source-based-testing limitation this makes strategic). |
+
+---
+
+### C-107 — `tools/liveness` (a substantial new subsystem) has no CIC and no governing ADR
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A developer modifies a `tools/liveness` surface-check class's contract — a verdict enum value, the exit-code map, the injected fetch/clock seam, or the truthful-skip semantics — with no CIC to check the change against: the only specification is the code plus the README, so a silent contract change (e.g. a verdict that no longer maps to its documented exit code) has no governance tripwire |
+| **Source** | review-base-docs (2026-07-20) |
+| **Status** | Open |
+| **Location** | `tools/liveness/` — 8 modules / 6 surface-check classes (`old_api.py`, `datafactory_input.py`, `appwrite_store.py`, `unfao_delivery.py`, `wandb_execution.py`, `vpn_store.py`) sharing a `run() -> verdict` + injected-fetch + exit-code contract; 130 tests; epic #238. No file under `docs/CICs/` covers them; no ADR establishes the suite |
+| **Notes** | Under **ADR-006** (intent contracts for non-trivial classes), the six liveness check classes — each a cohesive contract with an injected-dependency seam, a verdict enum, and an exit-code mapping — warrant a CIC, and the suite as a whole (an operational instrument used platform-wide) arguably warrants an ADR. It has neither. **Well-mitigated**, which is why Tier 4 not 3: a thorough `tools/liveness/README.md` documents every surface, verdict, exit code, and the encoded conventions with receipts; and ADR-005 (§ the `live` category) + ADR-017 (§ the observability instrument for derived state) both reference it. So the *contract exists in prose* — the gap is that it is not in the machine-checkable CIC form the repo's own convention prescribes, so `validate_docs.sh` and the CIC-audit tools cannot guard it. review-base-docs rated this **Medium**; downgraded to Tier 4 here given the strong README mitigation — **revisit to Tier 3 if the suite is extended by a developer unfamiliar with it before a CIC is added.** Cheapest exit: one CIC covering the shared check-class contract, referencing the README as the human-readable companion. Cross-refs: C-103 (same subsystem, the test-taxonomy aspect — resolved), C-16 (CIC coverage of non-trivial classes), C-106 (the runtime-smoke work, similarly under-governed — no ADR yet). |
 
 ---
 
