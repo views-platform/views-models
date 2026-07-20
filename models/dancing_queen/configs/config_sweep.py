@@ -103,7 +103,7 @@ def get_sweep_config():
 
                     
                 ],
-            "None": [
+            "PassThrough": [
                 # V-Dem (12 — pruned of redundant accountability/exclusion)
                 "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
                 "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
