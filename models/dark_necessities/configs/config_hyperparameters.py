@@ -123,7 +123,7 @@ def get_hp_config():
                 # "lr_decay_ged_ns_500",
 
                 # Spatial-temporal lag features
-                # "lr_splag_1_1_sb_1",
+                "lr_splag_1_1_sb_1",
                 # "lr_splag_1_decay_ged_sb_1",
                 # "lr_splag_1_decay_ged_os_1",
                 # "lr_splag_1_decay_ged_ns_1",
