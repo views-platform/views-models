@@ -23,7 +23,7 @@ def get_hp_config():
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 12,
         "feature_scaler": None,
-        "force_target_only": False,
+        "force_target_only": True,
         # "feature_scaler_map": {
         #     "AsinhTransform": [
         #             # Conflict counts + deltas + spatial lags
