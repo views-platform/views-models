@@ -80,7 +80,7 @@ def get_hp_config():
         "feature_scaler": None,
         "force_target_only": False,
         "feature_scaler_map": {
-            "AsinhTransform->MaxAbsScaler": [
+            "AsinhTransform": [
                 # Primary joint target variables
                 # "lr_ged_sb",
                 # "lr_ged_os",
