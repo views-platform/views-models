@@ -85,7 +85,7 @@ def get_sweep_config():
                     # Conflict counts + deltas + spatial lags
                     # "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    # "lr_acled_sb",  "lr_acled_sb_count", "lr_acled_os",
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
 
                     # Decay features — conflict regime memory ∈ [0,1]

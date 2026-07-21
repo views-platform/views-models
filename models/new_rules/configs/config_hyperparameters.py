@@ -70,10 +70,10 @@ def get_hp_config():
                     # Conflict counts + deltas + spatial lags
                     # "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
                     # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", 
+                    # "lr_acled_sb",  
                     # "lr_acled_sb_count", 
-                    "lr_acled_os", "lr_acled_ns",
-                    # "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+                    # "lr_acled_os", "lr_acled_ns",
+                    "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
 
                     # Decay features — conflict regime memory ∈ [0,1]
                     # "lr_decay_ged_sb_1", "lr_decay_ged_sb_5", "lr_decay_ged_sb_25", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
