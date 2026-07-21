@@ -137,7 +137,7 @@ def get_hp_config():
         # ModelCatalog reads this flag and injects the appropriate cyclic
         # encoder functions for the dataset temporal resolution, inferred
         # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
     }
 
     return hyperparameters

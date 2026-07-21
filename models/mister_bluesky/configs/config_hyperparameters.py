@@ -145,6 +145,6 @@ def get_hp_config():
         #     # "stats": ["trend", "sparsity"],
         # },
 
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
     }
     return hyperparameters

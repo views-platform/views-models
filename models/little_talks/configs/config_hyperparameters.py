@@ -147,7 +147,7 @@ def get_hp_config():
         # },
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         # "static_covariate_stats": {"transform": "AsinhTransform", "inject": True},
     }
 

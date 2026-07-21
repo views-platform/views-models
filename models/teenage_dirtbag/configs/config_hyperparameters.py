@@ -130,7 +130,7 @@ def get_hp_config():
         "checkpoint_mode": "best",
 
         # Cyclic encoders inject sin/cos(month) as past covariates
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
     }
 
     return hyperparameters

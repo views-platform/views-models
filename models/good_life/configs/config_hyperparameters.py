@@ -114,7 +114,7 @@ def get_hp_config():
         "weight_decay": 1e-5,
 
         # Encoders
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         "use_static_covariates": False,
     }
 

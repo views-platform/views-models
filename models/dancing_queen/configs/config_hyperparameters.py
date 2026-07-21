@@ -112,7 +112,7 @@ def get_hp_config():
         "use_reversible_instance_norm": False,
         "activation": "GELU",
 
-        "use_cyclic_encoders": True,
+        "use_cyclic_encoders": False,
         "likelihood": None,
     }
 
