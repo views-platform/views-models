@@ -26,6 +26,10 @@ jobs:
           CIC_MAP["tools/partitions/fileops.py"]="docs/CICs/PartitionFileOps.md"
           CIC_MAP["tools/partitions/bump.py"]="docs/CICs/PartitionBump.md"
           CIC_MAP["run_integration_tests.sh"]="docs/CICs/IntegrationTestRunner.md"
+          # The tools/liveness shared contract: the verdict->exit-code map and the
+          # crash-containing runner ARE the contract (per-surface modules are not).
+          CIC_MAP["tools/liveness/report.py"]="docs/CICs/LivenessChecks.md"
+          CIC_MAP["tools/liveness/__main__.py"]="docs/CICs/LivenessChecks.md"
 
           CHANGED_FILES=$(git diff --name-only "$BASE"...HEAD)
 
