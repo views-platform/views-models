@@ -21,5 +21,6 @@ def get_meta_config():
         # "regression_sample_baselines": ["red_ranger"],
         "rolling_origin_stride": 1,
         "prediction_format": "prediction_frame",
+        "skip_predictions_delivery": True,
     }
     return meta_config

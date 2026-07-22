@@ -22,5 +22,6 @@ def get_meta_config():
         # "regression_sample_baselines": ["red_ranger"],  # commented to match elastic_heart/new_rules/smol_cat; red_ranger's latest wandb run is stale (pre +12mo bump) and trips the report partition check. Does not affect chunky_bunny (point baselines only).
         "rolling_origin_stride": 1,
         "prediction_format": "prediction_frame",
+        "skip_predictions_delivery": True,
     }
     return meta_config
