@@ -13,19 +13,19 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
-        "decoder_output_dim": 32,
-        "temporal_decoder_hidden": 48,
+        "hidden_size": 48,
+        "decoder_output_dim": 16,
+        "temporal_decoder_hidden": 24,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
         "temporal_width_past": 2,
         "temporal_width_future": 2,
-        "temporal_hidden_size_past": 32,
+        "temporal_hidden_size_past": 16,
         "temporal_hidden_size_future": 8,
-        "num_encoder_layers": 2,
-        "num_decoder_layers": 2,
+        "num_encoder_layers": 1,
+        "num_decoder_layers": 1,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.2,
+        "dropout": 0.15,
         "use_static_covariates": True,
 
         # Training
@@ -60,7 +60,7 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 2.5,
+        "gradient_clip_val": 5.0,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.0003,
 
