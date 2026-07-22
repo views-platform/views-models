@@ -40,6 +40,7 @@ def get_hp_config():
         "weight_decay": 1e-4,
         "gradient_clip_val": 5.0,
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 1e-4,
             "weight_decay": 1e-4,
         },

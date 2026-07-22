@@ -41,6 +41,7 @@ def get_hp_config():
         # --- Optimization ---
         "optimizer_cls": "Adam",
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 0.0002478189178930891,
             "weight_decay": 0.0001,
         },

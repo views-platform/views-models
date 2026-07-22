@@ -103,6 +103,7 @@ def get_hp_config():
         "num_encoder_layers": 2,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 1e-4,
             "weight_decay": 1e-5,
         },

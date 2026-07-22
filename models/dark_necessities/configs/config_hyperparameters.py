@@ -39,9 +39,9 @@ def get_hp_config():
         "lr": 1e-4,
         "weight_decay": 5e-5,
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 1e-4,
             "weight_decay": 5e-5,
-            "betas": (0.9, 0.95), 
         },
 
 # LR Scheduler

@@ -51,6 +51,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
 
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 3e-4,
             "weight_decay": 5e-5,
         },

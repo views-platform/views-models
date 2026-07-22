@@ -55,6 +55,7 @@ def get_hp_config():
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
+            "betas": (0.9, 0.95), 
             "lr": 2e-4,
             "weight_decay": 1e-3,
         },
