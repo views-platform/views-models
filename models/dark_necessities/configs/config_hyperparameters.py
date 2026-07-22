@@ -25,7 +25,7 @@ def get_hp_config():
         "num_decoder_layers": 1,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.15,
+        "dropout": 0.05,
         "use_static_covariates": True,
 
         # Training
@@ -41,6 +41,7 @@ def get_hp_config():
         "optimizer_kwargs": {
             "lr": 1e-4,
             "weight_decay": 5e-5,
+            "betas": (0.9, 0.95), 
         },
 
 # LR Scheduler
