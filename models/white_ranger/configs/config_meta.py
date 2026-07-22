@@ -13,7 +13,7 @@ def get_meta_config():
         "creator": "Simon",
         "level": "pgm",
         "prediction_format": "prediction_frame",
-        "regression_sample_metrics": ["CRPS", "QS_sample", "MCR_sample", "Brier_rgs_sample"],
+        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
         "evaluation_profile": "hydranet_ucdp",
         "rolling_origin_stride": 1,
     }

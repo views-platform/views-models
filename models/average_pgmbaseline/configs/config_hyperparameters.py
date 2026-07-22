@@ -13,7 +13,7 @@ def get_hp_config():
         'time_steps': 36,
         'skip_predictions_delivery': True,
         'n_posterior_samples': 1,
-        'regression_targets': ['lr_ged_sb'],
+        'regression_targets': ['lr_ged_sb', 'lr_ged_ns', 'lr_ged_os'],
         'window_months': 18,
     }
     return hyperparameters

@@ -15,6 +15,6 @@ def get_meta_config():
         "creator": "Simon",
         "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
-        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample"],
+        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
     }
     return meta_config

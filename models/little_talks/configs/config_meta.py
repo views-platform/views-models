@@ -16,7 +16,7 @@ def get_meta_config():
         "creator": "Dylan",
         # "regression_point_baselines": ["average_pgmbaseline", "zero_pgmbaseline", "locf_pgmbaseline"],
         # "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
-        "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
+        "regression_sample_metrics": ["y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
         "regression_sample_baselines": ["black_ranger", "blue_ranger", "pink_ranger", "white_ranger"],
         "rolling_origin_stride": 1,
         "prediction_format": "dataframe",
