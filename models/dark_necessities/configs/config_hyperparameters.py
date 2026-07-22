@@ -60,7 +60,7 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 10.0,
+        "gradient_clip_val": 2.5,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.0003,
 
