@@ -25,7 +25,7 @@ def get_hp_config():
         "n_epochs": 300,
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
-        "early_stopping_patience": 12,
+        "early_stopping_patience": 8,
         "early_stopping_min_delta": 0.0003,
         "force_reset": True,
 
@@ -33,7 +33,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1.5e-4,
         "weight_decay": 5e-5,
-        "gradient_clip_val": 10.0,
+        "gradient_clip_val": 5.0,
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         
@@ -45,7 +45,7 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 5,
             "min_lr": 3e-6,
-            "cooldown": 0,
+            "cooldown": 2,
             "threshold": 0.0003,
             "threshold_mode": "rel",
         },
@@ -64,9 +64,9 @@ def get_hp_config():
         # "feature_scaler_map": {
         #     "AsinhTransform": [
         #         # Primary joint target variables
-        #         "lr_ged_sb",
-        #         "lr_ged_os",
-        #         "lr_ged_ns",
+        #         # "lr_ged_sb",
+        #         # "lr_ged_os",
+        #         # "lr_ged_ns",
 
         #         # Natural and Social Geography features
         #         # "lr_imr_mean",
@@ -129,9 +129,9 @@ def get_hp_config():
         # },
 
         # TSMixer Architecture
-        "num_blocks": 2,
-        "hidden_size": 64,
-        "ff_size": 128,
+        "num_blocks": 3,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": False,

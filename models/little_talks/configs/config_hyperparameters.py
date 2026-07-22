@@ -25,7 +25,7 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.3,
+        "dropout": 0.2,
         "use_static_covariates": True,
 
         # Training
@@ -36,7 +36,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 1e-4,
         "weight_decay": 5e-5,
         "optimizer_kwargs": {
             "lr": 1e-4,
@@ -53,7 +53,7 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 5,
             "min_lr": 3e-6,
-            "cooldown": 0,
+            "cooldown": 2,
             "threshold": 0.0003,
             "threshold_mode": "rel",
         },
@@ -121,6 +121,7 @@ def get_hp_config():
         #         # "lr_decay_ged_ns_25",
         #         # "lr_decay_ged_ns_100",
         #         # "lr_decay_ged_ns_500",
+
         #         # Spatial-temporal lag features
         #         "lr_splag_1_1_sb_1",
         #         # "lr_splag_1_decay_ged_sb_1",
