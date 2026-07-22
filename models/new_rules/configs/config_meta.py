@@ -18,6 +18,6 @@ def get_meta_config():
         # "regression_sample_metrics": ["CRPS", "y_hat_bar"],
         # "regression_sample_baselines": ["red_ranger"],
         "rolling_origin_stride": 1,
-        "prediction_format": "dataframe",
+        "prediction_format": "prediction_frame",
     }
     return meta_config

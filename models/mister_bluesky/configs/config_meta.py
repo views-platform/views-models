@@ -19,6 +19,6 @@ def get_meta_config():
         "regression_sample_metrics": ["y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
         "regression_sample_baselines": ["black_ranger", "blue_ranger", "pink_ranger", "white_ranger"],
         "rolling_origin_stride": 1,
-        "prediction_format": "dataframe",
+        "prediction_format": "prediction_frame",
     }
     return meta_config
