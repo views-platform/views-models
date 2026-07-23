@@ -13,19 +13,19 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 48,
-        "decoder_output_dim": 16,
-        "temporal_decoder_hidden": 24,
+        "hidden_size": 128,
+        "decoder_output_dim": 32,
+        "temporal_decoder_hidden": 48,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
         "temporal_width_past": 2,
         "temporal_width_future": 2,
-        "temporal_hidden_size_past": 16,
+        "temporal_hidden_size_past": 32,
         "temporal_hidden_size_future": 8,
-        "num_encoder_layers": 1,
-        "num_decoder_layers": 1,
+        "num_encoder_layers": 2,
+        "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.05,
+        "dropout": 0.3,
         "use_static_covariates": True,
 
         # Training
@@ -36,7 +36,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-4,
+        "lr": 2e-4,
         "weight_decay": 5e-5,
         "optimizer_kwargs": {
             "betas": (0.9, 0.95), 
@@ -54,14 +54,14 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 5,
             "min_lr": 3e-6,
-            "cooldown": 2,
+            "cooldown": 0,
             "threshold": 0.0003,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 10.0,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.0003,
 

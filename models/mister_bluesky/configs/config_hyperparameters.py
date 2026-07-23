@@ -33,7 +33,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1.5e-4,
         "weight_decay": 5e-5,
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 15.0,
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         
@@ -130,13 +130,13 @@ def get_hp_config():
         # },
 
         # TSMixer Architecture
-        "num_blocks": 2,
-        "hidden_size": 96,
-        "ff_size": 192,
+        "num_blocks": 3,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": False,
-        "dropout": 0.25,
+        "dropout": 0.35,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
