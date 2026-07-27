@@ -3,7 +3,7 @@
 **Last updated:** 2026-07-19  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
 **Total entries:** 104 (100 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 19 | Resolved 38 | Accepted 3 | Partially Resolved 1  
+**Concerns:** Open 47 | Mitigated 19 | Resolved 38 | Accepted 3 | Partially Resolved 1  
 **Disagreements:** Open 4  
 
 ---
@@ -1354,6 +1354,19 @@
 | **Status** | Mitigated (CIC authored, 2026-07-21, #275) |
 | **Location** | `tools/liveness/` — 8 modules / 6 surface-check classes (`old_api.py`, `datafactory_input.py`, `appwrite_store.py`, `unfao_delivery.py`, `wandb_execution.py`, `vpn_store.py`) sharing a `run() -> verdict` + injected-fetch + exit-code contract; 130 tests; epic #238. Now governed by `docs/CICs/LivenessChecks.md` |
 | **Notes** | Under **ADR-006** (intent contracts for non-trivial classes), the six liveness check classes — each a cohesive contract with an injected-dependency seam, a verdict enum, and an exit-code mapping — warrant a CIC, and the suite as a whole (an operational instrument used platform-wide) arguably warrants an ADR. It had neither. **Well-mitigated**, which is why Tier 4 not 3: a thorough `tools/liveness/README.md` documents every surface, verdict, exit code, and the encoded conventions with receipts; and ADR-005 (§ the `live` category) + ADR-017 (§ the observability instrument for derived state) both reference it. So the *contract existed in prose* — the gap was that it was not in the machine-checkable CIC form the repo's own convention prescribes, so `validate_docs.sh` and the CIC-audit tools could not guard it. **Resolution (#275, 2026-07-21):** authored `docs/CICs/LivenessChecks.md` — one subsystem-level CIC (the `ReconciliationWiring.md` precedent) covering the shared check-class contract, referencing the README as the human companion; wired `tools/liveness/report.py` and `tools/liveness/__main__.py` into `.github/workflows/cic_sync_check.yml` so a change to the verdict/exit-code map or the runner now forces the CIC to move in the same PR. A dedicated **ADR** for the suite remains optional (ADR-017 already leans on it) — deliberately not built. Cross-refs: C-103 (same subsystem, the test-taxonomy aspect — resolved), C-16 (CIC coverage of non-trivial classes), C-106 (the runtime-smoke work, similarly under-governed — no ADR yet). |
+
+---
+
+### C-108 — No durable, access-controlled source of truth for platform secrets
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A laptop holding the only copy of the production Appwrite datastore API key dies / is reimaged / the colleague leaves; or a fresh checkout must run a production step. Today there is no durable backup to restore from and no documented provisioning — recovery means scrambling to regenerate keys in the Appwrite console (a rotation), and every consumer must be re-provisioned by hand. |
+| **Source** | credential audit 2026-07-27 (`reports/security/appwrite_credentials_audit.md`) |
+| **Status** | Open (immediate hygiene shipped; architecture deferred to a tracked investigation) |
+| **Location** | Platform-wide. Producer/postprocessor read via `load_dotenv` → `views-models/.env` (pipeline-core `configs/prediction_store.py` `_ENV_MAP`; postprocessing `unfao/managers/unfao.py`). Server: `views-faoapi/deployment/bootstrap.sh:21` hardcodes `SOURCE_ENV=/home/sonja/.../views-models/.env`. |
+| **Notes** | The 15 Appwrite keys (+ `ACLED_PASSWORD`, `GDL_API_TOKEN`, `UCDP_API_TOKEN`, `VIEWS_DATAFACTORY`) that a UN-facing production service depends on exist **only** in personal, gitignored `.env` files on ≤2 laptops plus one derived server copy (`.env.faoapi`). **No durable, backed-up, access-controlled source of truth; no independent per-person revocation; no rotation runbook; the deploy bootstrap is pinned to one individual's home directory.** This is the root cause of credentials repeatedly being re-supplied across sessions ("the mystery"). *Not a leak:* the audit verified **no secret is in git, in any repo, across full history**, and none is pasted into any tracked file — so this is a **fragility / recoverability** risk, not exposure. **Vocabulary is consistent** (one canonical naming across all repos); the problem is *provisioning architecture*, not sprawl. **Immediate hygiene shipped (this entry's partial):** `views-models/.env.example` (the documented schema), `tools/check_credentials.py` (self-diagnosing "which keys am I missing?"), and `tests/test_credentials_presence.py`. **Deferred by maintainer decision (2026-07-27), informed by an external assessment:** the real secrets-management architecture is a deliberate investigation, NOT chosen now — options are SOPS+age with individual keys (interim/low-complexity, per-person revocation), a secrets manager / OIDC short-lived creds (production automation), or a team password manager (human-accessed); GPG-shared-passphrase-in-a-repo is explicitly *interim bootstrap only, not the target*. Tracked in views-models#280. Cross-refs: the monthly-run-ritual entry (same "scattered on personal laptops" family), C-79 (infra/IP-in-config hygiene). |
 
 ---
 
