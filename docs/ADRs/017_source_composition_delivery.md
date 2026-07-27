@@ -1,208 +1,316 @@
 # ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** Proposed
-**Date:** 2026-07-02 — **amended 2026-07-19** (new production evidence + alignment with vpp ADR-013; the decision itself is unchanged)
-**Deciders:** Simon (maintainer) — *pending review*
+**Status:** **Accepted** (2026-07-27)
+**Date:** 2026-07-02 — **revised 2026-07-27** (grounded top-to-bottom in the real cross-repo flow; operational mechanics written from scratch; decided-vs-open made explicit. The core decision is unchanged.)
+**Accepted on the basis that** it aligns with pipeline-core's *Lean Platform End-State Roadmap* (`views-pipeline-core/documentation/plans/2026-07-27_lean_platform_end_state_roadmap.md`), which owns the sequencing/retirement this ADR's §1 direction-of-travel defers. The two documents adopt each other's vocabulary and read as one system.
+**Deciders:** Simon (maintainer) — Accepted 2026-07-27
 **Consulted:** platform contributors
-**Informed:** All contributors
+**Informed:** all contributors
 
 ---
 
-## Context
+## Summary
 
-The repo models forecasting entities as **models** and **ensembles**, each carrying a `config_deployment.py` with a single `deployment_status` field constrained to `{shadow, deployed, baseline, deprecated}` (enforced by pipeline-core `modules/validation/core_config_sniffer.py`).
+**The problem, in one breath.** Every model and ensemble carries one hand-typed field, `deployment_status` (one of `{shadow, deployed, baseline, deprecated}`). We ask that single field to answer three unrelated questions at once:
 
-In practice this field does almost nothing and no longer means what it was meant to:
+1. how **mature** is this source?
+2. what is it **built from**?
+3. **where does it go**?
 
-- **It controls nothing operationally.** `monthly_run.sh` never reads it; the prediction path never routes on it. The *only* things that act on it are: the integration-test runner skips `deprecated`, the (broken) ensemble guard, and the catalog displays it.
-- **It has drifted from its origin.** It began as a **composition switch** in a *one-ensemble* world: `deployed` meant "member of THE production ensemble," `shadow` meant "a challenger — monitored, not in production." With one ensemble and one destination, one label sufficed and "where does it go?" wasn't a question.
-- **The system outgrew that.** Composition is now explicit (`config_modelset.py`), and there are now **multiple ensembles delivered to multiple stores/APIs** (the main forecast line and the FAO delivery via `un_fao`). `deployed` lost its job and decayed into a vague *"eligible"* — which collides with what `shadow` already means.
+It answers none of them well. And the most important one — *where do the forecasts actually go?* — is written down **nowhere**. That is why, today, turning on a delivery takes the person who built it.
 
-Concrete symptoms:
+**The decision, in one breath.** Split those three questions into three independent axes, each written in exactly one place:
 
-- `deployed` on a standalone model is inert — a note of intent.
-- The ensemble↔constituent guard (`views-pipeline-core .../modules/validation/ensemble/check.py`) is **dead**: it branches on `single_model_dp_status == "production"`, a value the sniffer forbids, so the rule never fires. A `deployed` ensemble can silently contain `shadow` constituents — and `white_mustang` already does (`lavender_haze`, `blank_space`).
-- **Delivery routing is implicit and scattered.** The FAO edge lives on the *consumer* (`postprocessors/un_fao/configs/config_meta.py` → `"ensemble": "rusty_bucket"`); the main line is `monthly_run.sh` + the store + the API with no explicit declaration. Nothing says, in one place, "here is where forecasts leave the building."
-- **Delivering a lone model requires wrapping it in a one-model ensemble — a hack.** (The tell that a shared abstraction is missing.)
+- **maturity** — on the source;
+- **composition** — on the ensemble (unchanged from today);
+- **delivery** — a `source → consumer` edge, written on the *destination*.
 
-**Production evidence (added 2026-07-19 — the failure this ADR predicts, observed live):**
+Then "in production" stops being a label anyone types. It becomes a fact the system *works out* from two things: the source is `graduate`, **and** a delivery ships it to a production consumer. Because nobody writes it by hand, it cannot lie.
 
-- **The FAO forecast product has never been served — because the delivery
-  relationship was declared nowhere.** The producer side stamped its *own*
-  identity on every forecast document (the ensemble's name,
-  vpp `unfao/managers/unfao.py` forecast upload), while the deployed consumer
-  resolves a *different* name (`un_fao`, injected unconditionally by
-  views-faoapi's query layer). No declaration related the two, so nothing could
-  notice they disagreed: six `orange_ensemble`-named forecast documents sat
-  invisible in `unfao_bucket`, and forecast serving has been empty for the
-  entire life of the path (confirmed live 2026-07-15; views-faoapi F1
-  ratification addendum, and the views-models seat review of vpp ADR-013,
-  `reports/expert_reviews/2026-07-19_adr013_wire_contract_review_views_models_seat.md`).
-  This is precisely the silent-failure mode §"Delivery routing is implicit and
-  scattered" argues from — now with a receipt instead of a prediction.
-- **The current vocabulary cannot express the platform's actual state.** On
-  2026-07-19, `rusty_bucket` (`deployment_status: shadow`) is the source being
-  delivered to an external UN partner — "placeholder quality, live delivery" is
-  unsayable in one label, and trivially sayable in this ADR's model
-  (`candidate` maturity + a delivery declaration ⇒ derived deployed).
+**How to read this.** The document is deliberately **bottom-up**. §1 is a concrete map of what happens today; everything after it stands on that map.
 
-## Decision
+---
 
-Model the domain as **three orthogonal responsibilities**, each owned by the layer it belongs to.
+## 1. How forecast delivery works *today* — the concrete map
 
-### 1. A first-class abstraction: **forecast source**
-Anything that emits a forecast is a *source*. A **model** is a *leaf* source; an **ensemble** is a *composite* source that combines other sources (the Composite pattern). Delivery and readiness depend on the **source** abstraction, never on `Ensemble` specifically. (This is why the one-model-ensemble wrapper exists today — no shared interface — and why it disappears here.)
+**What this section does:** shows you, with real file paths, how a forecast actually gets from a model run to an API today — so the rest of the ADR has solid ground under it.
 
-### 2. Three axes, each declared/owned in one place
-- **Maturity** — intrinsic to a source: `candidate → graduate → retired`. **Declared** on the source in `config_deployment.py`, *identically for models and ensembles*. Replaces `deployment_status`. `baseline` is **not** a maturity — it is a *role*, already captured by the model's algorithm + the existing `regression_point_baselines` references.
-- **Composition** — a property of *composite* sources only (the members). **Declared** on the ensemble in `config_modelset.py` (**already exists**, unchanged).
-- **Delivery** — a *relationship*, not a property of any source: which source's forecast ships to which consumer. **Declared in the delivery layer** (a postprocessor / delivery unit), **never on the source**.
+Two things make today's picture harder than it should be:
 
-### 3. "Deployed" / "in production" is **derived, never declared**
+- there are **two stores** — two different central places a forecast can land; and
+- there are **three producer mechanisms**, from three eras of the codebase, all alive at the same time. Which one runs depends on what shape a run produces: a pandas DataFrame, a PredictionFrame, or a PredictionFrame-ensemble.
+
+(The full mechanics are pinned in pipeline-core `tests/test_managers/test_delivery_characterization.py`. Here we keep only what the *delivery* story needs.)
+
+This is a lot of accumulated legacy — there's no pretending otherwise. To keep it readable, every piece below carries a tag: **[LEGACY]** (alive only until retired), **[CURRENT]** (the working present), or **[TARGET]** (where everything is converging). And §1 deliberately *ends* on the direction of travel — so you leave this section seeing a transition, not a permanent mess.
+
+> **Two words, kept distinct throughout this document.** Both are "stores" in plain English, which is exactly what trips people up:
+> - **"store"** = the **OLD** `views-forecasts` central store — feeds the public API, pandas-only door, **[LEGACY]** (the "pile nobody opens").
+> - **"shelf"** = the **NEW** Appwrite `production_forecasts` bucket — feeds FAO, metadata-tagged, **[CURRENT]**.
+>
+> They are two different places. Wherever this ADR says *store* it means the old one; *shelf* means the new one.
+
+### The monthly run — this is what actually ships today. `[LEGACY]`
+
+`monthly_run.sh` is a hand-run list. It runs 4 **legacy DataFrame ensembles** (`pink_ponyclub`, `skinny_love`, `rude_boy`, `first_love`), each with `-m`.
+
+(`-m` = `--monthly`; it bundles train + forecast + report + prediction_store.)
+
+Each run goes through **one** method — `_save_predictions` → `PredictionIOManager`. (Not a set of "saver" objects — that's a different path, below.) That one method writes the forecast three ways:
+
+```
+monthly ensemble run (-m)  ->  PredictionIOManager        [LEGACY]
+  ├─ local disk: pandas-parquet (legacy list-in-cell)
+  ├─ legacy "views-forecasts" store  (df.forecasts.to_store)   [LEGACY]
+  │    -> external API  api.viewsforecasting.org   [MAIN PUBLIC LINE]
+  │       (prio-data/views_api, external)
+  └─ Appwrite SHELF: production_forecasts,  type="ensemble"    [LEGACY dialect]
+```
+
+There *is* a "savers" path — the single-model PredictionFrame path, with the composed `LocalParquetSaver` / `ViewsForecastsSaver` / `AppwriteSaver` trio (model.py:572). But that is a **different, conditional** mechanism `[CURRENT]`, and it is **not** what the monthly ensembles use.
+
+### `rusty_bucket` is a different animal again. `[TARGET]`
+
+`rusty_bucket` is a **PredictionFrame ensemble (PFE)** — the shape everything is converging toward. It uses *neither* path above. It does two things:
+
+- writes `save_pf` (npy/npz) to local disk; and
+- with the store on, publishes **wire shards** to the *same shelf*, tagged **`type="sampled_forecast_*"`**.
+
+Those wire shards are defined by **views-postprocessing's ADR-013** (its Sampled-Forecast Wire Contract). This is the *contract dialect*, kept deliberately separate from the legacy `type="ensemble"` dialect.
+
+> *Note on numbering:* throughout this document, **"ADR-013" always means views-postprocessing's ADR-013** (the wire contract) — a *different repo's* ADR. It is **not** this repo's ADR-013 (`013_regression_target_name_agnosticism.md`). Written **vpp ADR-013** where confusion is likely.
+
+### So the one shelf holds two disjoint dialects
+
+- legacy documents tagged `type="ensemble"`, and
+- contract shards tagged `type="sampled_forecast_*"`.
+
+They never overlap. That separation is the vpp ADR-013 §11.4 transition invariant.
+
+### The FAO line has two legs, and they share that one shelf
+
+```
+LIVE legacy leg:  shelf type="ensemble"  ->  vpp UNFAO manager
+    filters {category:forecast, type:ensemble}   (unfao.py:35)
+    reads "ensemble":"rusty_bucket"              (unfao.py:109)
+    enrich (GAUL) -> validate -> unfao_bucket, name="un_fao"
+    gated: UPLOAD_ENABLED = False
+      ->  views-faoapi serves unfao_bucket, name="un_fao"
+
+DORMANT contract leg:  shelf type="sampled_forecast_*"
+    ->  vpp wire/source_selection: newest manifested run
+    ->  same enrich / validate -> same unfao_bucket
+```
+
+### The punchline — and it's exactly what this ADR is about
+
+Put those pieces together:
+
+- the **live** FAO leg reads `type="ensemble"`;
+- but the **declared** FAO source (`rusty_bucket`) is a PFE, so it only ever produces `type="sampled_forecast_*"`;
+- therefore **the live leg will never see `rusty_bucket`'s output.**
+
+Meanwhile, the 4 monthly ensembles *do* produce `type="ensemble"` — but they aren't the declared FAO source.
+
+So today's FAO delivery is a **live consumer leg pointed at a source that isn't scheduled, while that source's own output can only feed the leg that's switched off.** Both halves are quietly *waiting*. And you cannot see this crossed-wires state by reading any single config file. That invisibility is the whole cost of "no single place declares delivery."
+
+### Where each config lives today (real paths)
+
+- **A model's maturity-ish label:** `views-models/models/<m>/configs/config_deployment.py` → `deployment_status`.
+- **An ensemble's label + members:** `.../ensembles/<e>/configs/config_deployment.py` (the label) and `.../config_modelset.py` (the members).
+- **The FAO "which source feeds us" declaration:** `views-models/postprocessors/un_fao/configs/config_meta.py` — the single line `"ensemble": "rusty_bucket"`, read by the manager at `views-postprocessing/.../unfao/managers/unfao.py:109`.
+  - **The smell, exactly:** that file's own docstring says *"This config is for documentation purposes only, and modifying it will not affect the model."* That is **false** — that one line decides which forecast reaches the UN.
+- **The main public line's declaration:** *none exists.* It is emergent — `monthly_run.sh` + the legacy store + the external API.
+
+### Two stores, two roles
+
+- **The `views-forecasts` store** (the old one) — pandas-only front door (`df.forecasts.to_store`); feeds the public API. Unstructured, matched by fragile naming — the pile nobody opens. *(It also has two **non-delivery** roles this ADR doesn't govern — legacy-ensemble constituent transport, and a run-metadata registry — whose retirement is sequenced by the pipeline-core roadmap, §"Direction of travel".)*
+- **The Appwrite `production_forecasts` shelf** (the new one) — the two-dialect bucket above; feeds the FAO postprocessor. vpp ADR-013 makes its contract dialect addressable by *declared provenance* instead of filename.
+
+### Direction of travel — what's dying, and where it goes
+
+*(Context only. This convergence is owned by the views-frames migration + vpp ADR-013, and **sequenced by pipeline-core's Lean Platform End-State Roadmap** (2026-07-27) — **not decided by this ADR**. It's here so the mess above reads as transitional.)*
+
+- **DataFrame ensembles** (the 4 monthly) → **PredictionFrame / PFE** (the `rusty_bucket` shape).
+- **the `views-forecasts` store** (pandas-only door) → **the Appwrite shelf** (→ Hetzner, eventually).
+- **shelf dialect `type="ensemble"`** → **`type="sampled_forecast_*"`** (vpp ADR-013 §11.4).
+- **the legacy FAO leg** → **the contract FAO leg**.
+
+Everything converges on one shape: **frames-native producers → the shelf's contract dialect → contract-reading consumers.** This ADR is written for that **target** state. The legacy machinery is *grandfathered* — described here so it's visible, not endorsed. **When a legacy element retires, its `[LEGACY]` line here retires with it** — so this section is a shrinking list, by design.
+
+## 2. What's broken
+
+**What this section does:** names the specific failures the map above produces.
+
+- **One label, three jobs.** `deployment_status` mixes *operational mode* (`shadow`/`deployed`), *lifecycle* (`deprecated`), and *role* (`baseline`) into one field — three different axes, one word. And it's almost **inert**: only `deprecated` actually does anything (the config sniffer refuses to run it). `deployed`, `shadow`, and `baseline` are indistinguishable on a run. *(Verified: no code anywhere branches `deployed`-vs-`shadow`; pinned by `tests/test_deployment_status_inert.py`.)*
+- **Delivery is hidden and mislabeled.** The one line that controls FAO delivery sits inside a config that claims to do nothing (§1). The main line's delivery isn't written down at all.
+- **The shelf has no write-gate.** Anything run with `-p`/`-m` *and* the production credentials lands on the shelf, tagged with its own name — a `candidate`, a branch fork, a debug run. Nothing structurally says "only the real production forecast belongs here." This is how the old store rotted into a pile.
+- **The one coherence rule that should catch trouble is dead.** pipeline-core's ensemble guard only fires on the impossible value `"production"`, so a `deployed` ensemble can silently contain `shadow` members — and `white_mustang` already does (`lavender_haze`, `blank_space`).
+- **Delivering a lone model needs a fake ensemble.** Only ensembles can be delivered, so a single model gets wrapped in a one-member "ensemble" — the tell of a missing shared abstraction.
+
+**Seen in production (2026-07).** Turning the FAO delivery *on* was very hard. Not because forecasts silently failed — we knew they weren't deployed yet. It was hard because *how* to switch it on was undiscoverable to anyone who hadn't built it. That is the cost of delivery being declared nowhere.
+
+## 3. The model — three axes, each in one concrete place
+
+**What this section does:** defines the fix — the three axes that replace the one overloaded field.
+
+**The shared abstraction: a *forecast source*.** Anything that emits a forecast is a *source*. A **model** is a *leaf* source; an **ensemble** is a *composite* source (the Composite pattern). Delivery and readiness depend on *source*, never on `Ensemble` specifically — which is why the one-model-ensemble wrapper (§2) disappears.
+
+The three axes, and where each one lives:
+
+- **Maturity** — `candidate → graduate → retired`.
+  *Where:* on the source, in `config_maturity.py` (renamed from `config_deployment.py`; same file for models and ensembles). Replaces `deployment_status`.
+  *(`baseline` is not a maturity — it's a role, already captured by the algorithm + `regression_point_baselines`. It leaves this file entirely.)*
+- **Composition** — an ensemble's members.
+  *Where:* `ensembles/<e>/configs/config_modelset.py` — **already exists, unchanged.**
+- **Delivery** — a `source → consumer` edge.
+  *Where:* a delivery unit's `config_delivery.py` (e.g. `views-models/postprocessors/un_fao/configs/config_delivery.py`) — **never on the source**. Each consumer is also registered once, with a tier, in `views-models/meta/consumers.py`.
+  *(This lifts today's buried `"ensemble"` line into a dedicated, honest file.)*
+
+So, in one line: a **model's** config declares only its maturity. An **ensemble's** config declares its maturity **plus** its members. Neither says anything about delivery or "deployed."
+
+## 4. How you actually operate it
+
+**What this section does:** the practical part — how you put something into production, and how a forecast physically flows. Everything here names real files.
+
+### 4a. Put a source into production — the recipe
+"In production" means *delivered to one or more API endpoints*, and an endpoint is a **consumer**. You never flip a status — you take these steps:
+
+- **A single model → an endpoint:**
+  1. `maturity: graduate` in the model's config;
+  2. a delivery unit's `config_delivery.py` = `{"source": "<model>", "consumer": "<endpoint>"}`;
+  3. `<endpoint>` registered in `meta/consumers.py` with `tier: prod`.
+- **An ensemble → an endpoint:** identical, with `"source": "<ensemble>"`.
+- **A model, inside an ensemble → an endpoint:** add it to the ensemble's `config_modelset.py`; make both the model and the ensemble `graduate`; declare the ensemble's delivery edge. The model is now in production *transitively*.
+
+### 4b. How a forecast reaches the shelf — three guards
+A forecast lands on the **production shelf** only if **all three** of these hold. Each is checked where its information already lives:
+
+- **Intent — the `-p` flag** (per run). Defaults off. Without it, a run writes nothing to the shelf — so you can run production locally to inspect it *without* publishing. *(Keep this flag.)*
+- **Eligibility — `maturity == graduate`** (the source's own config). A `candidate` **cannot** write to the prod shelf. This is the write-gate that's missing today, and it kills the pollution structurally — no consumer knowledge required.
+- **Credentials** — the production `.env`.
+
+**Candidates go nowhere central, for now** — they stay on the machine that ran them. *(Deferred: a shared "shadow shelf" for scheduled candidate runs — see §12.)*
+
+### 4c. How a forecast is served — split by boundary
+The producer must **never** know its consumers. So the gate is split across two boundaries, and neither side reads the other's config:
+
+- **Write → shelf** is gated by **maturity** (§4b) — the source's own config.
+- **Shelf → consumer** is gated by the **delivery declaration** — the delivery unit reads its *own* `config_delivery.py`, pulls only its declared source off the shelf (by declared identity, not by filename), and serves it.
+
+They meet **only at the shelf** — which now holds only `graduate` forecasts. A graduate-but-undelivered forecast sitting there is fine: it's finished, just not routed anywhere yet.
+
+### 4d. "In production" is derived, never declared
 > A source is *in production* ⟺ its maturity is `graduate` **and** a delivery ships it (directly, or via a composite that contains it) to a **production-tier** consumer.
 
-Because nobody writes it, it cannot lie.
+Nobody types "deployed." "Is this in production?" is worked out on demand from those two facts, and never stored — so it can't lie, because there's no field to lie in.
 
-### 4. Consumers are defined once
-A small central registry (`meta/consumers.py`) names the valid consumers and their tiers, so destination names can't drift and coherence rules have a tier to check against.
+*Analogy:* a sticky note reading *"light: ON"* can be wrong; but *checking that there's a working bulb **and** the switch is wired and flipped* cannot.
 
-### 5. Coherence is enforced at the delivery boundary, fail-loud
-- a delivery to a **production-tier** consumer requires its source to be `graduate`;
-- a `graduate` **composite** requires its members to be `graduate` (the white_mustang check);
-- a delivery's `source` and `consumer` must resolve (a real source; a consumer in the registry).
+## 5. Coherence rules (fail-loud)
 
-### 6. Relationship to vpp ADR-013 (added 2026-07-19)
+**What this section does:** the checks that keep the model honest. Each fails loudly rather than letting a bad state pass quietly.
 
-views-postprocessing **ADR-013** ("The Sampled-Forecast Wire Contract",
-Accepted 2026-07-15) and this ADR are companions dividing one territory:
-**013 owns the wire** (how forecast bytes travel: formats, manifests, the
-pinned consumer `name`), **017 owns the relationship** (which source is
-*declared* to ship to which consumer). Three alignment facts:
+**Maturity rules** (need only the source configs — so they're checked early, at config-load, by the sniffer):
 
-- ADR-013's §0.3 ownership table and §4.1a name-pinning are the platform's
-  **first concrete delivery-layer declarations** — this ADR's delivery axis is
-  their generalization to every consumer.
-- The `un_fao` config line (`"ensemble": "rusty_bucket"`) that the Context
-  above lists as a symptom is better read as the **proto-declaration**: the
-  seed of the correct pattern, unrecognized and unnormalized. Phase 1's
-  `config_delivery.py` is a rename-and-formalize of something that already
-  exists, not a green-field structure.
-- ADR-013 assigns the *expected-target-set* knowledge to the delivery layer
-  (its §4.2a, views-postprocessing configuration) — the same "the delivery
-  unit owns the product definition" principle this ADR states from the
-  views-models side.
+- **R1:** no *active* ensemble (`candidate` or `graduate`) may contain a `retired` member.
+- **R2:** a `graduate` ensemble's members must **all** be `graduate`. *(This is the dead `white_mustang` rule, revived.)*
 
-### 7. The derived state has an instrument (added 2026-07-19)
+**Delivery rules:**
 
-"Derived, never declared" invites the question *derived from what, verified
-how?* The declaration side is §3's rule; the verification side now exists as
-code: `tools/liveness` (epic #238) observes every delivery surface with raw
-facts and truthful skips. The operational reading of "in production" is
-therefore checkable end-to-end: **declared** (a delivery edge points at the
-source) **and observable** (the corresponding liveness surface is green).
-A declared-but-stalled delivery shows up as exactly that — a declaration whose
-surface is red — instead of a label nobody can falsify.
+- **Tier rule** (needs the delivery edge — so it's checked at the delivery boundary): a delivery to a **production-tier** consumer requires its source to be `graduate`.
+- **Resolution rule:** a delivery's `source` and `consumer` must both resolve — a real source, and a consumer in the registry.
 
-## Rationale (against the maintainer's principles)
+The delivery boundary is the authoritative gate; the config-load checks just shorten the feedback loop. Because R1/R2 need no delivery knowledge, an incoherent ensemble is caught even while it sits undelivered.
 
-- **SRP** — an ensemble changes only for *composition*; delivery changes only in the delivery layer; maturity only on the source. Today `Ensemble` is also "the deliverable" (two reasons to change).
-- **LSP / ISP / DIP** — delivery depends on the narrow `forecast source` interface, so a lone model substitutes for an ensemble freely; the one-model-ensemble hack becomes *impossible*. High-level delivery stops depending on the concrete `Ensemble`.
-- **OCP** — a new consumer is a new delivery edge; a new kind of source implements the interface; the status enum stops being an edit-point.
-- **CRP** — combination and delivery are not reused together, so they should not be forced together (today "ensemble" forces them).
-- **SDP / SAP** — `forecast source` is the stable abstraction everything depends *toward*; concrete producers and delivery routes are the volatile leaves depending inward.
-- **ADP** — delivery depends on the source abstraction, not the reverse; putting destinations on the producer would create a producer→consumer back-edge (cycle risk).
-- **Screaming architecture** — an explicit delivery layer makes "where forecasts go out" *visible* instead of implicit across a bash list + a postprocessor config + a dead label.
+## 6. Relationship to vpp ADR-013
 
-## Considered Alternatives
+**What this section does:** places this ADR next to its sibling in views-postprocessing, so the boundary between them is clear.
 
-### A — Keep `deployment_status`, add a `destinations` field on the source
-Makes a *producer* know its *consumers*: the ensemble would change whenever a downstream delivery relationship changes (SRP/DIP violation), and it re-creates the cross-file coherence split. **Rejected.**
+**views-postprocessing's ADR-013** (the Sampled-Forecast Wire Contract, Accepted 2026-07-15) and **this ADR** (views-models ADR-017) are companions that split one territory:
 
-### B — One centralized routing config (ensemble → consumer map)
-Takes the routing decision out of the delivery layer, duplicates membership already encoded elsewhere, and becomes a merge-conflict bottleneck. **Rejected as the source of truth** — a *derived* topology view gives the same at-a-glance benefit without the drift.
+- **vpp-013 owns the wire** — *how* forecast bytes travel (formats, manifests, the pinned consumer `name`).
+- **ADR-017 owns the relationship** — *which* source ships to *which* consumer.
 
-### C — Derive routing from status alone (shadow→shadow bucket, deployed→prod bucket)
-Status alone cannot express "deployed to FAO but not to the main API" — multiple production destinations exist. **Rejected as insufficient.**
+Like a parcel: **vpp-013 standardises the packaging; ADR-017 writes the address.** Neither replaces the other. And vpp-013 is what makes the shelf addressable by *declared provenance* instead of fragile filename (§1) — which is the mechanism that lets a delivery declaration actually find its source.
 
-## Consequences
+## 7. The derived state has an instrument
 
-### Positive
-- `deployed` cannot lie (derived); the white_mustang class of incoherence is caught automatically at the delivery boundary.
-- A lone model is directly deliverable — no wrapper.
-- Delivery topology is explicit and *screamable*; the aggregate view is generated, not hand-kept.
-- Each config file answers exactly one question.
+"Derived from what, verified how?" The declaration side is §4d. The *verification* side is code: `tools/liveness` (epic #238) observes every delivery surface — the shelf, `unfao_bucket`, the public API — with raw facts.
 
-### Negative / costs
-- The `deployment_status → maturity` rename is a **cross-repo breaking contract change** (views-models configs + pipeline-core sniffer/templates/guard + ADR-003) against a **published** pipeline-core — the C-73 / C-132 skew tax.
-- Making the **main line an explicit delivery unit** is new structure touching the most operationally sensitive path.
-- A migration is required (phased below).
+So "in production" is checkable end-to-end: **declared** (a delivery edge exists) **and observable** (its liveness surface is green). A declared-but-stalled delivery shows up as exactly that, instead of a label nobody can falsify.
 
-## Implementation Notes (phasing — deliberately not a big-bang)
+## 8. Rationale (against the maintainer's principles)
 
-**Distance-to-clarity ≪ distance-to-purity.** The value can be captured incrementally, mostly local to views-models, before paying the cross-repo/operational costs.
+- **SRP** — an ensemble changes only for composition; delivery only in the delivery layer; maturity only on the source.
+- **DIP / ISP / LSP** — delivery depends on the narrow `forecast source` interface, so a lone model can stand in for an ensemble and the wrapper hack becomes impossible.
+- **OCP** — a new consumer is just a new delivery edge; the status enum stops being an edit-point.
+- **ADP** — delivery depends on the source, not the reverse; the producer never gains a back-edge to its consumers (§4c).
+- **Screaming architecture** — an explicit delivery layer makes "where forecasts go out" *visible*, instead of emergent across a bash list and a dead label.
+
+## 9. Considered alternatives
+
+- **A — keep `deployment_status`, add a `destinations` field on the source.** This makes the producer know its consumers (an ADP/SRP violation). **Rejected.**
+- **B — one central routing config (an ensemble → consumer map).** Duplicates membership and becomes a merge bottleneck. **Rejected as the source of truth** — a *derived* topology view gives the same at-a-glance benefit without the drift.
+- **C — derive routing from status alone.** Can't express "delivered to FAO but not to the main API." **Rejected.**
+
+## 10. Consequences
+
+**Positive:**
+
+- `deployed` can't lie (it's derived);
+- the `white_mustang` class of incoherence is caught automatically;
+- a lone model is directly deliverable — no wrapper;
+- the shelf holds only `graduate` forecasts;
+- delivery topology is explicit and can be generated, not hand-kept;
+- each config file answers exactly one question.
+
+**Costs:** the `deployment_status → maturity` rename is a **cross-repo breaking change** against a *published* pipeline-core (the C-73 / C-132 skew tax). The full set of things that must move together:
+
+- views-models configs;
+- pipeline-core: the sniffer, the templates, the ensemble guard;
+- the ensemble-only publish leg (`sampled_forecast_publisher`, pipeline-core #269) — it must accept a *source*, not just an `Ensemble`;
+- the silent log-stamp default `c.get("deployment_status", "shadow")`;
+- ADR-003.
+
+Also: making the main line an explicit delivery unit adds new structure on the most operationally sensitive path.
+
+## 11. Implementation (phased — not big-bang)
 
 - **Phase 0 (this ADR):** the shared model. Zero code.
-- **Phase 1 — cheap, local, breaks nothing published (≈80% of the clarity):**
-  - fix the dead guard (`check.py` `"production" → "deployed"`);
-  - make delivery first-class for FAO: `un_fao` config `ensemble → source` + an explicit `consumer`; add `meta/consumers.py`;
-  - derive `is_in_production` and repoint the label reads.
-- **Phase 2 — cross-repo, deliberate:** `deployment_status → maturity` + value remap across all sources + the pipeline-core contract + ADR-003.
-- **Phase 3 — structural, operationally sensitive:** make the main line an explicit delivery unit (`deliveries/main_forecasts/`), so *all* delivery is uniform and explicit.
-- **Phase 4:** flip readiness/coherence checks to the derived, delivery-boundary form.
+- **Phase 1 — cheap, local, breaks nothing published:** revive the dead guard (R2); lift FAO's `"ensemble"` line out of `config_meta.py` into `config_delivery.py`; add `meta/consumers.py`; derive `is_in_production`.
+- **Phase 2 — cross-repo, deliberate:** the `deployment_status → maturity` rename + value remap + the pipeline-core contract + ADR-003; rename the file `config_deployment.py → config_maturity.py`; delete the silent log-stamp default.
+  Do this with a **dual-vocabulary transition window** — the sniffer accepts both old and new values, warns on the old, and flips to new-only in a later major (the gid→id playbook). It **cannot** ride the pipeline-core 3.0 release, so it lands as a post-3.0 major or its own coordinated bump.
+- **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
+- **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
 
-### Target-state config shapes
+**Day-one state (known, temporary).** On adoption, the platform inherits exactly one coherence violation: the placeholder `rusty_bucket` (`candidate`) delivers to the production-tier `fao` consumer — a pre-production shakedown. During the transition, the tier-rule check **warns, not blocks**, on this edge, until the real production ensemble is graduated. The migration is *not* gated on a hasty graduation.
 
-A source declares only its maturity (models and ensembles, same shape):
-```python
-# models/<m>/configs/config_deployment.py  |  ensembles/<e>/configs/config_deployment.py
-def get_deployment_config():
-    return {"maturity": "candidate"}          # candidate | graduate | retired
-```
+## 12. Decided vs Deferred/Open
 
-An ensemble additionally declares its members (unchanged):
-```python
-# ensembles/<e>/configs/config_modelset.py
-def get_modelset_config():
-    return {"models": [...]}
-```
+**Decided (this review, 2026-07-27):**
 
-A delivery unit declares the edge — the only place "goes where" lives:
-```python
-# postprocessors/un_fao/configs/config_delivery.py
-def get_delivery_config():
-    return {"source": "rusty_bucket", "consumer": "fao"}   # source = a model OR an ensemble
-# deliveries/main_forecasts/configs/config_delivery.py
-def get_delivery_config():
-    return {"sources": ["pink_ponyclub", ...], "consumer": "main_api"}
-```
+- Only `graduate` sources write to the prod shelf; **candidates go nowhere central, for now.**
+- Three shelf-write guards: `-p` intent / `graduate` eligibility / credentials. **Keep `-p`.**
+- Gate split by boundary: maturity gates the write, delivery gates the serve; the producer never reads consumer config.
+- Maturity rules **R1** (no retired member in an active ensemble) + **R2** (graduate ensemble → all-graduate members).
 
-Consumers defined once:
-```python
-# meta/consumers.py
-CONSUMERS = {"main_api": {"tier": "prod"}, "fao": {"tier": "prod"}, "shadow_bucket": {"tier": "staging"}}
-```
+**Deferred / open (stated plainly — not smuggled as decided):**
 
-Derived, stored nowhere:
-```python
-is_in_production(source) == (maturity(source) == "graduate") and delivered_to_prod(source)
-```
-
-## Validation & Monitoring
-- Coherence checks fail loud at config-load / pre-delivery: candidate→prod, non-graduate members in a graduate composite, unknown source/consumer.
-- A generated "delivery topology" view (like the catalog) lists every `source → consumer` edge and every in-production source — replacing trust-the-label.
-
-## Open Questions
-- Final vocabulary for the maturity axis (`candidate / graduate / retired`?).
-- Does a lone model ever deliver directly today? (Currently **no** — but the model must support it without the wrapper.)
-- Where do delivery units physically live — under `postprocessors/`, a new `deliveries/`, or both?
-- `baseline`: fully derived from references, or does a source ever need to declare "I am a baseline"?
-- Migration for `un_fao`: producer-declares vs consumer-declares — validate-they-agree, or discover?
+- **Delivery-unit home:** `postprocessors/` (exists) vs a new `deliveries/` folder vs both.
+- **Delivery-unit weight:** is every delivery unit a full postprocessor (like `un_fao`), or can it be lightweight when no transformation is needed?
+- **Scheduled candidate / shadow ensembles** (e.g. a `views_shadow` endpoint run monthly): shared prod shelf tier-tagged, or a separate shadow shelf? *Revisit soon.*
+- **Two stores today** (the legacy `views-forecasts` store for the public API + the Appwrite `production_forecasts` shelf): eventual consolidation, and the maintainer's "on Hetzner one day" intent — not now.
+- **`config_meta.py` cleanup:** the "documentation only" docstring must stop being a lie once delivery moves out.
+- **The guard's stale-log gap:** even the live `deprecated`-member check reads the member's *artifact-time log*, so a member deprecated *after* its artifacts were generated slips through (register-worthy, Tier-3).
 
 ## References
-- ADR-001 (ontology), ADR-002 (topology), ADR-003 (authority — the `deployment_status` allowed-list), ADR-016 (point/stochastic — the same "derive, don't declare" instinct).
-- views-postprocessing **ADR-013** (the sampled-forecast wire contract — the *wire* half of the territory this ADR's delivery axis governs; see Decision §6).
-- `reports/expert_reviews/2026-07-19_adr013_wire_contract_review_views_models_seat.md` (the name-invisibility production receipt, live-verified blocker status).
-- `tools/liveness` / epic #238 (the observability instrument behind Decision §7).
-- views-pipeline-core `modules/validation/core_config_sniffer.py` (`SUPPORTED_DEPLOYMENT_STATUSES`); `modules/validation/ensemble/check.py` (the dead `"production"` guard).
-- Technical risk register — the deployment_status findings (ensemble↔constituent coherence gap; dead guard; implicit/emergent routing).
-- Session design discussion, 2026-07-02.
+
+- ADR-001 (ontology), ADR-002 (topology), ADR-003 (authority — the `deployment_status` allowed-list), ADR-016 (the same derive-don't-declare instinct).
+- views-postprocessing **ADR-013** (the wire half; see §6).
+- pipeline-core **Lean Platform End-State Roadmap** (`documentation/plans/2026-07-27_lean_platform_end_state_roadmap.md`) — owns the sequencing/retirement this ADR's §1 direction-of-travel defers; the basis for this ADR's acceptance.
+- `reports/expert_reviews/2026-07-19_adr013_wire_contract_review_views_models_seat.md`.
+- `tests/test_deployment_status_inert.py` (pins the "label is inert" fact from §2).
+- `tools/liveness` / epic #238 (the instrument in §7).
+- pipeline-core: `modules/validation/core_config_sniffer.py`; `modules/validation/ensemble/check.py` (the dead guard); `managers/prediction/io.py` (gen-1: one method, two stores, `type=target`); `managers/model/model.py:572` (the gen-2 conditional saver trio); `cli/args.py` (`-m`); **`tests/test_managers/test_delivery_characterization.py`** (pins the three producer generations + the two shelf dialects).
+- Session design discussion, 2026-07-02; grounding revision, 2026-07-27.
