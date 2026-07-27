@@ -180,6 +180,16 @@ This directory contains Python scripts used to control model configuration. **Mo
 - `config_queryset.py`: Most VIEWS models are anticipated to need to fetch data from the central VIEWS database via the `viewser` client. This is done by specifying a `queryset`. A queryset is a representation of a data table. It consists of a name, a target level-of-analysis (into which all data is automatically transformed) and one or more Columns. A Column, in turn, has a name, a source level-of-analysis, the name of a raw feature from the VIEWS database and zero or more transforms from the `views-transformation-library`. The queryset is passed via the viewser client to a server which executes the required database fetches and transformations and returns the dataset as a single dataframe (or, in the future, a tensor). The `config_queryset.py` specifies the queryset, and **it is the model creator's responsibility to ensure that the specification is correct**.
 
 
+**Data backends — viewser or the data factory:** a queryset can instead be a plain
+dict descriptor with `"source": "views-datafactory"` (see e.g.
+`models/warring_cleric/configs/config_queryset.py`). Such models fetch features
+directly from the VIEWS data factory's remote store over HTTP — no viewser, no VPN;
+you only need `~/.netrc` credentials for the data server and the
+`views-datafactory>=1.9.0` package from PyPI (installed automatically via the model's
+`requirements.txt`). First time running one of these models? Follow the
+[datafactory model consumer quickstart](https://github.com/views-platform/views-datafactory/blob/main/docs/guides/model_consumer_quickstart.md).
+
+
 - `config_sweep.py`: During model development, developers will often wish to perform sweeps over ranges of model hyperparameters for optimisation purposes (hyperparameter tuning). This script allows such sweeps to be configured, specifying which parameters ranges are to explored and what is to be optimised.
 
 
