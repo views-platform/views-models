@@ -47,5 +47,28 @@ else
   pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
 fi
 
+# ── þing-01 / PLATFORM-001 (#287): coordinates come from the OWNED registry, not a copied .env ──
+# The non-secret Appwrite coordinates (endpoint, project/bucket/collection/db ids & names) are
+# READ from the single canonical coordinate registry — never copied into this repo. The one SECRET
+# (APPWRITE_DATASTORE_API_KEY) stays an operator slot. This is a DECLARATION layered on run.sh, not
+# a rewrite. TRANSITIONAL: the .env sourced above still works as the operator slot + fallback; the
+# hard cutover (registry-only coordinates, secret from a real store, .env retired) is sequenced with
+# #280 and pairs with views-postprocessing's kill of its runtime load_dotenv (their P1). Uses the
+# just-activated env's python because tomllib needs 3.11+. Override the path with APPWRITE_REGISTRY.
+APPWRITE_REGISTRY="${APPWRITE_REGISTRY:-$project_path/../views-appwrite/docs/ADRs/platform/coordinate_registry.toml}"
+if [ -f "$APPWRITE_REGISTRY" ]; then
+  if _coords="$(python "$project_path/tools/registry_to_env.py" "$APPWRITE_REGISTRY" 2>/dev/null)"; then
+    while IFS= read -r _cl; do
+      [ -z "$_cl" ] && continue
+      export "${_cl%%=*}=${_cl#*=}"
+    done <<< "$_coords"
+    echo "PLATFORM-001: Appwrite coordinates read from the registry (secret stays the operator slot)."
+  else
+    echo "PLATFORM-001 note: registry read failed — using .env coordinates transitionally (#280 retires this)."
+  fi
+else
+  echo "PLATFORM-001 note: registry not found at $APPWRITE_REGISTRY — using .env transitionally (#280 retires this)."
+fi
+
 echo "Running $script_path/main.py "
 python $script_path/main.py "$@"
