@@ -198,6 +198,14 @@ The producer must **never** know its consumers. So the gate is split across two 
 - **Write → shelf** is gated by **maturity** (§4b) — the source's own config.
 - **Shelf → consumer** is gated by the **delivery declaration** — the delivery unit reads its *own* `config_delivery.py`, pulls only its declared source off the shelf (by declared identity, not by filename), and serves it.
 
+### 4d. Serving-time curation — the FAO approve / quarantine lists
+Two variables govern *which already-delivered artifacts* the FAO serving layer (views-faoapi) may return: `APPWRITE_UNFAO_APPROVED_FILE_IDS` and `APPWRITE_UNFAO_QUARANTINED_FILE_IDS`. Despite their `APPWRITE_` prefix, these are **eligibility data, not connection configuration** — they name which delivered artifacts are *servable*, an operator/curation decision, not how to reach the store. They therefore belong to **this** eligibility contract, not to the identity/secrets/config contract (PLATFORM-001), whose variable map lists them only as explicit exclusions with a pointer back here (þing-01, verdict D3; 6/6 assent — class is *declared*, never inferred from a prefix).
+
+- **`APPWRITE_UNFAO_APPROVED_FILE_IDS`** — an optional allowlist. When set (non-empty), *only* the listed Appwrite file IDs are servable — a newly delivered artifact is **not** served until explicitly approved (a break-glass gate; faoapi C-71). When empty/unset, selection is unrestricted and the newest fully-manifested run wins.
+- **`APPWRITE_UNFAO_QUARANTINED_FILE_IDS`** — a blocklist. Listed file IDs are never served, even if newest — how an operator withdraws a bad run.
+
+**Who sets them:** the operator (the human who holds the keys, PLATFORM-001 §operator), by editing the deployment environment. They carry non-secret Appwrite file IDs, so they are committable/inspectable — never secret. **Who reads them:** views-faoapi at selection time. With manifest-first serving (faoapi #263) these lists are a *break-glass* control layered over the newest-wins default, not the primary selection mechanism.
+
 They meet **only at the shelf** — which now holds only `graduate` forecasts. A graduate-but-undelivered forecast sitting there is fine: it's finished, just not routed anywhere yet.
 
 ### 4d. "In production" is derived, never declared
