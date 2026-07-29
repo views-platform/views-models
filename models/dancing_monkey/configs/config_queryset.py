@@ -28,7 +28,7 @@ FEATURE_RENAME = {
     "ged_sb_best": "lr_sb_best",   # state-based fatalities (best estimate)
     "ged_ns_best": "lr_ns_best",   # non-state fatalities
     "ged_os_best": "lr_os_best",   # one-sided violence fatalities
-    "gaul0_code": "c_id",          # FAO GAUL country code → identity column
+    # "gaul0_code": "c_id",          # FAO GAUL country code → identity column
 }
 
 def generate():
