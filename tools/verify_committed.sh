@@ -35,8 +35,15 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-REF="${1:-HEAD}"; [ $# -gt 0 ] && shift
+REF="${1:-HEAD}"
+if [ $# -gt 0 ]; then shift; fi   # an `&&` here would return non-zero with no args,
+                                  # which is harmless today but a trap under `set -e`
 ENV_NAME="${VIEWS_ENV:-views_pipeline}"
+
+# A hard kill (SIGKILL, power loss) skips the EXIT trap and leaves a dead worktree
+# registered against the repo. Harmless but it accumulates in `git worktree list`.
+git -C "$REPO" worktree prune >/dev/null 2>&1 || true
+
 WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/views-models-committed.XXXXXX")"
 
 cleanup() {
