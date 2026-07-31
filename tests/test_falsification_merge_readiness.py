@@ -14,6 +14,16 @@ REPO = Path(__file__).resolve().parent.parent
 TESTS_DIR = Path(__file__).resolve().parent
 
 
+def files_at_risk(dirty, incoming):
+    """Dirty working-tree files that an incoming merge would also rewrite.
+
+    The seam is extracted so the rule can be pinned against injected state
+    rather than only exercised through live git — a check that silently stops
+    being able to fail is the C-61 failure mode.
+    """
+    return sorted(set(dirty) & set(incoming))
+
+
 # === Round 1: PR #56 — pytestmark overwrite bug ===
 
 class TestF4_PytestmarkOverwriteBug:
@@ -79,20 +89,76 @@ class TestF4_PytestmarkOverwriteBug:
 # === Round 2: PR #59 — merge readiness ===
 
 class TestF1_UncommittedWork:
-    """F1: Working-tree changes are committed — nothing lost on GitHub merge."""
+    """F1: No uncommitted work sits on a file an incoming merge would rewrite.
+
+    Rewritten 2026-07-31. The original asserted ``git diff --name-only`` was
+    empty, i.e. that the working tree was clean, on the stated grounds that
+    "uncommitted changes will be lost on merge".
+
+    Both halves were wrong:
+
+    * **The premise is false.** Merging a PR on GitHub does not touch a local
+      working tree; nothing is lost. A *local* ``git pull``/``merge`` can only
+      refuse or clobber when incoming changes land on a file that is dirty
+      here — that, and only that, is the real hazard.
+    * **The trigger was perpetual.** Any developer with work in progress failed
+      it, so a normal local ``pytest`` was red by construction. It also passed
+      in CI (fresh clone ⇒ clean tree) and failed on a working machine — a
+      verdict that depends on where it runs, the C-75 class inverted. A test
+      that is always red teaches people to ignore red, which is the exact harm
+      C-80 records.
+
+    The invariant below is the one that matters and is non-perpetual: dirty
+    files are fine; dirty files that *overlap the incoming diff* are not.
+    """
 
     @pytest.mark.red
-    def test_no_uncommitted_tracked_changes(self):
+    def test_no_uncommitted_work_on_files_an_incoming_merge_would_rewrite(self):
         import subprocess
 
-        result = subprocess.run(
-            ["git", "diff", "--name-only"],
-            capture_output=True,
-            text=True,
-            cwd=REPO,
+        def _git(*args):
+            return subprocess.run(
+                ["git", *args], capture_output=True, text=True, cwd=REPO
+            )
+
+        dirty = set(_git("diff", "--name-only").stdout.split())
+        if not dirty:
+            return  # clean tree — nothing can be clobbered
+
+        upstream = _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+        if upstream.returncode != 0 or not upstream.stdout.strip():
+            pytest.skip(
+                "no upstream tracking ref — cannot compute the incoming diff; "
+                "truthful skip rather than a guess (C-75 lesson)"
+            )
+
+        incoming = set(
+            _git("diff", "--name-only", f"HEAD...{upstream.stdout.strip()}").stdout.split()
         )
-        changed = result.stdout.strip().splitlines()
-        assert not changed, f"Uncommitted changes will be lost on merge: {changed}"
+        overlap = files_at_risk(dirty, incoming)
+        assert not overlap, (
+            "Uncommitted work sits on files the incoming merge rewrites — a local "
+            f"pull will refuse or clobber: {overlap}. Commit, stash, or pull first. "
+            f"({len(dirty)} file(s) dirty overall; the rest are unaffected.)"
+        )
+
+    # --- guard against the guard going vacuous (the C-61 lesson) -------------
+    # A rewritten test that can no longer fail is worse than the red one it
+    # replaced. These pin the decision function against injected state, so the
+    # suite fails loud if the overlap rule is ever weakened to "always empty".
+
+    @pytest.mark.red
+    def test_files_at_risk_detects_overlap(self):
+        assert files_at_risk(
+            {"a.py", "b.py", "c.py"}, {"b.py", "d.py"}
+        ) == ["b.py"], "overlap rule must flag a dirty file the merge rewrites"
+
+    @pytest.mark.red
+    def test_files_at_risk_ignores_dirty_files_the_merge_does_not_touch(self):
+        assert files_at_risk({"a.py", "b.py"}, {"c.py"}) == [], (
+            "dirty files outside the incoming diff are safe and must not fail the gate "
+            "— this is the perpetual-trigger defect the rewrite removed"
+        )
 
 
 class TestF4_StaleDocstrings:
