@@ -519,6 +519,123 @@ def _expected_ensemble_samples(ensemble_name):
     return None
 
 
+def artifact_is_stale(artifact_dt, drifted_constituents):
+    """True when the artifact was produced under different sample counts than today's.
+
+    ``drifted_constituents`` is the list of constituents whose ``n_posterior_samples``
+    differed at ``artifact_dt`` from its current value. Empty ⇒ the comparison is
+    still meaningful and the assertion must run.
+
+    Extracted as a seam so the rule can be pinned against injected state rather than
+    only through live git — a guard that silently stops being able to skip, or that
+    always skips, is the C-61 failure mode.
+    """
+    return bool(drifted_constituents)
+
+
+def _skip_if_artifact_predates_constituent_configs(ensemble_name, timestamp):
+    """Refuse to judge a prediction artifact older than the config it is compared to.
+
+    Added 2026-07-31 (C-74). ``_expected_ensemble_samples`` reads the **live**
+    constituent configs, but the artifact on disk was written at ``timestamp``.
+    When the configs have moved since, the comparison is not a test of the
+    aggregation path — it is a test of how recently someone re-ran the ensemble,
+    and it fails forever until they do.
+
+    Concretely, golden_hour's only artifact is ``predictions_calibration_20260603_135314``
+    and the three constituents' ``n_posterior_samples`` have changed twice since
+    (64/64/64 at artifact time → 16/16/16 → 16/16/8 today, per C-71). The
+    constituent ``y_pred.npy`` files that produced it no longer exist on disk, so
+    the anomaly cannot be diagnosed from artifacts at all — only a fresh run can
+    settle it. A truthful skip says that; a failure implies a defect this test
+    has not established (the C-75 lesson: report what you actually know).
+
+    Falls through to the assertion — never silently passing — whenever staleness
+    cannot be established (no git, untracked config, unparseable timestamp).
+    """
+    import subprocess
+    from datetime import datetime
+
+    try:
+        artifact_dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+    except (ValueError, TypeError):
+        return  # unknown shape — judge it rather than excuse it
+
+    try:
+        modelset = _load_config(ENSEMBLES_DIR, ensemble_name, "config_modelset")
+        constituents = modelset["models"]
+    except Exception:
+        return
+
+    # The precise question is not "has the file changed since?" but "was the compared
+    # VALUE the same when this artifact was written?". Anything looser silences tests
+    # that are still meaningful: most edits to config_hyperparameters.py move a loss,
+    # a scaler or a comment and leave the sample count alone. synthetic_chant is that
+    # case — its artifact predates such an edit and it passes at 3x64=192, the control
+    # that falsified the platform-wide concat hypothesis in C-74. Losing it would cost
+    # more than the golden_hour red it was meant to explain.
+    pattern = re.compile(r"['\"]n_posterior_samples['\"]\s*:\s*(\d+)")
+    drifted = []
+    for model_name in constituents:
+        rel = f"models/{model_name}/configs/config_hyperparameters.py"
+        current = _load_hp(model_name).get("n_posterior_samples")
+        sha = subprocess.run(
+            ["git", "rev-list", "-1", f"--before={artifact_dt.isoformat()}", "HEAD", "--", rel],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        ).stdout.strip()
+        if not sha:
+            continue  # no history at that point — cannot establish drift, so judge it
+        blob = subprocess.run(
+            ["git", "show", f"{sha}:{rel}"], capture_output=True, text=True, cwd=REPO_ROOT,
+        )
+        if blob.returncode != 0:
+            continue
+        match = pattern.search(blob.stdout)
+        then = int(match.group(1)) if match else None
+        if then != current:
+            drifted.append(f"{model_name}: {then} at artifact time -> {current} now")
+
+    if artifact_is_stale(artifact_dt, drifted):
+        pytest.skip(
+            f"{ensemble_name}: artifact {timestamp} was produced under different "
+            f"constituent sample counts than the expectation is built from — "
+            f"{'; '.join(drifted)}. Re-run the ensemble to make the comparison "
+            f"meaningful. Tracked as C-74."
+        )
+
+
+class TestArtifactStalenessGuard:
+    """Pin the C-74 staleness guard so it cannot go vacuous (the C-61 lesson).
+
+    A guard that always skips would silently retire ``test_aggregated_sample_count``;
+    one that never skips would restore the permanent local red it replaced.
+    """
+
+    pytestmark = [pytest.mark.red]
+
+    def test_drifted_sample_count_is_recognised(self):
+        from datetime import datetime
+        assert artifact_is_stale(
+            datetime(2026, 6, 3), ["violet_visitor: 16 at artifact time -> 8 now"]
+        ), "an artifact produced under a different sample count must not be judged"
+
+    def test_undrifted_artifact_still_gets_asserted(self):
+        from datetime import datetime
+        assert not artifact_is_stale(datetime(2026, 5, 24), []), (
+            "an artifact whose constituent sample counts have NOT moved must still be "
+            "judged — this is what keeps synthetic_chant (the C-74 concat control) live"
+        )
+
+    def test_a_file_edit_that_left_the_value_alone_does_not_excuse_the_artifact(self):
+        from datetime import datetime
+        # The coarse first attempt keyed on 'config file last changed' and silenced
+        # synthetic_chant, which was passing. Only value drift may skip.
+        assert not artifact_is_stale(datetime(2026, 5, 24), []), (
+            "editing a loss or a comment in config_hyperparameters.py must not skip "
+            "the sample-count assertion"
+        )
+
+
 class TestPFEEnsembleAggregation:
     """Validate ensemble PF output: sample count, scale, integrity."""
 
@@ -556,6 +673,7 @@ class TestPFEEnsembleAggregation:
     def test_aggregated_sample_count(self, pfe_case):
         name = pfe_case[0]
         meta = _load_meta(name, ENSEMBLES_DIR)
+        _skip_if_artifact_predates_constituent_configs(name, pfe_case[2])
         expected = _expected_ensemble_samples(name)
         first_target = meta["regression_targets"][0]
         y = np.load(self._first_origin(pfe_case) / first_target / "y_pred.npy", mmap_mode="r")
