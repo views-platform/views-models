@@ -85,7 +85,7 @@ if [ -f "$APPWRITE_REGISTRY" ]; then
   # may supply nothing, because the sourced .env coordinates are not exported either.
   _reg_err="$(mktemp "${TMPDIR:-/tmp}/registry_to_env.XXXXXX")"
   trap 'rm -f "$_reg_err"' EXIT
-  if _coords="$(python "$project_path/tools/registry_to_env.py" "$APPWRITE_REGISTRY" 2>"$_reg_err")"; then
+  if _coords="$(python "$project_path/tools/credentials/registry_to_env.py" "$APPWRITE_REGISTRY" 2>"$_reg_err")"; then
     while IFS= read -r _cl; do
       [ -z "$_cl" ] && continue
       export "${_cl%%=*}=${_cl#*=}"

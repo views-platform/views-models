@@ -66,7 +66,7 @@ Per ADR-055 clause 6: querysets must deliver target columns in their natural sca
 
 **Current status (verified 2026-06-08):** Zero models in this repo actively apply `.transform.ops.ln()` to the three target columns (`lr_ged_sb`, `lr_ns_best`, `lr_os_best`). Many models have the transform commented out — confirming it was deliberately removed. Feature columns may still have active log transforms at the queryset level; this is permitted (features are not governed by ADR-055).
 
-Verification tool: `python tools/audit_queryset_transforms.py`
+Verification tool: `python tools/audit/queryset_transforms.py`
 
 ### 6. Binary targets are not a scale transformation
 
@@ -94,7 +94,7 @@ Placing the full lifecycle in the modeling library keeps the contract simple: da
 - Model contributors know exactly what they configure here (target names, transform declarations) and what they don't need to worry about (inversion — that's the library's job).
 - Ensembles and evaluation can treat all predictions uniformly.
 - No transform metadata needs to propagate through prediction files, stores, or APIs.
-- The audit tool (`tools/audit_queryset_transforms.py`) provides programmatic verification that no queryset-level target transforms are active.
+- The audit tool (`tools/audit/queryset_transforms.py`) provides programmatic verification that no queryset-level target transforms are active.
 
 ### Negative
 
@@ -114,7 +114,7 @@ Placing the full lifecycle in the modeling library keeps the contract simple: da
 
 ## Validation & Monitoring
 
-- `tools/audit_queryset_transforms.py` — programmatically verifies no queryset-level log transforms are applied to target columns. Run periodically or before release.
+- `tools/audit/queryset_transforms.py` — programmatically verifies no queryset-level log transforms are applied to target columns. Run periodically or before release.
 - Existing tests (`test_config_completeness.py`) can be extended to assert that all `regression_targets` use the `lr_` prefix and all `classification_targets` use the `by_` prefix.
 - Any model producing predictions on a non-measurement scale is a bug in the modeling library, not in this repo. Such bugs would manifest as anomalous evaluation metrics (e.g., CRPS or MSE orders of magnitude off expected ranges).
 
@@ -135,4 +135,4 @@ Placing the full lifecycle in the modeling library keeps the contract simple: da
 
 ### This repo
 - [ADR-011: Partition Boundary Semantics](011_partition_semantics.md) — `output_scale` optional config key positioned under ADR-055 clause 8.
-- `tools/audit_queryset_transforms.py` — programmatic verification of queryset-level transform compliance.
+- `tools/audit/queryset_transforms.py` — programmatic verification of queryset-level transform compliance.

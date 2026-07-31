@@ -28,17 +28,40 @@ import tomllib
 _COORDINATE_CLASSES = ("connection", "target")
 
 
+def _is_planned(entry: dict) -> bool:
+    """A coordinate declared for a consumer that does not exist yet.
+
+    The registry uses ``status = "planned — …"`` to reserve a name before the container
+    exists. Such an entry has no ``value`` **by design**, and that is a declaration of
+    intent, not a malformed registry.
+    """
+    return str(entry.get("status", "")).strip().lower().startswith("planned")
+
+
 def coordinates(registry_path: str) -> list[str]:
     """Return ``NAME=value`` lines for every connection/target coordinate in the registry.
 
     Raises on a malformed registry or a coordinate entry missing its ``value`` — fail loud
-    rather than emit a half-built environment (verdict D5)."""
+    rather than emit a half-built environment (verdict D5). **Planned entries are skipped,
+    not fatal**: see below.
+
+    Why the skip exists. On 2026-07-31 views-appwrite added
+    ``[target.APPWRITE_CRAFD_BUCKET_ID]`` with ``status = "planned — views-crafdapi"`` and
+    no value, reserving the name for a consumer that does not exist yet. This function
+    raised on it — and because it raises for the *whole registry*, the un_fao launcher
+    lost **every** coordinate, not just the planned one. A neighbouring repository adding
+    a placeholder should not be able to unconfigure the FAO delivery path. Fail-loud is
+    still right for a coordinate that *ought* to have a value; a reservation is a
+    different thing and the registry already distinguishes them.
+    """
     with open(registry_path, "rb") as fh:
         registry = tomllib.load(fh)
     lines: list[str] = []
     for cls in _COORDINATE_CLASSES:
         for name, entry in registry.get(cls, {}).items():
             if "value" not in entry:
+                if _is_planned(entry):
+                    continue  # reserved name, consumer not built yet
                 raise ValueError(f"registry coordinate {name!r} (class {cls!r}) has no value")
             lines.append(f"{name}={entry['value']}")
     return lines
