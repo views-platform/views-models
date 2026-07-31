@@ -84,6 +84,8 @@ string — never narration.
 | A surface's network/parse fails | Contained inside that surface as a `verdict=UNREACHABLE` fact (exit 2), never an uncaught crash. |
 | A surface `main` itself crashes | The aggregate runner catches it, prints an `UNREACHABLE` fact, assigns exit 2 — the other surfaces still run. |
 | Missing credentials / package / VPN | A **truthful skip** (C-75): `SKIP_NO_CREDENTIALS` / `SKIP_NO_PACKAGE` / `VPN_REQUIRED` → exit **0**. Not-observed is not the same as not-live. |
+| **Partially** configured credentials (#298) | `CREDENTIALS_INCOMPLETE` → exit **1**, naming the missing variables. Deliberately *not* a truthful skip: "nothing is configured" is an honest absence of observation, "configured, but half of it" is a fault a human must fix. Exit 1 (attention), not 2 — the world is reachable; our configuration is not right. Collapsing the two is what allowed the Appwrite surfaces to fall back to another repository's `.env` unnoticed. |
+| Credentials resolvable only from **another repository's** `.env` | Not resolvable. The Appwrite surfaces read process env, then **this repository's own** `.env` (`REPO_ROOT/.env`, either `KEY=` or `export KEY=` style) — and nothing else. Observing under a foreign identity answers a different question than the one the verdict reports, and an exit code carries no caveat. Pinned by `tests/test_liveness_appwrite_store.py::test_resolve_credentials_does_NOT_read_another_repos_env`. |
 | Reachable but stale/idle/not-serving | Verdict maps to exit **1** (attention). |
 
 ## 7. Boundaries and Interactions

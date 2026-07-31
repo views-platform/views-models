@@ -34,7 +34,11 @@ def test_every_check_verdict_is_classified():
           "EXECUTION_CURRENT", "DELIVERING"}
     skip = {"SKIP_NO_CREDENTIALS", "SKIP_NO_PACKAGE", "VPN_REQUIRED"}
     warn = {"LIVE_STALE", "LIVE_NOT_SERVING", "INPUT_STALE", "STORE_IDLE",
-            "STORE_STALE", "DELIVERY_STALLED", "EXECUTION_STALE"}
+            "STORE_STALE", "DELIVERY_STALLED", "EXECUTION_STALE",
+            # #298: a `.env` exists but is incomplete. In `warn`, not `skip`, on
+            # purpose — "nothing configured" is an honest absence of observation,
+            # "half configured" is a fault a human must fix.
+            "CREDENTIALS_INCOMPLETE"}
     fail = {"UNREACHABLE"}
     for verdict in ok | skip:
         assert exit_code_for(verdict) == 0, verdict

@@ -169,7 +169,14 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+# `.env` alone left two shapes exposed on a PUBLIC repo (#299): `.env.faoapi` — the exact filename
+# the production server uses — and `.env.<date>`, the shape of a file made on a rotation day.
+# `.env.bak`/`.env.local` were covered only incidentally, by `*.bak` and `*.local` further down.
+# `!.env.example` is REQUIRED: that file is tracked and is the credential schema
+# `tools/check_credentials.py` reads. Asserted by tests/test_credentials_presence.py.
 .env
+.env.*
+!.env.example
 .venv
 env/
 envs/

@@ -35,6 +35,12 @@ EXIT_CODE_BY_VERDICT = {
     "STORE_STALE": 1,
     "DELIVERY_STALLED": 1,
     "EXECUTION_STALE": 1,
+    # A `.env` exists but does not carry every required variable (#298). Deliberately
+    # NOT a truthful skip: "nothing is configured" is an honest absence of observation,
+    # while "configured, but half of it" is a misconfiguration a human must fix, and
+    # collapsing the two is what let this repo observe its shelf under a foreign key.
+    # Exit 1 (attention), not 2 — the world is reachable; our configuration is not right.
+    "CREDENTIALS_INCOMPLETE": 1,
     # unobservable
     "UNREACHABLE": 2,
 }
