@@ -11,8 +11,11 @@ def get_meta_config():
         "name": "nhits_bf", 
         "algorithm": "NHiTSModel",
         "level": "cm",
-        "targets": ["lr_gdp_pcap"],
-        "metrics": ["CRPS", "MSE", "MSLE"],
+        "regression_targets": ["lr_gdp_pcap"],
+        "regression_point_metrics": ["CRPS", "MSE", "MSLE"],
         "creator": "Xiaolong",
+        "time_steps": 36,
+        "prediction_format": "dataframe",
+        "rolling_origin_stride": 1
     }
     return meta_config

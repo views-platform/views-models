@@ -63,9 +63,11 @@ def get_hp_config():
         "kappa": 0.0,  # unused when beta=0, but required by constructor
         # "delta": 10.0,  # Huber threshold
         "gamma": 0.35,  # temporal gradient penalty — prevents flat predictions with RevIN
+        "delta": 0.0,  # Huber threshold — unused when beta=0, but required by constructor
+        "non_zero_threshold": 0.88,
         # Scaling
         "feature_scaler": None,
-        "target_scaler": "AsinhTransform",
+        "target_scaler": "AsinhTransform", 
         "feature_scaler_map": {
             "AsinhTransform": [
                 "lr_ged_sb",

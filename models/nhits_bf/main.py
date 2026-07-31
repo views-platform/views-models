@@ -6,7 +6,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = (
 
 import warnings
 from pathlib import Path
-from views_pipeline_core.managers import ModelPathManager
+from views_pipeline_core.data.model_path import ModelPathManager
 from views_impact.cli import ImpactModelArgs
 from views_impact.manager.model import ImpactModelManager
 
