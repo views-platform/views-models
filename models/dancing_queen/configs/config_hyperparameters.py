@@ -36,7 +36,7 @@ def get_hp_config():
         "lr_scheduler_T_mult": 2,
         "lr_scheduler_eta_min": 1e-6,
         "optimizer_kwargs": {
-            "betas": (0.9, 0.95), 
+            "betas": (0.9, 0.999), 
             "lr": 5e-4,
             "weight_decay": 1e-4,
         },
