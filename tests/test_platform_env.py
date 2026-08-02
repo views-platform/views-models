@@ -288,14 +288,30 @@ def test_the_probe_is_silent_and_non_fatal_when_there_is_no_env(repo):
     assert result.stderr.strip() == "", f"the probe printed: {result.stderr!r}"
 
 
-def test_the_probe_finds_a_secret_in_env_and_in_the_file(repo):
-    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=fake\n", encoding="utf-8")
-    assert "STATUS=0" in call(repo, 'platform_env_secret_available; echo "STATUS=$?"').stdout
-
-    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=\n", encoding="utf-8")
-    assert "STATUS=1" in call(repo, 'platform_env_secret_available; echo "STATUS=$?"').stdout, (
-        "a declared-but-empty secret is not an available secret"
-    )
+@pytest.mark.parametrize(
+    "line,available,why",
+    [
+        ("APPWRITE_DATASTORE_API_KEY=fake", True, "a plain value is available"),
+        ("export APPWRITE_DATASTORE_API_KEY=fake", True, "the export prefix is allowed"),
+        ('APPWRITE_DATASTORE_API_KEY="fake"', True, "double quotes are stripped"),
+        ("APPWRITE_DATASTORE_API_KEY='fake'", True, "single quotes are stripped"),
+        ("APPWRITE_DATASTORE_API_KEY=a=b=c", True, "a value containing '=' survives"),
+        ("APPWRITE_DATASTORE_API_KEY=", False, "declared-but-empty is not available"),
+        # The case the round-2 fix addressed and which nothing tested: a trailing-`.`
+        # regex matches the opening quote, so `NAME=""` read as available, routing
+        # bootstrap into the fatal path and re-creating the circular
+        # "Run ./bootstrap.sh" advice for a different input. Reverting the quote
+        # stripping must turn this red.
+        ('APPWRITE_DATASTORE_API_KEY=""', False, "QUOTED-empty is not available either"),
+        ("APPWRITE_DATASTORE_API_KEY=''", False, "single-quoted empty likewise"),
+        ("SOMETHING_ELSE=fake", False, "a different key is not the secret"),
+    ],
+)
+def test_the_probe_judges_availability_correctly(repo, line, available, why):
+    (repo / ".env").write_text(line + "\n", encoding="utf-8")
+    out = call(repo, 'platform_env_secret_available; echo "STATUS=$?"').stdout
+    expected = "STATUS=0" if available else "STATUS=1"
+    assert expected in out, f"{why}: {line!r} -> {out.strip()!r}"
 
 
 def test_load_validates_and_uses_the_documented_order(repo):

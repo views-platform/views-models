@@ -76,6 +76,13 @@ _step "coordinates"
 platform_env_require_registry || exit 1
 _ok "registry found: $(platform_env_registry_path)"
 
+# Prime the cache HERE, in this shell. The steps below each call
+# platform_env_coordinates through `$(...)`, and a cache written inside a command
+# substitution evaporates with the subshell — so without this, bootstrap spawns the
+# registry reader four times while platform_env_load alone spawns it once. The caching
+# win is not automatic; it belongs to whoever primes it.
+platform_env_prime_coordinate_cache || exit 1
+
 platform_env_assert_no_env_conflicts || exit 1
 _ok ".env declares no coordinate the registry owns"
 
