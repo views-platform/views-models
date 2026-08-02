@@ -29,9 +29,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 20.0,
+        "gradient_clip_val": 10.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -52,7 +52,7 @@ def get_hp_config():
 
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 2e-4,
+            "lr": 1e-4,
             "weight_decay": 1e-4,
         },
 
@@ -122,7 +122,7 @@ def get_hp_config():
         "num_blocks": 2,
         "num_layers": 3,
         "layer_widths": 256,
-        "pooling_kernel_sizes": [[2,2],[4,4],[4,4]],
+        "pooling_kernel_sizes": [[4, 4], [2, 2], [1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "GELU",
         "dropout": 0.2,
