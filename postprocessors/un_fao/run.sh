@@ -17,6 +17,31 @@ script_path=$(dirname "$(realpath $0)")
 project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
 env_path="$project_path/envs/views-postprocessing"
 
+# ── #308: the registry must resolve, and its absence is FATAL — checked FIRST ─────────
+# The default below is a relative sibling hop: it assumes views-appwrite is checked out
+# next to views-models at exactly this path. On a different layout, in CI, or in a
+# container, it is simply absent.
+#
+# This check is deliberately here — before conda, before pip, before anything — because
+# the cost of continuing is not a missing warning, it is a failure that lands minutes
+# later at the datastore boundary, describing a symptom rather than the cause, in front
+# of whoever is least equipped to trace it back to a checkout layout.
+#
+# Existence only at this point: parsing needs tomllib, which needs the 3.11 interpreter
+# conda has not activated yet. The parse is checked below, and is equally fatal.
+APPWRITE_REGISTRY="${APPWRITE_REGISTRY:-$project_path/../views-appwrite/docs/ADRs/platform/coordinate_registry.toml}"
+if [ ! -f "$APPWRITE_REGISTRY" ]; then
+  echo "FATAL: the Appwrite coordinate registry does not exist." >&2
+  echo "  looked for: $APPWRITE_REGISTRY" >&2
+  echo "  override with: APPWRITE_REGISTRY=/path/to/coordinate_registry.toml" >&2
+  echo "" >&2
+  echo "  The default is a relative hop to a sibling checkout of views-appwrite. If this" >&2
+  echo "  machine lays the repositories out differently, set APPWRITE_REGISTRY explicitly." >&2
+  echo "  This is fatal by design (#308): the registry is the ONLY source of Appwrite" >&2
+  echo "  coordinates. Continuing would fail later, somewhere less informative." >&2
+  exit 1
+fi
+
 # Sourcing sets SHELL variables; only what is `export`ed reaches `python main.py` (a child process).
 # Do NOT replace this with `set -a` — .env carries unquoted values containing spaces (the *_NAME
 # coordinates), which `set -a` would export truncated at the first space. Export by name instead. (#293)
@@ -107,45 +132,66 @@ fi
 # operator slot + fallback". It did not — `source` without `export` never reached the python child,
 # so between views-postprocessing's load_dotenv removal (2026-07-28) and this change there was no
 # carrier for the secret at all. The claim was wrong when written.
-APPWRITE_REGISTRY="${APPWRITE_REGISTRY:-$project_path/../views-appwrite/docs/ADRs/platform/coordinate_registry.toml}"
+# The path was resolved and its existence made fatal at the top of this script (#308).
+#
+# REMOVED HERE (#308/#309): `_platform001_coordinate_state()`, added 2026-07-31, which on a
+# missing registry announced "Coordinates ARE present in the environment (exported outside
+# this script) — continuing." **That claim was false.** It tested SHELL variables, which
+# `source .env` above does set — but nothing exports them, so the python child never saw
+# them. Verified: after `source .env; export GITHUB_TOKEN APPWRITE_DATASTORE_API_KEY`, the
+# shell has APPWRITE_ENDPOINT and `python -c 'os.environ.get("APPWRITE_ENDPOINT")'` returns
+# None. It was written to avoid asserting an unverified environment fact, and asserted one
+# by checking the wrong scope. It also settles the design question it was hedging: there was
+# never a second working source for the child, so registry-absent IS coordinates-absent, and
+# fatal costs nothing.
 
-# Report the ACTUAL coordinate state rather than asserting one. The registry is not the only way
-# coordinates can arrive — an operator's shell, a wrapper or an EnvironmentFile may already have
-# exported them, which is exactly how the secret arrives. Claiming "NOT set" without looking would
-# repeat the mistake this change corrects (#293).
-_platform001_coordinate_state() {
-  if [ -n "$APPWRITE_ENDPOINT" ] && [ -n "$APPWRITE_DATASTORE_PROJECT_ID" ] \
-     && [ -n "$APPWRITE_UNFAO_BUCKET_ID" ]; then
-    echo "  Coordinates ARE present in the environment (exported outside this script) — continuing." >&2
-  else
-    echo "  Coordinates are NOT in the environment either — the run will fail at the datastore boundary." >&2
-    echo "  Note: the .env sourced earlier does not supply them; its values are not exported (#293)." >&2
-  fi
-}
-
-if [ -f "$APPWRITE_REGISTRY" ]; then
-  # Failures are reported, not swallowed (#293): a silent fallback here degrades to a path that
-  # may supply nothing, because the sourced .env coordinates are not exported either.
-  _reg_err="$(mktemp "${TMPDIR:-/tmp}/registry_to_env.XXXXXX")"
-  trap 'rm -f "$_reg_err"' EXIT
-  if _coords="$(python "$project_path/tools/credentials/registry_to_env.py" "$APPWRITE_REGISTRY" 2>"$_reg_err")"; then
-    while IFS= read -r _cl; do
-      [ -z "$_cl" ] && continue
-      export "${_cl%%=*}=${_cl#*=}"
-    done <<< "$_coords"
-    echo "PLATFORM-001: Appwrite coordinates read from the registry (secret stays the operator slot)."
-  else
-    echo "PLATFORM-001 WARNING: registry read FAILED — coordinates not set BY THE REGISTRY." >&2
-    echo "  registry: $APPWRITE_REGISTRY" >&2
-    echo "  python:   $(python -V 2>&1)  (registry_to_env.py needs 3.11+ for tomllib)" >&2
-    sed 's/^/  /' "$_reg_err" >&2
-    _platform001_coordinate_state
-  fi
-  rm -f "$_reg_err"; trap - EXIT
-else
-  echo "PLATFORM-001 WARNING: registry NOT FOUND at $APPWRITE_REGISTRY — coordinates not set BY THE REGISTRY." >&2
-  _platform001_coordinate_state
+_reg_err="$(mktemp "${TMPDIR:-/tmp}/registry_to_env.XXXXXX")"
+trap 'rm -f "$_reg_err"' EXIT
+if ! _coords="$(python "$project_path/tools/credentials/registry_to_env.py" "$APPWRITE_REGISTRY" 2>"$_reg_err")"; then
+  echo "FATAL: the coordinate registry exists but could not be read." >&2
+  echo "  registry: $APPWRITE_REGISTRY" >&2
+  echo "  python:   $(python -V 2>&1)  (registry_to_env.py needs 3.11+ for tomllib)" >&2
+  sed 's/^/  /' "$_reg_err" >&2
+  echo "  Fatal by design (#308): the registry is the ONLY source of coordinates." >&2
+  rm -f "$_reg_err"; exit 1
 fi
+rm -f "$_reg_err"; trap - EXIT
+
+# ── #309: one writer. `.env` must not also declare a coordinate the registry owns ────
+# Two writers to the same names is a data race whose winner is decided by line order:
+# reverse these blocks and the semantics invert silently, with no test failing. Per the
+# seam contract that is an error, not a precedence question — so it is reported, not
+# resolved.
+#
+# Deleting these keys from `.env` is safe: they were NEVER exported (see the note above),
+# so nothing downstream has ever received them from that file. Keep the SECRET there.
+_owned="$(echo "$_coords" | cut -d= -f1)"
+_conflicts=""
+if [ -f "$project_path/.env" ]; then
+  for _name in $_owned; do
+    if grep -qE "^[[:space:]]*(export[[:space:]]+)?${_name}=" "$project_path/.env"; then
+      _conflicts="$_conflicts $_name"
+    fi
+  done
+fi
+if [ -n "$_conflicts" ]; then
+  echo "FATAL: .env declares coordinates that the registry owns (#309)." >&2
+  echo "  file:     $project_path/.env" >&2
+  echo "  registry: $APPWRITE_REGISTRY" >&2
+  echo "  both declare:$_conflicts" >&2
+  echo "" >&2
+  echo "  Two writers to one name is a data race decided by line order, so this is an" >&2
+  echo "  error rather than a precedence question. Delete these lines from .env — they" >&2
+  echo "  were never exported, so nothing has ever received them from there. Keep" >&2
+  echo "  APPWRITE_DATASTORE_API_KEY: the secret is the one value .env still carries." >&2
+  exit 1
+fi
+
+while IFS= read -r _cl; do
+  [ -z "$_cl" ] && continue
+  export "${_cl%%=*}=${_cl#*=}"
+done <<< "$_coords"
+echo "Appwrite coordinates read from the registry (the only source); secret stays the operator slot."
 
 echo "Running $script_path/main.py "
 python $script_path/main.py "$@"
