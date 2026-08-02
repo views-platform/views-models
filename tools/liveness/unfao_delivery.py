@@ -27,6 +27,7 @@ from typing import Optional, Tuple
 from tools.liveness.appwrite_api import (
     AppwriteCredentials,
     FetchJson,
+    assert_bucket_reachable,
     fetch_json,
     newest_first_query,
     credential_gap_report,
@@ -121,6 +122,14 @@ class UnfaoDeliveryCheck:
 
         base = f"{creds.endpoint}/storage/buckets/{UNFAO_BUCKET_ID}/files"
         try:
+            # FIRST, and not merged into the listings below: the listing endpoint
+            # answers a rejected key with 200/total=0, so an expired credential
+            # reads as a partner bucket that has simply gone quiet — which is a
+            # verdict this surface already has a name for. See
+            # assert_bucket_reachable.
+            assert_bucket_reachable(
+                creds.endpoint, UNFAO_BUCKET_ID, headers, self._fetch
+            )
             # Per-stream server-side newest (startsWith + orderDesc + limit):
             # immune to Appwrite's 25-per-page default (the 2026-07-19
             # pagination bug found in the sibling check).

@@ -57,7 +57,11 @@ FRESH_OVERALL_DOC = {"total": 2, "files": []}
 def _responses(forecast, historical, overall):
     # order matters: stream keys first, catch-all base last
     return {"forecast_dataset_": forecast, "historical_dataset_": historical,
-            "unfao_bucket/files": overall}
+            "unfao_bucket/files": overall,
+            # The bucket GET that proves the key is accepted before any listing is
+            # believed. Last, so the `/files` listings above still match first. Its
+            # body is never read — only whether it raises.
+            "buckets/unfao_bucket": {"$id": "unfao_bucket"}}
 
 def _fake_fetch(responses):
     def fetch(url, headers):
@@ -70,6 +74,25 @@ def _fake_fetch(responses):
         raise AssertionError(f"unexpected url: {url}")
     return fetch
 
+
+@pytest.fixture
+def no_machine_credentials(monkeypatch, tmp_path):
+    """Cut this test off from the machine it runs on.
+
+    ``credential_gap_report()`` reads process env AND this repository's own
+    ``.env``, so a test asserting "nothing is configured" was in fact asserting
+    something about the laptop. These passed for as long as the developer's
+    ``.env`` happened to carry all twelve Appwrite coordinates, and went red the
+    hour those were removed (correctly, per ADR-018) — the removal exposed the
+    defect, it did not cause it. Nothing uncommitted may decide a verdict here.
+    """
+    from tools.liveness import appwrite_api
+
+    for key in appwrite_api.REQUIRED_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    empty_root = tmp_path / "repo"
+    empty_root.mkdir()
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", empty_root)
 
 # ── verdicts on the real capture ──────────────────────────────────────
 
@@ -108,11 +131,11 @@ def test_missing_stream_reported_as_never_delivered():
 @pytest.mark.red
 def test_unreachable_when_fetch_fails():
     report = UnfaoDeliveryCheck(credentials=CREDS,
-                                fetch=_fake_fetch({"unfao_bucket/files": OSError("dns fail")})).run(now=NOW)
+                                fetch=_fake_fetch({"unfao_bucket": OSError("dns fail")})).run(now=NOW)
     assert report.verdict == "UNREACHABLE"
     assert "dns fail" in (report.error or "")
 
-def test_skip_when_no_credentials():
+def test_skip_when_no_credentials(no_machine_credentials):
     report = UnfaoDeliveryCheck(credentials=None, fetch=_fake_fetch({})).run(now=NOW)
     assert report.verdict == "SKIP_NO_CREDENTIALS"
 
@@ -135,7 +158,7 @@ def test_exit_zero_delivering(capsys):
     fetch = _fake_fetch(_responses(FRESH_FORECAST_DOC, FRESH_HISTORICAL_DOC, FRESH_OVERALL_DOC))
     assert main(check=UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch), now=NOW) == 0
 
-def test_exit_zero_skip(capsys):
+def test_exit_zero_skip(no_machine_credentials, capsys):
     assert main(check=UnfaoDeliveryCheck(credentials=None, fetch=_fake_fetch({})), now=NOW) == 0
 
 def test_exit_one_stalled(capsys):
@@ -176,3 +199,35 @@ def test_structural_conventions_unfao_delivery():
     assert hasattr(module, "CheckReport")
     for verdict in ('DELIVERING', 'DELIVERY_STALLED', 'SKIP_NO_CREDENTIALS', 'UNREACHABLE'):
         assert verdict in EXIT_CODE_BY_VERDICT, verdict
+
+
+# ── the rejected-key blind spot (see the sibling suite for the measurement) ──
+# Same mechanism, and worse here: this surface's name for "the listing came back
+# empty" is DELIVERY_STALLED — indistinguishable, before the fix, from a dead key
+# on the bucket the UN FAO is served from.
+
+@pytest.mark.red
+def test_rejected_key_is_unreachable_not_stalled():
+    def fetch(url, headers):
+        if "/files?" in url:
+            return {"total": 0, "files": []}
+        raise PermissionError("HTTP Error 401: Unauthorized")
+
+    report = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
+    assert report.verdict == "UNREACHABLE", (
+        "a rejected key read as a partner bucket that had gone quiet"
+    )
+    assert "401" in (report.error or "")
+
+
+def test_key_is_verified_before_any_listing_is_believed():
+    calls = []
+
+    def fetch(url, headers):
+        calls.append(url)
+        return {"total": 0, "files": []}
+
+    UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
+    assert calls and calls[0].endswith("/storage/buckets/unfao_bucket"), (
+        f"first call was {calls[0] if calls else '<none>'}"
+    )
