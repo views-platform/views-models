@@ -34,6 +34,16 @@ __pycache__/
 *_proto
 *_prototype
 
+# CI configuration is never a build artifact (#300). The blanket *.json/*.yaml/*.yml
+# rules above exist for wandb run outputs, and they silently swallow NEW files under
+# .github/ — the four workflows tracked today survive only because they predate those
+# rules, and git does not ignore what is already tracked. Found the hard way while
+# adding .github/workflows/secret_scan.yml: `git add` reported it ignored and the
+# commit went through WITHOUT it, which is exactly the silent-omission class this
+# repo keeps rediscovering.
+!.github/
+!.github/**
+
 # Darts
 *.scalers
 *.pt.scalers
