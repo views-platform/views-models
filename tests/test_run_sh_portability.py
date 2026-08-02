@@ -27,12 +27,15 @@ installed, that is `bad interpreter: /bin/zsh: No such file or directory`.
 `monthly_run.sh` itself calls `bash run.sh`, which ignores the shebang — which is
 precisely why this went unnoticed for so long.
 
-**What this test does NOT cover, deliberately.** 18 tracked `run.sh` are committed
-non-executable (mode 100644). Those fail the same two entry points with
-"Permission denied" instead, and 13 of them overlap the set fixed here. That is a
-real gap in the same family, left uncovered rather than quietly folded in, because
-changing file modes on production launchers is the maintainer's call and had not
-been made when this was written.
+**The executable bit is the second half of the same failure.** A `run.sh` committed
+non-executable (mode 100644) fails those same two entry points with "Permission
+denied" — a different error from the same cause, and 13 of the 18 that had it
+overlapped the zsh set, so those went from one Linux failure straight to another.
+Fixed and covered here, on the maintainer's decision (2026-08-02).
+
+`tools/credentials/platform_env.sh` is the one deliberate exception: it is a library,
+`source`d and never executed (ADR-018), and marking it executable would advertise an
+entry point it does not have.
 """
 
 from pathlib import Path
@@ -90,6 +93,39 @@ def test_every_tracked_shell_script_has_a_shebang():
         if not _first_line(path).startswith("#!")
     ]
     assert not missing, "no shebang:\n" + "\n".join(f"  {n}" for n in missing)
+
+
+def test_every_run_sh_is_executable():
+    """`./run.sh` is the documented entry point, so the bit that permits it is required.
+
+    Every ensemble README says `./run.sh -r calibration ...`, and
+    `models/execute_all.sh:10` invokes `"$script"` directly. Without the executable
+    bit both give "Permission denied" — the same breakage as the zsh shebang, wearing
+    a different error message. 18 files carried this until 2026-08-02.
+    """
+    offenders = [
+        name for name, path in _tracked_shell_scripts()
+        if name.endswith("run.sh") and not path.stat().st_mode & 0o111
+    ]
+    assert not offenders, (
+        "run.sh committed non-executable — `./run.sh` and models/execute_all.sh "
+        "will fail with Permission denied:\n" + "\n".join(f"  {n}" for n in offenders)
+    )
+
+
+def test_the_sourced_library_stays_non_executable():
+    """The exception, pinned so it is a decision and not an oversight.
+
+    `platform_env.sh` is sourced by its consumers and defines functions; running it
+    does nothing useful. An executable bit here would claim an entry point that does
+    not exist, which is the inverse of the defect above.
+    """
+    library = REPO_ROOT / "tools" / "credentials" / "platform_env.sh"
+    assert library.is_file(), "the single-writer library moved — update this test"
+    assert not library.stat().st_mode & 0o111, (
+        "platform_env.sh is sourced, never executed (ADR-018); it should not be "
+        "marked executable"
+    )
 
 
 def test_shebangs_are_from_the_known_set():
