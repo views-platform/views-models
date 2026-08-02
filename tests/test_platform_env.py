@@ -140,12 +140,19 @@ def test_coordinates_are_exported_from_the_registry(repo):
     assert "E=https://fixture.test/v1 B=unfao_bucket" in result.stdout
 
 
-def test_validate_names_what_is_missing(repo):
-    """No `.env`, so the secret is absent — and validation must say which name."""
-    result = call(repo, "platform_env_load; platform_env_validate")
-    assert result.returncode == 1
-    assert "APPWRITE_DATASTORE_API_KEY" in result.stderr
-    assert "missing" in result.stderr.lower()
+def test_an_absent_secret_is_fatal_and_names_the_variable(repo):
+    """No `.env`, so the secret is absent. The contract is that the NAME is reported.
+
+    Asserting on the word "missing" would pin the wording rather than the contract: after
+    the C-112 fix the gap is caught earlier, by `platform_env_export_secret`, whose message
+    is more specific ("is not set and <path> does not exist"). Naming the variable is what
+    a person needs; the phrasing is not the promise.
+    """
+    result = call(repo, "platform_env_load; echo STATUS=$?")
+    assert "STATUS=0" not in result.stdout, "an absent secret must be fatal"
+    assert "APPWRITE_DATASTORE_API_KEY" in result.stderr, (
+        "the failure must name the variable, not just report a count"
+    )
 
 
 def test_the_secret_value_is_never_rendered(repo):
@@ -160,12 +167,90 @@ def test_the_secret_value_is_never_rendered(repo):
 # ── sourcing must be inert ────────────────────────────────────────────────────────────
 
 def test_sourcing_has_no_side_effects(repo):
-    """A library that mutates the environment on source cannot be reasoned about."""
-    result = call(repo, 'echo "N=$(env | wc -l)"')
-    before = subprocess.run(
-        ["bash", "-c", 'echo "N=$(env | wc -l)"'],
-        capture_output=True, text=True, env=dict(os.environ, APPWRITE_REGISTRY=str(repo / "registry.toml")),
+    """A library that mutates the environment on source cannot be reasoned about.
+
+    Both halves are measured **inside one bash process**, so the comparison cannot be
+    perturbed by the ambient environment. The first version built the two sides through
+    different code paths — one via `call()` (which pops three Appwrite variables), one via
+    raw `os.environ` — and so failed spuriously whenever the developer's shell already had
+    those variables set, which is the normal state after sourcing the file by hand.
+    """
+    result = call(repo, f'''
+        before="$(env | sort)"
+        . "{repo}/tools/credentials/platform_env.sh"
+        after="$(env | sort)"
+        if [ "$before" = "$after" ]; then echo UNCHANGED; else
+          echo CHANGED; diff <(echo "$before") <(echo "$after") | head -20
+        fi
+    ''')
+    assert "UNCHANGED" in result.stdout, (
+        f"sourcing platform_env.sh changed the environment — it must only define "
+        f"functions.\n{result.stdout}\n{result.stderr}"
     )
-    assert result.stdout.strip() == before.stdout.strip(), (
-        "sourcing platform_env.sh changed the environment — it must only define functions"
+
+
+@pytest.mark.red
+def test_a_set_but_unexported_secret_is_promoted_not_skipped(repo):
+    """C-112, and the bug this PR shipped with before review caught it.
+
+    `un_fao/run.sh` sources `.env` early for GITHUB_TOKEN, which leaves the secret as a
+    SHELL variable. A guard that tests `[ -n "$VAR" ]` sees a value and skips the export,
+    so the child process receives nothing while every check reports success. Exported
+    scope is the only scope that answers "will the child see this?".
+    """
+    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=fake-secret\n", encoding="utf-8")
+    result = call(repo, f'''
+        . "{repo}/.env"                 # set, NOT exported — the run.sh sequence
+        platform_env_export_secret || echo "EXPORT_FAILED"
+        python -c 'import os; print("CHILD=" + ("yes" if os.environ.get("APPWRITE_DATASTORE_API_KEY") else "no"))'
+    ''')
+    assert "CHILD=yes" in result.stdout, (
+        f"a set-but-unexported secret was skipped rather than promoted, so the child got "
+        f"nothing — #293 reintroduced (C-112).\n{result.stdout}\n{result.stderr}"
+    )
+
+
+@pytest.mark.red
+def test_an_unsourceable_env_is_fatal_not_swallowed(repo):
+    """`|| true` on the source would report success with the secret unset."""
+    (repo / ".env").write_text('APPWRITE_DATASTORE_API_KEY="unterminated\n', encoding="utf-8")
+    result = call(repo, 'platform_env_export_secret; echo "STATUS=$?"')
+    assert "STATUS=0" not in result.stdout, (
+        f"a .env that fails to source reported success.\n{result.stdout}\n{result.stderr}"
+    )
+
+
+def test_the_probe_is_silent_and_non_fatal_when_there_is_no_env(repo):
+    """`bootstrap.sh` must be able to ask "is the secret there?" on a virgin machine.
+
+    The fatal `platform_env_export_secret` cannot answer it: with no `.env` it printed
+    "FATAL: ... does not exist. Run ./bootstrap.sh" — at the person running
+    ./bootstrap.sh. A setup script whose first output is a false FATAL and circular
+    advice has failed at the one job #311 gave it.
+    """
+    result = call(repo, 'platform_env_secret_available; echo "STATUS=$?"')
+    assert "STATUS=1" in result.stdout, "no .env means the secret is not available"
+    assert "FATAL" not in result.stderr, (
+        f"the probe must be silent — it is called before the machine is set up.\n"
+        f"{result.stderr}"
+    )
+    assert result.stderr.strip() == "", f"the probe printed: {result.stderr!r}"
+
+
+def test_the_probe_finds_a_secret_in_env_and_in_the_file(repo):
+    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=fake\n", encoding="utf-8")
+    assert "STATUS=0" in call(repo, 'platform_env_secret_available; echo "STATUS=$?"').stdout
+
+    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=\n", encoding="utf-8")
+    assert "STATUS=1" in call(repo, 'platform_env_secret_available; echo "STATUS=$?"').stdout, (
+        "a declared-but-empty secret is not an available secret"
+    )
+
+
+def test_load_validates_and_uses_the_documented_order(repo):
+    """`platform_env_load` claims to be the whole contract; it must include validation."""
+    (repo / ".env").write_text("SOMETHING_ELSE=1\n", encoding="utf-8")   # no secret
+    result = call(repo, 'platform_env_load; echo "STATUS=$?"')
+    assert "STATUS=0" not in result.stdout, (
+        "platform_env_load returned success with the secret missing — it must validate"
     )

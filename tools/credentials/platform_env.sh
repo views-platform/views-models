@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 # platform_env.sh — the ONE writer of this platform's Appwrite environment (#309, C-48).
 #
+# Governed by ADR-018 (docs/ADRs/018_environment_single_writer.md), which records WHY —
+# including the two occasions this exact blind spot shipped. Read that before changing the
+# contract; the reasoning is not in the commit log.
+#
 # Source it; it defines functions and does nothing on its own:
 #
 #     . "$project_path/tools/credentials/platform_env.sh"
+#     platform_env_load        # the whole contract, in the one correct order
+#
+# or, if you genuinely need a single step, the pieces it runs, in this order:
+#
 #     platform_env_require_registry
 #     platform_env_assert_no_env_conflicts
 #     platform_env_export_coordinates
 #     platform_env_export_secret
 #     platform_env_validate
+#
+# The header, `platform_env_load` and the two callers previously disagreed about this
+# order, and `platform_env_load` omitted validation while claiming to be "everything the
+# platform needs". One sequence now, documented once, used by both callers.
 #
 # WHAT THIS FILE IS FOR, AND WHAT IT DELIBERATELY IS NOT.
 #
@@ -153,15 +165,77 @@ platform_env_export_coordinates() {
 # #293 in full, because a removal must name what it was carrying: `source` without
 # `export` never reached the python child, so between views-postprocessing's load_dotenv
 # removal (2026-07-28) and the fix there was NO carrier for the secret at all. That was a
-# real production failure and this comment is the only place it is written down in code.
+# real production failure. Also recorded in ADR-018.
+#
+# ──────────────────────────────────────────────────────────────────────────────────────
+# THE ONLY SANCTIONED WAY TO ASK "WILL THE CHILD SEE THIS?" (C-112).
+#
+# `[ -n "$VAR" ]` cannot distinguish an EXPORTED variable from a shell-local one, and the
+# consumer is always a child process. This blind spot has now shipped twice in four days:
+# once as `_platform001_coordinate_state()` announcing "coordinates ARE present" about
+# unexported values (#314), and once as this very function's first draft, whose guard
+# returned early because `un_fao/run.sh` sources `.env` for GITHUB_TOKEN twenty lines
+# earlier — so the secret was a shell variable, the guard saw a value, the `export` never
+# ran, and the child got nothing while every check reported success.
+#
+# `export -p` lists exactly what a child will inherit. Nothing else answers the question.
+platform_env_is_exported() {
+  export -p | grep -qE "^declare -x ${1}=|^export ${1}="
+}
+
+# Non-fatal probe: is the secret obtainable at all? Silent, returns 0/1, changes nothing.
+#
+# It exists because `bootstrap.sh` must ask this question BEFORE deciding to prompt, and
+# the fatal version cannot answer it: on a first-ever machine there is no `.env`, so
+# `platform_env_export_secret` printed "FATAL: ... does not exist. Run ./bootstrap.sh" —
+# at the person who was running ./bootstrap.sh. A setup script whose first output is a
+# false FATAL and circular advice has failed at the one job #311 gave it.
+platform_env_secret_available() {
+  local dotenv
+  [ -n "${!PLATFORM_ENV_SECRET_NAME:-}" ] && return 0
+  dotenv="$(platform_env_dotenv_path)"
+  [ -f "$dotenv" ] || return 1
+  grep -qE "^[[:space:]]*(export[[:space:]]+)?${PLATFORM_ENV_SECRET_NAME}=." "$dotenv"
+}
+
 platform_env_export_secret() {
-  local dotenv; dotenv="$(platform_env_dotenv_path)"
-  if [ -n "${!PLATFORM_ENV_SECRET_NAME:-}" ]; then
-    return 0                      # already in the environment; the operator's own slot
+  local dotenv status
+  dotenv="$(platform_env_dotenv_path)"
+
+  # Already exported — the operator's own slot, or a wrapper. Nothing to do.
+  if platform_env_is_exported "$PLATFORM_ENV_SECRET_NAME"; then
+    return 0
   fi
-  [ -f "$dotenv" ] || return 0
+
+  # Set but NOT exported: the trap above. Promote it rather than skipping.
+  if [ -n "${!PLATFORM_ENV_SECRET_NAME:-}" ]; then
+    export "${PLATFORM_ENV_SECRET_NAME?}"
+    return 0
+  fi
+
+  if [ ! -f "$dotenv" ]; then
+    echo "FATAL: $PLATFORM_ENV_SECRET_NAME is not set and $dotenv does not exist." >&2
+    echo "  Run ./bootstrap.sh, or export it in your shell." >&2
+    return 1
+  fi
+
+  # Do NOT swallow this. A hand-edited .env with an unterminated quote fails to source,
+  # and `|| true` would leave the secret unset while reporting success — the same
+  # report-success-deliver-nothing shape this file exists to prevent.
   # shellcheck disable=SC1090
-  . "$dotenv" >/dev/null 2>&1 || true
+  . "$dotenv" >/dev/null 2>&1
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "FATAL: $dotenv could not be sourced (exit $status)." >&2
+    echo "  Usually an unterminated quote or a value with an unescaped space." >&2
+    return 1
+  fi
+
+  if [ -z "${!PLATFORM_ENV_SECRET_NAME:-}" ]; then
+    echo "FATAL: $dotenv does not declare $PLATFORM_ENV_SECRET_NAME." >&2
+    echo "  It is the one value that file must carry. Run ./bootstrap.sh." >&2
+    return 1
+  fi
   export "${PLATFORM_ENV_SECRET_NAME?}"
 }
 
@@ -169,25 +243,33 @@ platform_env_export_secret() {
 # Names what is missing rather than reporting a count. The value is never rendered — a
 # check that prints a credential to prove it found one has published it.
 
+# Tests EXPORTED scope, not shell scope (C-112). Validating with `[ -n "$name" ]` would
+# pass on values the child will never receive, which is the failure this function is the
+# last line of defence against.
 platform_env_validate() {
   local coords name missing=""
   coords="$(platform_env_coordinates)" || return 1
   for name in $(echo "$coords" | cut -d= -f1) "$PLATFORM_ENV_SECRET_NAME"; do
-    [ -z "${!name:-}" ] && missing="$missing $name"
+    platform_env_is_exported "$name" || missing="$missing $name"
   done
   if [ -n "$missing" ]; then
-    echo "FATAL: the environment is incomplete — missing:$missing" >&2
+    echo "FATAL: the environment is incomplete — these will NOT reach the child" >&2
+    echo "  process, either unset or set-but-not-exported:$missing" >&2
     echo "  coordinates come from: $(platform_env_registry_path)" >&2
     echo "  the secret comes from: $(platform_env_dotenv_path) (or your shell)" >&2
     return 1
   fi
 }
 
-# Everything the platform needs, in the one order that is correct. Callers that want the
-# whole contract use this; callers that need a step use the pieces.
+# The whole contract, in the documented order, INCLUDING validation. A caller that trusts
+# this alone must get a complete environment or a non-zero exit — the previous version
+# omitted `platform_env_validate` while its comment claimed to be "everything the platform
+# needs", and used a different order than the header documents. Both callers now use this,
+# so there is one order rather than two.
 platform_env_load() {
-  platform_env_require_registry || return 1
+  platform_env_require_registry        || return 1
   platform_env_assert_no_env_conflicts || return 1
-  platform_env_export_secret || return 1
-  platform_env_export_coordinates || return 1
+  platform_env_export_coordinates      || return 1
+  platform_env_export_secret           || return 1
+  platform_env_validate                || return 1
 }

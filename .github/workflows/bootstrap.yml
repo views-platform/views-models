@@ -113,14 +113,22 @@ jobs:
           echo "failed correctly without hanging"
 
       - name: The secret must never reach the log
-        if: always()
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
         run: |
-          # Belt and braces: the fixture secret is fake, but a job that would print a real
-          # one is a job that will, the first time someone runs it with real credentials.
-          if grep -rq "FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL" <<< "$(./bootstrap.sh 2>&1 || true)"; then
+          set -uo pipefail
+          # RESTORE the secret first. The previous step deletes .env, and without this the
+          # run would exit at the stdin check having never handled a secret at all — the
+          # grep below would then pass because the string was never in scope, not because
+          # redaction works. A check that cannot fail is worse than no check.
+          echo 'APPWRITE_DATASTORE_API_KEY=FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL' > .env
+          out="$(./bootstrap.sh 2>&1)"; status=$?
+          [ "$status" -eq 0 ] || {
+            echo "$out"
+            echo "::error::this step must exercise the secret-present path; bootstrap failed instead"
+            exit 1; }
+          if grep -q "FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL" <<< "$out"; then
             echo "::error::bootstrap.sh rendered the secret value — it must report presence only"
             exit 1
           fi
-          echo "secret value never rendered"
-        env:
-          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+          echo "secret handled and never rendered"

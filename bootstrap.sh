@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # bootstrap.sh — set this platform up on a machine that has never run it (#311).
 #
+# Governed by ADR-018 (docs/ADRs/018_environment_single_writer.md).
+#
 #     ./bootstrap.sh
 #
 # No arguments. No companion document. If you needed either, this script has failed at
@@ -31,9 +33,10 @@ _info()  { printf '   ....  %s\n' "$1"; }
 _fail()  { printf '   FAIL  %s\n' "$1" >&2; }
 
 # ── 1. one-time machine setup ─────────────────────────────────────────────────────────
-# Moved here from the ~130 per-run scripts (#311/S7). Appending to a login profile is
-# one-time setup; doing it on every model run meant ~130 copies of the same three lines,
-# each re-checking a file they had already fixed.
+# One-time setup belongs in one-time setup (#311). NOTE: the ~130 per-run scripts still
+# carry their own copy of this block — removing it from them is #310's scope, which
+# touches 131 files. So this ADDS the canonical home; it has not yet replaced them, and
+# saying "moved" before that lands would be a claim the tree does not support.
 _step "machine setup"
 if [[ "$OSTYPE" == "darwin"* ]]; then
   _added=0
@@ -86,10 +89,18 @@ _ok "$(platform_env_coordinates | wc -l) coordinates exported from the registry"
 #   * back up before touching it at all
 #   * `read -rs` so the value is never echoed to the terminal or a CI log
 _step "secret"
-platform_env_export_secret
+# The NON-FATAL probe, deliberately. platform_env_export_secret is fatal when there is no
+# .env — correct for a run-time launcher, wrong here, because "there is no .env yet" is the
+# ordinary state of the machine this script exists to set up. Calling it here printed a
+# FATAL telling the user to run ./bootstrap.sh while they were running ./bootstrap.sh.
+if platform_env_secret_available; then
+  platform_env_export_secret || exit 1
+fi
 
 if [ -n "${!SECRET_NAME:-}" ]; then
-  _ok "$SECRET_NAME already present (${#APPWRITE_DATASTORE_API_KEY} characters) — not changed"
+  # Presence only. The character count was here and is not "presence" — a length
+  # narrows the search space and would be logged in plaintext CI output.
+  _ok "$SECRET_NAME already present — not changed"
 elif [ ! -t 0 ]; then
   # Non-interactive (CI, a pipe). Prompting would hang forever; say so instead.
   _fail "$SECRET_NAME is not set and stdin is not a terminal, so it cannot be prompted for."
@@ -117,11 +128,14 @@ fi
 
 # ── 5. validate — the whole point ─────────────────────────────────────────────────────
 _step "validation"
-if ! platform_env_validate; then
+# platform_env_load is the single documented sequence; it re-runs the earlier steps
+# (idempotent) and ends in validation, which tests EXPORTED scope — the thing a child
+# process actually inherits — rather than shell scope (C-112).
+if ! platform_env_load; then
   _fail "the environment is incomplete. Nothing above fixed it; see the names listed."
   exit 1
 fi
-_ok "every required variable resolves"
+_ok "every required variable resolves and will reach a child process"
 
 _step "done"
 printf '   This machine can now reach the Appwrite seam.\n'

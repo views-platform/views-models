@@ -125,10 +125,11 @@ fi
 # nothing exports, so the python child never saw them. It was written to avoid asserting an
 # unverified environment fact and asserted one by checking the wrong scope. If a
 # coordinate-state reporter ever returns, it must read the EXPORTED environment.
-platform_env_assert_no_env_conflicts || exit 1
-platform_env_export_secret          || exit 1
-platform_env_export_coordinates     || exit 1
-platform_env_validate               || exit 1
+# One call, one order (C-112 review). Calling the pieces here and a different order in
+# bootstrap.sh is how the two drifted; platform_env_load is the single sequence and it
+# ends in validation, which tests EXPORTED scope rather than shell scope.
+# require_registry runs again inside it — idempotent, and cheap next to conda.
+platform_env_load || exit 1
 echo "Appwrite environment loaded: coordinates from the registry, secret from the operator slot."
 
 echo "Running $script_path/main.py "

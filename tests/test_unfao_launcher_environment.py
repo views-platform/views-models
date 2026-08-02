@@ -58,24 +58,49 @@ def test_registry_check_happens_before_conda_and_pip():
 
 
 def test_the_full_contract_is_asserted_before_main_runs():
-    """Every step, and each one fatal. A partial environment is not a starting state."""
+    """The whole sequence, fatal, before main.py. A partial environment is not a start.
+
+    The launcher calls `platform_env_load` rather than the individual steps. That is the
+    fix for a real drift found in review: the launcher used one order, `bootstrap.sh` used
+    another, and the file's header documented a third. `platform_env_load` is now the
+    single sequence — and it ends in `platform_env_validate`, which it previously omitted
+    while its own comment claimed to be "everything the platform needs".
+    """
     text = _run_sh()
     # `_first_code_line`, not `str.find` — the same C-57 trap that broke the ordering test
     # above. These happen not to have a commented mention today; relying on that is how it
     # comes back.
     main_at = _first_code_line(text, "main.py")
     assert main_at is not None
-    for call in (
-        "platform_env_assert_no_env_conflicts",
-        "platform_env_export_secret",
-        "platform_env_export_coordinates",
-        "platform_env_validate",
-    ):
-        at = _first_code_line(text, call)
-        assert at is not None, f"{call} must be called by the launcher"
-        assert at < main_at, f"{call} must run before main.py"
-        line = next(ln for ln in text.splitlines() if call in ln and not ln.strip().startswith("#"))
-        assert "|| exit 1" in line, f"{call} must be fatal, not advisory: {line.strip()!r}"
+
+    at = _first_code_line(text, "platform_env_load")
+    assert at is not None, "the launcher must load the environment via platform_env_load"
+    assert at < main_at, "the environment must be loaded before main.py"
+    line = next(
+        ln for ln in text.splitlines()
+        if "platform_env_load" in ln and not ln.strip().startswith("#")
+    )
+    assert "|| exit 1" in line, f"loading must be fatal, not advisory: {line.strip()!r}"
+
+
+def test_the_launcher_does_not_hand_roll_the_sequence():
+    """Calling the steps individually is how the launcher and bootstrap.sh drifted apart."""
+    text = _run_sh()
+    hand_rolled = [
+        ln.strip() for ln in text.splitlines()
+        if not ln.strip().startswith("#")
+        and any(
+            step in ln for step in (
+                "platform_env_export_secret",
+                "platform_env_export_coordinates",
+                "platform_env_assert_no_env_conflicts",
+            )
+        )
+    ]
+    assert not hand_rolled, (
+        f"the launcher calls individual steps instead of platform_env_load: {hand_rolled}. "
+        f"Two callers running two orders is what the single sequence exists to prevent"
+    )
 
 
 def test_the_launcher_does_not_export_the_secret_itself():
