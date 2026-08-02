@@ -45,7 +45,7 @@ an operator slot per PLATFORM-001.
 python tools/credentials/check_credentials.py                  # which keys am I missing?
 python tools/credentials/registry_to_env.py <registry.toml>    # coordinates from the owned registry
 # platform_env.sh is sourced, not run — the ONE writer of the Appwrite environment (#309):
-#   . tools/credentials/platform_env.sh && platform_env_load && platform_env_validate
+#   . tools/credentials/platform_env.sh && platform_env_load   # load ends in validation
 # Consumers: ./bootstrap.sh and postprocessors/un_fao/run.sh.
 ```
 
