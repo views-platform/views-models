@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Emit ``NAME=value`` env lines for the NON-SECRET coordinates in a PLATFORM-001
-coordinate registry (þing-01 #275 / #287, verdict D2).
+"""Emit ``NAME=value`` env lines for the NON-SECRET coordinates in an Appwrite Seam
+Contract coordinate registry (þing-01 #275 / #287, verdict D2).
 
 Reads the OWNED registry file (``views-appwrite/docs/ADRs/platform/coordinate_registry.toml``)
 and prints only the **connection** and **target** classes — the non-secret identifiers a
@@ -8,7 +8,7 @@ consumer needs. It NEVER emits a secret: secret entries in the registry are *slo
 required scopes) that carry no value, and the operator supplies the actual key separately. This
 is the read-don't-copy discipline that retires the laptop-``.env`` copy-chain: the registry is
 read and its values emitted; the file is never copied into a repo, and no value is ever baked
-into code (PLATFORM-001 §4).
+into code (The Appwrite Seam Contract §4 — the contract formerly called `PLATFORM-001`).
 
 Mirrors ``views-faoapi/deployment/registry_to_env.py`` — the same canonical reader. A tiny
 per-consumer copy of a stdlib-only reader is the þing-01 pattern; the single source of truth is
