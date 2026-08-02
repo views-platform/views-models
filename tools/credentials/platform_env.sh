@@ -85,8 +85,18 @@ platform_env_require_registry() {
 
 # Echoes `NAME=value` lines, or fails loud. Kept separate from exporting so callers can
 # inspect what the registry owns without mutating their own environment.
+# Memoised per shell. platform_env_load runs three functions that each need the registry,
+# and before this each spawned its own `python registry_to_env.py` — three subprocess
+# launches and three TOML parses per launcher invocation, across ~130 launchers. The read
+# is pure, so caching it is safe; APPWRITE_REGISTRY changing mid-run is not a supported
+# scenario, and the cache is per-process.
+PLATFORM_ENV_COORDS_CACHE=""
 platform_env_coordinates() {
   local root registry err out status
+  if [ -n "$PLATFORM_ENV_COORDS_CACHE" ]; then
+    printf '%s\n' "$PLATFORM_ENV_COORDS_CACHE"
+    return 0
+  fi
   root="$(platform_env_repo_root)"
   registry="$(platform_env_registry_path)"
   err="$(mktemp "${TMPDIR:-/tmp}/platform_env.XXXXXX")"
@@ -118,6 +128,7 @@ platform_env_coordinates() {
   fi
 
   rm -f "$err"
+  PLATFORM_ENV_COORDS_CACHE="$out"
   printf '%s\n' "$out"
 }
 
@@ -179,8 +190,15 @@ platform_env_export_coordinates() {
 # ran, and the child got nothing while every check reported success.
 #
 # `export -p` lists exactly what a child will inherit. Nothing else answers the question.
+# `compgen -e` lists exported variable NAMES, so this never parses a value or a format.
+#
+# The first version grepped `export -p` for `^declare -x NAME=`, which is a false negative
+# for anything exported AND readonly — bash prints `declare -rx NAME=` — and would have
+# reported a variable the child demonstrably receives as "will NOT reach the child". That
+# is the same category of error as the bug it was written to fix: a check that answers a
+# question adjacent to the one asked.
 platform_env_is_exported() {
-  export -p | grep -qE "^declare -x ${1}=|^export ${1}="
+  compgen -e | grep -qxF "$1"
 }
 
 # Non-fatal probe: is the secret obtainable at all? Silent, returns 0/1, changes nothing.
@@ -195,7 +213,13 @@ platform_env_secret_available() {
   [ -n "${!PLATFORM_ENV_SECRET_NAME:-}" ] && return 0
   dotenv="$(platform_env_dotenv_path)"
   [ -f "$dotenv" ] || return 1
-  grep -qE "^[[:space:]]*(export[[:space:]]+)?${PLATFORM_ENV_SECRET_NAME}=." "$dotenv"
+  # Strip quotes before judging emptiness: `NAME=""` is a declared-but-empty secret, and a
+  # trailing-`.` regex would call it available — routing bootstrap into the fatal path and
+  # re-creating the circular "Run ./bootstrap.sh" advice for a different input.
+  local value
+  value="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${PLATFORM_ENV_SECRET_NAME}=" "$dotenv" \
+           | tail -1 | cut -d= -f2- | sed -e 's/^[[:space:]]*//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/")"
+  [ -n "$value" ]
 }
 
 platform_env_export_secret() {
@@ -266,8 +290,20 @@ platform_env_validate() {
 # omitted `platform_env_validate` while its comment claimed to be "everything the platform
 # needs", and used a different order than the header documents. Both callers now use this,
 # so there is one order rather than two.
+# Populate the cache in the CALLER's shell. `coords="$(platform_env_coordinates)"` runs the
+# function in a subshell, so a cache assignment made inside it evaporates — which is what
+# the first version of this memoisation did: it cost a line of code and saved nothing,
+# silently. Same scope-blindness as C-112, in the fix for C-112. Assigning here works
+# because this function is called directly, and subshells inherit the value.
+platform_env_prime_coordinate_cache() {
+  local out
+  out="$(platform_env_coordinates)" || return 1
+  PLATFORM_ENV_COORDS_CACHE="$out"
+}
+
 platform_env_load() {
-  platform_env_require_registry        || return 1
+  platform_env_require_registry           || return 1
+  platform_env_prime_coordinate_cache     || return 1
   platform_env_assert_no_env_conflicts || return 1
   platform_env_export_coordinates      || return 1
   platform_env_export_secret           || return 1

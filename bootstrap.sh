@@ -123,7 +123,7 @@ else
   unset _secret
   chmod 600 "$DOTENV"
   _ok "$SECRET_NAME appended to .env (mode 600); no existing line was modified"
-  platform_env_export_secret
+  platform_env_export_secret || exit 1
 fi
 
 # ── 5. validate — the whole point ─────────────────────────────────────────────────────

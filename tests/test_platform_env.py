@@ -220,6 +220,57 @@ def test_an_unsourceable_env_is_fatal_not_swallowed(repo):
     )
 
 
+@pytest.mark.red
+def test_is_exported_handles_readonly_and_empty_and_prefixes(repo):
+    """`export -p | grep '^declare -x NAME='` was wrong three ways; `compgen -e` is not.
+
+    Bash prints `declare -rx NAME=` for a readonly export, so the original pattern reported
+    a variable the child demonstrably receives as unavailable — the same category of error
+    as the bug it was written to fix.
+    """
+    result = call(repo, '''
+        export RO=x; readonly RO
+        export EMPTYV=""
+        platform_env_is_exported RO      && echo "RO=yes"      || echo "RO=no"
+        platform_env_is_exported EMPTYV  && echo "EMPTY=yes"   || echo "EMPTY=no"
+        platform_env_is_exported ROX     && echo "PREFIX=yes"  || echo "PREFIX=no"
+        NOTEXPORTED=1
+        platform_env_is_exported NOTEXPORTED && echo "LOCAL=yes" || echo "LOCAL=no"
+    ''')
+    assert "RO=yes" in result.stdout, "readonly+exported is still exported"
+    assert "EMPTY=yes" in result.stdout, "exported-but-empty is still exported"
+    assert "PREFIX=no" in result.stdout, "must not match a name that merely shares a prefix"
+    assert "LOCAL=no" in result.stdout, "a shell-local variable is not exported"
+
+
+def test_the_registry_is_read_once_per_load_not_once_per_step(repo, tmp_path):
+    """`platform_env_load` runs three functions that each need the registry.
+
+    Without a cache that is three subprocess spawns and three TOML parses per launcher
+    invocation, across ~130 launchers. The first memoisation attempt assigned the cache
+    inside a command substitution — a subshell — so it silently saved nothing.
+    """
+    counter = tmp_path / "pycalls"
+    shim_dir = tmp_path / "shim"
+    shim_dir.mkdir()
+    real = Path(sys.executable)
+    (shim_dir / "python").write_text(
+        f'#!/bin/bash\necho x >> "{counter}"\nexec "{real}" "$@"\n', encoding="utf-8"
+    )
+    (shim_dir / "python").chmod(0o755)
+
+    (repo / ".env").write_text("APPWRITE_DATASTORE_API_KEY=fake\n", encoding="utf-8")
+    env_extra = {"PATH": f"{shim_dir}{os.pathsep}{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}"}
+    result = call(repo, "platform_env_load", env_extra=env_extra)
+    assert result.returncode == 0, result.stderr
+
+    spawns = counter.read_text().count("x") if counter.exists() else 0
+    assert spawns == 1, (
+        f"the registry was read {spawns} times in one platform_env_load; the cache is not "
+        f"reaching the caller's shell (assigning it inside $(...) does nothing)"
+    )
+
+
 def test_the_probe_is_silent_and_non_fatal_when_there_is_no_env(repo):
     """`bootstrap.sh` must be able to ask "is the secret there?" on a virgin machine.
 
