@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from tools import check_credentials
+from tools.credentials import check_credentials
 
 pytestmark = pytest.mark.green
 

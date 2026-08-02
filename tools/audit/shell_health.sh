@@ -15,9 +15,9 @@ set -uo pipefail
 #   8. Parity test: zsh vs bash --help output (optional, --parity flag)
 #
 # Usage:
-#   bash scripts/audit_shell_health.sh             # full audit
-#   bash scripts/audit_shell_health.sh --parity    # also run zsh/bash parity diff
-#   bash scripts/audit_shell_health.sh --fix       # report what --fix would change (dry-run)
+#   bash tools/audit/shell_health.sh             # full audit
+#   bash tools/audit/shell_health.sh --parity    # also run zsh/bash parity diff
+#   bash tools/audit/shell_health.sh --fix       # report what --fix would change (dry-run)
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"

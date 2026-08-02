@@ -24,10 +24,10 @@
 #   envs/, nothing untracked) run with the conda env you already have.
 #
 # Usage
-#   bash tools/verify_committed.sh                     # HEAD
-#   bash tools/verify_committed.sh origin/development  # any ref
-#   bash tools/verify_committed.sh HEAD -q tests/test_datafactory_parity.py
-#   VIEWS_ENV=views_pipeline bash tools/verify_committed.sh
+#   bash tools/audit/verify_committed.sh                     # HEAD
+#   bash tools/audit/verify_committed.sh origin/development  # any ref
+#   bash tools/audit/verify_committed.sh HEAD -q tests/test_datafactory_parity.py
+#   VIEWS_ENV=views_pipeline bash tools/audit/verify_committed.sh
 #
 # Exit code is pytest's, so it composes with the merge ritual and with CI once the
 # skew that blocks `Run Tests` is resolved.

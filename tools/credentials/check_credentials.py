@@ -5,7 +5,7 @@ One command answers "which credentials am I missing?" without reading code —
 the fix for the recurring "the creds are a mystery" problem
 (see reports/security/appwrite_credentials_audit.md).
 
-    python tools/check_credentials.py
+    python tools/credentials/check_credentials.py
 
 The required key NAMES are the single-sourced schema in `.env.example`. This tool
 reports, per key, whether it is filled in the local (gitignored) `.env` or already
@@ -19,7 +19,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# parents[2] because this file sits at tools/<group>/<name>.py — moving it one
+# level deeper during the tools/ reorganisation silently rebased this constant
+# and check_credentials could no longer find .env.example. Depth-counted paths
+# break on every move; the test suite is what caught it.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _parse_env_names(path: Path) -> list[str]:

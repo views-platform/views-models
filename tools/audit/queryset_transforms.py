@@ -5,15 +5,19 @@ which models apply .transform.ops.ln() to which columns, and which
 have it commented out.
 
 Usage:
-    python tools/audit_queryset_transforms.py
-    python tools/audit_queryset_transforms.py --json
+    python tools/audit/queryset_transforms.py
+    python tools/audit/queryset_transforms.py --json
 """
 import argparse
 import json
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# parents[2] because this file sits at tools/<group>/<name>.py — moving it one
+# level deeper during the tools/ reorganisation silently rebased this constant
+# and check_credentials could no longer find .env.example. Depth-counted paths
+# break on every move; the test suite is what caught it.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 SEARCH_DIRS = ["models", "ensembles", "extractors", "postprocessors"]
 
 
