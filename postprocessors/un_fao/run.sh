@@ -51,6 +51,49 @@ else
   pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
 fi
 
+# ── #294: does the build we just installed do what config_meta DECLARES? ──────────────
+# The installs above pin `@main` — a MOVING branch pointer. Whether it can produce the
+# artifact this postprocessor declares is a fact about someone else's repository on the
+# day you run, and nothing here checked it.
+#
+# That is not hypothetical. On 2026-07-31 `@main` was 208 commits behind, carried zero
+# wire modules, and still ran to completion: it would have ignored `wire_contract: True`
+# and delivered the LEGACY parquet instead of the ADR-013 contract dialect — green run,
+# wrong artifact, and faoapi then serving the previous month. views-postprocessing#178
+# merged on 2026-08-01 and `@main` now carries the wire, so the pin happens to be correct
+# today. Correct by timing is not the same as verified, and the next drift is silent
+# again.
+#
+# So: read what config_meta declares, then assert the installed package can honour it.
+# Declaration read through importlib, never grep — a commented-out key looks identical to
+# a live one to a regex, which is register entry C-57.
+_wire_declared="$(python - "$script_path/configs/config_meta.py" <<'PY' 2>/dev/null || echo unknown
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("un_fao_config_meta", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+print("yes" if module.get_meta_config().get("wire_contract") else "no")
+PY
+)"
+
+if [ "$_wire_declared" = "yes" ]; then
+  if ! python -c "import views_postprocessing.contract.wire" >/dev/null 2>&1; then
+    echo "ERROR: config_meta declares wire_contract: True, but the installed" >&2
+    echo "       views-postprocessing cannot import views_postprocessing.contract.wire." >&2
+    echo "       This build CANNOT produce the ADR-013 contract dialect. Left to run, it" >&2
+    echo "       would exit 0 having delivered the legacy artifact, and FAO would keep" >&2
+    echo "       being served the previous month (#294)." >&2
+    echo "       Installed from: github.com/views-platform/views-postprocessing @main" >&2
+    echo "       Fix: point the pin at a build that carries the wire, or set" >&2
+    echo "       wire_contract: False if the legacy artifact is genuinely what you want." >&2
+    exit 1
+  fi
+  echo "Capability check: wire_contract declared and views_postprocessing.contract.wire importable."
+elif [ "$_wire_declared" = "unknown" ]; then
+  echo "Capability check SKIPPED: could not read wire_contract from config_meta." >&2
+  echo "  Not fatal — this check only ever ADDS a failure mode, it must not invent one." >&2
+fi
+
 # ── þing-01 / PLATFORM-001 (#287): coordinates come from the OWNED registry, not a copied .env ──
 # The non-secret Appwrite coordinates (endpoint, project/bucket/collection/db ids & names) are
 # READ from the single canonical coordinate registry — never copied into this repo. The one SECRET
