@@ -19,8 +19,10 @@ existed):
     un_fao run config; does not exist; killed the run at store lookup.
 
 Credentials resolution (encoded once, values never rendered): process env
-vars first, else the known platform .env (views-faoapi/.env, export-style).
-Reports presence via character counts only.
+vars first, else **this repository's own** `.env` at the repo root, in either
+line style. It no longer reads `views-faoapi/.env` — doing so meant this repo
+observed its own shelf under the FAO identity (#298). Reports presence via
+character counts only.
 
 Design (house rules, mirrors the S1/S2 checks): injected fetch + credentials
 + clock (DIP), lazy stdlib urllib in the default fetch, no import-time side
@@ -49,6 +51,7 @@ from tools.liveness.appwrite_api import (  # noqa: E402  (kept near use)
     fetch_json,
     load_credentials_from_env_file,
     newest_first_query,
+    credential_gap_report,
     resolve_credentials,
 )
 from tools.liveness.report import exit_code_for, render_facts  # noqa: E402
@@ -70,6 +73,7 @@ class CheckReport:
     """Raw facts about the production_forecasts store — no narration."""
 
     verdict: str  # STORE_ACTIVE | STORE_IDLE | UNREACHABLE | SKIP_NO_CREDENTIALS
+    #              | CREDENTIALS_INCOMPLETE
     endpoint: Optional[str] = None
     bucket: str = APPWRITE_BUCKET_ID
     api_key_chars: Optional[int] = None
@@ -121,10 +125,8 @@ class AppwriteStoreCheck:
 
     def run(self, now: Optional[datetime] = None) -> CheckReport:
         if self.credentials is None:
-            return CheckReport(
-                verdict="SKIP_NO_CREDENTIALS",
-                error="no Appwrite credentials in env or known .env files",
-            )
+            verdict, error = credential_gap_report()
+            return CheckReport(verdict=verdict, error=error)
         now = now or datetime.now(timezone.utc)
         creds = self.credentials
         headers = {

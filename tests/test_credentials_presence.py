@@ -40,6 +40,50 @@ def test_env_example_exists_and_declares_the_canonical_keys():
     assert not missing, f".env.example is missing canonical keys: {sorted(missing)}"
 
 
+# --- #299: the .gitignore gaps -------------------------------------------------
+# This repo is PUBLIC. Before #299 the only literal was `.env`; `.env.bak` and
+# `.env.local` were covered incidentally by `*.bak`/`*.local`, and the two shapes most
+# likely to exist on a rotation day were not covered at all. These tests pin both
+# halves of the fix — the broadening AND the negation that keeps the schema tracked,
+# because a `.env.*` rule without `!.env.example` would silently un-track the file the
+# checker above reads.
+
+def _is_ignored(name: str) -> bool:
+    import subprocess
+
+    return subprocess.run(
+        ["git", "check-ignore", "-q", name], cwd=REPO_ROOT
+    ).returncode == 0
+
+
+@pytest.mark.red
+@pytest.mark.parametrize(
+    "name",
+    [
+        ".env",
+        ".env.faoapi",      # the exact filename the production server uses
+        ".env.20260728",    # the shape of a file made on a rotation day
+        ".env.save",
+        ".env.bak",
+        ".env.local",
+    ],
+)
+def test_credential_file_shapes_are_gitignored(name):
+    assert _is_ignored(name), (
+        f"{name} is NOT gitignored — on a public repo that is one careless `git add` "
+        f"from a published credential (#299)"
+    )
+
+
+@pytest.mark.red
+def test_env_example_is_NOT_gitignored():
+    assert not _is_ignored(".env.example"), (
+        ".env.example must stay tracked — it is the credential schema "
+        "tools/check_credentials.py reads. If a broad `.env.*` rule is added without "
+        "the `!.env.example` negation, this fails (#299)"
+    )
+
+
 def test_parse_env_filled_ignores_comments_blanks_and_empties(tmp_path):
     f = tmp_path / ".env"
     f.write_text(

@@ -11,9 +11,9 @@ then stalled unnoticed):
 Usage:
     python -m tools.liveness.unfao_delivery   # exit 0 delivering/skip / 1 stalled / 2 unreachable
 
-Credentials are REUSED from tools.liveness.appwrite_store (same Appwrite
-project + .env; S7 will home this in a shared credentials module — noted,
-deliberate). Design mirrors the sibling checks: injected fetch/credentials/
+Credentials are REUSED from tools.liveness.appwrite_api (same Appwrite project;
+resolved from process env, else **this repo's own** `.env` — never another
+repo's, per #298). Design mirrors the sibling checks: injected fetch/credentials/
 clock (DIP), lazy stdlib urllib, no import-time side effects (C-93),
 secrets never rendered, truthful SKIP without credentials.
 """
@@ -29,6 +29,7 @@ from tools.liveness.appwrite_api import (
     FetchJson,
     fetch_json,
     newest_first_query,
+    credential_gap_report,
     resolve_credentials,
     stream_newest_query,
 )
@@ -47,6 +48,7 @@ class CheckReport:
     """Raw facts about the FAO delivery bucket — no narration."""
 
     verdict: str  # DELIVERING | DELIVERY_STALLED | UNREACHABLE | SKIP_NO_CREDENTIALS
+    #              | CREDENTIALS_INCOMPLETE
     endpoint: Optional[str] = None
     bucket: str = UNFAO_BUCKET_ID
     total_files: Optional[int] = None
@@ -108,10 +110,8 @@ class UnfaoDeliveryCheck:
 
     def run(self, now: Optional[datetime] = None) -> CheckReport:
         if self.credentials is None:
-            return CheckReport(
-                verdict="SKIP_NO_CREDENTIALS",
-                error="no Appwrite credentials in env or known .env files",
-            )
+            verdict, error = credential_gap_report()
+            return CheckReport(verdict=verdict, error=error)
         now = now or datetime.now(timezone.utc)
         creds = self.credentials
         headers = {

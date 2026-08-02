@@ -7,8 +7,17 @@ default stdlib fetch.
 
 Credentials resolution order (values never rendered anywhere):
     1. process env vars (APPWRITE_ENDPOINT / _DATASTORE_PROJECT_ID / _DATASTORE_API_KEY)
-    2. known platform .env files, discovered by walking this file's ancestors
-       (robust from the main checkout AND from git worktrees).
+    2. **this repository's own** ``.env``, at the repo root.
+
+#298 — why it is only its own file now. This module used to walk ancestors looking for
+``views-faoapi/.env``, a hardcoded FOREIGN repository, and its line regex matched only
+``export``-prefixed lines. views-models' own ``.env`` is bare ``KEY=`` style, so the regex
+excluded it and the path never looked at it. Net effect: views-models observed its own
+internal shelf **under the FAO service's identity** — the answer it got was "the FAO key
+can see this", reported as "the shelf is healthy". Those are different propositions, and
+they diverge the moment the two keys' scopes differ, which is the entire point of the
+least-privilege work. A warning line could not have fixed it: what consumers read is the
+exit code, and an exit code carries no warning. So the foreign path is gone, not annotated.
 """
 
 from __future__ import annotations
@@ -20,8 +29,19 @@ from typing import Callable, Dict, Optional
 
 FETCH_TIMEOUT_SECONDS = 25
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+REQUIRED_KEYS = (
+    "APPWRITE_ENDPOINT",
+    "APPWRITE_DATASTORE_PROJECT_ID",
+    "APPWRITE_DATASTORE_API_KEY",
+)
+
+# Both line styles, because the format is not this module's business (#298): this repo's
+# .env is bare `KEY=value`, views-faoapi's is `export KEY=value`, and a credential parser
+# that only understands one of them is asserting a habit, not a contract.
 _ENV_LINE = re.compile(
-    r"^export\s+(APPWRITE_ENDPOINT|APPWRITE_DATASTORE_PROJECT_ID|"
+    r"^(?:export\s+)?(APPWRITE_ENDPOINT|APPWRITE_DATASTORE_PROJECT_ID|"
     r"APPWRITE_DATASTORE_API_KEY)\s*=\s*(.+?)\s*$"
 )
 
@@ -35,56 +55,114 @@ class AppwriteCredentials:
     api_key: str
 
 
-def load_credentials_from_env_file(path: Path) -> Optional[AppwriteCredentials]:
-    """Parse an export-style .env; None unless all three keys are present."""
+def _clean(value: str) -> str:
+    """Strip surrounding quotes, or an unquoted trailing ` # comment`.
+
+    Both forms occur in real files: dotenv writes bare values, and the bash-sourceable
+    `.env` this repo uses carries trailing comments on the coordinate lines.
+    """
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value.split(" #", 1)[0].rstrip()
+
+
+def parse_env_file(path: Path) -> Dict[str, str]:
+    """The APPWRITE_* keys present in an env file. Missing file → empty mapping.
+
+    One job: read a file, return what it declares. It does not decide whether that is
+    enough — `load_credentials_from_env_file` and `missing_credentials` do, and keeping
+    those separate is what lets the caller tell "no file" from "incomplete file" (#298).
+    """
     try:
         text = path.read_text()
     except OSError:
-        return None
+        return {}
     found: Dict[str, str] = {}
     for line in text.splitlines():
         match = _ENV_LINE.match(line.strip())
         if match:
-            found[match.group(1)] = match.group(2).strip("\"'")
-    try:
-        return AppwriteCredentials(
-            endpoint=found["APPWRITE_ENDPOINT"],
-            project_id=found["APPWRITE_DATASTORE_PROJECT_ID"],
-            api_key=found["APPWRITE_DATASTORE_API_KEY"],
-        )
-    except KeyError:
+            found[match.group(1)] = _clean(match.group(2))
+    return found
+
+
+def load_credentials_from_env_file(path: Path) -> Optional[AppwriteCredentials]:
+    """Parse a `.env` (either line style); None unless all three keys are present."""
+    found = parse_env_file(path)
+    if not all(found.get(key) for key in REQUIRED_KEYS):
         return None
+    return AppwriteCredentials(
+        endpoint=found["APPWRITE_ENDPOINT"],
+        project_id=found["APPWRITE_DATASTORE_PROJECT_ID"],
+        api_key=found["APPWRITE_DATASTORE_API_KEY"],
+    )
 
 
-def _known_env_files():
-    """Candidate platform .env files, discovered by walking ancestors — robust
-    to running from the main checkout AND from a git worktree under
-    .claude/worktrees/ (where fixed parent-counting breaks)."""
+def own_env_file() -> Path:
+    """This repository's own `.env`. The only file this module reads (#298)."""
+    return REPO_ROOT / ".env"
+
+
+def missing_credentials() -> tuple:
+    """Which required variables are absent, considering process env then own `.env`.
+
+    Exists so a caller can distinguish **nothing configured** (a truthful skip, exit 0)
+    from **configured but incomplete** (a misconfiguration a human must fix — loud, and
+    it names the variables). Returning `None` from `resolve_credentials()` conflates the
+    two, and that conflation is half of what #298 is about.
+    """
+    import os
+
+    from_file = parse_env_file(own_env_file())
     return tuple(
-        ancestor / "views-faoapi" / ".env"
-        for ancestor in Path(__file__).resolve().parents
-        if (ancestor / "views-faoapi" / ".env").exists()
+        key for key in REQUIRED_KEYS
+        if not (os.environ.get(key) or from_file.get(key))
+    )
+
+
+def credential_gap_report() -> tuple:
+    """`(verdict, error)` describing why credentials could not be resolved.
+
+    Lives here, not in the surfaces: describing a credential state is the credentials
+    module's job, while mapping a verdict to an exit code stays `report.py`'s. Both
+    surfaces call it rather than each carrying the same six lines — this is one concept
+    in one place, not a premature generalisation of two different things.
+    """
+    missing = missing_credentials()
+    own = own_env_file()
+    if not missing:
+        # Nothing is missing, yet the caller has no credentials — so they were injected
+        # as None deliberately (a test, or a surface constructed without them). Do not
+        # report a configuration fault we cannot see; say what is actually true.
+        return (
+            "SKIP_NO_CREDENTIALS",
+            "no credentials supplied to this check (none were resolved for it)",
+        )
+    if len(missing) == len(REQUIRED_KEYS):
+        return (
+            "SKIP_NO_CREDENTIALS",
+            f"no Appwrite credentials in the environment and none in {own} "
+            f"(this repo's own .env; other repos' .env files are deliberately not read — #298)",
+        )
+    return (
+        "CREDENTIALS_INCOMPLETE",
+        f"credentials are partially configured — missing {', '.join(missing)}. "
+        f"Set them in the environment or in {own}",
     )
 
 
 def resolve_credentials() -> Optional[AppwriteCredentials]:
-    """Env vars first, then the known platform .env files."""
+    """Process env first, then **this repository's own** `.env`. Never another repo's."""
     import os
 
-    env = {k: os.environ.get(k) for k in (
-        "APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID", "APPWRITE_DATASTORE_API_KEY",
-    )}
+    env = {key: os.environ.get(key) for key in REQUIRED_KEYS}
     if all(env.values()):
         return AppwriteCredentials(
             env["APPWRITE_ENDPOINT"],              # type: ignore[arg-type]
             env["APPWRITE_DATASTORE_PROJECT_ID"],  # type: ignore[arg-type]
             env["APPWRITE_DATASTORE_API_KEY"],     # type: ignore[arg-type]
         )
-    for candidate in _known_env_files():
-        credentials = load_credentials_from_env_file(candidate)
-        if credentials is not None:
-            return credentials
-    return None
+    return load_credentials_from_env_file(own_env_file())
 
 
 def newest_first_query(limit: int = 5) -> str:

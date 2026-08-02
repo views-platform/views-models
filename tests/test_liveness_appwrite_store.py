@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from tools.liveness import appwrite_api
 from tools.liveness.appwrite_store import (
     HISTORICAL_WRONG_COLLECTION_ID,
     REAL_METADATA_DATABASE_ID,
@@ -111,6 +112,96 @@ def test_credentials_none_when_keys_incomplete(tmp_path):
     env = tmp_path / ".env"
     env.write_text("export APPWRITE_ENDPOINT=https://x\n")
     assert load_credentials_from_env_file(env) is None
+
+
+# --- #298: read our OWN .env, both line styles, and say what is missing ---------
+# The export-style test above passed throughout the period this module could not read
+# this repo's own `.env` at all — which is why it never caught the bug. These do.
+
+def test_credentials_parse_bare_key_style_env_file(tmp_path):
+    """This repo's own .env is bare `KEY=value` — 16 bare lines, 0 export lines.
+
+    The old regex was anchored on `^export`, so it silently excluded the file it was
+    most supposed to read.
+    """
+    env = tmp_path / ".env"
+    env.write_text(
+        "APPWRITE_ENDPOINT=https://x.example/v1\n"
+        "APPWRITE_DATASTORE_PROJECT_ID=p1\n"
+        "APPWRITE_DATASTORE_API_KEY=k1\n"
+        "OTHER=ignored\n"
+    )
+    creds = load_credentials_from_env_file(env)
+    assert creds == AppwriteCredentials("https://x.example/v1", "p1", "k1")
+
+
+def test_credentials_strip_trailing_comment_on_unquoted_value(tmp_path):
+    """`.env` is bash-sourceable here, so coordinate lines carry trailing comments."""
+    env = tmp_path / ".env"
+    env.write_text(
+        "APPWRITE_ENDPOINT=https://x.example/v1   # the endpoint\n"
+        "APPWRITE_DATASTORE_PROJECT_ID=p1\n"
+        'APPWRITE_DATASTORE_API_KEY="k1"\n'
+    )
+    creds = load_credentials_from_env_file(env)
+    assert creds == AppwriteCredentials("https://x.example/v1", "p1", "k1")
+
+
+def test_resolve_credentials_does_NOT_read_another_repos_env(monkeypatch, tmp_path):
+    """THE specification of #298: a foreign `.env` must not supply our credentials.
+
+    Before the fix this module walked ancestors for `views-faoapi/.env` and would
+    resolve from it — so views-models observed its own internal shelf under the FAO
+    service's identity, and reported that as "the shelf is healthy". The decoy below
+    is exactly that file. If this test ever fails, the borrowing is back.
+    """
+    for key in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
+                "APPWRITE_DATASTORE_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+    decoy = tmp_path / "views-faoapi" / ".env"
+    decoy.parent.mkdir(parents=True)
+    decoy.write_text(
+        "export APPWRITE_ENDPOINT=https://foreign.example/v1\n"
+        "export APPWRITE_DATASTORE_PROJECT_ID=foreign\n"
+        "export APPWRITE_DATASTORE_API_KEY=foreign\n"
+    )
+    # Our own .env is absent in this fake repo root.
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", tmp_path / "views-models")
+
+    assert appwrite_api.resolve_credentials() is None, (
+        "credentials resolved from a foreign repo's .env — #298 has regressed"
+    )
+
+
+def test_credential_gap_report_distinguishes_absent_from_partial(monkeypatch, tmp_path):
+    """Nothing configured is a truthful skip; half-configured is a misconfiguration."""
+    for key in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
+                "APPWRITE_DATASTORE_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    root = tmp_path / "repo"
+    root.mkdir()
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", root)
+
+    verdict, error = appwrite_api.credential_gap_report()
+    assert verdict == "SKIP_NO_CREDENTIALS", "no .env at all is an honest absence"
+
+    (root / ".env").write_text("APPWRITE_ENDPOINT=https://x\n")
+    verdict, error = appwrite_api.credential_gap_report()
+    assert verdict == "CREDENTIALS_INCOMPLETE", "a partial .env is a misconfiguration"
+    assert "APPWRITE_DATASTORE_PROJECT_ID" in error
+    assert "APPWRITE_DATASTORE_API_KEY" in error
+    assert "APPWRITE_ENDPOINT" not in error.split("missing", 1)[1].split(".", 1)[0], (
+        "the error must name what is MISSING, not what is present"
+    )
+
+
+def test_credentials_incomplete_is_registered_and_louder_than_a_skip():
+    """The verdict must map to exit 1, not 0 — pinned because report.py is the contract."""
+    from tools.liveness.report import exit_code_for
+
+    assert exit_code_for("CREDENTIALS_INCOMPLETE") == 1
+    assert exit_code_for("SKIP_NO_CREDENTIALS") == 0
 
 
 # ── verdicts ──────────────────────────────────────────────────────────
@@ -262,13 +353,16 @@ def test_resolve_credentials_prefers_process_env(monkeypatch):
     )
 
 
-def test_resolve_credentials_none_when_nothing_available(monkeypatch):
+def test_resolve_credentials_none_when_nothing_available(monkeypatch, tmp_path):
     from tools.liveness import appwrite_api
 
     for name in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
                  "APPWRITE_DATASTORE_API_KEY"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(appwrite_api, "_known_env_files", tuple)
+    # Seam changed by #298: the module no longer walks ancestors for a foreign repo's
+    # .env, so there is no _known_env_files to stub. It reads exactly REPO_ROOT/.env,
+    # and REPO_ROOT is now the seam.
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", tmp_path)
     assert appwrite_api.resolve_credentials() is None
 
 
@@ -278,7 +372,6 @@ def test_resolve_credentials_skips_env_file_missing_keys(monkeypatch, tmp_path):
     for name in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
                  "APPWRITE_DATASTORE_API_KEY"):
         monkeypatch.delenv(name, raising=False)
-    incomplete = tmp_path / ".env"
-    incomplete.write_text("export APPWRITE_ENDPOINT=https://example.test/v1\n")
-    monkeypatch.setattr(appwrite_api, "_known_env_files", lambda: (incomplete,))
+    (tmp_path / ".env").write_text("export APPWRITE_ENDPOINT=https://example.test/v1\n")
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", tmp_path)
     assert appwrite_api.resolve_credentials() is None

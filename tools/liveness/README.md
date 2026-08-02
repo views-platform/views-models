@@ -67,7 +67,7 @@ metadata collection exist?
   `orderDesc($createdAt)` query — never the 25-per-page default listing,
   which produced a false-idle verdict on 2026-07-19).
 - `STORE_IDLE` — nothing new in 45 days.
-- `SKIP_NO_CREDENTIALS` / `UNREACHABLE`.
+- `SKIP_NO_CREDENTIALS` / `CREDENTIALS_INCOMPLETE` / `UNREACHABLE`.
 
 ### `unfao_delivery` — the FAO partner bucket (`unfao_bucket`)
 When did FAO last receive anything, per stream (`forecast_dataset_*` and
@@ -76,7 +76,7 @@ When did FAO last receive anything, per stream (`forecast_dataset_*` and
 - `DELIVERING` — both streams ≤ 45 days.
 - `DELIVERY_STALLED` — at least one stream is `STALLED` or
   `NEVER_DELIVERED` (per-stream verdicts in the facts).
-- `SKIP_NO_CREDENTIALS` / `UNREACHABLE`.
+- `SKIP_NO_CREDENTIALS` / `CREDENTIALS_INCOMPLETE` / `UNREACHABLE`.
 
 ### `wandb_execution` — did the team compute this cycle?
 Latest **finished** forecasting run per monthly ensemble
@@ -112,9 +112,18 @@ public promotion)? Host resolves **only on the PRIO VPN**.
   config, and it killed the June 2026 un_fao run (register C-100).
 - **Credentials resolution** (`tools/liveness/appwrite_api.py`): process env
   vars first (`APPWRITE_ENDPOINT` / `APPWRITE_DATASTORE_PROJECT_ID` /
-  `APPWRITE_DATASTORE_API_KEY`), then known platform `.env` files found by
-  ancestor walk. **Secret values are never rendered** — reports show
-  `api_key_chars` (a length) only.
+  `APPWRITE_DATASTORE_API_KEY`), then **this repository's own** `.env` at the
+  repo root, in either `KEY=` or `export KEY=` style. **No other repository's
+  `.env` is read.** Until #298 this module walked ancestors for
+  `views-faoapi/.env` and matched only `export`-prefixed lines — so it could
+  not read views-models' own bare-`KEY=` file, and observed the internal shelf
+  under the **FAO service's identity** instead. That answers "can FAO see
+  this?" while reporting "the shelf is healthy"; a warning line would not have
+  helped, because what consumers read is the exit code. Nothing configured is
+  still a truthful `SKIP_NO_CREDENTIALS`; **partially** configured is
+  `CREDENTIALS_INCOMPLETE` (exit 1) and names the missing variables.
+  **Secret values are never rendered** — reports show `api_key_chars` (a
+  length) only.
 - **Appwrite listing** (`tools/liveness/appwrite_api.py`): always
   server-side `orderDesc($createdAt)` + `limit` — client-side sorting of a
   default page is the pagination bug this suite exists to prevent.
