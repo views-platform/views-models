@@ -1,19 +1,14 @@
-"""The un_fao launcher's environment contract: one source, and absence is fatal (#308, #309).
+"""The un_fao launcher delegates its environment to the one writer (#309).
 
-Two rules, both learned the hard way:
+The *behaviour* — registry fatal, one writer, secret by name, nothing rendered — is tested
+against the real shell functions in `tests/test_platform_env.py`. These are the remaining
+assertions that can only be made about the launcher itself: that it uses that file rather
+than reimplementing it, and that it does so in the right order.
 
-**#308 — an unresolvable registry is fatal, and fatal early.** The default registry path is
-a relative hop to a sibling checkout of views-appwrite. On a different layout, in CI, or in
-a container it is simply absent. Warning and continuing does not save the run; it moves the
-failure to the datastore boundary minutes later, where it describes a symptom instead of a
-cause, in front of whoever is least equipped to trace it back to a checkout layout.
-
-**#309 — the registry is the only source of coordinates.** `.env` and the registry writing
-the same names is a data race whose winner is decided by line order: reverse the blocks and
-the semantics invert silently, with no test failing.
-
-These tests pin the rules against the launcher, which is production infrastructure and not
-otherwise covered by anything executable.
+Ordering is the part a behavioural test cannot reach. A fatal registry check placed after
+the conda/pip block still works, and still wastes several minutes building an environment
+the run is about to throw away — on a fresh machine, that is the difference between a
+useful failure and an infuriating one.
 """
 from pathlib import Path
 
@@ -21,105 +16,130 @@ import pytest
 
 pytestmark = [pytest.mark.beige]
 
-RUN_SH = (
-    Path(__file__).resolve().parent.parent / "postprocessors" / "un_fao" / "run.sh"
-)
+RUN_SH = Path(__file__).resolve().parent.parent / "postprocessors" / "un_fao" / "run.sh"
 
 
 def _run_sh() -> str:
     return RUN_SH.read_text(encoding="utf-8")
 
 
-def test_missing_registry_is_fatal_before_any_conda_or_pip_work():
-    """#308's acceptance criterion: exit non-zero *before any work begins*.
+def test_launcher_sources_the_shared_environment_writer():
+    assert "tools/credentials/platform_env.sh" in _run_sh(), (
+        "the launcher must source tools/credentials/platform_env.sh rather than reimplementing the "
+        "environment contract — two implementations is how the two writers happened (#309)"
+    )
 
-    Position matters as much as behaviour. A fatal check placed after the conda/pip block
-    still wastes an environment build, and on a fresh machine that is minutes.
+
+def _first_code_line(text: str, needle: str):
+    """Line number of the first NON-COMMENT line containing `needle`, else None.
+
+    Comments must be excluded or this fails on prose. It did: the launcher's own comment
+    reads "macOS notes, conda lifecycle, pip install", and a naive search placed `pip
+    install` before the guard. That is C-57 — a regex cannot tell a commented mention from
+    a live statement — committed inside the test whose docstring warns about C-57.
     """
-    text = _run_sh()
-    fatal_at = text.find('if [ ! -f "$APPWRITE_REGISTRY" ]')
-    assert fatal_at != -1, "a missing registry must be fatal (#308)"
+    for number, line in enumerate(text.splitlines(), start=1):
+        if needle in line and not line.strip().startswith("#"):
+            return number
+    return None
 
-    for later in ("conda activate", "pip install", "conda shell.bash hook"):
-        position = text.find(later)
-        assert position == -1 or fatal_at < position, (
-            f"the fatal registry check must come BEFORE {later!r} — otherwise the run "
-            f"builds an environment it is about to throw away (#308)"
+
+def test_registry_check_happens_before_conda_and_pip():
+    text = _run_sh()
+    guard = _first_code_line(text, "platform_env_require_registry")
+    assert guard is not None, "the launcher must assert the registry resolves (#308)"
+    for later in ("conda shell.bash hook", "conda activate", "pip install"):
+        position = _first_code_line(text, later)
+        assert position is None or guard < position, (
+            f"the registry guard (line {guard}) must precede {later!r} (line {position}) — "
+            f"otherwise a run with no registry builds a conda environment it is about to "
+            f"discard (#308)"
         )
 
 
-def test_the_fatal_message_names_the_path_and_the_override():
+def test_the_full_contract_is_asserted_before_main_runs():
+    """The whole sequence, fatal, before main.py. A partial environment is not a start.
+
+    The launcher calls `platform_env_load` rather than the individual steps. That is the
+    fix for a real drift found in review: the launcher used one order, `bootstrap.sh` used
+    another, and the file's header documented a third. `platform_env_load` is now the
+    single sequence — and it ends in `platform_env_validate`, which it previously omitted
+    while its own comment claimed to be "everything the platform needs".
+    """
     text = _run_sh()
-    assert "APPWRITE_REGISTRY=/path/to" in text, (
-        "the failure must name the override variable — the person hitting this is on a "
-        "machine with a different layout and needs the escape hatch, not a diagnosis"
+    # `_first_code_line`, not `str.find` — the same C-57 trap that broke the ordering test
+    # above. These happen not to have a commented mention today; relying on that is how it
+    # comes back.
+    main_at = _first_code_line(text, "main.py")
+    assert main_at is not None
+
+    at = _first_code_line(text, "platform_env_load")
+    assert at is not None, "the launcher must load the environment via platform_env_load"
+    assert at < main_at, "the environment must be loaded before main.py"
+    line = next(
+        ln for ln in text.splitlines()
+        if "platform_env_load" in ln and not ln.strip().startswith("#")
     )
-    assert "looked for:" in text, "the failure must name the path actually tried"
+    assert "|| exit 1" in line, f"loading must be fatal, not advisory: {line.strip()!r}"
 
 
-def test_an_unreadable_registry_is_also_fatal():
-    """Existing-but-unparseable is the same outcome as absent: no coordinates."""
+def test_the_launcher_does_not_hand_roll_the_sequence():
+    """Calling the steps individually is how the launcher and bootstrap.sh drifted apart."""
     text = _run_sh()
-    assert "could not be read" in text, (
-        "a registry that exists but fails to parse must be fatal too — half a source is "
-        "not a source (#308)"
-    )
-
-
-def test_env_declaring_a_registry_owned_coordinate_is_fatal():
-    """#309: two writers to one name is an error, not a precedence question."""
-    text = _run_sh()
-    assert "both declare:" in text, (
-        "a coordinate declared in BOTH .env and the registry must fail loud naming the "
-        "variable and both sources (#309)"
-    )
-    assert "_conflicts" in text, "the conflict detection must exist, not just be described"
-
-
-def test_the_secret_is_still_exported_by_name_and_never_via_set_a():
-    """The one value .env may still carry. `set -a` would corrupt it (#293)."""
-    text = _run_sh()
-    assert "export APPWRITE_DATASTORE_API_KEY" in text, (
-        "the secret must still be exported by name — #293 exists because it was not"
-    )
-    # Check for USE, not mention: the file deliberately explains in a comment why `set -a`
-    # is wrong, and a naive substring search flags that explanation as the offence. That is
-    # C-57 — to a regex a commented line is indistinguishable from a live one — and this
-    # test made the mistake on its first draft.
-    live_set_a = [
-        line for line in text.splitlines()
-        if "set -a" in line and not line.strip().startswith("#")
+    hand_rolled = [
+        ln.strip() for ln in text.splitlines()
+        if not ln.strip().startswith("#")
+        and any(
+            step in ln for step in (
+                "platform_env_export_secret",
+                "platform_env_export_coordinates",
+                "platform_env_assert_no_env_conflicts",
+            )
+        )
     ]
-    assert not live_set_a, (
-        f"`set -a` is used, not merely explained: {live_set_a}. It exports unquoted "
-        f"*_NAME values truncated at the first space (#293)"
+    assert not hand_rolled, (
+        f"the launcher calls individual steps instead of platform_env_load: {hand_rolled}. "
+        f"Two callers running two orders is what the single sequence exists to prevent"
     )
 
 
-def test_the_293_correction_survived_the_rewrite():
+def test_the_launcher_does_not_export_the_secret_itself():
+    """One writer. The launcher sources .env for GITHUB_TOKEN and nothing else."""
+    text = _run_sh()
+    live = [
+        ln for ln in text.splitlines()
+        if "export APPWRITE_DATASTORE_API_KEY" in ln and not ln.strip().startswith("#")
+    ]
+    assert not live, (
+        f"the launcher exports the secret directly: {live}. platform_env_export_secret "
+        f"owns it; doing both reinstates the second writer #309 removes"
+    )
+
+
+def test_no_live_set_a():
+    """`set -a` exports unquoted *_NAME values truncated at the first space (#293).
+
+    Checks for USE, not mention: the file explains in a comment why `set -a` is wrong, and
+    a substring search flags the explanation as the offence. That is C-57, and the first
+    draft of this test made exactly that mistake.
+    """
+    live = [
+        ln for ln in _run_sh().splitlines()
+        if "set -a" in ln and not ln.strip().startswith("#")
+    ]
+    assert not live, f"`set -a` is used, not merely explained: {live}"
+
+
+def test_the_293_correction_survived_the_extraction():
     """A removal must name what it was carrying (þing-02, S25).
 
-    The #293 comment records that `source` without `export` meant there was no carrier
-    for the secret at all between two dates — a real production failure, honestly
-    documented. Rewrites lose that kind of thing silently.
+    #293 records that `source` without `export` left no carrier for the secret at all
+    between two dates — a real production failure. Extractions lose that kind of note
+    silently, so it is pinned in both places it could live.
     """
-    text = _run_sh()
-    assert "#293" in text, "the #293 correction must survive edits to this file"
-
-
-def test_the_false_coordinate_state_claim_is_gone():
-    """The helper it replaced asserted something untrue; it must not come back.
-
-    `_platform001_coordinate_state()` announced "Coordinates ARE present in the
-    environment (exported outside this script)" on the strength of a SHELL variable that
-    `source .env` sets and nothing exports — so the python child never saw it. It was
-    written to avoid asserting an unverified environment fact and did exactly that by
-    checking the wrong scope.
-    """
-    text = _run_sh()
-    assert "_platform001_coordinate_state" not in text or "REMOVED HERE" in text, (
-        "the coordinate-state helper checked shell variables rather than exported ones "
-        "and reported a false 'coordinates ARE present' — it must not be reinstated "
-        "without fixing that (#308/#309)"
+    from_launcher = "#293" in _run_sh()
+    shared = Path(__file__).resolve().parent.parent / "tools" / "credentials" / "platform_env.sh"
+    from_shared = "#293" in shared.read_text(encoding="utf-8")
+    assert from_launcher or from_shared, (
+        "the #293 correction must survive wherever the secret handling now lives"
     )
-    assert "Coordinates ARE present in the environment (exported outside this script)" not in text

@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-07-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 115 (111 concerns + 4 disagreements)  
-**Concerns:** Open 45 | Mitigated 18 | Resolved 39 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 3 | T2 32 | T3 48 | T4 24 (4 merge stubs carry no tier)  
+**Total entries:** 116 (112 concerns + 4 disagreements)  
+**Concerns:** Open 46 | Mitigated 18 | Resolved 39 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 3 | T2 33 | T3 48 | T4 24 (4 merge stubs carry no tier)  
 **Disagreements:** Open 2 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1405,6 +1405,19 @@
 | **Status** | Open |
 | **Location** | views-faoapi `src/views_faoapi/managers/dataset_service.py:621-720` `_load_wire_run` (lazy on-request ingest; refuse → fall back to last-good) — by design, and correct as a *availability* policy; the gap is that the degradation is invisible upstream. views-models side: `tools/liveness/unfao_delivery.py` observes the FAO bucket, not the served response; there is no surface for "what is the API serving right now, and is it the run we shipped?". |
 | **Notes** | Tier 2 rationale: structural fragility across a repo boundary with a realized trigger and a stakeholder-visible consequence — UN consumers received a month-old forecast presented as current, with no error anywhere in the producer's view. Serve-last-good is the *right* availability choice; the defect is that it is a **silent** downgrade, so "delivered" and "served" are two different truths with nothing comparing them. Compounding observability defects seen the same session: the API's `/version` endpoint lagged the deployed git tag by one release (reported `1.3.4` on `deployed_tag v1.3.5`), so "which build is live?" could not be answered from the API itself; and `/provenance/forecast`'s top-level fields carried the *previous* run's name/filename/`run_id` (views-faoapi#290, fixed v1.3.5) so even a correct serve looked wrong. Exits: (a) a **serving-truth liveness surface** in `tools/liveness` that reads the live API's provenance and compares `run_id` against the newest manifest in `unfao_bucket` — this is the check that would have caught run-0 in minutes and is squarely a views-models deliverable; (b) upstream, a degraded/stale flag in the served response or an ingest-failure signal the producer can poll. Cross-refs: **C-102** (the detection half — `unfao_delivery` reads `DELIVERING` while the API serves nothing; this entry is the *root* it fails to see), C-97 (delivery identity), C-99 (no heartbeat), C-109 (the ingest bug this fallback concealed). |
+
+---
+
+### C-112 — Presence checks read SHELL scope while consumers need EXPORTED scope; the same blind spot has now shipped twice in four days
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any shell code that decides "is this credential/coordinate available?" with `[ -n "$VAR" ]` or `[ -n "${!NAME}" ]`, in a script that has previously `source`d a `.env`. Sourcing sets the variable in **shell** scope; the check passes; the child process — which is what actually needs it — receives nothing. |
+| **Source** | code-review max on PR #315 (2026-08-02), reproduced directly; earlier instance found during þing-02 (`orð_09 §2H`) |
+| **Status** | Open |
+| **Location** | Instance 1 (2026-07-31, fixed in #314): `postprocessors/un_fao/run.sh` `_platform001_coordinate_state()` — announced *"Coordinates ARE present in the environment (exported outside this script)"* on the strength of an unexported shell variable. Instance 2 (2026-08-02, caught pre-merge in #315): `tools/credentials/platform_env.sh` `platform_env_export_secret()` guard `[ -n "${!PLATFORM_ENV_SECRET_NAME:-}" ]` — returns early because `run.sh` sourced `.env` for `GITHUB_TOKEN` two dozen lines above, so the `export` is never reached; `platform_env_validate()` shares the blind spot and reports the environment complete. |
+| **Notes** | **The recurrence is the finding, not either instance.** Both were written by an author who had just read #293 — the incident whose entire content is *"`source` without `export` does not reach the child"* — and both reproduced it anyway, because bash makes the two scopes indistinguishable at the point of test. `[ -n "$VAR" ]` cannot tell them apart; only `[ -n "${VAR+x}" ]` combined with an `export -p` lookup, or a probe of an actual child process, can. **Reproduced on the PR branch:** with `.env` sourced first, `platform_env_export_secret` returns 0, `platform_env_validate` passes, and `python -c 'os.environ.get(...)'` returns `None` — a run that reports a complete environment and hands the child nothing. Instance 2 was additionally *protected by a test*: `test_the_launcher_does_not_export_the_secret_itself` asserts the launcher must not export the secret directly, which is correct as a one-writer rule and, combined with the defective guard, enforced the bug. **Exit:** a single sanctioned way to answer "will the child see this?" — probe the exported environment (`env` / a real child), never the shell's. Everything else in this class is a rediscovery. Tier 2: silent, produces a successful-looking run that delivers nothing, and the demonstrated recurrence rate is twice in four days. Cross-refs: **C-111** (silent serving degradation — same family: success reported, nothing delivered), C-94/C-95 (silent-when-unenforced), C-57 (the sibling class where a *regex* cannot distinguish a comment from code, which also recurred twice this week). Member of **Cluster A** (declared-but-unenforced). **A sibling shape, found in the same review and fixed rather than registered** (one instance, now pinned by a test): a guard written for the **steady state** was reused during **setup**, where the condition it treats as fatal is the normal starting state — `bootstrap.sh` called the fatal `platform_env_export_secret` before prompting, so a first-ever machine's very first output was *"FATAL: … does not exist. Run ./bootstrap.sh"* addressed to the person running `./bootstrap.sh`. Not the same defect as this entry, but the same question badly posed: **a check must be asked in the context it will answer for.** |
 
 ---
 
