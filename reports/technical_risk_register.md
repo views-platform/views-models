@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-07-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 118 (114 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 19 | Resolved 40 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 4 | T2 34 | T3 48 | T4 24 (4 merge stubs carry no tier)  
-**Disagreements:** Open 2 | Resolved 1 | Subsumed 1  
+**Total entries:** 125 (119 concerns + 6 disagreements)  
+**Concerns:** Open 51 | Mitigated 19 | Resolved 40 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 5 | T2 36 | T3 50 | T4 24 (4 merge stubs carry no tier)  
+**Disagreements:** Open 4 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
 ---
@@ -106,7 +106,7 @@
 | **Trigger** | A model's `requirements.txt` specifies one algorithm package but `main.py` imports a different one |
 | **Source** | repo-assimilation |
 | **Status** | Mitigated |
-| **Notes** | `test_algorithm_coherence.py::TestRequirementsCoherence` validates that `requirements.txt` package name (normalized hyphens to underscores) matches the package imported in `main.py`. |
+| **Notes** | `test_algorithm_coherence.py::TestRequirementsCoherence` validates that `requirements.txt` package name (normalized hyphens to underscores) matches the package imported in `main.py`. **Scope limit found 2026-08-02 (expert-code-review):** that check covers only the *algorithm* package. It does not detect a file declaring an **additional** dependency the model never imports. Two instances existed — `ensembles/skinny_love` and `ensembles/white_mustang` both declared `views-frames>=1.7.0,<2.0.0`, and the sole mention of `views_frames` in either directory was that line. Removed in PR #325; neither environment had the package installed and skinny_love had completed a run without it. The general rule — **declare what you import** — is unenforced in the extra-dependency direction, and closing that is part of the proposed requirements-hygiene test (**D-06**). Cross-refs: **C-116**, **D-06**. |
 
 ---
 
@@ -467,7 +467,7 @@
 | **Source** | falsify (2026-04-21) |
 | **Status** | Open |
 | **Location** | `models/bright_starship/main.py:33` (`from configs.config_queryset import fetch_data`), `models/bright_starship/configs/config_queryset.py:115` (`from datafactory_query import load_dataset`), `models/shining_codex/main.py:27` (same pattern), `models/shining_codex/configs/config_queryset.py:90` (same pattern) |
-| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install "views-datafactory>=1.9.0"` (on PyPI since 2026-07-27). See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation), C-40 (generate() contract mismatch). **Cross-repo (IDs below belong to the *views-pipeline-core* register, NOT this one — the same numbers exist here with unrelated content):** `vpc C-51` (`get_data()` hardcodes viewser), `vpc C-52` (drift detection loss), `vpc C-53` (`use_saved` overload). **2026-06-12:** the bright_starship half is fixed on this workstation — `views-hydranet-env` now has datafactory_query and the readiness probe passes locally. Still open for shining_codex (`views-r2darts2` env unprovisioned; its probe skips) and for any fresh machine — keep Open until the env story (run.sh bootstrap or release-pinned install) is settled. **Tier recalibrated 2 → 3 during review-rr (2026-07-31):** the failure is a loud `ModuleNotFoundError` at first run — provisioning friction, not structural fragility with a silent consequence. Demoted alongside C-42, C-50 and C-73 so the Tier-2 band means "silent or stakeholder-visible", not "annoying on a fresh clone". Member of **Cluster C** (cross-repo dependencies have no released contract). |
+| **Notes** | **Falsification audit F-1/F-2 chain.** `views-datafactory` (which provides `datafactory_query`) is declared in `requirements.txt` but not installed in `views-hydranet-env` — the only conda environment that has both `views_hydranet` and `views_pipeline_core`. When `_ensure_data()` encounters a cache miss, it imports `datafactory_query` at line 96 and crashes with `ModuleNotFoundError`. Two of three run_types (`validation`, `forecasting`) have cached parquets from a prior session, masking the missing dependency. `calibration` has no cache — the standard first run (`-r calibration -t -e`) fails immediately. The local `envs/views-hydranet` directory expected by `run.sh` also does not exist; `run.sh` would create it and install deps from `requirements.txt` (which includes the git+https datafactory dep), but that's a ~10 min bootstrap, not "ready to run." **Fix:** `conda run -n views-hydranet-env pip install "views-datafactory>=1.9.0"` (on PyPI since 2026-07-27). See also C-06 (config_queryset external deps — accepted for viewser; this is the datafactory equivalent), C-37 (bright_starship partition deviation), C-40 (generate() contract mismatch). **Cross-repo (IDs below belong to the *views-pipeline-core* register, NOT this one — the same numbers exist here with unrelated content):** `vpc C-51` (`get_data()` hardcodes viewser), `vpc C-52` (drift detection loss), `vpc C-53` (`use_saved` overload). **2026-06-12:** the bright_starship half is fixed on this workstation — `views-hydranet-env` now has datafactory_query and the readiness probe passes locally. Still open for shining_codex (`views-r2darts2` env unprovisioned; its probe skips) and for any fresh machine — keep Open until the env story (run.sh bootstrap or release-pinned install) is settled. **Tier recalibrated 2 → 3 during review-rr (2026-07-31):** the failure is a loud `ModuleNotFoundError` at first run — provisioning friction, not structural fragility with a silent consequence. Demoted alongside C-42, C-50 and C-73 so the Tier-2 band means "silent or stakeholder-visible", not "annoying on a fresh clone". Member of **Cluster C** (cross-repo dependencies have no released contract). **Root cause registered 2026-08-02:** this is a specific instance of **C-116** — 131 `requirements.txt` resolve into 11 shared environments, so a package a model needs can be absent because a co-tenant's run shaped the environment. Fix the class from C-116; this entry stays as the concrete instance that surfaced it. |
 
 ---
 
@@ -880,7 +880,7 @@
 | **Source** | repo-assimilation (2026-06-09) |
 | **Status** | Open |
 | **Location** | `models/*/run.sh`, `ensembles/*/run.sh`, `apis/*/run.sh`, `extractors/*/run.sh`, `postprocessors/*/run.sh` (~90+ scripts) |
-| **Notes** | Every model carries a near-identical `run.sh` that bootstraps a conda env, dry-run-checks `requirements.txt`, and invokes `main.py`. The bootstrap logic is duplicated rather than sourced from a shared script, so a change must fan out across all ~90 files — and these files are production infrastructure that must not be casually modified (operating constraint). C-39 already demonstrated the fan-out cost (79 shebangs corrected in one sweep); C-50 notes `run.sh` cannot be edited to fix the local-install path. The duplication is consistent with the project's accepted self-containment stance for configs (D-01), but unlike partition configs there is no `meta/`-style single source of truth or bump tool for `run.sh` — it is accepted-by-default rather than deliberately governed. Low severity (failures are loud, at bootstrap time), but a coordination cost that recurs on every infra change. See also D-01 (intentional config duplication is load-bearing), C-39 (shebang fan-out — resolved), C-50 (`run.sh` modification constraint). |
+| **Notes** | Every model carries a near-identical `run.sh` that bootstraps a conda env, dry-run-checks `requirements.txt`, and invokes `main.py`. The bootstrap logic is duplicated rather than sourced from a shared script, so a change must fan out across all ~90 files — and these files are production infrastructure that must not be casually modified (operating constraint). C-39 already demonstrated the fan-out cost (79 shebangs corrected in one sweep); C-50 notes `run.sh` cannot be edited to fix the local-install path. The duplication is consistent with the project's accepted self-containment stance for configs (D-01), but unlike partition configs there is no `meta/`-style single source of truth or bump tool for `run.sh` — it is accepted-by-default rather than deliberately governed. Low severity (failures are loud, at bootstrap time), but a coordination cost that recurs on every infra change. See also D-01 (intentional config duplication is load-bearing), C-39 (shebang fan-out — resolved), C-50 (`run.sh` modification constraint). **2026-08-02 (expert-code-review):** the duplication now has a measured correctness cost, not only a migration cost — **C-119** records that the duplicated install gate decides a production install from a line count of pip's log, and **C-115** records a version boundary encoded in the duplicated `env_path` line. The fix belongs in the generator (`template_run_sh.py`, views-pipeline-core#384), not in ~131 copies; fixing copies is what let C-39 regress 24 times. |
 
 ---
 
@@ -1442,6 +1442,69 @@
 | **Location** | `tools/liveness/appwrite_store.py` and `tools/liveness/unfao_delivery.py` — both read only `GET /storage/buckets/{id}/files`. Fixed by `assert_bucket_reachable` in `tools/liveness/appwrite_api.py`, called first inside each surface's existing `try`. |
 | **Notes** | **Appwrite answers the file-listing endpoint with HTTP 200 and `total: 0` when the key is rejected.** Measured three ways against the live server (Appwrite 1.9.5, 2026-08-02): real key → 200, `total=461`; garbage key → 200, `total=0`; empty key → 200, `total=0`. Listing files was the *only* call either surface made, so a dead credential was indistinguishable from an empty bucket. `appwrite_store` returned `STORE_IDLE` with `error: bucket contains no files`; `unfao_delivery` would have returned `DELIVERY_STALLED`. Both are **exit 1, "attention"** — a verdict a human reads as "nothing landed lately", which is unremarkable for a monthly cadence. **Why Tier 1 rather than 2.** This is not a check that might mislead in principle; it is the check this platform designated as the detector for a *known, dated* silent failure. C-99 records that the write path logs *"Forecasts uploaded successfully"* while uploading nothing once the key dies; #302 exists to schedule this detector against that date; and the detector renders exactly that failure as ordinary staleness. Both the alarm and the thing it watches were silent in the same way, so the platform would have concluded "quiet month" through a full delivery cycle to an external partner. **The fix, and why the bucket GET.** Every other endpoint tested returns 401 for the same rejected key — bucket get, bucket list, database get, collection list, `/health`. `assert_bucket_reachable` GETs the **bucket itself** because it settles two questions in one call: the key is accepted (401 if not) and the bucket coordinate still resolves (404 if not) — a wrong bucket id would otherwise also have surfaced as emptiness, for the same reason. Verified live afterwards: real key → `STORE_ACTIVE`, 461 files; garbage key → `UNREACHABLE`, `HTTP Error 401`, exit 2. **What generalises.** *An empty result and a refused request are the same bytes unless something distinguishes them.* Cross-refs: **C-99** (the alarm is built and nothing runs it — this entry is why scheduling it was not yet sufficient), **C-111** (silent serving degradation), **C-112** (a check asked in a scope that cannot answer it), **C-113** (a gate that cannot tell "clean" from "did not run"). Member of **Cluster A** (declared-but-unenforced). Contract updated in `docs/CICs/LivenessChecks.md` §6. |
 
+### C-115 — A version boundary is encoded as a hyphen: merging two look-alike env directories silently gives 31 models the wrong package
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | Anyone normalising the inconsistent `env_path` names (`envs/views_r2darts2` vs `envs/views-r2darts2`, `envs/views_stepshifter` vs `envs/views-stepshifter`), or a `run.sh` regenerated from views-pipeline-core with a normalised path. It reads as fixing a typo. |
+| **Source** | expert-code-review (2026-08-02), env x declared-spec cross-tab |
+| **Status** | Open |
+| **Location** | `envs/views_r2darts2` (22 tenants) vs `envs/views-r2darts2` (9 tenants); the 31 r2darts models' `requirements.txt`; `env_path=` line 18 of each `run.sh` |
+| **Notes** | **The two directory names differ by one character and that character is load-bearing.** `envs/views_r2darts2` holds 12 models declaring `views-r2darts2==0.1.0` and 10 declaring `>=0.1.0`; `envs/views-r2darts2` holds 9 declaring `>=1.0.0,<2.0.0`. `==0.1.0` and `>=1.0.0,<2.0.0` are **mutually unsatisfiable**. They do not collide today only because they resolve to separately-named directories. Merge the names — the obvious tidy-up — and `run.sh` installs each tenant's own file into one shared prefix with no uninstall, so the resolved version becomes whatever ran last. Half the models then run a version they did not ask for. **Tier 1, not 2:** there is no error. pip reports success for each individual install; the models train and emit forecasts; the forecasts are computed by the wrong algorithm version. The counterpart split `envs/views_stepshifter` (32) vs `envs/views-stepshifter` (7) declares **identical** specs and is pure duplication (~9G each on disk) — so the naming inconsistency is meaningful in one place and meaningless in the other, with nothing distinguishing them. **Exit:** rename to state the constraint (`envs/views_r2darts2_v0` / `_v1`) or pin the split with a test whose failure message explains it. A five-line test is the cheapest high-value change available. Cross-refs: **C-116** (the shared-environment root cause), **C-70** (`run.sh` duplication), C-39 (generator-sourced regression). Member of **Cluster A** (declared-but-unenforced). |
+
+---
+
+### C-116 — 131 requirements.txt resolve into 11 shared environments, so a model's dependencies are decided by its co-tenants' run order
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Two tenants of one environment needing different versions of the same package — or anyone reading a `requirements.txt` to answer "what will this model run with?" |
+| **Source** | expert-code-review (2026-08-02); measured cross-tab of `env_path` against declared specs |
+| **Status** | Open |
+| **Location** | 131 `requirements.txt` -> 11 `envs/*` values. `envs/views-baseline` 37 tenants, `envs/views_stepshifter` 32, `envs/views_r2darts2` 22, `envs/views_ensemble` 13, `envs/views-r2darts2` 9, `envs/views-hydranet` 8, `envs/views-stepshifter` 7, plus 4 singletons. Install logic: `run.sh:22-39`. |
+| **Notes** | **Per-model *declaration* is real; per-model *isolation* is not, and the repo reads as though both were.** Each `run.sh` pip-installs only its own `requirements.txt` into the shared prefix and never uninstalls, so environment contents depend on which tenant last ran. **Proven in both directions.** *Declared but absent:* `ensembles/skinny_love/requirements.txt` declared `views-frames>=1.7.0,<2.0.0` while `envs/views_ensemble` has views-frames not installed — and skinny_love completed a run in that state on 2026-07-22 (wandb `atomic-jazz-101`, `state=finished`). *Present but undeclared:* 27 models receive views-datafactory because a co-tenant declares it; in `envs/views-baseline` only 10 of 37 tenants declare it. To answer what a model will run with you need four facts — its own file, its `env_path`, its co-tenants' files, and the order they last ran — and three of them are not in the file you are reading. **Not a call to centralise:** the `config_partitions.py` precedent stands and the files must stay per-model. What is missing is that the *shared* thing has no declaration at all. **Exit (smallest honest):** (a) `pip freeze` per run stored with the artifact — see C-117; (b) a generated comment in each `requirements.txt` naming its environment and co-tenant count, which pulls the three hidden facts into the file being read. Cross-refs: **C-38** (a specific instance — `datafactory_query` absent from an env that must run bright_starship), **C-115** (the unsatisfiable case this enables), **C-70**, C-08. Member of **Cluster A**. |
+
+---
+
+### C-117 — The dependency closure that produces a UN-facing forecast exists only on one laptop's disk
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Anyone asking which package versions produced a specific delivered forecast — or a forecast being questioned by the partner. |
+| **Source** | expert-code-review (2026-08-02, Nygard/Kleppmann) |
+| **Status** | Open |
+| **Location** | `envs/` (gitignored); `run.sh` (no resolved-manifest capture); `monthly_run.sh` |
+| **Notes** | Environments are gitignored, so the versions a run used are a property of one machine's disk and of no commit. Measured on the maintainer's laptop: **3 of the 11 environments exist at all**, totalling 22G (`envs/views-baseline` alone is 9.0G) — full provisioning would be roughly 100-200G, which is also why 11 shared environments rather than 131 is the correct resource decision and not laziness. The consequence is that the repo's own stated rule — *"if it is not committed to git, you cannot assume it exists"* — is violated by the dependency closure of a UN-facing deliverable. **This is the dependency twin of C-110**, which records the same failure for *configuration*; registered separately because the artifact, the owner and the fix differ, but they should be closed together. **Exit:** one line in `run.sh` — `pip freeze > logs/<run_id>_env.txt` — kept with the forecast artifact. This converts "which versions produced this?" from unanswerable to a lookup and is the highest-value change surfaced by this review, ahead of any hygiene work. Cross-refs: **C-110** (configuration provenance), **C-116** (why the environment is not derivable), C-10 (`envs/` in the tree, Accepted), C-97/C-98 (delivery identity and system of record). Member of **Cluster A**. |
+
+---
+
+### C-118 — 27 models accept any future views-datafactory major
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | views-datafactory publishing a 2.0. |
+| **Source** | expert-code-review (2026-08-02) |
+| **Status** | Open |
+| **Location** | 27 `requirements.txt` carrying `views-datafactory>=1.9.0` (10 in `envs/views-baseline`, 12 in `envs/views_r2darts2`, 4 in `envs/views-hydranet`, 1 in `envs/views-r2darts2`); the sibling `postprocessors/un_fao/requirements.txt` already carries `views-datafactory>=1.9.0,<2.0.0` |
+| **Notes** | An unbounded upper spec on 27 models, installing itself during a monthly hand-run on whichever laptop is free. The 28th file already carries the ceiling, so closing this is making 27 files match a decision the repo has already made rather than making a new one. **Tier 3 and not 2 deliberately:** this is a specific, measured instance of **C-31** (*"upstream algorithm package API changes break views-models silently"*, Tier 2), and the family severity is already carried there — double-counting it would inflate the register rather than inform it. Escalate only if the same pattern is found on a package with no Tier-2 parent. Cross-refs: **C-31** (parent), C-50 (spec unresolvable on fresh clone), C-116. |
+
+---
+
+### C-119 — The install gate decides a production install from a line count of pip's log
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | pip emitting any unexpected line — a deprecation warning, an index warning, a proxy notice — or a pip older than 22.2, which has no `--dry-run` and errors instead. |
+| **Source** | expert-code-review (2026-08-02, Feathers/Nygard) |
+| **Status** | Open |
+| **Location** | `run.sh:27-33` in ~131 scripts, e.g. `models/bad_blood/run.sh:27` |
+| **Notes** | The gate is `missing_packages=$(pip install --dry-run -r requirements.txt 2>&1 \| grep -v "Requirement already satisfied" \| wc -l)`, then install when `>0`. It counts **lines of merged stdout and stderr**, not missing packages, so its answer depends on pip's log formatting and on stderr being quiet. Any warning triggers a full `pip install` — which, in a shared environment (**C-116**), can *mutate other models' dependencies as a side effect of a log message*. There is no seam to test it: the logic is inline and duplicated ~131 times, which is **C-70**'s cost made concrete. The fix belongs in the generator, not here — `template_run_sh.py` in views-pipeline-core, already open as **views-pipeline-core#384** for the shebang — otherwise it follows the C-39 pattern of fixing copies while the generator keeps producing the defect. Cross-refs: **C-70** (duplication), **C-116** (shared mutable environment), **C-39** (fix-the-copies-not-the-generator, regressed 24x), views-pipeline-core#384. |
+
 ---
 
 ## Disagreements
@@ -1487,3 +1550,25 @@
 | **Source** | test-review (Beck vs. Nygard) |
 | **Status** | **Subsumed by C-106 (review-rr, 2026-07-31)** |
 | **Notes** | The test suite is almost entirely static analysis (AST parsing, importlib loading, regex extraction). Beck notes this gives exceptional speed (1.41s for 2374 tests) and clean behavioral contracts. Nygard counters that the gap between "structure is correct" and "system works" is wide and uncovered — no `main.py` is ever executed, no training pipeline is ever triggered. The suite validates the blueprint but never builds the house. Related to C-03, C-15. **Subsumed 2026-07-31:** C-106 ("STRATEGIC ROOT: the test architecture verifies declarations exhaustively but runtime behavior nowhere in CI — the config-vs-behavior gap") states the identical finding, carries the same Beck/Nygard framing, names the cluster of ~10 entries that are its instances, **and has a partially-built exit** (`tests/test_runtime_smoke.py` + `runtime_smoke.yml`, PR #272 — 21 baseline models executed end-to-end at PR time). This is a resolved tension, not a live disagreement: Nygard's position prevailed and work started on it. Tracking it in two places split the evidence. Following the C-108 → Appwrite Seam Contract precedent, ownership moves to C-106; this entry is retained as the historical record of where the finding was first named. Do not fix from here — fix from C-106, **Cluster A**. |
+
+---
+
+### D-05 — Is the 131-files-to-11-environments mismatch a defect, or a resource necessity?
+
+| Field | Value |
+|---|---|
+| **Trigger** | A proposal to give each model its own environment, or to reduce the number of `requirements.txt` |
+| **Source** | expert-code-review (2026-08-02; Ousterhout/Kleppmann vs. Nygard) |
+| **Status** | Open |
+| **Notes** | **Ousterhout and Kleppmann:** the root defect. 131 declaration points imply 131 configuration points; there are 11, so the interface lies, provenance is unrecoverable, and a reader must know three facts that are not in the file they are reading. **Nygard dissents on cost:** `envs/views-baseline` is 9.0G and only 3 of 11 environments exist on the maintainer's laptop; 131 environments would be 100-200G per machine, on laptops, for a team with no ops engineer. Sharing is the only thing that fits the hardware. **Provisional resolution:** both hold, and the fix is neither more environments nor fewer files — the environment count stays at 11 and what changes is that its contents become a declared, committed artifact (**C-116**, **C-117**). Recorded rather than settled because the resolution has not been built. |
+
+---
+
+### D-06 — Does a repo-wide hygiene test that starts by accepting today's exceptions have value, or is it governance theatre?
+
+| Field | Value |
+|---|---|
+| **Trigger** | Writing `tests/test_requirements_hygiene.py`, or any repo-wide invariant test over the 131 `requirements.txt` |
+| **Source** | expert-code-review (2026-08-02; Hickey vs. Beck/Feathers) |
+| **Status** | Open |
+| **Notes** | **Hickey:** an allowlist of accepted exceptions is a place to hide, and its length is the metric — a test that begins by blessing the mess has inverted its own purpose. **Beck and Feathers:** the objection is about *size*, and size is a choice of ordering. Fix the one unparseable specifier (#316), then the three missing trailing newlines, then the 27 unbounded ceilings (**C-118**) — each rule is red for a real reason, gets fixed, and goes green with no baseline at all. Only the divergent-spec rule needs a recorded exception, and after that sequence it holds one entry: the r2darts split (**C-115**), with its reason. **Martin adds** the deciding criterion: an exception carrying a written reason is documentation; an exception without one is theatre. **Provisional resolution:** build in Beck's order and the disagreement does not arise; revisit if the exception list ever exceeds two entries. |
