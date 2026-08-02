@@ -1,2 +1,2 @@
 views-baseline>=1.0.0,<2.0.0
-views-datafactory>=1.9.0
+views-datafactory>=1.9.0,<2.0.0
