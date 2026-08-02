@@ -39,7 +39,7 @@ python tools/scaffold/build_package_scaffold.py     # new package
 
 What credentials this repo declares, and where the non-secret coordinates come from.
 Never holds or emits a secret value — the one secret (`APPWRITE_DATASTORE_API_KEY`) stays
-an operator slot per PLATFORM-001.
+an operator slot per The Appwrite Seam Contract (formerly `PLATFORM-001`).
 
 ```bash
 python tools/credentials/check_credentials.py                  # which keys am I missing?

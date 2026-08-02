@@ -1,4 +1,4 @@
-"""Guards on the PLATFORM-001 coordinate reader (`tools/credentials/registry_to_env.py`).
+"""Guards on the Appwrite Seam Contract coordinate reader (`tools/credentials/registry_to_env.py`).
 
 This file had no tests until 2026-07-31, and the day it went without them a neighbouring
 repository unconfigured the FAO delivery path by adding four lines of TOML.
@@ -97,7 +97,7 @@ consumer = "views-postprocessing"
 
 @pytest.mark.red
 def test_secret_slots_are_never_emitted(tmp_path):
-    """The reader emits coordinates only; secrets stay operator slots (PLATFORM-001)."""
+    """The reader emits coordinates only; secrets stay operator slots (The Appwrite Seam Contract §5)."""
     module = _load()
     registry = _registry(tmp_path, """
 [connection.APPWRITE_ENDPOINT]
