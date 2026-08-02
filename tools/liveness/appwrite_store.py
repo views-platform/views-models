@@ -48,6 +48,7 @@ ACTIVE_WITHIN_DAYS = 45
 from tools.liveness.appwrite_api import (  # noqa: E402  (kept near use)
     AppwriteCredentials,
     FetchJson,
+    assert_bucket_reachable,
     fetch_json,
     load_credentials_from_env_file,
     newest_first_query,
@@ -135,6 +136,12 @@ class AppwriteStoreCheck:
         }
 
         try:
+            # FIRST, and not merged into the listing below: the listing endpoint
+            # answers a rejected key with 200/total=0, so an expired credential
+            # reads as an empty bucket. See assert_bucket_reachable.
+            assert_bucket_reachable(
+                creds.endpoint, APPWRITE_BUCKET_ID, headers, self._fetch
+            )
             # Server-side newest-first + limit: Appwrite returns 25/page by
             # default, and an unsorted first page of a large bucket made this
             # check report a FALSE newest (the 2026-07-19 pagination bug —

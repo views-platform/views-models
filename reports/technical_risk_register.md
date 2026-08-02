@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-07-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 117 (113 concerns + 4 disagreements)  
-**Concerns:** Open 46 | Mitigated 19 | Resolved 39 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 3 | T2 34 | T3 48 | T4 24 (4 merge stubs carry no tier)  
+**Total entries:** 118 (114 concerns + 4 disagreements)  
+**Concerns:** Open 46 | Mitigated 19 | Resolved 40 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 4 | T2 34 | T3 48 | T4 24 (4 merge stubs carry no tier)  
 **Disagreements:** Open 2 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1429,6 +1429,17 @@
 | **Status** | Mitigated |
 | **Location** | `feat/309-311-platform-env-and-bootstrap`, commit `0651448f` (`parents: []`). Five commits, 5 reachable ancestors against `development`'s 877. Repaired by re-parenting each tree with `git commit-tree` onto `2554d731` and moving the branch with `git reset --soft` (no working-tree write — the maintainer had six dirty files including two in `models/violet_visitor/`, which was running experiments). |
 | **Notes** | **What made it dangerous is that nothing reported it.** `git status`, `git log`, `ruff`, the 7,268-test committed-state suite, four rounds of code review, and `gh pr view` all passed: the *tree* was correct (development's content plus exactly nine intended files), only the *history* was disjoint. GitHub reported `mergeable=MERGEABLE` and offered the merge button. The only signal was `git diff development...branch` failing with `fatal: no merge base`, rc=128 — and on the first attempt **that failure was itself swallowed**: the command's error text went to a variable, the empty result was grepped for `violet_visitor`, found nothing, and the gate printed *"violet_visitor: NOT touched ✓"*. A gate that cannot distinguish "clean" from "did not run" is not a gate. **Probable cause:** a `git commit -m` whose message contained backticked shell (`` `read -rs` ``) — bash executed `read`, which blocked on stdin for two minutes until killed. **Exits, in order of value:** (1) every safety gate must check the exit status of the command it reasons about and refuse to report a verdict on empty output; (2) always `git commit -F <file>`, never `-m` with a message containing backticks; (3) a cheap pre-merge assertion — `git merge-base --is-ancestor origin/development HEAD` — would have caught this in one line. Tier 2: silent, survived every existing control, and the failure mode is a merge of disjoint history into `development`. Cross-refs: C-112 and C-57 (same family — a check that cannot distinguish the state it claims to test), **C-94/C-95** (silent-when-unenforced). Member of **Cluster A** (declared-but-unenforced). |
+
+### C-114 — The detector built for the November key expiry reported a rejected key as mild staleness
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | The Appwrite datastore key expiring, being revoked, or being replaced with a wrong value — expected around **2026-11-30** for both current keys. Also any code that judges Appwrite reachability from a **file-listing** response alone. |
+| **Source** | Building the #302 preflight (2026-08-02); found because the preflight was tested against a simulated dead key before being trusted |
+| **Status** | Resolved |
+| **Location** | `tools/liveness/appwrite_store.py` and `tools/liveness/unfao_delivery.py` — both read only `GET /storage/buckets/{id}/files`. Fixed by `assert_bucket_reachable` in `tools/liveness/appwrite_api.py`, called first inside each surface's existing `try`. |
+| **Notes** | **Appwrite answers the file-listing endpoint with HTTP 200 and `total: 0` when the key is rejected.** Measured three ways against the live server (Appwrite 1.9.5, 2026-08-02): real key → 200, `total=461`; garbage key → 200, `total=0`; empty key → 200, `total=0`. Listing files was the *only* call either surface made, so a dead credential was indistinguishable from an empty bucket. `appwrite_store` returned `STORE_IDLE` with `error: bucket contains no files`; `unfao_delivery` would have returned `DELIVERY_STALLED`. Both are **exit 1, "attention"** — a verdict a human reads as "nothing landed lately", which is unremarkable for a monthly cadence. **Why Tier 1 rather than 2.** This is not a check that might mislead in principle; it is the check this platform designated as the detector for a *known, dated* silent failure. C-99 records that the write path logs *"Forecasts uploaded successfully"* while uploading nothing once the key dies; #302 exists to schedule this detector against that date; and the detector renders exactly that failure as ordinary staleness. Both the alarm and the thing it watches were silent in the same way, so the platform would have concluded "quiet month" through a full delivery cycle to an external partner. **The fix, and why the bucket GET.** Every other endpoint tested returns 401 for the same rejected key — bucket get, bucket list, database get, collection list, `/health`. `assert_bucket_reachable` GETs the **bucket itself** because it settles two questions in one call: the key is accepted (401 if not) and the bucket coordinate still resolves (404 if not) — a wrong bucket id would otherwise also have surfaced as emptiness, for the same reason. Verified live afterwards: real key → `STORE_ACTIVE`, 461 files; garbage key → `UNREACHABLE`, `HTTP Error 401`, exit 2. **What generalises.** *An empty result and a refused request are the same bytes unless something distinguishes them.* Cross-refs: **C-99** (the alarm is built and nothing runs it — this entry is why scheduling it was not yet sufficient), **C-111** (silent serving degradation), **C-112** (a check asked in a scope that cannot answer it), **C-113** (a gate that cannot tell "clean" from "did not run"). Member of **Cluster A** (declared-but-unenforced). Contract updated in `docs/CICs/LivenessChecks.md` §6. |
 
 ---
 

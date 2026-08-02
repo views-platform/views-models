@@ -194,6 +194,40 @@ def stream_newest_query(prefix: str) -> str:
     return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
 
 
+def assert_bucket_reachable(
+    endpoint: str,
+    bucket_id: str,
+    headers: Dict[str, str],
+    fetch: Callable[[str, Dict[str, str]], object],
+) -> None:
+    """Prove the key is accepted and the bucket resolves, before reading either.
+
+    **Appwrite answers a REJECTED key on the file-listing endpoint with HTTP 200
+    and ``total: 0``** — measured 2026-08-02 against Appwrite 1.9.5, with a real
+    key (200, total=461), a garbage key (200, total=0) and an empty key (200,
+    total=0). Listing files is the only call these surfaces made, so a dead
+    credential was indistinguishable from an empty bucket, and the store
+    reported ``STORE_IDLE`` / *"bucket contains no files"* — exit 1, "attention" —
+    while in fact nothing was authenticated at all.
+
+    That matters beyond tidiness: both Appwrite keys expire around 2026-11-30,
+    the write path reports that expiry as success, and these surfaces are the
+    detector. A detector that renders the failure it exists to catch as mild
+    staleness is not one.
+
+    Every other endpoint tested returns 401 for the same key — bucket get, bucket
+    list, database get, collection list, and ``/health``. Getting the **bucket
+    itself** is used because it answers two questions in one call: the key is
+    accepted (401 if not) and the bucket coordinate still resolves (404 if not).
+    A wrong bucket id would otherwise also surface as emptiness, for exactly the
+    same reason.
+
+    Raises whatever ``fetch`` raises; callers already turn that into
+    ``UNREACHABLE`` (exit 2). Returns nothing — the body is not the point.
+    """
+    fetch(f"{endpoint}/storage/buckets/{bucket_id}", headers)
+
+
 def fetch_json(url: str, headers: Dict[str, str]) -> object:
     """Default fetch: stdlib urllib, lazy import, explicit timeout."""
     import json

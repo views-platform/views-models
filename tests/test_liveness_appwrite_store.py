@@ -204,9 +204,28 @@ def test_credentials_incomplete_is_registered_and_louder_than_a_skip():
     assert exit_code_for("SKIP_NO_CREDENTIALS") == 0
 
 
+@pytest.fixture
+def no_machine_credentials(monkeypatch, tmp_path):
+    """Cut this test off from the machine it runs on.
+
+    ``credential_gap_report()`` reads process env AND this repository's own
+    ``.env``, so a test asserting "nothing is configured" was in fact asserting
+    something about the laptop. These passed for as long as the developer's
+    ``.env`` happened to carry all twelve Appwrite coordinates, and went red the
+    hour those were removed (correctly, per ADR-018) — the removal exposed the
+    defect, it did not cause it. Nothing uncommitted may decide a verdict here.
+    """
+    from tools.liveness import appwrite_api
+
+    for key in appwrite_api.REQUIRED_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    empty_root = tmp_path / "repo"
+    empty_root.mkdir()
+    monkeypatch.setattr(appwrite_api, "REPO_ROOT", empty_root)
+
 # ── verdicts ──────────────────────────────────────────────────────────
 
-def test_skip_when_no_credentials():
+def test_skip_when_no_credentials(no_machine_credentials):
     report = AppwriteStoreCheck(credentials=None, fetch=_fake_fetch({})).run(now=NOW)
     assert report.verdict == "SKIP_NO_CREDENTIALS"
 
@@ -253,9 +272,11 @@ def test_storage_request_orders_server_side():
             return FILES_DOC
         return COLLECTIONS_DOC
     AppwriteStoreCheck(credentials=CREDS, fetch=recording_fetch).run(now=NOW)
-    storage_urls = [u for u in captured if "/storage/" in u]
-    assert storage_urls and "orderDesc" in storage_urls[0]
-    assert "createdAt" in storage_urls[0]
+    # The LISTING request specifically. A bucket GET now precedes it (the
+    # rejected-key probe), so "the first /storage/ URL" is no longer the listing.
+    listing_urls = [u for u in captured if "/files?" in u]
+    assert listing_urls and "orderDesc" in listing_urls[0]
+    assert "createdAt" in listing_urls[0]
 
 
 # ── collection discovery facts ────────────────────────────────────────
@@ -297,7 +318,7 @@ def test_exit_zero_active(capsys):
     fetch = _fake_fetch({"/storage/": FRESH_FILES_DOC, "/databases/": COLLECTIONS_DOC})
     assert main(check=AppwriteStoreCheck(credentials=CREDS, fetch=fetch), now=NOW) == 0
 
-def test_exit_zero_skip_no_creds(capsys):
+def test_exit_zero_skip_no_creds(no_machine_credentials, capsys):
     assert main(check=AppwriteStoreCheck(credentials=None, fetch=_fake_fetch({})), now=NOW) == 0
     assert "SKIP_NO_CREDENTIALS" in capsys.readouterr().out
 
@@ -375,3 +396,50 @@ def test_resolve_credentials_skips_env_file_missing_keys(monkeypatch, tmp_path):
     (tmp_path / ".env").write_text("export APPWRITE_ENDPOINT=https://example.test/v1\n")
     monkeypatch.setattr(appwrite_api, "REPO_ROOT", tmp_path)
     assert appwrite_api.resolve_credentials() is None
+
+
+# ── the rejected-key blind spot (measured 2026-08-02, Appwrite 1.9.5) ──
+# Appwrite answers the FILE-LISTING endpoint with HTTP 200 and total=0 when the
+# key is rejected. Measured three ways against the live server: real key -> 200,
+# total=461; garbage key -> 200, total=0; empty key -> 200, total=0. Every other
+# endpoint (bucket get, bucket list, database get, collection list, /health)
+# returns 401 for the same key.
+#
+# So this surface reported STORE_IDLE / "bucket contains no files" — exit 1,
+# "attention" — for a credential that authenticated nothing. Both Appwrite keys
+# expire around 2026-11-30, the write path reports that expiry as success, and
+# this check is the detector. It rendered the failure it exists to catch as mild
+# staleness.
+
+@pytest.mark.red
+def test_rejected_key_is_unreachable_not_idle():
+    def fetch(url, headers):
+        if "/files?" in url:
+            return {"total": 0, "files": []}  # what Appwrite actually returns
+        raise PermissionError("HTTP Error 401: Unauthorized")
+
+    report = AppwriteStoreCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
+    assert report.verdict == "UNREACHABLE", (
+        "a rejected key read as an empty bucket — the November expiry would be "
+        "reported as STORE_IDLE"
+    )
+    assert "401" in (report.error or "")
+
+
+def test_key_is_verified_before_any_listing_is_believed():
+    """Order is the mechanism, so the order is pinned."""
+    calls = []
+
+    def fetch(url, headers):
+        calls.append(url)
+        if "/files?" in url:
+            return FILES_DOC
+        if "/databases/" in url:
+            return COLLECTIONS_DOC
+        return {"$id": "production_forecasts"}
+
+    AppwriteStoreCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
+    assert calls, "no request was made at all"
+    assert calls[0].endswith("/storage/buckets/production_forecasts"), (
+        f"first call was {calls[0]} — the listing must not precede the key check"
+    )
