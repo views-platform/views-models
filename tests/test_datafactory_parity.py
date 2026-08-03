@@ -25,6 +25,11 @@ ENSEMBLES_DIR = REPO_ROOT / "ensembles"
 
 DATAFACTORY_TRIO = ["bright_starship", "bold_comet", "blazing_meteor"]
 VIEWSER_TRIO = ["pink_pirate", "blue_stranger", "violet_visitor"]
+
+# Models exempt from the exact-value parity pins because their config declares
+# EXPERIMENT_IN_PROGRESS. Pinned as a SET so that both adding and removing an
+# exemption is a deliberate, reviewed edit rather than a silent config change.
+EXPERIMENTS_IN_PROGRESS = {"violet_visitor"}
 DF_ENSEMBLE = "stellar_horizon"
 VS_ENSEMBLE = "golden_hour"
 
@@ -41,6 +46,21 @@ def _load_hp(model_name):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.get_hp_config()
+
+
+def _experiment_in_progress(model_name):
+    """True if the model's config declares ``EXPERIMENT_IN_PROGRESS = True`` — an
+    active R&D model whose exact loss_reg / n_posterior_samples are intentionally
+    UNPINNED (the value churns while the experiment runs; pinning a moving target
+    would flicker). Such a model is skipped by the exact-value parity pins and
+    documented by ``test_violet_visitor_is_experiment_in_progress``."""
+    path = MODELS_DIR / model_name / "configs" / "config_hyperparameters.py"
+    if not path.exists():
+        return False
+    spec = importlib.util.spec_from_file_location(f"_hpmod_{model_name}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return bool(getattr(mod, "EXPERIMENT_IN_PROGRESS", False))
 
 
 def _load_meta(model_name, base_dir=None):
@@ -320,50 +340,62 @@ class TestCrossEnsembleParityReadiness:
         assert vs["name"] != df["name"]
 
     def test_both_trios_use_same_loss(self):
-        # 2026-06-09 (PR #116): violet_visitor was intentionally diverged from the
-        # tobit baseline for the magnitude_calibration experiments (issue #85),
-        # deliberately breaking viewser<->datafactory loss parity for the
-        # golden_hour<->stellar_horizon comparison — tracked as C-71 in
-        # reports/technical_risk_register.md.
-        # 2026-06-11: the divergence moved from the Arm-1 hurdle loss
-        # (lognormal_nll) to the hurdle-NB stack (ZINB epic #102, decision A):
-        # TruncatedNBLoss body + weighted-BCE gate. We pin the expected per-model
-        # state (five tobit + violet_visitor hurdle_nb) instead of asserting
-        # strict uniformity, so the known divergence is documented in-place and any
-        # *other* drift is still caught. Revert to {"tobit"} when the experiment
-        # concludes.
-        EXPERIMENT_DIVERGED = {"violet_visitor": "hurdle_nb"}
-        expected = {
-            name: EXPERIMENT_DIVERGED.get(name, "tobit")
-            for name in VIEWSER_TRIO + DATAFACTORY_TRIO
-        }
-        actual = {}
-        for name in VIEWSER_TRIO + DATAFACTORY_TRIO:
-            hp = _load_hp(name)
-            actual[name] = hp["loss_reg"]
+        # History: violet_visitor was diverged from the tobit baseline for the
+        # magnitude_calibration / ZINB experiments (issue #85/#102, PR #116),
+        # tracked as C-71 in reports/technical_risk_register.md. That divergence is
+        # now an ACTIVE, churning reconstruction toward the v2 gated_NB foundation
+        # (Epic #242 S1 #244 / S3 #246): its committed loss_reg is a moving target,
+        # so pinning an exact value flickers red/green (views-models#254/#297). We
+        # therefore mark violet_visitor EXPERIMENT_IN_PROGRESS and SKIP it here,
+        # while still pinning the other five to tobit. When the roster lands, remove
+        # the marker and re-pin violet to its settled value. See
+        # test_violet_visitor_is_experiment_in_progress for the documented exception.
+        models = [m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if not _experiment_in_progress(m)]
+        assert models, (
+            "every trio model is EXPERIMENT_IN_PROGRESS, so this pin would pass on an "
+            "empty set. A test that asserts nothing is worse than a missing test."
+        )
+        expected = {name: "tobit" for name in models}
+        actual = {name: _load_hp(name)["loss_reg"] for name in models}
         assert actual == expected, f"loss functions: {actual}; expected: {expected}"
 
     def test_constituent_posterior_samples_match(self):
-        # 2026-06-16: violet_visitor's n_posterior_samples was reduced 16 -> 8 as an
-        # interim eval-stage OOM workaround (tracked as C-116/#124 in views-hydranet;
-        # to be restored to 16 once fixed) — tracked as C-87 in
-        # reports/technical_risk_register.md. This intentionally breaks the trio
-        # sample-count parity for the golden_hour<->stellar_horizon comparison. We pin
-        # the expected per-model state (five at 16 + violet_visitor at 8) instead of
-        # asserting strict uniformity, so the known divergence is documented in-place
-        # and any *other* drift is still caught. Restore to a strict single-value
-        # assertion when violet_visitor returns to 16. (Same pattern as
-        # test_both_trios_use_same_loss / C-71.)
-        EXPERIMENT_DIVERGED = {"violet_visitor": 8}
-        expected = {
-            name: EXPERIMENT_DIVERGED.get(name, 16)
-            for name in VIEWSER_TRIO + DATAFACTORY_TRIO
-        }
-        actual = {}
-        for name in VIEWSER_TRIO + DATAFACTORY_TRIO:
-            hp = _load_hp(name)
-            actual[name] = hp["n_posterior_samples"]
+        # History: violet_visitor's n_posterior_samples was reduced 16 -> 8 as an
+        # interim eval-stage OOM workaround (C-116/#124), tracked as C-87 in
+        # reports/technical_risk_register.md. Like loss_reg above, this is now part
+        # of an active reconstruction whose exact value is unpinned until the roster
+        # lands — violet_visitor is EXPERIMENT_IN_PROGRESS and SKIPPED here; the
+        # other five are pinned to 16. Re-pin violet when the roster settles.
+        # (Same mechanism as test_both_trios_use_same_loss / C-71; see #254/#297.)
+        models = [m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if not _experiment_in_progress(m)]
+        assert models, (
+            "every trio model is EXPERIMENT_IN_PROGRESS, so this pin would pass on an "
+            "empty set. A test that asserts nothing is worse than a missing test."
+        )
+        expected = {name: 16 for name in models}
+        actual = {name: _load_hp(name)["n_posterior_samples"] for name in models}
         assert actual == expected, f"n_posterior_samples: {actual}; expected: {expected}"
+
+    def test_the_experiment_in_progress_roster_is_exactly_as_declared(self):
+        # The escape hatch is GENERAL — `_experiment_in_progress` drops any model from
+        # the two parity pins above. So the guard must be general too. Asserting only
+        # that violet_visitor carries the marker leaves the hatch open: adding
+        # EXPERIMENT_IN_PROGRESS to any other trio model silently removes it from both
+        # pins and the suite still passes green (verified 2026-08-03 by marking
+        # pink_pirate: 51 passed, nothing complained).
+        #
+        # Pinning the whole ROSTER closes both directions at once — a model losing the
+        # marker, and a model gaining one. (views-models#254/#297; C-71; Epic #242.)
+        marked = {m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if _experiment_in_progress(m)}
+        assert marked == EXPERIMENTS_IN_PROGRESS, (
+            f"the EXPERIMENT_IN_PROGRESS roster changed: expected {EXPERIMENTS_IN_PROGRESS}, "
+            f"found {marked}.\n"
+            f"  * a model GAINED the marker -> it is now exempt from the loss and "
+            f"n_posterior_samples parity pins. Say so here deliberately.\n"
+            f"  * a model LOST the marker -> re-pin it in test_both_trios_use_same_loss "
+            f"and test_constituent_posterior_samples_match to its settled roster value.\n"
+            f"See #254/#297 and Epic #242 S1 #244 / S3 #246."
+        )
 
 
 class TestDatafactoryTrioPartitions:

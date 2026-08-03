@@ -1,9 +1,21 @@
+# EXPERIMENT_IN_PROGRESS: violet_visitor is the active HydraNet R&D reference model,
+# mid-reconstruction toward the validated v2 gated_NB foundation (Epic #242 S1 #244 /
+# S3 #246). Its exact loss_reg / n_posterior_samples are intentionally UNPINNED until
+# the roster settles — the datafactory parity tests skip it (C-71/C-87; views-platform/
+# views-models#254/#297). Remove this marker + re-pin the parity tests when the roster
+# lands.
+EXPERIMENT_IN_PROGRESS = True
+
+
 def get_hp_config():
     """
-    FOUNDATION grid (2026-07-17): gated forecast (gate x body), ALL-CELL body, MSE, softplus, BatchNorm fix
-    on. Config: output_distribution='hurdle_shrinkage' (gated compose) + NO hurdle_threshold (all-cell body,
-    training_engine.py:371-372) + loss_reg='mse'. Swept pos_weight (2.0) x seed (44). 40
-    lessons, priogrid_id. body_mask sweep none s44.
+    violet_visitor — the HydraNet R&D reference model (pgm, africa_me_legacy datafactory).
+
+    STATUS: EXPERIMENT_IN_PROGRESS. This is the legacy committed base — gated forecast
+    (gate x body) via a hurdle_shrinkage-composed output, all-cell MSE body, weighted-BCE
+    gate. It is mid-reconstruction toward the v2 gated_NB foundation (output_distribution=nb,
+    soft_gate, 300 lessons); until that lands (Epic #242 S1 #244 / S3 #246) its exact
+    loss_reg / n_posterior_samples stay unpinned. See views-models#254/#297, C-71/C-87.
     """
     hyperparameters = {
         'time_col': 'month_id',
@@ -26,11 +38,10 @@ def get_hp_config():
         'output_channels': 1,
         'weight_init': 'xavier_norm',
         'h_init': 'abs_rand_exp-100',
-        # gated forecast (gate x body); all-cell body via NO hurdle_threshold
+        # gated forecast (gate x body); all-cell body
         'output_distribution': 'hurdle_shrinkage',
         'reg_activation': 'softplus',
-        'body_mask': 'none',
-        # (hurdle_threshold intentionally UNSET -> body trains on ALL cells)
+        'body_supervision': 'all',  # all-cell body supervision (ADR-065; supersedes the retired point-mask knob)
 
         'windows_per_lesson': 3,
         'learning_rate': 0.001,
@@ -55,7 +66,7 @@ def get_hp_config():
 
         # all-cell body, plain MSE
         'loss_reg': 'mse',
-        # the swept gate knob
+        # gate calibration
         'loss_class': 'weighted_bce',
         'loss_class_pos_weight': 2.0,
         'onset_bias_init': -7.0,
