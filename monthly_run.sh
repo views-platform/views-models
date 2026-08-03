@@ -9,6 +9,71 @@ unset ZSH_VERSION
 unset ZSH_NAME
 export SHELL=/bin/bash
 
+# ── provenance: which package versions produced this forecast? ────────────────────────
+# Your code is in git. The ~200 packages that ran alongside it are not: they live in
+# `envs/`, which is gitignored and exists only on whichever laptop ran the month. So a
+# delivered FAO forecast has been half-reproducible — the config side of the same gap is
+# already registered as C-110, this is the dependency side (C-117).
+#
+# One `pip freeze` per environment, written into a TRACKED directory. `logs/` would not
+# do: it is gitignored, so a snapshot there would be exactly as ephemeral as the thing it
+# describes. Commit these with the run.
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+SNAPSHOT_DIR="$BASE_DIR/reports/env_snapshots"
+CAPTURED_ENVS=""
+
+capture_env_snapshot () {
+    local folder="$1"
+    local run_sh="$BASE_DIR/$folder/run.sh"
+    local env_name env_python out
+
+    # The environment is named in the launcher, not here — read it rather than restate
+    # it, so this cannot drift from what actually ran.
+    env_name="$(sed -n 's|^env_path="$project_path/envs/\(.*\)"$|\1|p' "$run_sh" | head -1)"
+    if [ -z "$env_name" ]; then
+        echo "   NOTE  no env_path in $folder/run.sh — no snapshot taken" >&2
+        return 0
+    fi
+
+    # Four ensembles share envs/views_ensemble; capture each environment once per run.
+    case " $CAPTURED_ENVS " in
+        *" $env_name "*) return 0 ;;
+    esac
+
+    env_python="$BASE_DIR/envs/$env_name/bin/python"
+    out="$SNAPSHOT_DIR/${RUN_ID}__${env_name}.txt"
+
+    if [ ! -x "$env_python" ]; then
+        echo "   NOTE  envs/$env_name has no python — no snapshot taken" >&2
+        return 0
+    fi
+
+    mkdir -p "$SNAPSHOT_DIR"
+    {
+        echo "# environment snapshot — reports/env_snapshots"
+        echo "# run_id:      $RUN_ID"
+        echo "# environment: envs/$env_name"
+        echo "# first used by: $folder"
+        echo "# commit:      $(git -C "$BASE_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+        echo "# python:      $("$env_python" -V 2>&1)"
+        echo "#"
+        echo "# The commit above plus the packages below are jointly what produced this"
+        echo "# month's forecasts. Neither half is sufficient on its own."
+    } > "$out"
+
+    # NON-FATAL on purpose, and this is a different case from the preflight below. A
+    # failed preflight means the run itself is doomed, so it aborts. A failed snapshot
+    # means the run is fine and only the record is missing — killing a forecast run to
+    # protect a log file would be the worse trade. It is loud so it cannot pass unnoticed.
+    if "$env_python" -m pip freeze >> "$out" 2>/dev/null; then
+        echo "   snapshot: reports/env_snapshots/$(basename "$out") ($(grep -c '==' "$out") packages)"
+        CAPTURED_ENVS="$CAPTURED_ENVS $env_name"
+    else
+        echo "   WARNING  pip freeze failed for envs/$env_name — this run has NO dependency record" >&2
+        rm -f "$out"
+    fi
+}
+
 run_folder () {
     local folder="$1"
     local abs_path="$BASE_DIR/$folder"
@@ -25,6 +90,10 @@ run_folder () {
             bash  run.sh
         fi
     )
+
+    # AFTER the run, not before: run.sh may install into the environment, and the
+    # snapshot must describe what was actually used, not what was there beforehand.
+    capture_env_snapshot "$folder"
 
     echo "Finished: $folder"
     echo ""
