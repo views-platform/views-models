@@ -25,6 +25,11 @@ ENSEMBLES_DIR = REPO_ROOT / "ensembles"
 
 DATAFACTORY_TRIO = ["bright_starship", "bold_comet", "blazing_meteor"]
 VIEWSER_TRIO = ["pink_pirate", "blue_stranger", "violet_visitor"]
+
+# Models exempt from the exact-value parity pins because their config declares
+# EXPERIMENT_IN_PROGRESS. Pinned as a SET so that both adding and removing an
+# exemption is a deliberate, reviewed edit rather than a silent config change.
+EXPERIMENTS_IN_PROGRESS = {"violet_visitor"}
 DF_ENSEMBLE = "stellar_horizon"
 VS_ENSEMBLE = "golden_hour"
 
@@ -345,9 +350,12 @@ class TestCrossEnsembleParityReadiness:
         # while still pinning the other five to tobit. When the roster lands, remove
         # the marker and re-pin violet to its settled value. See
         # test_violet_visitor_is_experiment_in_progress for the documented exception.
-        EXPERIMENT_DIVERGED = {}
         models = [m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if not _experiment_in_progress(m)]
-        expected = {name: EXPERIMENT_DIVERGED.get(name, "tobit") for name in models}
+        assert models, (
+            "every trio model is EXPERIMENT_IN_PROGRESS, so this pin would pass on an "
+            "empty set. A test that asserts nothing is worse than a missing test."
+        )
+        expected = {name: "tobit" for name in models}
         actual = {name: _load_hp(name)["loss_reg"] for name in models}
         assert actual == expected, f"loss functions: {actual}; expected: {expected}"
 
@@ -359,24 +367,34 @@ class TestCrossEnsembleParityReadiness:
         # lands — violet_visitor is EXPERIMENT_IN_PROGRESS and SKIPPED here; the
         # other five are pinned to 16. Re-pin violet when the roster settles.
         # (Same mechanism as test_both_trios_use_same_loss / C-71; see #254/#297.)
-        EXPERIMENT_DIVERGED = {}
         models = [m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if not _experiment_in_progress(m)]
-        expected = {name: EXPERIMENT_DIVERGED.get(name, 16) for name in models}
+        assert models, (
+            "every trio model is EXPERIMENT_IN_PROGRESS, so this pin would pass on an "
+            "empty set. A test that asserts nothing is worse than a missing test."
+        )
+        expected = {name: 16 for name in models}
         actual = {name: _load_hp(name)["n_posterior_samples"] for name in models}
         assert actual == expected, f"n_posterior_samples: {actual}; expected: {expected}"
 
-    def test_violet_visitor_is_experiment_in_progress(self):
-        # The truthful, in-suite record of the exception: the loss + sample parity
-        # pins above SKIP violet_visitor only because its config declares
-        # EXPERIMENT_IN_PROGRESS. This asserts that marker is present, so the skip is
-        # never silent — if the marker is removed without re-pinning the two tests
-        # above, this fails loud with the instruction. (views-models#254/#297;
-        # C-71/C-87; Epic #242 S1 #244 / S3 #246.)
-        assert _experiment_in_progress("violet_visitor"), (
-            "violet_visitor is no longer EXPERIMENT_IN_PROGRESS but the loss / "
-            "n_posterior_samples parity pins still skip it. Re-pin it in "
-            "test_both_trios_use_same_loss + test_constituent_posterior_samples_match "
-            "to its settled roster value (or restore the marker). See #254/#297."
+    def test_the_experiment_in_progress_roster_is_exactly_as_declared(self):
+        # The escape hatch is GENERAL — `_experiment_in_progress` drops any model from
+        # the two parity pins above. So the guard must be general too. Asserting only
+        # that violet_visitor carries the marker leaves the hatch open: adding
+        # EXPERIMENT_IN_PROGRESS to any other trio model silently removes it from both
+        # pins and the suite still passes green (verified 2026-08-03 by marking
+        # pink_pirate: 51 passed, nothing complained).
+        #
+        # Pinning the whole ROSTER closes both directions at once — a model losing the
+        # marker, and a model gaining one. (views-models#254/#297; C-71; Epic #242.)
+        marked = {m for m in VIEWSER_TRIO + DATAFACTORY_TRIO if _experiment_in_progress(m)}
+        assert marked == EXPERIMENTS_IN_PROGRESS, (
+            f"the EXPERIMENT_IN_PROGRESS roster changed: expected {EXPERIMENTS_IN_PROGRESS}, "
+            f"found {marked}.\n"
+            f"  * a model GAINED the marker -> it is now exempt from the loss and "
+            f"n_posterior_samples parity pins. Say so here deliberately.\n"
+            f"  * a model LOST the marker -> re-pin it in test_both_trios_use_same_loss "
+            f"and test_constituent_posterior_samples_match to its settled roster value.\n"
+            f"See #254/#297 and Epic #242 S1 #244 / S3 #246."
         )
 
 
