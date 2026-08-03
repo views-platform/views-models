@@ -200,3 +200,54 @@ def test_environment_sharing_is_recorded_not_discovered():
         "If deliberate, update `expected` in this test. If you are adding a model, "
         "note that it inherits every package its co-tenants install (C-116)."
     )
+
+
+# ── the provenance record (C-117) ─────────────────────────────────────
+
+def test_environment_snapshots_are_not_gitignored():
+    """`.gitignore` must not swallow the one artifact that exists to be committed.
+
+    `monthly_run.sh` writes a `pip freeze` per environment into
+    `reports/env_snapshots/`, so the package versions behind a delivered forecast
+    survive the laptop that produced them (C-117). A blanket `*.txt` rule
+    (`.gitignore:275`) covers exactly that filename, and the negation added beside
+    it is the only thing keeping these tracked.
+
+    This repo has already lost a file to a blanket rule once: `.gitignore`'s `*.yml`
+    silently swallowed a new workflow, `git add` reported it, and the commit went
+    through without it. The check costs nothing; discovering it in six months, when
+    the snapshots were the point, costs everything they were for.
+    """
+    probe = "reports/env_snapshots/20260803T000709Z__views_ensemble.txt"
+    # Without -v, `check-ignore` exits 0 only when the path is genuinely IGNORED.
+    # With -v it also exits 0 when the winning rule is a NEGATION, which is the
+    # opposite verdict — the first draft of this test read that as "ignored".
+    verdict = subprocess.run(
+        ["git", "check-ignore", "-q", probe],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    )
+    explain = subprocess.run(
+        ["git", "check-ignore", "-v", probe],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    )
+    assert verdict.returncode != 0, (
+        f"{probe} is gitignored by: {explain.stdout.strip()}\n"
+        "Environment snapshots exist to be committed — a snapshot that is not in git "
+        "is exactly as ephemeral as the environment it describes (C-117)."
+    )
+
+
+def test_monthly_run_captures_a_snapshot_after_the_run_not_before():
+    """Order matters: `run.sh` may install into the environment as it starts.
+
+    A snapshot taken first would describe what was there beforehand, which is not
+    what produced the forecast.
+    """
+    script = (REPO_ROOT / "monthly_run.sh").read_text(encoding="utf-8")
+    body = script[script.index("run_folder () {"):]
+    run_call = body.index("bash run.sh")
+    capture_call = body.index("capture_env_snapshot")
+    assert capture_call > run_call, (
+        "monthly_run.sh captures the environment snapshot before running the folder; "
+        "it must be captured after, or it describes the wrong environment."
+    )

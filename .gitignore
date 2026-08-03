@@ -273,6 +273,11 @@ cython_debug/
 
 # txt logs
 *.txt
+# ...but NOT the environment snapshots. These are the record of which package
+# versions produced a delivered forecast (C-117) and are useless unless committed:
+# they exist to answer a question months later, on a different machine. A blanket
+# *.txt swallowed them silently once, the same way *.yml swallowed a workflow file.
+!reports/env_snapshots/*.txt
 
 # logs
 *.log
