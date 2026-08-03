@@ -78,7 +78,15 @@ jobs:
           APPWRITE_REGISTRY: /nonexistent/coordinate_registry.toml
         run: |
           set -uo pipefail
-          out="$(./bootstrap.sh 2>&1)"; status=$?
+          # `status=$?` after a plain assignment never runs here. GitHub invokes every
+          # step as `bash -e`, and `set -uo pipefail` does NOT clear `-e`, so a failing
+          # command substitution aborts the step before the status is read. Every
+          # scenario below asserts a NON-ZERO exit, so all four were unreachable: this
+          # workflow has been red since the day it landed and never tested anything.
+          # `|| status=$?` keeps the failure local while leaving `-e` on for genuinely
+          # unexpected failures elsewhere in the step.
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
           echo "$out"
           [ "$status" -ne 0 ] || { echo "::error::a missing registry must be fatal (#308)"; exit 1; }
           echo "$out" | grep -q "APPWRITE_REGISTRY=" || {
@@ -91,7 +99,8 @@ jobs:
         run: |
           set -uo pipefail
           echo 'APPWRITE_ENDPOINT=https://wrong.invalid' >> .env
-          out="$(./bootstrap.sh 2>&1)"; status=$?
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
           echo "$out"
           [ "$status" -ne 0 ] || { echo "::error::two writers to one name must be fatal (#309)"; exit 1; }
           echo "$out" | grep -q "APPWRITE_ENDPOINT" || {
@@ -106,7 +115,8 @@ jobs:
           rm -f .env
           # stdin is not a terminal here, which is the case that would hang if bootstrap
           # prompted unconditionally. A hung CI job is a worse failure than a red one.
-          out="$(timeout 30 ./bootstrap.sh < /dev/null 2>&1)"; status=$?
+          status=0
+          out="$(timeout 30 ./bootstrap.sh < /dev/null 2>&1)" || status=$?
           echo "$out"
           [ "$status" -ne 124 ] || { echo "::error::bootstrap.sh HUNG waiting for input"; exit 1; }
           [ "$status" -ne 0 ]   || { echo "::error::a missing secret must be fatal"; exit 1; }
@@ -122,7 +132,8 @@ jobs:
           # grep below would then pass because the string was never in scope, not because
           # redaction works. A check that cannot fail is worse than no check.
           echo 'APPWRITE_DATASTORE_API_KEY=FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL' > .env
-          out="$(./bootstrap.sh 2>&1)"; status=$?
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
           [ "$status" -eq 0 ] || {
             echo "$out"
             echo "::error::this step must exercise the secret-present path; bootstrap failed instead"
