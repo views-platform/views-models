@@ -157,7 +157,12 @@ class TestModelScaffoldBuilderFunctional:
 
     @pytest.fixture(autouse=True)
     def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
         pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
     def test_build_model_scripts_uses_injected_input(self, tmp_path):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
@@ -213,7 +218,12 @@ class TestModelScaffoldBuilderDirectoryCreation:
 
     @pytest.fixture(autouse=True)
     def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
         pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
     def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
@@ -281,7 +291,12 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
 
     @pytest.fixture(autouse=True)
     def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
         pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
     def test_ensemble_inherits_from_model_scaffold(self):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder

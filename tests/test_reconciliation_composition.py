@@ -2,6 +2,11 @@
 import numpy as np
 import pytest
 
+# reconciliation/__init__.py imports composition, which needs pipeline-core's Reconciler
+# port (3.0.0+, unreleased). Guard BEFORE any reconciliation import: placed after one,
+# collection ERRORS instead of skipping, which is what turned CI red (ADR-005 §skip).
+pytest.importorskip("views_pipeline_core.domain.reconciliation_port")
+
 from reconciliation.composition import (
     _WINDOW_BUFFER_MONTHS,
     _forecast_window,

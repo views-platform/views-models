@@ -130,6 +130,11 @@ def test_live_datafactory_input_invariants():
         pytest.skip(f"datafactory input unreachable: {type(e).__name__}: {e}")
     if report.verdict == "UNREACHABLE":
         pytest.skip(f"datafactory input unreachable: {report.error}")
+    # SKIP_NO_PACKAGE is the check reporting truthfully that datafactory_query is not
+    # installed -- which is CI's normal state. Falling through asserted on facts the
+    # report never carried, so a truthful skip surfaced as a red test (ADR-005).
+    if report.verdict == "SKIP_NO_PACKAGE":
+        pytest.skip(f"datafactory_query not installed: {report.error}")
     assert report.last_valid_month_id is not None
     assert report.last_valid_month_id > 500  # sanity: post-2021 coverage
     assert report.required_month_id == required_month_id_from_partitions(REPO_ROOT)
