@@ -1,7 +1,7 @@
-"""Data specification for bright_starship (datafactory consumer).
+"""Data specification for bold_comet (datafactory consumer).
 
 This replaces the viewser Queryset pattern used in other models.
-Instead of connecting to PRIO's PostgreSQL via viewser, bright_starship
+Instead of connecting to PRIO's PostgreSQL via viewser, bold_comet
 fetches from the VIEWS data factory via load_dataset().
 
 Prerequisites:
