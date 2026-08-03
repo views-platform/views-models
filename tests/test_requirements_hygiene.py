@@ -142,6 +142,14 @@ def test_a_package_is_declared_the_same_way_everywhere():
     for name, number, req in _declarations():
         if req.name in DEFERRED_PACKAGES:
             continue
+        # A URL requirement (`name @ git+...`) carries no version specifier at all, so
+        # comparing it against a versioned declaration always "diverges" -- a category
+        # error, not a finding. postprocessors/un_fao pins views-datafactory to a git
+        # branch this way. That IS worth attention (a branch pointer moves under you),
+        # but it is a different concern from two versions of one package in one shared
+        # environment, which is what this rule exists to catch.
+        if req.url:
+            continue
         specs.setdefault(req.name, {}).setdefault(str(req.specifier), []).append(name)
 
     divergent = {pkg: v for pkg, v in specs.items() if len(v) > 1}
