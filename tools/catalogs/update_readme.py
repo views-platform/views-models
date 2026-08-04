@@ -27,6 +27,43 @@ _FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtu
 with open(_FIXTURES_PATH) as _f:
     _FIXTURE_ENTRIES: set[str] = set(json.load(_f))
 
+# The catalog reads a model's target variable, and models do not all declare it the
+# same way. Measured across the tree on 2026-08-03:
+#
+#     "regression_targets"   87 configs   the only key actually used
+#     (no target key at all) 28 configs   catalog says so rather than crashing
+#     "targets"               0 configs   (one commented-out line in fake_model)
+#
+# The synthetic fixtures are NOT a separate key: they declare
+# `"regression_targets": ["synth_target"]` -- "synth_target" is the VALUE. An earlier
+# draft of this helper listed it as a second key, which would have been dead code;
+# reading all 128 configs showed the value arriving through regression_targets.
+#
+# `targets` was a key views-pipeline-core SYNTHESIZED; 3.0.0 retired it outright
+# (pipeline-core #381). Reading it here raised KeyError on the first model every time,
+# which is why "Update Model Catalogs" failed on every run from 2026-06-26 onward and
+# the README catalogs went five weeks stale (#336).
+#
+# One helper rather than two copies: the two call sites below ask the same question of
+# a model and of an ensemble, in one module, and letting them drift is how a catalog
+# starts reporting different things about the two.
+_TARGET_KEYS = ("regression_targets",)
+
+
+def _target_of(configs):
+    """The declared target(s), rendered for the catalog; never raises.
+
+    Absence is a fact about the config, not an error -- 28 models declare no target key
+    and the catalog should say so rather than fail. Mirrors the existing `metrics`
+    fallback a few lines below each call site.
+    """
+    for key in _TARGET_KEYS:
+        value = configs.get(key)
+        if value:
+            return ", ".join(value) if isinstance(value, list) else value
+    return "No information provided"
+
+
 # Update repository structure:
 def generate_repo_structure(folders, scripts, model_name):
     """Generate a structured repository tree dynamically from folders and scripts."""
@@ -100,9 +137,7 @@ for subfolder in target_dir.iterdir():
         else:
             algorithm_all = algorithm
 
-        target = model_manager.configs['targets']
-        if isinstance(target, list):
-            target = ", ".join(target)
+        target = _target_of(model_manager.configs)
         level = model_manager.configs['level']
         try:
             metrics = model_manager.configs['metrics']
@@ -226,9 +261,7 @@ for subfolder in target_ens_dir.iterdir():
         models = ens_manager.configs['models']
         models = ", ".join(models)
 
-        target = ens_manager.configs['targets']
-        if isinstance(target, list):
-            target = ", ".join(target)
+        target = _target_of(ens_manager.configs)
         level = ens_manager.configs['level']
         try:
             metrics = ens_manager.configs['metrics']
