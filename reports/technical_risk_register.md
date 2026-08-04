@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-07-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 132 (124 concerns + 8 disagreements)  
-**Concerns:** Open 54 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 5 | T2 39 | T3 52 | T4 24 (4 merge stubs carry no tier)  
-**Disagreements:** Open 6 | Resolved 1 | Subsumed 1  
+**Total entries:** 135 (126 concerns + 9 disagreements)  
+**Concerns:** Open 56 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 5 | T2 40 | T3 53 | T4 24 (4 merge stubs carry no tier)  
+**Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
 ---
@@ -1566,6 +1566,30 @@
 | **Location** | `views-postprocessing/contract/wire/source_selection.py` — `resolve_run` (manifests) vs `TargetLease.load()` (`assert_complete_coverage`, `assert_no_excluded_cells`) |
 | **Notes** | `resolve_run` checks that every expected target has a content-verified manifest; `expected_cells` and `excluded_gids` are passed to the lease and only enforced when frames materialise. Resolution succeeding therefore does not mean delivery will succeed — the failure arrives after shard downloads, on a monthly hand-run on a laptop. The lazy design is correct for memory (it is the run-0 OOM fix); what is missing is a cheap precheck so an unsatisfiable run is rejected before the heavy fetch. Cross-refs: **C-121**. |
 
+### C-125 — A target-name gate would fail correct delivery files, because a source's config does not describe what it emits
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Enabling an edit-time `targets` check in a delivery declaration (ADR-017 §4f `REQUIRE.targets`) while any source's config still misdescribes its own output. |
+| **Source** | expert-code-review of the delivery declaration design (2026-08-04) |
+| **Status** | Open |
+| **Location** | `ensembles/rusty_bucket/configs/config_meta.py:4`; the proposed `deliveries/*.py` `REQUIRE.targets` |
+| **Notes** | `rusty_bucket` declares `regression_targets: ["lr_sb_best", "lr_ns_best", "lr_os_best"]` and emits `lr_ged_sb/ns/os` (**C-123**). A `targets` gate checked against the source config would therefore reject a *correct* delivery file for the repo's own FAO ensemble. **The cost is pedagogical, which is why it is worth an entry of its own:** ADR-017 §13 makes error messages load-bearing — the design's value is that a newcomer is guided down one level at a time — and the first lesson this would teach is that the repo's errors are wrong. Nothing recovers from that. **Exit:** fix C-123, then promote `targets` from a run-time assertion (checked against the run's manifests, which are truthful) to an edit-time one. Until then ADR-017 §13 records `targets` as a stair that ends outside the repo. Cross-refs: **C-123**, ADR-017 §4f/§13. |
+
+---
+
+### C-126 — The delivery design makes dormancy visible but not absence of execution
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | A delivery declared `intent = live()` that no runner picks up, or that ships a run far older than the consumer expects. |
+| **Source** | expert-code-review of the delivery declaration design (2026-08-04, Nygard) |
+| **Status** | Open |
+| **Location** | proposed `deliveries/*.py` — `DELIVERY.intent`, `REQUIRE.max_age`; ADR-017 §5 freshness rule, §13 "where the stairs end" |
+| **Notes** | The design solves the *paused* case well: `paused(reason, since=...)` cannot be set silently, so a dormant edge carries an explanation and an age. It does **not** solve the *live-but-never-run* case — a `live()` delivery that nothing executes produces no error, because nothing failed. That is precisely the 145-day FAO silence (**C-121**, **C-99**), surviving the redesign. ADR-017 §13 names it honestly as *"not a locked door — a hole in the floor"*. **Exit, two parts, both already written into the amendment:** `REQUIRE.max_age` is mandatory whenever `intent = live()` (§5 freshness rule), and `tools/liveness` reports **derived status beside declared intent** (§7), so `live()` + "never delivered" is a visible contradiction rather than an absence. Registered separately from C-121 because C-121 is the defect in today's code and this is the residual risk in tomorrow's design — closing one does not close the other. Cross-refs: **C-121**, **C-99**, **C-110**. |
+
 ---
 
 ## Disagreements
@@ -1655,3 +1679,14 @@
 | **Source** | expert-code-review (2026-08-04; Hickey vs Martin/Beck) |
 | **Status** | Open |
 | **Notes** | **Hickey:** views-models has exactly **one** composition (`monthly_run.sh`). Abstracting at n=1 is precisely the wrong-abstraction risk the rule exists to prevent, and a manifest that acquires conditionals has become a program. **Martin and Beck:** the second instance already exists one repo away — `crafd/` was cloned from `unfao/` per `docs/CLONING.md`, and views-postprocessing #211 is the recorded scar of that clone (*"every partner-scoped guard was scoped to ONE partner"*). **Provisional resolution:** the trigger has fired for views-postprocessing, **not** for views-models. Defer, behind C-122's named trigger. When it fires, copy views-postprocessing's remedy — a declared list asserted against the filesystem — not a framework. Unanimous against a dependency resolver and against moving composition into pipeline-core. |
+
+---
+
+### D-09 — Should the `REQUIRE` block be mandatory, or is it ceremony?
+
+| Field | Value |
+|---|---|
+| **Trigger** | Writing a delivery file that has nothing to assert |
+| **Source** | expert-code-review (2026-08-04; Martin/Ousterhout vs Nygard/Kleppmann) |
+| **Status** | Open |
+| **Notes** | **Martin and Ousterhout:** make the block optional. A `REQUIRE` holding one line will read as boilerplate, and the first person who deletes an empty one teaches everyone else to delete theirs. A block that is always present stops carrying information. **Nygard and Kleppmann:** make it mandatory — `max_age` and `reconciled` are exactly the assertions whose absence caused real failures, and optional safety is not safety. **Provisional resolution (written into ADR-017 §5):** the *block* is optional; specific *rules* are conditional on the delivery's shape — `reconciled` is required with two or more sources, `max_age` is required when `intent = live()`. Requirement follows from what the delivery is, not from ceremony. Revisit if a delivery file appears with an empty `REQUIRE`. |
