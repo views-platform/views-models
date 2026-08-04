@@ -1,12 +1,30 @@
 # ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
 **Status:** **Accepted** (2026-07-27) — **amended 2026-08-04**
-**Amendment 1 (2026-08-04):** the delivery declaration gets a concrete file format, and the two questions §12 left open — *where a delivery unit lives* and *how heavy it is* — are **decided**. Nothing in §3's three axes, §4e's derived production status, or §5's maturity rules changed. What changed is that a delivery can now carry **more than one source** (a grid-cell ensemble and the country-level ensemble it reconciles against), and that the file is split into what it *does* and what it *requires*. New: §4f (the file), §5's three added rules, §13 (errors must descend).
-**Date:** 2026-07-02 — **revised 2026-07-27** (grounded top-to-bottom in the real cross-repo flow; operational mechanics written from scratch; decided-vs-open made explicit. The core decision is unchanged.)
-**Accepted on the basis that** it aligns with pipeline-core's *Lean Platform End-State Roadmap* (`views-pipeline-core/documentation/plans/2026-07-27_lean_platform_end_state_roadmap.md`), which owns the sequencing/retirement this ADR's §1 direction-of-travel defers. The two documents adopt each other's vocabulary and read as one system.
+**Revised 2026-08-04 — split for containment.** This document had grown to ~13 pages and held four
+things that change at four different rates. Three moved out, and **no decision was reversed**:
+
+| moved | to | why |
+|---|---|---|
+| §1, the map of today's system | `docs/forecast_delivery_map.md` | it shrinks as legacy retires; ADRs do not |
+| the delivery file format | **ADR-019** | it will be revised as `deliveries/` is used |
+| "errors must descend" | **ADR-020** | it governs the whole repo, not delivery |
+
+What stays here is the part that should not need to change: the three axes, derived production status,
+the maturity rules, and the shelf write-gate. Per ADR-000 this is a **re-organisation, not a
+supersession** — 017 keeps its number and its decisions.
+
 **Deciders:** Simon (maintainer) — Accepted 2026-07-27
 **Consulted:** platform contributors
 **Informed:** all contributors
+
+---
+
+> **A note on names.** Every model, ensemble, consumer, region and target named in this document is an
+> **example**. They are real names where possible, because concrete examples are easier to read than
+> placeholders — but which source feeds which consumer changes, consumers are added and retired, and
+> buckets get renamed. Nothing here is a declaration about a particular name. The rules are about the
+> **shape**; the names are illustration.
 
 ---
 
@@ -32,124 +50,51 @@ Then "in production" stops being a label anyone types. It becomes a fact the sys
 
 ---
 
-## 1. How forecast delivery works *today* — the concrete map
+## 1. How forecast delivery works today
 
-**What this section does:** shows you, with real file paths, how a forecast actually gets from a model run to an API today — so the rest of the ADR has solid ground under it.
+**What this section does:** points at the map, rather than containing it.
 
-Two things make today's picture harder than it should be:
+How a forecast physically reaches a consumer today — the two stores, the two shelf dialects, the FAO
+line, and what is dying — is described in **`docs/forecast_delivery_map.md`**.
 
-- there are **two stores** — two different central places a forecast can land; and
-- there are **three producer mechanisms**, from three eras of the codebase, all alive at the same time. Which one runs depends on what shape a run produces: a pandas DataFrame, a PredictionFrame, or a PredictionFrame-ensemble.
-
-(The full mechanics are pinned in pipeline-core `tests/test_managers/test_delivery_characterization.py`. Here we keep only what the *delivery* story needs.)
-
-This is a lot of accumulated legacy — there's no pretending otherwise. To keep it readable, every piece below carries a tag: **[LEGACY]** (alive only until retired), **[CURRENT]** (the working present), or **[TARGET]** (where everything is converging). And §1 deliberately *ends* on the direction of travel — so you leave this section seeing a transition, not a permanent mess.
-
-> **Two words, kept distinct throughout this document.** Both are "stores" in plain English, which is exactly what trips people up:
-> - **"store"** = the **OLD** `views-forecasts` central store — feeds the public API, pandas-only door, **[LEGACY]** (the "pile nobody opens").
-> - **"shelf"** = the **NEW** Appwrite `production_forecasts` bucket — feeds FAO, metadata-tagged, **[CURRENT]**.
->
-> They are two different places. Wherever this ADR says *store* it means the old one; *shelf* means the new one.
-
-### The monthly run — this is what actually ships today. `[LEGACY]`
-
-`monthly_run.sh` is a hand-run list. It runs 4 **legacy DataFrame ensembles** (`pink_ponyclub`, `skinny_love`, `rude_boy`, `first_love`), each with `-m`.
-
-(`-m` = `--monthly`; it bundles train + forecast + report + prediction_store.)
-
-Each run goes through **one** method — `_save_predictions` → `PredictionIOManager`. (Not a set of "saver" objects — that's a different path, below.) That one method writes the forecast three ways:
-
-```
-monthly ensemble run (-m)  ->  PredictionIOManager        [LEGACY]
-  ├─ local disk: pandas-parquet (legacy list-in-cell)
-  ├─ legacy "views-forecasts" store  (df.forecasts.to_store)   [LEGACY]
-  │    -> external API  api.viewsforecasting.org   [MAIN PUBLIC LINE]
-  │       (prio-data/views_api, external)
-  └─ Appwrite SHELF: production_forecasts,  type="ensemble"    [LEGACY dialect]
-```
-
-There *is* a "savers" path — the single-model PredictionFrame path, with the composed `LocalParquetSaver` / `ViewsForecastsSaver` / `AppwriteSaver` trio (model.py:572). But that is a **different, conditional** mechanism `[CURRENT]`, and it is **not** what the monthly ensembles use.
-
-### `rusty_bucket` is a different animal again. `[TARGET]`
-
-`rusty_bucket` is a **PredictionFrame ensemble (PFE)** — the shape everything is converging toward. It uses *neither* path above. It does two things:
-
-- writes `save_pf` (npy/npz) to local disk; and
-- with the store on, publishes **wire shards** to the *same shelf*, tagged **`type="sampled_forecast_*"`**.
-
-Those wire shards are defined by **views-postprocessing's ADR-013** (its Sampled-Forecast Wire Contract). This is the *contract dialect*, kept deliberately separate from the legacy `type="ensemble"` dialect.
-
-> *Note on numbering:* throughout this document, **"ADR-013" always means views-postprocessing's ADR-013** (the wire contract) — a *different repo's* ADR. It is **not** this repo's ADR-013 (`013_regression_target_name_agnosticism.md`). Written **vpp ADR-013** where confusion is likely.
-
-### So the one shelf holds two disjoint dialects
-
-- legacy documents tagged `type="ensemble"`, and
-- contract shards tagged `type="sampled_forecast_*"`.
-
-They never overlap. That separation is the vpp ADR-013 §11.4 transition invariant.
-
-### The FAO line has two legs, and they share that one shelf
-
-```
-LIVE legacy leg:  shelf type="ensemble"  ->  vpp UNFAO manager
-    filters {category:forecast, type:ensemble}   (unfao.py:35)
-    reads "ensemble":"rusty_bucket"              (unfao.py:109)
-    enrich (GAUL) -> validate -> unfao_bucket, name="un_fao"
-    gated: UPLOAD_ENABLED = False
-      ->  views-faoapi serves unfao_bucket, name="un_fao"
-
-DORMANT contract leg:  shelf type="sampled_forecast_*"
-    ->  vpp wire/source_selection: newest manifested run
-    ->  same enrich / validate -> same unfao_bucket
-```
-
-### The punchline — and it's exactly what this ADR is about
-
-Put those pieces together:
-
-- the **live** FAO leg reads `type="ensemble"`;
-- but the **declared** FAO source (`rusty_bucket`) is a PFE, so it only ever produces `type="sampled_forecast_*"`;
-- therefore **the live leg will never see `rusty_bucket`'s output.**
-
-Meanwhile, the 4 monthly ensembles *do* produce `type="ensemble"` — but they aren't the declared FAO source.
-
-So today's FAO delivery is a **live consumer leg pointed at a source that isn't scheduled, while that source's own output can only feed the leg that's switched off.** Both halves are quietly *waiting*. And you cannot see this crossed-wires state by reading any single config file. That invisibility is the whole cost of "no single place declares delivery."
-
-### Where each config lives today (real paths)
-
-- **A model's maturity-ish label:** `views-models/models/<m>/configs/config_deployment.py` → `deployment_status`.
-- **An ensemble's label + members:** `.../ensembles/<e>/configs/config_deployment.py` (the label) and `.../config_modelset.py` (the members).
-- **The FAO "which source feeds us" declaration:** `views-models/postprocessors/un_fao/configs/config_meta.py` — the single line `"ensemble": "rusty_bucket"`, read by the manager at `views-postprocessing/.../unfao/managers/unfao.py:109`.
-  - **The smell, exactly:** that file's own docstring says *"This config is for documentation purposes only, and modifying it will not affect the model."* That is **false** — that one line decides which forecast reaches the UN.
-- **The main public line's declaration:** *none exists.* It is emergent — `monthly_run.sh` + the legacy store + the external API.
-
-### Two stores, two roles
-
-- **The `views-forecasts` store** (the old one) — pandas-only front door (`df.forecasts.to_store`); feeds the public API. Unstructured, matched by fragile naming — the pile nobody opens. *(It also has two **non-delivery** roles this ADR doesn't govern — legacy-ensemble constituent transport, and a run-metadata registry — whose retirement is sequenced by the pipeline-core roadmap, §"Direction of travel".)*
-- **The Appwrite `production_forecasts` shelf** (the new one) — the two-dialect bucket above; feeds the FAO postprocessor. vpp ADR-013 makes its contract dialect addressable by *declared provenance* instead of filename.
-
-### Direction of travel — what's dying, and where it goes
-
-*(Context only. This convergence is owned by the views-frames migration + vpp ADR-013, and **sequenced by pipeline-core's Lean Platform End-State Roadmap** (2026-07-27) — **not decided by this ADR**. It's here so the mess above reads as transitional.)*
-
-- **DataFrame ensembles** (the 4 monthly) → **PredictionFrame / PFE** (the `rusty_bucket` shape).
-- **the `views-forecasts` store** (pandas-only door) → **the Appwrite shelf** (→ Hetzner, eventually).
-- **shelf dialect `type="ensemble"`** → **`type="sampled_forecast_*"`** (vpp ADR-013 §11.4).
-- **the legacy FAO leg** → **the contract FAO leg**.
-
-Everything converges on one shape: **frames-native producers → the shelf's contract dialect → contract-reading consumers.** This ADR is written for that **target** state. The legacy machinery is *grandfathered* — described here so it's visible, not endorsed. **When a legacy element retires, its `[LEGACY]` line here retires with it** — so this section is a shrinking list, by design.
+That page is deliberately **not** an ADR. It shrinks as legacy retires, and ADR-000 says decisions are
+*"never deleted… superseded, not erased"* — so a page designed to change cannot live under this
+document's rules. Read it first; everything below stands on it.
 
 ## 2. What's broken
 
-**What this section does:** names the specific failures the map above produces.
+**What this section does:** names the specific failures the map produces. Every number here was
+measured on 2026-08-04 and names how to re-check it.
 
-- **One label, three jobs.** `deployment_status` mixes *operational mode* (`shadow`/`deployed`), *lifecycle* (`deprecated`), and *role* (`baseline`) into one field — three different axes, one word. And it's almost **inert**: only `deprecated` actually does anything (the config sniffer refuses to run it). `deployed`, `shadow`, and `baseline` are indistinguishable on a run. *(Verified: no code anywhere branches `deployed`-vs-`shadow`; pinned by `tests/test_deployment_status_inert.py`.)*
-- **Delivery is hidden and mislabeled.** The one line that controls FAO delivery sits inside a config that claims to do nothing (§1). The main line's delivery isn't written down at all.
-- **The shelf has no write-gate.** Anything run with `-p`/`-m` *and* the production credentials lands on the shelf, tagged with its own name — a `candidate`, a branch fork, a debug run. Nothing structurally says "only the real production forecast belongs here." This is how the old store rotted into a pile.
-- **The one coherence rule that should catch trouble is dead.** pipeline-core's ensemble guard only fires on the impossible value `"production"`, so a `deployed` ensemble can silently contain `shadow` members — and `white_mustang` already does (`lavender_haze`, `blank_space`).
-- **Delivering a lone model needs a fake ensemble.** Only ensembles can be delivered, so a single model gets wrapped in a one-member "ensemble" — the tell of a missing shared abstraction.
+- **One label, three jobs.** `deployment_status` mixes *operational mode* (`shadow`/`deployed`),
+  *lifecycle* (`deprecated`) and *role* (`baseline`) into one field — three axes, one word.
+  **And it is inert.** Nothing anywhere branches `deployed`-vs-`shadow`; that is pinned in both
+  repositories by `tests/test_deployment_status_inert.py`, which greps this repo *and* the installed
+  `views_pipeline_core` for such a comparison and fails if one appears.
+  *Measured across all 131 sources:* **120 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`.*
+- **The one `deployed` thing in the repository is incoherent.** That single `deployed` source is
+  `ensembles/white_mustang`, and both its members — `lavender_haze` and `blank_space` — are `shadow`.
+  A deployed ensemble made entirely of things that are not deployed.
+- **The rule that should catch that is dead.** pipeline-core's
+  `modules/validation/ensemble/check.py:159` reads
+  `if single_model_dp_status == "production" and ensemble_deployment_status != "production":` —
+  but `production` is not one of the four values this repo writes (`shadow`, `deployed`, `baseline`,
+  `deprecated`). The branch cannot fire. The guard has never once run.
+- **Delivery is hidden and mislabeled.** The one line controlling FAO delivery sits in
+  `postprocessors/un_fao/configs/config_meta.py`, whose docstring says *"This config is for
+  documentation purposes only, and modifying it will not affect the model."* The main public line's
+  delivery is not written down at all.
+- **The shelf has no write-gate.** Anything run with `-p`/`-m` *and* production credentials lands on
+  the shelf tagged with its own name — a candidate, a branch fork, a debug run. Nothing structurally
+  says "only the real production forecast belongs here." This is how the old store rotted into a pile.
+- **Only ensembles can be delivered.** The publish leg takes an `Ensemble`, not a source, so a lone
+  model cannot be delivered without wrapping it in a one-member ensemble.
+  *Stated as a constraint, not an observation:* no such wrapper exists today — the smallest ensemble in
+  the repository has two members. The constraint is real; the symptom has simply not been forced yet.
 
-**Seen in production (2026-07).** Turning the FAO delivery *on* was very hard. Not because forecasts silently failed — we knew they weren't deployed yet. It was hard because *how* to switch it on was undiscoverable to anyone who hadn't built it. That is the cost of delivery being declared nowhere.
+**Seen in production (2026-07).** Turning the FAO delivery *on* was very hard. Not because forecasts
+silently failed — we knew they were not deployed yet. It was hard because *how* to switch it on was
+undiscoverable to anyone who had not built it. That is the cost of delivery being declared nowhere.
 
 ## 3. The model — three axes, each in one concrete place
 
@@ -165,12 +110,79 @@ The three axes, and where each one lives:
 - **Composition** — an ensemble's members.
   *Where:* `ensembles/<e>/configs/config_modelset.py` — **already exists, unchanged.**
 - **Delivery** — a `sources → consumer` edge.
-  *Where:* one file per consumer, at `views-models/deliveries/<consumer>.py` — **never on the source**. The **filename is the consumer**; no key repeats it, so the two cannot disagree. Each consumer is registered once, with a tier, in `views-models/meta/consumers.py`.
-  *(This lifts today's buried `"ensemble"` line into a dedicated, honest file. §4f gives the format in full.)*
+  *Where:* one file per consumer, at `views-models/deliveries/<consumer>.py` — **never on the source**. The **filename is the consumer**; no key repeats it, so the two cannot disagree.
+  *(This lifts today's buried `"ensemble"` line into a dedicated, honest file. **ADR-019** gives the format.)*
 
   **Why *sources*, plural.** A consumer may need a grid-cell forecast **and** the country-level forecast it was reconciled against. Both are real products: summing grid-cell *draws* does not reproduce a country-level *distribution*, so a consumer computing national uncertainty needs the country model's own posterior, not a reconstruction. The delivery names both.
 
-So, in one line: a **model's** config declares only its maturity. An **ensemble's** config declares its maturity **plus** its members. Neither says anything about delivery or "deployed."
+So, in one line: a **model's** config declares only its maturity. An **ensemble's** config declares its
+maturity **plus** its members. Neither says anything about delivery or "deployed."
+
+### The three axes as three files
+
+Example names throughout; the shape is the point.
+
+```python
+# models/<model>/configs/config_maturity.py        <- AXIS 1: maturity
+def get_maturity_config():
+    return {"maturity": "graduate"}                #  candidate | graduate | retired
+```
+
+```python
+# ensembles/<ensemble>/configs/config_modelset.py  <- AXIS 2: composition
+def get_modelset_config():
+    return {"models": ["<model_a>", "<model_b>"]}   #  unchanged from today
+```
+
+```python
+# deliveries/<consumer>.py                         <- AXIS 3: delivery
+DELIVERY = Delivery(
+    send      = [pgm("<ensemble>")],
+    frequency = monthly,
+    tier      = prod,
+    intent    = live(),
+)                                                  #  full format: ADR-019
+```
+
+Three files, three questions, no overlap. A source never mentions a consumer; a delivery never sets a
+maturity; an ensemble never says where its output goes. That separation is the whole decision — and
+"is this in production?" is answered by reading the first and third together (§4e), never by a field.
+
+### The values each key can take
+
+| key | file | allowed values | set |
+|---|---|---|---|
+| `maturity` | `config_maturity.py` | `candidate`, `graduate`, `retired` | closed — 3 values |
+| `models` | `config_modelset.py` | model directory names | open — must resolve under `models/` |
+| `level` | `config_meta.py` | `cm`, `pgm` | closed — 2 values |
+| `reconciliation` | `config_meta.py` | `"pgm_cm_point"`, `None` | closed — 2 values |
+| `reconcile_with` | `config_meta.py` | a source name | open — required when `reconciliation` is set |
+| the delivery keys | `deliveries/<consumer>.py` | — | **ADR-019 §3** |
+
+**`maturity`'s three values replace four in use today — and the migration is decided here.** The field
+being replaced (`deployment_status`) holds `shadow`, `baseline`, `deployed`, `deprecated`; §2 records
+that only `deprecated` does anything.
+
+| today | becomes | note |
+|---|---|---|
+| `shadow` | `candidate` | the bulk of the fleet |
+| `deprecated` | `retired` | the only value with behaviour today |
+| `baseline` | *(nothing)* | a role, not a maturity — leaves this file (see above) |
+| `deployed` | `graduate` **only if R2 holds**, else `candidate` | see below |
+
+**Why `deployed` is not a straight rename.** Mapped naively it breaks R2 immediately: measured
+2026-08-04, exactly one source is `deployed` — an ensemble whose two members are both `shadow`. A
+straight rename makes it a `graduate` ensemble with `candidate` members, so **the migration would
+produce a violation of this ADR's own rule on the day it lands**. Hence the conditional: a `deployed`
+source becomes `graduate` only where its members already qualify, and `candidate` otherwise.
+
+Nothing is lost by that. `graduate` does not mean *is delivered* — it means *eligible* to be, and
+whether it is delivered is the third file's business. Today's single `deployed` source has no delivery
+edge at all, so demoting it to `candidate` changes no behaviour; it only stops the label asserting a
+readiness the members do not have.
+
+**`level` has exactly two values** across all 128 configs that declare it. This is what ADR-019's
+`pgm(...)` / `cm(...)` wrappers check against, and why there is no third wrapper.
 
 ## 4. How you actually operate it
 
@@ -182,7 +194,7 @@ So, in one line: a **model's** config declares only its maturity. An **ensemble'
 - **A single model → an endpoint:**
   1. `maturity: graduate` in the model's config;
   2. a file `deliveries/<endpoint>.py` whose `send` names that model;
-  3. `<endpoint>` registered in `meta/consumers.py` with `tier: prod`.
+  3. that file declares `tier = prod` (ADR-019 §3).
 - **An ensemble → an endpoint:** identical — `send` names the ensemble.
 - **A grid-cell ensemble reconciled against a country-level one → an endpoint:** `send` names **both**, and `REQUIRE.reconciled = True`. The pairing itself is not restated here; it already lives on the ensembles (`reconciliation` + `reconcile_with`), and §5's reconciliation rule checks that what you listed matches what they declare.
 - **A model, inside an ensemble → an endpoint:** add it to the ensemble's `config_modelset.py`; make both the model and the ensemble `graduate`; declare the ensemble's delivery edge. The model is now in production *transitively*.
@@ -202,15 +214,13 @@ The producer must **never** know its consumers. So the gate is split across two 
 - **Write → shelf** is gated by **maturity** (§4b) — the source's own config.
 - **Shelf → consumer** is gated by the **delivery declaration** — the delivery unit reads its *own* `config_delivery.py`, pulls only its declared source off the shelf (by declared identity, not by filename), and serves it.
 
-### 4d. Serving-time curation — the FAO approve / quarantine lists
-Two variables govern *which already-delivered artifacts* the FAO serving layer (views-faoapi) may return: `APPWRITE_UNFAO_APPROVED_FILE_IDS` and `APPWRITE_UNFAO_QUARANTINED_FILE_IDS`. Despite their `APPWRITE_` prefix, these are **eligibility data, not connection configuration** — they name which delivered artifacts are *servable*, an operator/curation decision, not how to reach the store. They therefore belong to **this** eligibility contract, not to the identity/secrets/config contract (**The Appwrite Seam Contract**, formerly `PLATFORM-001`), whose variable map lists them only as explicit exclusions with a pointer back here (þing-01, verdict D3; 6/6 assent — class is *declared*, never inferred from a prefix).
+### 4d. Serving-time curation
 
-- **`APPWRITE_UNFAO_APPROVED_FILE_IDS`** — an optional allowlist. When set (non-empty), *only* the listed Appwrite file IDs are servable — a newly delivered artifact is **not** served until explicitly approved (a break-glass gate; faoapi C-71). When empty/unset, selection is unrestricted and the newest fully-manifested run wins.
-- **`APPWRITE_UNFAO_QUARANTINED_FILE_IDS`** — a blocklist. Listed file IDs are never served, even if newest — how an operator withdraws a bad run.
+Which *already-delivered* artifacts a consumer may serve (the FAO approve / quarantine lists) is
+delivery-side, not axis-side. It moved to **ADR-019 §5**.
 
-**Who sets them:** the operator (the human who holds the keys, The Appwrite Seam Contract §5), by editing the deployment environment. They carry non-secret Appwrite file IDs, so they are committable/inspectable — never secret. **Who reads them:** views-faoapi at selection time. With manifest-first serving (faoapi #263) these lists are a *break-glass* control layered over the newest-wins default, not the primary selection mechanism.
-
-They meet **only at the shelf** — which now holds only `graduate` forecasts. A graduate-but-undelivered forecast sitting there is fine: it's finished, just not routed anywhere yet.
+The two meet only at the shelf — which now holds only `graduate` forecasts. A graduate-but-undelivered
+forecast sitting there is fine: it is finished, just not routed anywhere yet.
 
 ### 4e. "In production" is derived, never declared
 > A source is *in production* ⟺ its maturity is `graduate` **and** a delivery ships it (directly, or via a composite that contains it) to a **production-tier** consumer.
@@ -219,46 +229,14 @@ Nobody types "deployed." "Is this in production?" is worked out on demand from t
 
 *Analogy:* a sticky note reading *"light: ON"* can be wrong; but *checking that there's a working bulb **and** the switch is wired and flipped* cannot.
 
-### 4f. The delivery file, in full
+### 4f. What a delivery file looks like
 
-**What this section does:** shows the whole file, and explains why it has the shape it has. This is the file a research assistant is asked to fill in, so it is written to be filled in by someone who has never read the rest of this document.
+**ADR-019** decides the format: one file per consumer at `deliveries/<consumer>.py`, the filename
+carrying the consumer's identity, and the body split into what the delivery *does* and what it
+*requires*.
 
-```python
-# deliveries/un_ocha.py          <- the filename is the consumer
-
-DELIVERY = Delivery(
-    send      = [pgm("skinny_love"),
-                 cm("fat_smooch")],
-    frequency = monthly,
-    intent    = live(),
-)
-
-REQUIRE = Require(
-    reconciled = True,
-    targets    = ("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
-    coverage   = "land_gaul",
-    max_age    = months(2),
-)
-```
-
-Read aloud, that is: *"we send skinny_love and fat_smooch to OCHA, monthly, and it is switched on; they must be reconciled with each other, carry these three targets, cover land_gaul, and not be older than two months."* If that sentence is what you were told to do, the file is right.
-
-**Two blocks, and the difference between them is the point.**
-
-- **`DELIVERY` decides.** Change a line here and something different happens.
-- **`REQUIRE` refuses.** Change a line here and nothing different is produced — a different set of things is *rejected*.
-
-The rule, and it is testable: **removing a line from `REQUIRE` must never change what is produced, only what is allowed through.** If removing it changes the output, it was a setting and belongs above.
-
-This split exists for a concrete reason. Today the file that decides which forecast reaches the UN is `postprocessors/un_fao/configs/config_meta.py`, whose own docstring says *"This config is for documentation purposes only, and modifying it will not affect the model."* That sentence is false, and it is false because settings and descriptions were mixed in one place with nothing to tell them apart. Two blocks make the distinction impossible to lose.
-
-**`pgm(...)` and `cm(...)` are claims, not settings.** The level already lives on the ensemble (`"level": "pgm"`). Writing `pgm("skinny_love")` does not *set* anything — it states what you believe, and the system refuses if the ensemble disagrees. That is why `level` does not appear in `REQUIRE`: it is asserted at the point where you name the source, which is where a reader would look for it. The same shape extends — `admin1(...)` will exist the day an admin-1 source does, and not before.
-
-**`frequency` is required.** There is no safe default. An unlabelled delivery is either picked up by nothing — which is a silent non-delivery, the exact failure this ADR exists to prevent — or picked up by everything, which means a weekly runner ships monthly products. Requiring it also does something useful: `monthly_run.sh` stops being a hand-kept list of five paths and becomes a **filter** over declarations. What runs, and in what order, is then derived from the same declarations a human reads.
-
-**`intent` is declared; status is derived.** §4e already establishes that "in production" is worked out, never typed. `intent` is the other half: the thing you *do* type, kept deliberately in a different word so the two are never confused. A delivery is either `live()` or `paused(reason, since=...)` — and pausing **requires a reason and a date**, because §1's real disease was two halves quietly waiting with nobody able to see it. A paused delivery with a six-month-old date is then a visible fact rather than an absence.
-
-**Why not simply delete the file to turn a delivery off?** Because deleting it throws away the reason. `paused("OCHA bucket not in the registry yet — ask Simon", since="2026-08-04")` is a sentence the next person can act on. An absent file is not.
+It is a separate ADR because it will be revised as `deliveries/` is built and used, while the three
+axes above should not need to change at all.
 
 ## 5. Coherence rules (fail-loud)
 
@@ -271,12 +249,12 @@ This split exists for a concrete reason. Today the file that decides which forec
 
 **Delivery rules:**
 
-- **Tier rule** (needs the delivery edge — so it's checked at the delivery boundary): a delivery to a **production-tier** consumer requires its source to be `graduate`.
-- **Resolution rule:** every source a delivery names must resolve to a real source, and the consumer — taken from the **filename** — must exist in `meta/consumers.py`.
-- **Level rule:** `pgm("x")` fails unless `x` declares `"level": "pgm"`. The claim is checked against the source's own config; neither is authoritative over the other, they simply must agree.
-- **Reconciliation rule:** with `reconciled = True` and two or more sources, the `reconciliation` / `reconcile_with` declarations *among those sources* must form **one connected group covering every source listed**. A source in the delivery that reconciles with nothing, or with something outside the delivery, is an error naming both files.
-  With `reconciled = False` and two or more sources: **hard error.** Shipping several sources with no stated relationship between them is not currently supported — no use-case has emerged, and the failure it would allow (a country total that disagrees with the sum of its cells, silently) is worse than either source alone.
-- **Freshness rule:** a delivery whose `intent` is `live()` must declare `max_age`, and refuses to ship a run older than it. This is the rule whose absence let a partner receive nothing for five months while a complete forecast sat unshipped.
+- **Tier rule** (needs the delivery edge — so it is checked at the delivery boundary): a delivery to a
+  **production-tier** consumer requires its sources to be `graduate`.
+- **Resolution rule:** every source a delivery names must resolve to a real source.
+
+The rules specific to the delivery *file* — level claims, the reconciliation graph, freshness — are in
+**ADR-019 §4**, because they change with the format rather than with the model.
 
 The delivery boundary is the authoritative gate; the config-load checks just shorten the feedback loop. Because R1/R2 need no delivery knowledge, an incoherent ensemble is caught even while it sits undelivered.
 
@@ -335,7 +313,7 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 ## 11. Implementation (phased — not big-bang)
 
 - **Phase 0 (this ADR):** the shared model. Zero code.
-- **Phase 1 — cheap, local, breaks nothing published:** revive the dead guard (R2); add `meta/consumers.py`; create `deliveries/` with **`un_fao.py` written first as a description of what already runs** — a characterisation, not a change — then lift FAO's `"ensemble"` line out of `config_meta.py`; derive `is_in_production`. *(Amendment 1: do this **before** views-models#333 clones `postprocessors/un_fao/` into `un_crafd/`, so the second consumer arrives as a declaration rather than as a second copy of an invisible edge.)*
+- **Phase 1 — cheap, local, breaks nothing published:** revive the dead guard (R2); create `deliveries/` (ADR-019) with **`un_fao.py` written first as a description of what already runs** — a characterisation, not a change — then lift FAO's `"ensemble"` line out of `config_meta.py`; derive `is_in_production`. *(Sequencing: do this **before** views-models#333 clones `postprocessors/un_fao/` into a second consumer directory, so consumer number two arrives as a declaration rather than as a second copy of an invisible edge.)*
 - **Phase 2 — cross-repo, deliberate:** the `deployment_status → maturity` rename + value remap + the pipeline-core contract + ADR-003; rename the file `config_deployment.py → config_maturity.py`; delete the silent log-stamp default.
   Do this with a **dual-vocabulary transition window** — the sniffer accepts both old and new values, warns on the old, and flips to new-only in a later major (the gid→id playbook). It **cannot** ride the pipeline-core 3.0 release, so it lands as a post-3.0 major or its own coordinated bump.
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
@@ -352,12 +330,12 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 - Gate split by boundary: maturity gates the write, delivery gates the serve; the producer never reads consumer config.
 - Maturity rules **R1** (no retired member in an active ensemble) + **R2** (graduate ensemble → all-graduate members).
 
-**Decided in Amendment 1 (2026-08-04):**
+**Decided — the delivery unit** (the detail is ADR-019):
 
 - **Delivery-unit home: `deliveries/<consumer>.py`.** Decided on legibility rather than architecture — the architecture was indifferent between this and `postprocessors/`, but the person filling one in is not. They arrive asking *"how do I send this to them?"*, not *"where are the postprocessors?"* — and `un_fao` does not post-process anything, it delivers.
-- **Delivery-unit weight: lightweight.** A delivery **declares**; it never transforms. Transformation stays in views-postprocessing, where the wire and the delivery rules already live. If a delivery file ever grows transformation logic we have rebuilt `postprocessors/` under a new name, and the rule above is how you notice.
-- **A delivery may name several sources**, and their relationship is asserted (`reconciled`), never configured here — the pairing already lives on the ensembles.
-- **Settings and assertions are separated syntactically** (`DELIVERY` vs `REQUIRE`, §4f), because conflating them is how a config ended up claiming it does nothing while deciding what reaches the UN.
+- **Delivery-unit weight: lightweight.** A delivery **declares**; it never transforms. If a delivery file ever grows transformation logic we have rebuilt `postprocessors/` under a new name.
+
+The file's shape, its keys and its rules are ADR-019's.
 
 **Deferred / open (stated plainly — not smuggled as decided):**
 - **Scheduled candidate / shadow ensembles** (e.g. a `views_shadow` endpoint run monthly): shared prod shelf tier-tagged, or a separate shadow shelf? *Revisit soon.*
@@ -365,49 +343,16 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 - **`config_meta.py` cleanup:** the "documentation only" docstring must stop being a lie once delivery moves out.
 - **The guard's stale-log gap:** even the live `deprecated`-member check reads the member's *artifact-time log*, so a member deprecated *after* its artifacts were generated slips through (register-worthy, Tier-3).
 
-## 13. Errors must descend — and we must say where the stairs end
+## 13. Errors
 
-**What this section does:** states the rule that makes the rest of this ADR usable by the person who will actually use it, and is honest about the four places that rule stops working.
-
-**Who this is for.** The person filling in a delivery file is, realistically, a research assistant with a social-science background who is good at Python *compared to social scientists*. They will only ever edit **this** repository. They cannot publish a package, edit the coordinate registry, or open a pull request against an API repo. Designing for anyone else is designing for someone we do not have.
-
-**The rule.** When a delivery file is wrong, the error sends the reader **exactly one level down**, naming the file to open next. Never sideways, never into another repository, never in a circle.
-
-| what is wrong | where the error sends you |
-|---|---|
-| `pgm("skinny_love")` but it declares `cm` | `ensembles/skinny_love/configs/config_meta.py` |
-| `reconciled = True` but the partner is someone else | the same file — `reconcile_with` is on the next line |
-| `reconcile_with` names an ensemble that does not exist | `ensembles/` — and the closest name to what was typed |
-| an active ensemble contains a retired member (R1) | `config_modelset.py`, then `models/<member>/configs/` |
-
-Four steps, each one down, no loops. **Error messages are load-bearing architecture here, not politeness.** They are also the least-tested thing in any codebase, so each of these messages gets a test asserting it names the next file — otherwise the staircase quietly rots in its second month.
-
-### Where the stairs end
-
-Three of the checks cannot be answered inside this repository, and one failure has no message at all. Pretending otherwise would be the same dishonesty as a config that claims it does nothing.
-
-- **`coverage`** — the cell counts that define `land_gaul` live in views-postprocessing, beside the GAUL asset. They belong there.
-- **`targets`** — checked against the manifests of a real run in the shelf. Not a file; a network resource. *(And it cannot be moved earlier until a source's config truthfully describes what it emits — `rusty_bucket` today declares `lr_*_best` and produces `lr_ged_*`. Until that is fixed, an edit-time target check would fail a correct delivery file, and the first thing the repo would teach a newcomer is that its errors are wrong.)*
-- **A genuinely new consumer** — needs a bucket in the coordinate registry (views-appwrite) and a producer package (views-postprocessing). `meta/consumers.py` is in this repo; what it points at is not.
-- **A `live()` delivery that nothing ever runs.** No error exists, because nothing failed. This is not a locked door — it is a hole in the floor, and it is the failure that has actually happened. The `max_age` rule in §5 and the derived-status report in §7 are the floor.
-
-**What an error must do when the stairs end.** It must terminate in **a named person and a request they can send** — never in a task the reader cannot perform:
-
-```
-un_ocha is not a registered consumer.
-
-  Consumers live in meta/consumers.py. Registering one needs a bucket
-  address from the platform coordinate registry, which is in another
-  repository you are not expected to edit.
-
-  Ask Simon, or open an issue: "Register consumer un_ocha (bucket + API)".
-  Everything else in this file is fine — this is the only thing blocking it.
-```
-
-That last line is the difference between a handoff and a dead end. A locked door that also tells you the rest of your work is correct is a good place to stop; one that does not is where people give up and ask someone to do it for them, which is how delivery became undiscoverable in the first place (§2).
+When a config here is wrong, the error must send the reader **exactly one level down**, naming the
+next file — and where the reader cannot go further, name a person rather than a task they cannot
+perform. That rule governs the whole repository, not just delivery, so it is **ADR-020**.
 
 ## References
 
+- **ADR-019** (the delivery declaration) and **ADR-020** (errors must descend) — split out of this document 2026-08-04.
+- **`docs/forecast_delivery_map.md`** — how delivery works today; this ADR's §1 lives there.
 - ADR-001 (ontology), ADR-002 (topology), ADR-003 (authority — the `deployment_status` allowed-list), ADR-016 (the same derive-don't-declare instinct).
 - views-postprocessing **ADR-013** (the wire half; see §6).
 - pipeline-core **Lean Platform End-State Roadmap** (`documentation/plans/2026-07-27_lean_platform_end_state_roadmap.md`) — owns the sequencing/retirement this ADR's §1 direction-of-travel defers; the basis for this ADR's acceptance.
