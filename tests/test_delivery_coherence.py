@@ -1,0 +1,222 @@
+"""The delivery coherence rules (ADR-019 §4, ADR-017 §5).
+
+Every rule here is answerable **inside this repository, offline**. The two that are not —
+`targets` and `coverage` — are deliberately absent; see `TestChecksThatDoNotRunHere`.
+
+Failing cases are built from *real* sources making *wrong claims*, rather than from
+invented source directories. A fixture that invents a model can drift from how the repo
+actually spells things; a fixture that mis-claims a real one cannot.
+"""
+
+from datetime import date
+
+import pytest
+
+from deliveries.coherence import (
+    CoherenceError,
+    check,
+    maturity_of,
+)
+from deliveries.vocabulary import Delivery, Require, cm, live, monthly, months, paused, pgm, prod
+
+pytestmark = pytest.mark.beige
+
+
+def _delivery(send, *, reconciled=None, max_age=months(2), intent=None):
+    return (
+        Delivery(
+            send=send,
+            frequency=monthly,
+            tier=prod,
+            intent=intent or live(since=date(2026, 8, 4)),
+        ),
+        Require(reconciled=reconciled, max_age=max_age),
+    )
+
+
+# ── The migration mapping (ADR-017 §3) ─────────────────────────────────────
+
+
+class TestMaturityMapping:
+    """`maturity` does not exist yet — Phase 2 is cross-repo. The rules run against
+    today's `deployment_status` with ADR-017's mapping applied in memory."""
+
+    @pytest.mark.parametrize(
+        "source,expected",
+        [("rusty_bucket", "candidate"), ("skinny_love", "candidate")],
+    )
+    def test_shadow_maps_to_candidate(self, source, expected):
+        assert maturity_of(source) == expected
+
+    def test_deployed_maps_to_candidate_when_r2_would_fail(self):
+        """ADR-017 §3: `deployed` → `graduate` **only if R2 holds, else candidate**.
+
+        `white_mustang` is the repo's single `deployed` source and both its members are
+        `shadow`. A straight rename would make it a graduate ensemble with candidate
+        members — a violation of this ADR's own rule on the day it lands.
+        """
+        assert maturity_of("white_mustang") == "candidate"
+
+    def test_unknown_source_fails_loudly(self):
+        with pytest.raises(CoherenceError) as exc:
+            maturity_of("no_such_source_anywhere")
+        assert "models/" in str(exc.value) or "ensembles/" in str(exc.value)
+
+
+# ── Resolution ─────────────────────────────────────────────────────────────
+
+
+class TestResolution:
+    def test_real_delivery_resolves(self):
+        delivery, require = _delivery([pgm("rusty_bucket")])
+        check(delivery, require, consumer="un_fao")
+
+    def test_unknown_source_is_refused(self):
+        delivery, require = _delivery([pgm("no_such_ensemble")])
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "no_such_ensemble" in str(exc.value)
+
+
+# ── Level correspondence ───────────────────────────────────────────────────
+
+
+class TestLevel:
+    def test_matching_claim_passes(self):
+        delivery, require = _delivery([pgm("rusty_bucket")])
+        check(delivery, require, consumer="un_fao")
+
+    def test_wrong_claim_is_refused(self):
+        """`rusty_bucket` declares pgm. Claiming cm must fail, and name its config."""
+        delivery, require = _delivery([cm("rusty_bucket")])
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        message = str(exc.value)
+        assert "config_meta.py" in message
+        assert "pgm" in message and "cm" in message
+
+
+# ── Reconciliation ─────────────────────────────────────────────────────────
+
+
+class TestReconciliation:
+    def test_connected_pair_passes(self):
+        """`skinny_love` (pgm) declares reconcile_with `pink_ponyclub` (cm)."""
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("pink_ponyclub")], reconciled=True
+        )
+        check(delivery, require, consumer="un_fao")
+
+    def test_disconnected_group_is_refused(self):
+        """`rude_boy` reconciles with nothing, so the two sources are not one group."""
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("rude_boy")], reconciled=True
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "rude_boy" in str(exc.value)
+
+    def test_unreconciled_multi_source_is_a_hard_error(self):
+        """ADR-019 §4: not supported — it silently permits a country total that
+        disagrees with the sum of its cells."""
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("pink_ponyclub")], reconciled=False
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "not currently supported" in str(exc.value)
+
+    def test_single_source_needs_no_reconciliation(self):
+        delivery, require = _delivery([pgm("rusty_bucket")], reconciled=False)
+        check(delivery, require, consumer="un_fao")
+
+
+# ── Freshness ──────────────────────────────────────────────────────────────
+
+
+class TestFreshness:
+    def test_live_without_max_age_is_refused(self):
+        """ADR-019 §4. The absence of this bound is why a partner received nothing
+        for 145 days while a complete forecast sat on the shelf (#320, C-121)."""
+        delivery, require = _delivery([pgm("rusty_bucket")], max_age=None)
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "max_age" in str(exc.value)
+
+    def test_paused_without_max_age_is_allowed(self):
+        delivery, require = _delivery(
+            [pgm("rusty_bucket")],
+            max_age=None,
+            intent=paused("shakedown pending", since=date(2026, 8, 4)),
+        )
+        check(delivery, require, consumer="un_fao")
+
+
+# ── Tier, and the day-one transition ───────────────────────────────────────
+
+
+class TestTierWarnsDuringTransition:
+    def test_candidate_to_prod_warns_rather_than_blocks(self):
+        """ADR-017 §11 "Day-one state": the platform inherits exactly this violation —
+        `rusty_bucket` is a candidate delivering to the production-tier FAO consumer.
+
+        It must **warn, not block**, until the real production ensemble graduates. This
+        test pins the warning, so a change that turns it into a hard failure is caught
+        rather than discovered when the delivery stops.
+        """
+        delivery, require = _delivery([pgm("rusty_bucket")])
+        with pytest.warns(UserWarning, match="candidate"):
+            check(delivery, require, consumer="un_fao")
+
+    def test_the_real_delivery_file_still_passes(self):
+        """Whatever else changes, deliveries/un_fao.py must remain checkable."""
+        from deliveries import un_fao
+
+        with pytest.warns(UserWarning):
+            check(un_fao.DELIVERY, un_fao.REQUIRE, consumer="un_fao")
+
+
+# ── What is deliberately not checked here ──────────────────────────────────
+
+
+class TestChecksThatDoNotRunHere:
+    """ADR-020 §4: two stairs end outside this repository. Their absence is a decision."""
+
+    def test_targets_are_not_gated_at_edit_time(self):
+        """A `targets` gate today would reject a *correct* delivery file.
+
+        `rusty_bucket` declares `lr_*_best` in `regression_targets` and emits
+        `lr_ged_*` (register C-123). Checking the delivery's targets against the
+        source config would fail the repo's own FAO ensemble — and the first thing
+        this repository would teach a newcomer is that its errors are wrong (C-125).
+        """
+        delivery, require = _delivery([pgm("rusty_bucket")])
+        require = Require(targets=("not_a_real_target",), max_age=months(2))
+        with pytest.warns(UserWarning):
+            check(delivery, require, consumer="un_fao")  # must not raise
+
+    def test_coverage_is_not_gated_at_edit_time(self):
+        """Cell counts live in views-postprocessing, beside the GAUL asset."""
+        delivery, _ = _delivery([pgm("rusty_bucket")])
+        require = Require(coverage="not_a_real_region", max_age=months(2))
+        with pytest.warns(UserWarning):
+            check(delivery, require, consumer="un_fao")  # must not raise
+
+
+class TestCycleGuard:
+    def test_self_containing_ensemble_fails_with_a_message(self, tmp_path, monkeypatch):
+        """A `deployed` ensemble that contains itself must name the file, not
+        RecursionError. ADR-020: no error may end in a stack trace the reader
+        cannot act on."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "_require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "_config",
+            lambda src, which: {"deployment_status": "deployed"} if which == "deployment"
+            else {"models": ["loopy"]} if which == "modelset" else {},
+        )
+        with pytest.raises(coh.CoherenceError) as exc:
+            coh.maturity_of("loopy")
+        assert "config_modelset.py" in str(exc.value)
+        assert "itself" in str(exc.value)
