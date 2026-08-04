@@ -73,6 +73,10 @@ measured on 2026-08-04 and names how to re-check it.
   **And it is inert.** Nothing anywhere branches `deployed`-vs-`shadow`; that is pinned in both
   repositories by `tests/test_deployment_status_inert.py`, which greps this repo *and* the installed
   `views_pipeline_core` for such a comparison and fails if one appears.
+  *(Amended 2026-08-04, when this ADR began to be implemented: there is now **exactly one** declared
+  reader — the migration mapping in `deliveries/coherence.py`, which must read the old value in order to
+  translate it into maturity per §3. The invariant **tightened rather than lapsed**: every other file
+  still fails, and the exemption retires when Phase 2 lands the rename.)*
   *Measured 2026-08-04:* **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** — 128 files, across
   132 source directories. *(Re-check with a pattern covering **both** quote styles: 81 of the 128 write
   `{'deployment_status': 'shadow'}`, 47 write `{"deployment_status": "shadow"}`. A double-quote-only

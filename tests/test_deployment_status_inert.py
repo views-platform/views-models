@@ -13,6 +13,14 @@ label teeth — which would invalidate ADR-017's "derived, never declared" model
 If it fails, either the new behavioural branch is a mistake, or ADR-017 and this
 test must be updated together (and the branch added to ALLOWLIST with a reason).
 
+**Amended 2026-08-04 (#344).** That second path was taken, once. ADR-017 is now
+being implemented, and §3's migration mapping must read `deployed` in order to
+translate it into the maturity vocabulary. `deliveries/coherence.py` is therefore
+the single declared reader, and the invariant is now "exactly one migration point
+may read these values, nothing else may" — see ALLOWLIST. ADR-017 §2 records the
+same change. Two further tests keep the exemption honest: it must name a file that
+exists, and that file must still need it.
+
 Green-team (ADR-005): pure source scan, no ML deps. Scans this repo always, and
 the installed `views_pipeline_core` package when importable (skip-truthful, C-75).
 """
@@ -35,9 +43,30 @@ _COMPARISON = re.compile(
     r"""|['"](?:deployed|shadow)['"]\s*(?:==|!=)"""     # "deployed" != y
 )
 
-# Explicit, reasoned exceptions. Empty by design — a non-empty entry is a
-# deliberate decision that must be reconciled with ADR-017.
-ALLOWLIST: set[tuple[str, int]] = set()
+# Explicit, reasoned exceptions, keyed by path relative to the repo root.
+#
+# Keyed by FILE, not (file, line): a line number rots the moment anything above it
+# is edited, and a stale exemption silently re-opens the hole it was guarding.
+#
+# The invariant this test pins has changed shape, and the change is deliberate.
+# Before 2026-08-04 the claim was "nothing anywhere branches deployed-vs-shadow",
+# which was ADR-017 §2's evidence that the label is inert. ADR-017 is now being
+# implemented (#342), and ADR-017 §3 defines a migration mapping that must read the
+# old value in order to translate it. So the claim becomes:
+#
+#     Exactly one declared migration point may read these values. Nothing else may.
+#
+# That is a stronger invariant than an empty allowlist would be today, because it
+# still fails for every other file — including any attempt to make training,
+# forecasting or delivery depend on the label without going through the ADR.
+ALLOWLIST: dict[str, str] = {
+    "deliveries/coherence.py": (
+        "ADR-017 §3's migration mapping: `deployed` -> `graduate` only where R2 "
+        "already holds, else `candidate`. Translating the old vocabulary requires "
+        "reading it. Retire this entry when Phase 2 lands the rename "
+        "(views-pipeline-core#398) and the old values no longer exist."
+    ),
+}
 
 
 def _offending_lines(root: Path) -> list[str]:
@@ -52,10 +81,47 @@ def _offending_lines(root: Path) -> list[str]:
             text = py.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
+        try:
+            relative = py.relative_to(root).as_posix()
+        except ValueError:
+            relative = py.as_posix()
+        if relative in ALLOWLIST:
+            continue
         for i, line in enumerate(text.splitlines(), start=1):
-            if _COMPARISON.search(line) and (str(py), i) not in ALLOWLIST:
+            if _COMPARISON.search(line):
                 hits.append(f"{py}:{i}: {line.strip()}")
     return hits
+
+
+def test_every_allowlisted_file_still_exists():
+    """A stale exemption silently re-opens the hole it was guarding.
+
+    If an allowlisted file is deleted or renamed, the entry must go with it —
+    otherwise a future file at that path inherits an exemption nobody granted it.
+    """
+    missing = [rel for rel in ALLOWLIST if not (REPO_ROOT / rel).exists()]
+    assert not missing, (
+        f"ALLOWLIST names files that no longer exist: {missing}.\n"
+        f"  Open tests/test_deployment_status_inert.py and remove the entries."
+    )
+
+
+def test_allowlisted_file_actually_needs_its_exemption():
+    """An exemption for a file that no longer branches is dead weight — and it
+    would silently cover a *new* branch added to that file later."""
+    unnecessary = []
+    for rel in ALLOWLIST:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        if not any(_COMPARISON.search(line) for line in path.read_text().splitlines()):
+            unnecessary.append(rel)
+    assert not unnecessary, (
+        f"these files are allowlisted but no longer branch on deployed/shadow: "
+        f"{unnecessary}.\n"
+        f"  Remove them from ALLOWLIST in tests/test_deployment_status_inert.py — "
+        f"an exemption wider than its reason is how the invariant erodes."
+    )
 
 
 def test_views_models_never_branches_on_deployed_or_shadow():
