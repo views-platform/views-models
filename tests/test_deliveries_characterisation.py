@@ -13,6 +13,7 @@ fail on another. The declaration still records `coverage`, because that is what 
 the *test* only pins what the repository can prove.
 """
 
+import ast
 import subprocess
 from pathlib import Path
 
@@ -33,8 +34,15 @@ COMMITTED_META_KEYS = {"name", "algorithm", "targets", "level", "ensemble"}
 FAO_META = "postprocessors/un_fao/configs/config_meta.py"
 
 
-def _committed_fao_meta() -> dict:
-    """The FAO meta config as committed, not as it sits in someone's working tree."""
+def _committed_meta_keys() -> set[str]:
+    """The FAO meta config's key names, as committed — read *statically*.
+
+    This used to `exec` the file. Since #347 the config imports the delivery
+    declaration and manipulates `sys.path`, so executing a detached git blob needs a
+    `__file__` that does not exist, and every future import the config gains would
+    break this test again. Parsing is enough: the question here is only which keys the
+    committed file declares, and `ast` answers that without running anything.
+    """
     proc = subprocess.run(
         ["git", "show", f"HEAD:{FAO_META}"],
         cwd=REPO_ROOT, capture_output=True, text=True,
@@ -43,18 +51,23 @@ def _committed_fao_meta() -> dict:
         raise AssertionError(
             f"could not read {FAO_META} from git HEAD.\n"
             f"  git said: {proc.stderr.strip() or '(nothing)'}\n"
-            f"  This test compares the delivery declaration against the *committed*\n"
-            f"  config, because working-tree-only keys differ between checkouts (C-110)."
+            f"  This test inspects the *committed* config, because working-tree-only "
+            f"keys differ between checkouts (C-110)."
         )
-    namespace: dict = {}
     try:
-        exec(compile(proc.stdout, f"<HEAD:{FAO_META}>", "exec"), namespace)  # noqa: S102
+        tree = ast.parse(proc.stdout, filename=f"HEAD:{FAO_META}")
     except SyntaxError as exc:
         raise AssertionError(
             f"{FAO_META} does not parse as committed: {exc}.\n"
             f"  Open that file — the committed version is broken, not your working copy."
         ) from exc
-    return namespace["get_meta_config"]()
+    keys: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            for key in node.keys:
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    keys.add(key.value)
+    return keys
 
 
 def _load_delivery(consumer: str):
@@ -95,74 +108,47 @@ class TestDeclarationShape:
 
 
 class TestParityWithCommittedConfig:
-    """The declaration must describe reality before anything is allowed to depend on it."""
+    """**Superseded by #347, deliberately not deleted.**
 
-    def test_ensemble_matches(self):
-        mod = _load_delivery("un_fao")
-        committed = _committed_fao_meta()
-        declared = {s.name for s in mod.DELIVERY.send}
-        assert declared == {committed["ensemble"]}, (
-            f"deliveries/un_fao.py sends {sorted(declared)} but "
-            f"postprocessors/un_fao/configs/config_meta.py declares "
-            f"'{committed['ensemble']}'.\n"
-            f"  These must agree until #347 makes the launcher read the declaration."
-        )
+    This class used to assert that `deliveries/un_fao.py` and the FAO config named the
+    same source. That was the invariant that made #347 safe to attempt: the declaration
+    had to be proven to describe reality before anything depended on it.
 
-    def test_level_matches(self):
-        mod = _load_delivery("un_fao")
-        committed = _committed_fao_meta()
-        for source in mod.DELIVERY.send:
-            assert source.level == committed["level"], (
-                f"deliveries/un_fao.py claims {source.level}('{source.name}') but "
-                f"postprocessors/un_fao/configs/config_meta.py declares "
-                f"level '{committed['level']}'."
-            )
+    Since #347 the config *derives* its source from the declaration, so comparing the
+    two would compare the declaration to itself — a test that always passes and proves
+    nothing. Re-adding it would be worse than having no test, because a green
+    tautology reads like coverage.
 
-    def test_targets_match(self):
-        mod = _load_delivery("un_fao")
-        committed = _committed_fao_meta()
-        assert list(mod.REQUIRE.targets) == list(committed["targets"]), (
-            f"deliveries/un_fao.py requires {list(mod.REQUIRE.targets)} but "
-            f"postprocessors/un_fao/configs/config_meta.py declares "
-            f"{committed['targets']}."
-        )
+    The invariant that survives is in `tests/test_fao_launcher_reads_declaration.py`:
+    changing the declaration must change what the config yields. That is a claim about
+    *direction*, which a tautology cannot express.
+
+    What still bites is below: a new key appearing in the committed config.
+    """
 
     def test_parity_scope_is_still_accurate(self):
-        """If the FAO config gains or loses a committed key, this test must be revisited.
+        """If the FAO config gains or loses a committed key, this must be revisited.
 
-        Guards the assumption in the module docstring: a new committed key might belong
-        in the declaration, and silently ignoring it is how the two drift apart.
+        A new committed key might belong in the delivery declaration, and silently
+        ignoring it is how the two drift apart again.
         """
-        committed = set(_committed_fao_meta())
+        committed = _committed_meta_keys()
         assert committed == COMMITTED_META_KEYS, (
-            f"the committed keys of postprocessors/un_fao/configs/config_meta.py "
-            f"changed: {sorted(committed ^ COMMITTED_META_KEYS)}.\n"
+            f"the committed keys of {FAO_META} changed: "
+            f"{sorted(committed ^ COMMITTED_META_KEYS)}.\n"
             f"  Decide whether the new/removed key belongs in deliveries/un_fao.py, "
             f"then update COMMITTED_META_KEYS in this file."
         )
 
 
-# ── Nothing depends on the declaration yet ─────────────────────────────────
-
-
-class TestNoBehaviourChange:
-    def test_nothing_reads_deliveries_yet(self):
-        """#343 is additive. The launcher starts reading the declaration in #347."""
-        proc = subprocess.run(
-            ["git", "grep", "-l", "-E", r"deliveries[./]", "--",
-             "postprocessors/", "models/", "ensembles/", "monthly_run.sh"],
-            cwd=REPO_ROOT, capture_output=True, text=True,
-        )
-        # git grep: 0 = matches found, 1 = none, anything else = it did not run.
-        # Reading empty stdout as "no matches" would make this guard pass on error —
-        # the defect recorded as C-113, in the one test that proves this story is
-        # additive. Silence must not be mistaken for a clean result.
-        assert proc.returncode in (0, 1), (
-            f"git grep could not run (rc={proc.returncode}), so this guard proved "
-            f"nothing.\n  git said: {proc.stderr.strip() or '(nothing)'}"
-        )
-        hits = proc.stdout.split()
-        assert not hits, (
-            f"{hits} reference deliveries/ — but #343 must change no behaviour.\n"
-            f"  Making the launcher read the declaration is #347."
-        )
+# ── The additive guard has been retired ───────────────────────────────────
+#
+# #343 asserted that nothing under postprocessors/, models/, ensembles/ or
+# monthly_run.sh referenced deliveries/, because that story was additive. #347 is the
+# story that changed it, and the guard fired there exactly as intended.
+#
+# It was not deleted, it was **inverted**: the same fact is still checked, with the
+# opposite expected value, in
+# tests/test_fao_launcher_reads_declaration.py::TestTheAdditiveGuardIsCorrectlyRetired.
+# A guard that is removed when it becomes inconvenient teaches the next person that
+# guards are negotiable.
