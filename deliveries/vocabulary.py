@@ -116,6 +116,7 @@ def paused(reason: str, since: date) -> Intent:
     if not isinstance(since, date):
         raise TypeError(
             f"paused(..., since=...) needs a datetime.date, got {type(since).__name__}.\n"
+            f'  Write: paused("<why>", since=date(2026, 8, 4))\n'
             f"  Without a date, nobody can tell a new pause from a forgotten one."
         )
     return Intent(state="paused", since=since, reason=reason)
@@ -131,7 +132,8 @@ class Months:
 def months(count: int) -> Months:
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         raise ValueError(
-            f"months(...) needs a positive whole number of months, got {count!r}."
+            f"months(...) needs a positive whole number of months, got {count!r}.\n"
+            f"  Write: months(2)"
         )
     return Months(count=count)
 
@@ -155,7 +157,13 @@ class Delivery:
                 "country-level forecast it was reconciled against."
             )
         if not self.send:
-            raise ValueError("send must name at least one source.")
+            raise ValueError(
+                "send must name at least one source — a delivery that sends nothing "
+                "is not a delivery.\n"
+                "  Write: send=[pgm('<ensemble>')]\n"
+                "  To turn a delivery off, set intent=paused(\"<why>\", since=...) "
+                "instead; deleting the sources throws away the reason."
+            )
         object.__setattr__(self, "send", tuple(self.send))
 
 

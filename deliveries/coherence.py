@@ -35,6 +35,31 @@ class CoherenceError(Exception):
     """A delivery file is incoherent. The message names the next file to open."""
 
 
+#: Who to ask when the staircase ends outside this repository (ADR-020 §1, §5).
+MAINTAINER = "Simon"
+
+
+def locked_door(*, what: str, why: str, request: str) -> str:
+    """Compose the message for a check that cannot be answered in this repository.
+
+    ADR-020 §5: name the person, supply the request, and confirm the rest of the work
+    is fine. That last part is not politeness — it is the difference between a handoff
+    and a dead end. A locked door that also tells you the rest of your work is correct
+    is a good place to stop; one that does not is where people give up and ask someone
+    else to do it for them, which is how delivery became undiscoverable in the first
+    place (ADR-017 §2).
+
+    The audience cannot publish a package or edit another repository (ADR-020 §1), so
+    no message composed here may end in a task they cannot perform.
+    """
+    return (
+        f"{what}.\n\n"
+        f"  {why}.\n\n"
+        f'  Ask {MAINTAINER}, or open an issue: "{request}".\n'
+        f"  Everything else in this file is fine — this is the only thing blocking it."
+    )
+
+
 # ── Reading a source's own declarations ────────────────────────────────────
 
 
