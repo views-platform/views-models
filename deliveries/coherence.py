@@ -155,15 +155,18 @@ def _check_resolution_and_level(delivery) -> None:
             )
 
 
-def _check_reconciliation(delivery, require) -> None:
+def _check_reconciliation(delivery, require, consumer: str) -> None:
     if len(delivery.send) < 2:
         return
     names = [s.name for s in delivery.send]
     if require.reconciled is not True:
         raise CoherenceError(
-            f"this delivery sends {len(names)} sources ({', '.join(names)}) with "
-            f"reconciled={require.reconciled!r}.\n"
-            f"  That is not currently supported; no meaningful use-case has emerged.\n"
+            f"deliveries/{consumer}.py sends {len(names)} sources "
+            f"({', '.join(names)}) with reconciled={require.reconciled!r}.\n"
+            f"  Open deliveries/{consumer}.py and set reconciled=True in REQUIRE, "
+            f"or send one source.\n"
+            f"  Several sources with no stated relationship is not currently "
+            f"supported; no meaningful use-case has emerged.\n"
             f"  Shipping several sources with no stated relationship silently permits a "
             f"country total that disagrees with the sum of its cells."
         )
@@ -252,7 +255,7 @@ def check(delivery, require, *, consumer: str) -> None:
     """Run every rule that is answerable here. Raises CoherenceError on the first
     violation; warns for the transitional tier rule."""
     _check_resolution_and_level(delivery)
-    _check_reconciliation(delivery, require)
+    _check_reconciliation(delivery, require, consumer)
     _check_freshness(delivery, require, consumer)
     _check_maturity_rules(delivery)
     _check_tier(delivery, consumer)

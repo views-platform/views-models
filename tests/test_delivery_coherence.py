@@ -124,7 +124,11 @@ class TestReconciliation:
         )
         with pytest.raises(CoherenceError) as exc:
             check(delivery, require, consumer="un_fao")
-        assert "not currently supported" in str(exc.value)
+        message = str(exc.value)
+        assert "not currently supported" in message
+        assert "deliveries/un_fao.py" in message, (
+            "ADR-020: the error must name the file the reader has to open"
+        )
 
     def test_single_source_needs_no_reconciliation(self):
         delivery, require = _delivery([pgm("rusty_bucket")], reconciled=False)
