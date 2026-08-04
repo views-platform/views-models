@@ -214,9 +214,9 @@ class TestCycleGuard:
         cannot act on."""
         import deliveries.coherence as coh
 
-        monkeypatch.setattr(coh, "_require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
         monkeypatch.setattr(
-            coh, "_config",
+            coh, "source_config",
             lambda src, which: {"deployment_status": "deployed"} if which == "deployment"
             else {"models": ["loopy"]} if which == "modelset" else {},
         )
