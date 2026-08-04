@@ -1,6 +1,6 @@
 # ADR-019: The delivery declaration — one file per consumer
 
-**Status:** **Accepted** (2026-08-04)
+**Status:** **Accepted** (2026-08-04) — **amended 2026-08-04** (`live()` → `live(since=…)`, §3)
 **Date:** 2026-08-04
 **Deciders:** Simon (maintainer)
 **Builds on:** **ADR-017**, which decides that delivery is a `sources → consumer` edge written on the
@@ -41,13 +41,14 @@ about a delivery we actually make.
 ```python
 # deliveries/<consumer>.py         <- the filename is the consumer
 # shown here as: deliveries/un_ocha.py
+from datetime import date
 
 DELIVERY = Delivery(               # DECIDES  — change a line, something different happens
     send      = [pgm("skinny_love"),
                  cm("fat_smooch")],
     frequency = monthly,
     tier      = prod,
-    intent    = live(),
+    intent    = live(since=date(2026, 8, 4)),
 )
 
 REQUIRE = Require(                 # REFUSES  — change a line, a different set is rejected
@@ -58,8 +59,8 @@ REQUIRE = Require(                 # REFUSES  — change a line, a different set
 )
 ```
 
-Read aloud: *"we send skinny_love and fat_smooch to OCHA, monthly, to a production consumer, and it is
-switched on; they must be reconciled with each other, carry these three targets, cover land_gaul, and
+Read aloud: *"we send skinny_love and fat_smooch to OCHA, monthly, to a production consumer, switched on
+since 4 August; they must be reconciled with each other, carry these three targets, cover land_gaul, and
 be no older than two months."*
 
 If that sentence is what you were told to do, the file is right. That is the whole test of this design.
@@ -106,7 +107,7 @@ value is a name checked against something else, so no list can be complete.
 | `send` | DELIVERY | a list of `pgm(<source>)`, `cm(<source>)` | closed *(the wrappers)* | **which** forecast the consumer receives |
 | `frequency` | DELIVERY | `monthly` | closed — 1 value | **which** scheduled run picks it up |
 | `tier` | DELIVERY | `prod` | closed — 1 value | **whether** sources must be `graduate` |
-| `intent` | DELIVERY | `live()`, `paused(reason, since=…)` | closed — 2 values | **whether** it ships at all |
+| `intent` | DELIVERY | `live(since=…)`, `paused(reason, since=…)` | closed — 2 values | **whether** it ships at all |
 | `reconciled` | REQUIRE | `True`, `False` | closed — 2 values | which source *combinations* are refused |
 | `targets` | REQUIRE | a tuple of target names | **open** — checked against a run's manifests | a run missing one is refused |
 | `coverage` | REQUIRE | one region name | **open** — checked against views-postprocessing | a run with the wrong cell count is refused |
@@ -194,14 +195,24 @@ wanted, a registry can return; nothing here forecloses it.
 
 **`intent` — declared; status is derived.** ADR-017 §4e establishes that "in production" is worked out,
 never typed. `intent` is the other half: the thing you *do* type, kept in a different word so the two
-are never confused.
+are never confused. **Both states carry a date; only `paused` carries a reason** — being on is the
+default and needs no excuse, whereas switching off silently is the disease being treated.
 
 *The complete set is two values. There is no third, and no bare `intent = live` without the call —
 `paused` must carry arguments, so both are constructors for symmetry.*
 
-- **`live()`** — the scheduled runner picks this delivery up at its `frequency`, and the file **must**
-  declare `max_age` (§4). Live is the only state with a freshness obligation, because it is the only
-  state where silence is a failure.
+- **`live(since=…)`** — the scheduled runner picks this delivery up at its `frequency`, and the file
+  **must** declare `max_age` (§4). Live is the only state with a freshness obligation, because it is the
+  only state where silence is a failure.
+
+  *Why live carries a date too* **(amended 2026-08-04).** This ADR originally had `live()` bare and only
+  `paused` dated. But ADR-020 §4 calls the live-but-never-run case *"the hole in the floor"* — a delivery
+  declared live that nothing executes raises nothing, because nothing failed. A declared start date does
+  not close that hole; it makes it **measurable**. `since` minus the last observed delivery is the length
+  of the silence, and without a baseline a brand-new delivery is indistinguishable from one that has been
+  dead for five months — which is exactly #320. The usual objection to required dates, that they rot,
+  does not apply: `since` is set once at the transition and never updated. It is a fact about a past
+  event, not a maintained field.
 - **`paused(reason, since=...)`** — the runner skips it. The reason and the date are **required**, and
   they surface in the status report, so a pause is a visible fact with an age rather than an absence.
 
