@@ -1,0 +1,261 @@
+"""The coherence rules a delivery file must satisfy (ADR-019 §4, ADR-017 §5).
+
+These live beside the declaration rather than in `tools/`, because they are a contract,
+not an instrument: `tools/` observes, this refuses.
+
+**Everything here is answerable offline, inside this repository.** Two rules from
+ADR-019 §4 are deliberately absent, and their absence is a decision recorded in
+ADR-020 §4:
+
+- **`targets`** — checked against a real run's manifests, not a config. A gate here
+  today would reject a *correct* delivery file, because `rusty_bucket` declares
+  `lr_*_best` and emits `lr_ged_*` (register C-123). The first thing this repository
+  would teach a newcomer is that its errors are wrong (C-125).
+- **`coverage`** — the cell counts defining a region live in views-postprocessing,
+  beside the GAUL asset. They belong there.
+
+**On maturity.** `maturity` does not exist yet: the `deployment_status` rename is
+ADR-017 §11 Phase 2 and is cross-repo (views-pipeline-core#398). So the rules run
+against today's field with ADR-017 §3's mapping applied in memory. Phase 2 then changes
+what the values are *called*, not what the rules *say*.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import warnings
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MODELS_DIR = REPO_ROOT / "models"
+ENSEMBLES_DIR = REPO_ROOT / "ensembles"
+
+
+class CoherenceError(Exception):
+    """A delivery file is incoherent. The message names the next file to open."""
+
+
+# ── Reading a source's own declarations ────────────────────────────────────
+
+
+def _load(path: Path, unique_name: str):
+    """Load a config file as a module.
+
+    `tests/conftest.py` has a near-identical helper. This is a deliberate copy, not an
+    oversight: production code importing from the test package would invert the
+    dependency and make `deliveries/` unusable without pytest installed. Ten duplicated
+    lines are cheaper than that coupling — WET before DRY, and the right seam to share
+    across is not yet known.
+    """
+    spec = importlib.util.spec_from_file_location(unique_name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _source_dir(name: str) -> Path | None:
+    for base in (ENSEMBLES_DIR, MODELS_DIR):
+        candidate = base / name
+        if (candidate / "configs").is_dir():
+            return candidate
+    return None
+
+
+def _config(source: str, which: str) -> dict:
+    """Load one of a source's config dicts, or {} if that config does not exist."""
+    directory = _source_dir(source)
+    if directory is None:
+        return {}
+    path = directory / "configs" / f"config_{which}.py"
+    if not path.exists():
+        return {}
+    module = _load(path, f"_delivery_cfg_{source}_{which}")
+    getter = getattr(module, f"get_{which}_config", None)
+    return getter() if getter else {}
+
+
+def _require_source(name: str) -> Path:
+    directory = _source_dir(name)
+    if directory is None:
+        raise CoherenceError(
+            f"'{name}' is not a source in this repository.\n"
+            f"  Looked in: models/{name}/configs/ and ensembles/{name}/configs/\n"
+            f"  Open ensembles/ and check the spelling{_did_you_mean(name)}."
+        )
+    return directory
+
+
+def _did_you_mean(name: str) -> str:
+    import difflib
+
+    known = [p.name for base in (ENSEMBLES_DIR, MODELS_DIR)
+             for p in base.iterdir() if (p / "configs").is_dir()]
+    close = difflib.get_close_matches(name, known, n=1)
+    return f" — did you mean '{close[0]}'?" if close else ""
+
+
+# ── Maturity (ADR-017 §3's migration mapping, applied in memory) ───────────
+
+_MATURITY = {"shadow": "candidate", "baseline": "candidate", "deprecated": "retired"}
+
+
+def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
+    """Today's `deployment_status`, expressed in ADR-017's maturity vocabulary."""
+    if source in _seen:
+        raise CoherenceError(
+            f"'{source}' is a member of itself, directly or through "
+            f"{' -> '.join(sorted(_seen))}.\n"
+            f"  Open ensembles/{source}/configs/config_modelset.py and break the cycle.\n"
+            f"  An ensemble cannot contain itself; its maturity would have no answer."
+        )
+    _require_source(source)
+    status = _config(source, "deployment").get("deployment_status")
+    if status is None:
+        # Four source directories carry no config_deployment.py at all (ADR-017 §3).
+        return "candidate"
+    if status in _MATURITY:
+        return _MATURITY[status]
+    if status == "deployed":
+        # ADR-017 §3: `graduate` only where R2 already holds, else `candidate`. A
+        # straight rename would make the repo's one `deployed` ensemble a graduate
+        # with candidate members — a violation of ADR-017's own rule on day one.
+        members = _config(source, "modelset").get("models", [])
+        deeper = _seen | {source}
+        if members and all(maturity_of(m, deeper) == "graduate" for m in members):
+            return "graduate"
+        return "candidate"
+    raise CoherenceError(
+        f"'{source}' declares an unknown deployment_status '{status}'.\n"
+        f"  Open {_source_dir(source).relative_to(REPO_ROOT)}/configs/config_deployment.py\n"
+        f"  Valid today: shadow, deployed, baseline, deprecated."
+    )
+
+
+# ── The rules ──────────────────────────────────────────────────────────────
+
+
+def _check_resolution_and_level(delivery) -> None:
+    for source in delivery.send:
+        directory = _require_source(source.name)
+        declared = _config(source.name, "meta").get("level")
+        if declared is None:
+            raise CoherenceError(
+                f"{source.level}('{source.name}') cannot be checked: that source "
+                f"declares no level.\n"
+                f"  Open {directory.relative_to(REPO_ROOT)}/configs/config_meta.py "
+                f"and add \"level\"."
+            )
+        if declared != source.level:
+            raise CoherenceError(
+                f"the delivery claims {source.level}('{source.name}') but that source "
+                f"declares level '{declared}'.\n"
+                f"  Open {directory.relative_to(REPO_ROOT)}/configs/config_meta.py — "
+                f"one of the two is wrong.\n"
+                f"  Neither is authoritative over the other (ADR-019 §4); they must agree."
+            )
+
+
+def _check_reconciliation(delivery, require, consumer: str) -> None:
+    if len(delivery.send) < 2:
+        return
+    names = [s.name for s in delivery.send]
+    if require.reconciled is not True:
+        raise CoherenceError(
+            f"deliveries/{consumer}.py sends {len(names)} sources "
+            f"({', '.join(names)}) with reconciled={require.reconciled!r}.\n"
+            f"  Open deliveries/{consumer}.py and set reconciled=True in REQUIRE, "
+            f"or send one source.\n"
+            f"  Several sources with no stated relationship is not currently "
+            f"supported; no meaningful use-case has emerged.\n"
+            f"  Shipping several sources with no stated relationship silently permits a "
+            f"country total that disagrees with the sum of its cells."
+        )
+    # One connected group covering every source listed (ADR-019 §4).
+    edges: set[frozenset[str]] = set()
+    for name in names:
+        meta = _config(name, "meta")
+        partner = meta.get("reconcile_with")
+        if meta.get("reconciliation") and partner:
+            edges.add(frozenset((name, partner)))
+    reached = {names[0]}
+    changed = True
+    while changed:
+        changed = False
+        for edge in edges:
+            if reached & edge and not edge <= reached:
+                reached |= edge
+                changed = True
+    stranded = [n for n in names if n not in reached]
+    if stranded:
+        first = stranded[0]
+        directory = _source_dir(first)
+        raise CoherenceError(
+            f"reconciled=True, but '{first}' is not reconciled with the rest of this "
+            f"delivery ({', '.join(n for n in names if n != first)}).\n"
+            f"  Open {directory.relative_to(REPO_ROOT)}/configs/config_meta.py and check "
+            f"\"reconciliation\" and \"reconcile_with\".\n"
+            f"  Every source in one delivery must form a single connected group."
+        )
+
+
+def _check_freshness(delivery, require, consumer: str) -> None:
+    if delivery.intent.state == "live" and require.max_age is None:
+        raise CoherenceError(
+            f"deliveries/{consumer}.py is live but declares no max_age.\n"
+            f"  Add max_age=months(n) to REQUIRE.\n"
+            f"  A live delivery with no freshness bound is how a partner received "
+            f"nothing for 145 days while a complete forecast sat on the shelf (#320)."
+        )
+
+
+def _check_tier(delivery, consumer: str) -> None:
+    if delivery.tier.name != "prod":
+        return
+    for source in delivery.send:
+        maturity = maturity_of(source.name)
+        if maturity != "graduate":
+            # ADR-017 §11 "Day-one state": warn, not block, until the real production
+            # ensemble is graduated. The migration is not gated on a hasty graduation.
+            warnings.warn(
+                f"deliveries/{consumer}.py sends '{source.name}', which is "
+                f"{maturity}, to a prod consumer. ADR-017 §5 requires graduate.\n"
+                f"  Warning rather than failing during the transition "
+                f"(ADR-017 §11 day-one state). Not a reason to graduate anything hastily.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
+def _check_maturity_rules(delivery) -> None:
+    """R1 and R2 (ADR-017 §5), for the ensembles a delivery actually names."""
+    for source in delivery.send:
+        members = _config(source.name, "modelset").get("models", [])
+        if not members:
+            continue
+        own = maturity_of(source.name)
+        for member in members:
+            member_maturity = maturity_of(member)
+            if own in ("candidate", "graduate") and member_maturity == "retired":
+                raise CoherenceError(
+                    f"R1: '{source.name}' is {own} but contains the retired member "
+                    f"'{member}'.\n"
+                    f"  Open ensembles/{source.name}/configs/config_modelset.py, "
+                    f"then models/{member}/configs/."
+                )
+            if own == "graduate" and member_maturity != "graduate":
+                raise CoherenceError(
+                    f"R2: '{source.name}' is graduate but its member '{member}' is "
+                    f"{member_maturity}.\n"
+                    f"  Open ensembles/{source.name}/configs/config_modelset.py, "
+                    f"then models/{member}/configs/."
+                )
+
+
+def check(delivery, require, *, consumer: str) -> None:
+    """Run every rule that is answerable here. Raises CoherenceError on the first
+    violation; warns for the transitional tier rule."""
+    _check_resolution_and_level(delivery)
+    _check_reconciliation(delivery, require, consumer)
+    _check_freshness(delivery, require, consumer)
+    _check_maturity_rules(delivery)
+    _check_tier(delivery, consumer)
