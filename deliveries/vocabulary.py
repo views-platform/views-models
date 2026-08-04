@@ -8,6 +8,11 @@ A delivery file names a consumer by its filename and declares two blocks:
 Everything here is either a type or a constructor for those two blocks. It is one
 concept — the delivery language — so it lives in one module.
 
+Deliberately minimal. There is no `__str__`, no `is_live`, no convenience predicate,
+because nothing calls one yet — the checks that will format these values into error
+messages are views-models#344 and #345, and they can add what they actually use. WET
+before DRY applies to a vocabulary as much as to a framework.
+
 What this module does *not* do: check that a source exists, that a level claim matches
 the source's own config, or that a reconciliation graph is connected. Those are
 cross-file coherence rules and belong with the checks (ADR-019 §4, views-models#344).
@@ -34,9 +39,6 @@ __all__ = [
 class _Word:
     name: str
 
-    def __str__(self) -> str:
-        return self.name
-
 
 #: The only frequency today. ADR-019 §3: the key exists so a second cadence is one new
 #: word rather than a schema change touching every existing file.
@@ -61,9 +63,6 @@ class Source:
     name: str
     level: str
 
-    def __str__(self) -> str:
-        return f"{self.level}({self.name!r})"
-
 
 def pgm(name: str) -> Source:
     """Claim that `name` is a grid-cell (PRIO-GRID month) source."""
@@ -84,10 +83,6 @@ class Intent:
     state: str
     since: date
     reason: str | None = None
-
-    @property
-    def is_live(self) -> bool:
-        return self.state == "live"
 
 
 def live(since: date) -> Intent:
@@ -132,9 +127,6 @@ def paused(reason: str, since: date) -> Intent:
 class Months:
     count: int
 
-    def __str__(self) -> str:
-        return f"{self.count} month{'s' if self.count != 1 else ''}"
-
 
 def months(count: int) -> Months:
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
@@ -155,19 +147,16 @@ class Delivery:
     tier: _Word
     intent: Intent
 
-    def __init__(self, send, frequency, tier, intent):
-        if isinstance(send, Source):
+    def __post_init__(self) -> None:
+        if isinstance(self.send, Source):
             raise TypeError(
                 "send must be a list, even with one source: send=[pgm('x')].\n"
                 "  ADR-017 §3: a consumer may need a grid-cell forecast and the "
                 "country-level forecast it was reconciled against."
             )
-        if not send:
+        if not self.send:
             raise ValueError("send must name at least one source.")
-        object.__setattr__(self, "send", tuple(send))
-        object.__setattr__(self, "frequency", frequency)
-        object.__setattr__(self, "tier", tier)
-        object.__setattr__(self, "intent", intent)
+        object.__setattr__(self, "send", tuple(self.send))
 
 
 @dataclass(frozen=True)
@@ -186,8 +175,5 @@ class Require:
     coverage: str | None = None
     max_age: Months | None = None
 
-    def __init__(self, targets=(), reconciled=None, coverage=None, max_age=None):
-        object.__setattr__(self, "targets", tuple(targets))
-        object.__setattr__(self, "reconciled", reconciled)
-        object.__setattr__(self, "coverage", coverage)
-        object.__setattr__(self, "max_age", max_age)
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "targets", tuple(self.targets))

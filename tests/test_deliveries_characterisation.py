@@ -30,14 +30,30 @@ DELIVERIES_DIR = REPO_ROOT / "deliveries"
 COMMITTED_META_KEYS = {"name", "algorithm", "targets", "level", "ensemble"}
 
 
+FAO_META = "postprocessors/un_fao/configs/config_meta.py"
+
+
 def _committed_fao_meta() -> dict:
     """The FAO meta config as committed, not as it sits in someone's working tree."""
-    blob = subprocess.run(
-        ["git", "show", "HEAD:postprocessors/un_fao/configs/config_meta.py"],
-        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
-    ).stdout
+    proc = subprocess.run(
+        ["git", "show", f"HEAD:{FAO_META}"],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise AssertionError(
+            f"could not read {FAO_META} from git HEAD.\n"
+            f"  git said: {proc.stderr.strip() or '(nothing)'}\n"
+            f"  This test compares the delivery declaration against the *committed*\n"
+            f"  config, because working-tree-only keys differ between checkouts (C-110)."
+        )
     namespace: dict = {}
-    exec(compile(blob, "<HEAD:config_meta.py>", "exec"), namespace)  # noqa: S102
+    try:
+        exec(compile(proc.stdout, f"<HEAD:{FAO_META}>", "exec"), namespace)  # noqa: S102
+    except SyntaxError as exc:
+        raise AssertionError(
+            f"{FAO_META} does not parse as committed: {exc}.\n"
+            f"  Open that file — the committed version is broken, not your working copy."
+        ) from exc
     return namespace["get_meta_config"]()
 
 
@@ -132,11 +148,20 @@ class TestParityWithCommittedConfig:
 class TestNoBehaviourChange:
     def test_nothing_reads_deliveries_yet(self):
         """#343 is additive. The launcher starts reading the declaration in #347."""
-        hits = subprocess.run(
+        proc = subprocess.run(
             ["git", "grep", "-l", "-E", r"deliveries[./]", "--",
              "postprocessors/", "models/", "ensembles/", "monthly_run.sh"],
             cwd=REPO_ROOT, capture_output=True, text=True,
-        ).stdout.split()
+        )
+        # git grep: 0 = matches found, 1 = none, anything else = it did not run.
+        # Reading empty stdout as "no matches" would make this guard pass on error —
+        # the defect recorded as C-113, in the one test that proves this story is
+        # additive. Silence must not be mistaken for a clean result.
+        assert proc.returncode in (0, 1), (
+            f"git grep could not run (rc={proc.returncode}), so this guard proved "
+            f"nothing.\n  git said: {proc.stderr.strip() or '(nothing)'}"
+        )
+        hits = proc.stdout.split()
         assert not hits, (
             f"{hits} reference deliveries/ — but #343 must change no behaviour.\n"
             f"  Making the launcher read the declaration is #347."
