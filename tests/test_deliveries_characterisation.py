@@ -13,6 +13,7 @@ fail on another. The declaration still records `coverage`, because that is what 
 the *test* only pins what the repository can prove.
 """
 
+import ast
 import subprocess
 from pathlib import Path
 
@@ -33,8 +34,15 @@ COMMITTED_META_KEYS = {"name", "algorithm", "targets", "level", "ensemble"}
 FAO_META = "postprocessors/un_fao/configs/config_meta.py"
 
 
-def _committed_fao_meta() -> dict:
-    """The FAO meta config as committed, not as it sits in someone's working tree."""
+def _committed_meta_keys() -> set[str]:
+    """The FAO meta config's key names, as committed — read *statically*.
+
+    This used to `exec` the file. Since #347 the config imports the delivery
+    declaration and manipulates `sys.path`, so executing a detached git blob needs a
+    `__file__` that does not exist, and every future import the config gains would
+    break this test again. Parsing is enough: the question here is only which keys the
+    committed file declares, and `ast` answers that without running anything.
+    """
     proc = subprocess.run(
         ["git", "show", f"HEAD:{FAO_META}"],
         cwd=REPO_ROOT, capture_output=True, text=True,
@@ -43,18 +51,23 @@ def _committed_fao_meta() -> dict:
         raise AssertionError(
             f"could not read {FAO_META} from git HEAD.\n"
             f"  git said: {proc.stderr.strip() or '(nothing)'}\n"
-            f"  This test compares the delivery declaration against the *committed*\n"
-            f"  config, because working-tree-only keys differ between checkouts (C-110)."
+            f"  This test inspects the *committed* config, because working-tree-only "
+            f"keys differ between checkouts (C-110)."
         )
-    namespace: dict = {}
     try:
-        exec(compile(proc.stdout, f"<HEAD:{FAO_META}>", "exec"), namespace)  # noqa: S102
+        tree = ast.parse(proc.stdout, filename=f"HEAD:{FAO_META}")
     except SyntaxError as exc:
         raise AssertionError(
             f"{FAO_META} does not parse as committed: {exc}.\n"
             f"  Open that file — the committed version is broken, not your working copy."
         ) from exc
-    return namespace["get_meta_config"]()
+    keys: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            for key in node.keys:
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    keys.add(key.value)
+    return keys
 
 
 def _load_delivery(consumer: str):
@@ -119,7 +132,7 @@ class TestParityWithCommittedConfig:
         A new committed key might belong in the delivery declaration, and silently
         ignoring it is how the two drift apart again.
         """
-        committed = set(_committed_fao_meta())
+        committed = _committed_meta_keys()
         assert committed == COMMITTED_META_KEYS, (
             f"the committed keys of {FAO_META} changed: "
             f"{sorted(committed ^ COMMITTED_META_KEYS)}.\n"
