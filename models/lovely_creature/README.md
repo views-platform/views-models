@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ShurfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_sb_best |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  lovely_creature   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and broad list of features from all sources    |
 | **Metrics**       |  No information provided    |

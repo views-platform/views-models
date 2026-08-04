@@ -1,26 +1,58 @@
-# Dopey Dwarf
+# Dopey Dwarf 
 ## Overview
 
-Parametric distributional baseline (epic #33 / ADR-022 in views-baseline). A white_ranger
-(ConflictologyModel) clone with the algorithm swapped to a parametric family, for a like-for-like
-CRPS comparison against white_ranger. Only the model varies; targets, partitions, `window_months`,
-`n_samples`, and `seed` are identical to white_ranger. Full evaluation:
-`views-baseline/reports/dwarf_forecast_evaluation/FINDINGS.md`.
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ParametricHurdleConflictology |
-| **Family / Transform** | gumbel / log1p |
-| **Level of Analysis** | pgm |
+| **Model Algorithm** | ParametricHurdleConflictology                  |
+| **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
-| **Deployment Status** | deprecated |
+| **Features**       |  dopey_dwarf   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Deployment Status**       |  deprecated    |
 
-## ⚠️ DEPRECATED — do not run
+## Repository Structure
 
-`gumbel/log1p` is **pathological** (same `log1p` `expm1` tail blow-up): **validation avg CRPS ≈ 0.34, ~1.9× worse** than conflictology. `deployment_status='deprecated'` blocks it from running. Kept as evidence that `log1p` must never be a default (ADR-022).
+```
+Dopey Dwarf
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
 
 ## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
-WANDB_MODE=offline python main.py -r calibration -t -e -sa
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
 ```
+
+

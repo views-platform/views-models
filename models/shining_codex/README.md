@@ -7,8 +7,8 @@
 | **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  ged_sb_best, ged_ns_best, ged_os_best   |
-| **Feature Description**       |  Synthetic data (unknown)    |
+| **Features**       |  shining_codex_features   |
+| **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 

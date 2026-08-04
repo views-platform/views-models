@@ -1,4 +1,4 @@
-# Heavy Strider 
+# Temporary Fox 
 ## Overview
 
 
@@ -7,15 +7,15 @@
 | **Model Algorithm** | ConflictologyModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
-| **Features**       |  ged_sb_best, ged_ns_best, ged_os_best, gaul0_code   |
-| **Feature Description**       |  Synthetic data (unknown)    |
+| **Features**       |  temporary_fox_features   |
+| **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-Heavy Strider
+Temporary Fox
 ├── README.md
 ├── main.py
 ├── requirements.txt

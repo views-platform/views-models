@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HydraNet                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best, by_sb_best, by_ns_best, by_os_best |
+| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  violet_visitor   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |

@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TiDEModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  fancy_feline   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |

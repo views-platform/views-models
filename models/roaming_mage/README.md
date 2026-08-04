@@ -1,17 +1,58 @@
-# roaming_mage
+# Roaming Mage 
+## Overview
 
-**views-datafactory `country_month` CM model** — finalized 2026-07-06 against
-datafactory ADR-048 (declared feature_agg_types) / v1.6.2. Minimal UCDP count
-features **by design** (intensive features are unsafe at CM over the remote
-zarr — see risk register C-94/C-95).
 
-Based on `smol_cat` (TiDEModel), migrated from viewser to the views-datafactory
-`country_month` source with a **minimal UCDP feature set**
-(`ged_sb/ns/os_best` → `lr_ged_sb/ns/os`, summed to country level).
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | TiDEModel                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | lr_ged_ns |
+| **Features**       |  roaming_mage_features   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Deployment Status**       |  shadow    |
 
-- **Target:** `lr_ged_ns`
-- **Level:** cm
-- **Architecture/hyperparameters:** inherited verbatim from `smol_cat`.
+## Repository Structure
 
-One of 12 CM "label" models intended as the `reconcile_with` target (single or
-ensembled) for the reconciling rusty_bucket clone (#144).
+```
+Roaming Mage
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_deployment.py
+│   ├── config_hyperparameters.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
+
+## Usage
+Modify configurations in configs/.
+
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
+
+```
+python main.py -r calibration -t -e
+
+or
+
+./run.sh -r calibration -t -e
+```
+
+

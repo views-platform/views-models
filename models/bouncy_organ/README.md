@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TSMixerModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  bouncy_organ   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |

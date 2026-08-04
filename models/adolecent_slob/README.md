@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TCNModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  adolecent_slob   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
