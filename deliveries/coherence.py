@@ -86,7 +86,7 @@ def _source_dir(name: str) -> Path | None:
     return None
 
 
-def _config(source: str, which: str) -> dict:
+def source_config(source: str, which: str) -> dict:
     """Load one of a source's config dicts, or {} if that config does not exist."""
     directory = _source_dir(source)
     if directory is None:
@@ -99,7 +99,7 @@ def _config(source: str, which: str) -> dict:
     return getter() if getter else {}
 
 
-def _require_source(name: str) -> Path:
+def require_source(name: str) -> Path:
     directory = _source_dir(name)
     if directory is None:
         raise CoherenceError(
@@ -133,8 +133,8 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
             f"  Open ensembles/{source}/configs/config_modelset.py and break the cycle.\n"
             f"  An ensemble cannot contain itself; its maturity would have no answer."
         )
-    _require_source(source)
-    status = _config(source, "deployment").get("deployment_status")
+    require_source(source)
+    status = source_config(source, "deployment").get("deployment_status")
     if status is None:
         # Four source directories carry no config_deployment.py at all (ADR-017 §3).
         return "candidate"
@@ -144,7 +144,7 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
         # ADR-017 §3: `graduate` only where R2 already holds, else `candidate`. A
         # straight rename would make the repo's one `deployed` ensemble a graduate
         # with candidate members — a violation of ADR-017's own rule on day one.
-        members = _config(source, "modelset").get("models", [])
+        members = source_config(source, "modelset").get("models", [])
         deeper = _seen | {source}
         if members and all(maturity_of(m, deeper) == "graduate" for m in members):
             return "graduate"
@@ -161,8 +161,8 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
 
 def _check_resolution_and_level(delivery) -> None:
     for source in delivery.send:
-        directory = _require_source(source.name)
-        declared = _config(source.name, "meta").get("level")
+        directory = require_source(source.name)
+        declared = source_config(source.name, "meta").get("level")
         if declared is None:
             raise CoherenceError(
                 f"{source.level}('{source.name}') cannot be checked: that source "
@@ -198,7 +198,7 @@ def _check_reconciliation(delivery, require, consumer: str) -> None:
     # One connected group covering every source listed (ADR-019 §4).
     edges: set[frozenset[str]] = set()
     for name in names:
-        meta = _config(name, "meta")
+        meta = source_config(name, "meta")
         partner = meta.get("reconcile_with")
         if meta.get("reconciliation") and partner:
             edges.add(frozenset((name, partner)))
@@ -254,7 +254,7 @@ def _check_tier(delivery, consumer: str) -> None:
 def _check_maturity_rules(delivery) -> None:
     """R1 and R2 (ADR-017 §5), for the ensembles a delivery actually names."""
     for source in delivery.send:
-        members = _config(source.name, "modelset").get("models", [])
+        members = source_config(source.name, "modelset").get("models", [])
         if not members:
             continue
         own = maturity_of(source.name)

@@ -129,12 +129,17 @@ class TestMetaEveryRaiseSiteDescends:
             f"is probably no longer looking where the checks live."
         )
 
+    #: Modules whose errors are about *other* files, so must name one.
+    NAMES_FILES = ("coherence.py", "status.py")
+
     def test_every_check_raise_names_a_file(self):
-        """`coherence.py` compares files. The reader is looking at the delivery file
-        and the problem is in a *different* one, so the message must name it."""
+        """`coherence.py` and `status.py` reason across files. The reader is looking
+        at the delivery file and the problem is in a *different* one, so the message
+        must name it."""
         offenders = [
-            f"coherence.py:{lineno}"
-            for lineno, segment in _raise_sites(DELIVERIES_DIR / "coherence.py")
+            f"{name}:{lineno}"
+            for name in self.NAMES_FILES
+            for lineno, segment in _raise_sites(DELIVERIES_DIR / name)
             if not NAMES_A_FILE.search(segment)
         ]
         assert not offenders, (
@@ -173,7 +178,7 @@ class TestMetaEveryRaiseSiteDescends:
     def test_no_module_in_deliveries_escapes_both_rules(self):
         """Guards the split above: a new module in deliveries/ must be assigned to
         one rule or the other, not silently checked by neither."""
-        covered = {"coherence.py", "vocabulary.py", "__init__.py", "un_fao.py"}
+        covered = set(self.NAMES_FILES) | {"vocabulary.py", "__init__.py", "un_fao.py"}
         present = {p.name for p in DELIVERIES_DIR.glob("*.py")}
         unassigned = {
             name for name in present - covered
@@ -193,14 +198,14 @@ class TestMetaKnownLimit:
     def test_helpers_that_build_messages_elsewhere_are_not_covered(self):
         """A check that raises via a helper hides its message from the scan.
 
-        `deliveries/coherence.py` has one such helper, `_require_source`, and it is
+        `deliveries/coherence.py` has one such helper, `require_source`, and it is
         covered by `TestEachFailureNamesTheNextFile` above. This test pins that the
         helper still produces a descending message, since the meta-test cannot.
         """
         with pytest.raises(CoherenceError) as exc:
-            coherence._require_source("definitely_not_a_source")
+            coherence.require_source("definitely_not_a_source")
         assert NAMES_A_FILE.search(str(exc.value)), (
-            "_require_source raises from a helper, so the static meta-test cannot see "
+            "require_source raises from a helper, so the static meta-test cannot see "
             "its message. It must be checked here instead."
         )
 
