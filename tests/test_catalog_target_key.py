@@ -78,3 +78,26 @@ def test_the_catalog_workflow_pins_pipeline_core():
         "regenerated catalogs with a write token — the committed content could change "
         "because a dependency released, with no commit here to explain it."
     )
+
+
+def test_the_catalog_workflow_stages_only_readmes():
+    """It auto-commits with a write token, so it must stage only what it writes.
+
+    `git add models/` stages everything under models/ — and this job fires on every
+    push touching `models/*/configs/config_*.py`, which is exactly what active model
+    work produces. The two scripts write README files and nothing else, so a broader
+    add can only ever capture something nobody meant to commit.
+    """
+    workflow = (REPO_ROOT / ".github" / "workflows" / "update_catalogs.yml").read_text(encoding="utf-8")
+    add_lines = [ln.strip() for ln in workflow.splitlines() if ln.strip().startswith("git add")]
+    assert add_lines, "no `git add` in the catalog workflow — has the commit step changed?"
+    for line in add_lines:
+        assert "README" in line, (
+            f"the catalog job stages a path that is not a README: {line!r}. It writes only "
+            "README files; staging more, while holding a write token, risks committing "
+            "work in progress from models/ or ensembles/."
+        )
+        for broad in (" models/ ", " ensembles/ ", " models/", " ensembles/"):
+            assert not line.rstrip().endswith(broad.rstrip()), (
+                f"the catalog job stages a whole directory: {line!r}"
+            )
