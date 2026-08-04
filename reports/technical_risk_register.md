@@ -1,10 +1,10 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-07-31  
+**Last updated:** 2026-08-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 135 (126 concerns + 9 disagreements)  
-**Concerns:** Open 56 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 5 | T2 40 | T3 53 | T4 24 (4 merge stubs carry no tier)  
+**Total entries:** 140 (131 concerns + 9 disagreements)  
+**Concerns:** Open 61 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 5 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1571,11 +1571,11 @@
 | Field | Value |
 |---|---|
 | **Tier** | 3 |
-| **Trigger** | Enabling an edit-time `targets` check in a delivery declaration (ADR-017 §4f `REQUIRE.targets`) while any source's config still misdescribes its own output. |
+| **Trigger** | Enabling an edit-time `targets` check in a delivery declaration (ADR-019 §1 `REQUIRE.targets`) while any source's config still misdescribes its own output. |
 | **Source** | expert-code-review of the delivery declaration design (2026-08-04) |
 | **Status** | Open |
-| **Location** | `ensembles/rusty_bucket/configs/config_meta.py:4`; the proposed `deliveries/*.py` `REQUIRE.targets` |
-| **Notes** | `rusty_bucket` declares `regression_targets: ["lr_sb_best", "lr_ns_best", "lr_os_best"]` and emits `lr_ged_sb/ns/os` (**C-123**). A `targets` gate checked against the source config would therefore reject a *correct* delivery file for the repo's own FAO ensemble. **The cost is pedagogical, which is why it is worth an entry of its own:** ADR-017 §13 makes error messages load-bearing — the design's value is that a newcomer is guided down one level at a time — and the first lesson this would teach is that the repo's errors are wrong. Nothing recovers from that. **Exit:** fix C-123, then promote `targets` from a run-time assertion (checked against the run's manifests, which are truthful) to an edit-time one. Until then ADR-017 §13 records `targets` as a stair that ends outside the repo. Cross-refs: **C-123**, ADR-017 §4f/§13. |
+| **Location** | `ensembles/rusty_bucket/configs/config_meta.py:4`; the proposed `deliveries/*.py` `REQUIRE.targets` (ADR-019) |
+| **Notes** | `rusty_bucket` declares `regression_targets: ["lr_sb_best", "lr_ns_best", "lr_os_best"]` and emits `lr_ged_sb/ns/os` (**C-123**). A `targets` gate checked against the source config would therefore reject a *correct* delivery file for the repo's own FAO ensemble. **The cost is pedagogical, which is why it is worth an entry of its own:** ADR-020 makes error messages load-bearing — the design's value is that a newcomer is guided down one level at a time — and the first lesson this would teach is that the repo's errors are wrong. Nothing recovers from that. **Exit:** fix C-123, then promote `targets` from a run-time assertion (checked against the run's manifests, which are truthful) to an edit-time one. Until then ADR-020 §4 records `targets` as a stair that ends outside the repo. Cross-refs: **C-123**, ADR-019 §1, ADR-020 §4. |
 
 ---
 
@@ -1587,10 +1587,66 @@
 | **Trigger** | A delivery declared `intent = live()` that no runner picks up, or that ships a run far older than the consumer expects. |
 | **Source** | expert-code-review of the delivery declaration design (2026-08-04, Nygard) |
 | **Status** | Open |
-| **Location** | proposed `deliveries/*.py` — `DELIVERY.intent`, `REQUIRE.max_age`; ADR-017 §5 freshness rule, §13 "where the stairs end" |
-| **Notes** | The design solves the *paused* case well: `paused(reason, since=...)` cannot be set silently, so a dormant edge carries an explanation and an age. It does **not** solve the *live-but-never-run* case — a `live()` delivery that nothing executes produces no error, because nothing failed. That is precisely the 145-day FAO silence (**C-121**, **C-99**), surviving the redesign. ADR-017 §13 names it honestly as *"not a locked door — a hole in the floor"*. **Exit, two parts, both already written into the amendment:** `REQUIRE.max_age` is mandatory whenever `intent = live()` (§5 freshness rule), and `tools/liveness` reports **derived status beside declared intent** (§7), so `live()` + "never delivered" is a visible contradiction rather than an absence. Registered separately from C-121 because C-121 is the defect in today's code and this is the residual risk in tomorrow's design — closing one does not close the other. Cross-refs: **C-121**, **C-99**, **C-110**. |
+| **Location** | proposed `deliveries/*.py` — `DELIVERY.intent`, `REQUIRE.max_age`; ADR-019 §4 freshness rule, ADR-020 §4 "where the stairs end" |
+| **Notes** | The design solves the *paused* case well: `paused(reason, since=...)` cannot be set silently, so a dormant edge carries an explanation and an age. It does **not** solve the *live-but-never-run* case — a `live()` delivery that nothing executes produces no error, because nothing failed. That is precisely the 145-day FAO silence (**C-121**, **C-99**), surviving the redesign. ADR-020 §4 names it honestly as *"not a locked door — a hole in the floor"*. **Exit, two parts, both already written into the amendment:** `REQUIRE.max_age` is mandatory whenever `intent = live()` (ADR-019 §4), and `tools/liveness` reports **derived status beside declared intent** (ADR-017 §7), so `live()` + "never delivered" is a visible contradiction rather than an absence. Registered separately from C-121 because C-121 is the defect in today's code and this is the residual risk in tomorrow's design — closing one does not close the other. Cross-refs: **C-121**, **C-99**, **C-110**. |
 
 ---
+
+### C-127 — Fleet-wide config values are written in two literal styles, so a naive grep silently under-counts
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Executing the `deployment_status` → `maturity` migration (ADR-017 §11), or any future statement of the form "measured across all N sources" produced by grepping the fleet. |
+| **Source** | falsify audit of the four delivery documents (2026-08-04), probe P1 |
+| **Status** | Open |
+| **Location** | 128 × `{models,ensembles}/*/configs/config_deployment.py` — 47 use `{"deployment_status": "shadow"}`, 81 use `{'deployment_status': 'shadow'}` (e.g. `models/brown_cheese/configs/config_deployment.py:19`); the false figures were at `docs/ADRs/017_source_composition_delivery.md:74` and `docs/forecast_delivery_map.md:158` |
+| **Notes** | ADR-017 §2 and the delivery map both stated *"Measured across all 131 sources: 120 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`"*. The true distribution is **117 / 6 / 4 / 1 across 128 files**, and there are **132** source directories — four (`models/cool_cat`, `models/teenage_dirtbag`, `models/test_model`, `ensembles/test_ensemble`) carry no `config_deployment.py` at all. The measurement had been taken with a double-quote pattern that matched 47 of 128 files and silently reported the rest as absent. **The wrong number is now corrected in both documents; the durable risk is the heterogeneity that caused it.** ADR-017 §2's numbers are its evidence base, so this was not cosmetic — a rule whose stated justification is false is the kind a future contributor overturns. Same bug class as **C-114** (a detector blind to one spelling of the thing it was built to see), in a different subsystem: there a rejected key read as mild staleness, here 81 configs read as non-existent. **Exit:** the migration tool must parse rather than grep, and must assert it touched 128 files. Cross-refs: **C-114**, **C-124**. |
+
+### C-128 — ADR-019's "REQUIRE only refuses" rule is false for its one mandatory key, so a validator author must guess
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Implementing the `REQUIRE` validator, or writing the first real delivery file under ADR-019. |
+| **Source** | falsify audit of the four delivery documents (2026-08-04), probe P3 |
+| **Status** | Open |
+| **Location** | `docs/ADRs/019_delivery_declaration.md` §2 (the testable rule, and the "may be omitted entirely" allowance) vs §4 (Freshness) |
+| **Notes** | §2 states the rule that defines the whole two-block design: *"removing a line from `REQUIRE` must never change what is produced, only what is allowed through."* §4 then requires that a `live()` delivery **must** declare `max_age`. Removing `max_age` does not widen what is accepted — it makes the file invalid, so nothing is produced. A second instance sits in the same paragraph: §2 offers *"`REQUIRE` may be omitted entirely when there is nothing to assert"*, but every `live()` delivery must carry `max_age` and every real delivery is live, so the allowance is never actually available. **Why this is Tier 2 rather than a wording nit:** an implementer who resolves the contradiction toward "`REQUIRE` is purely assertive" will not enforce freshness — and the missing freshness bound is precisely the failure that already occurred (**#320**, 145 days of silent non-delivery). The contradiction points the implementation at the bug. **Now corrected in the ADR**; the entry records the class so the next absolute-sounding rule is checked against its own exceptions. Cross-refs: **C-121**, **C-126**, **D-09**. |
+
+### C-129 — The delivery declaration has no home for the key that actually arms the delivery
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Building `deliveries/un_fao.py` (ADR-017 §11 Phase 1), or adding the second consumer under **#333**. |
+| **Source** | falsify audit of the four delivery documents (2026-08-04), probe P8 (adequacy) |
+| **Status** | Open |
+| **Location** | `postprocessors/un_fao/configs/config_meta.py:26-27` (`wire_contract`, `wire_upload_enabled`); `docs/ADRs/019_delivery_declaration.md` §3 (the key set) |
+| **Notes** | The real FAO config declares **eight** keys. Five map cleanly onto ADR-019's schema; three had no home — `algorithm`, `wire_contract`, and `wire_upload_enabled`. The last is the **arming switch**: views-postprocessing ADR-013 §11.4 sets `UPLOAD_ENABLED = False` and makes that launcher key its only override. ADR-019 mentioned it **zero times** while the delivery map mentioned it twice. The consequence is exact and self-inflicted: ADR-019 exists because a delivery-deciding line sits buried in a file whose docstring calls itself inert — and the design moved the `ensemble` line out while **leaving the on/off switch behind in that same file**. Worse, `intent = live()｜paused()` and `wire_upload_enabled: True｜False` are the same fact in two places, which is the duplication ADR-019 §8 rejects by name. **Resolved in the ADR by declaring `intent` the repo-side arming switch, from which the launcher key is *derived*** — derivation, not duplication, the same principle as the filename carrying the consumer. `wire_contract` is recorded as an unconditional constant (the legacy leg retired in **#149**) and `algorithm` as framework plumbing that stays put, so all eight keys now have a stated home. **The residual risk this entry tracks:** until `deliveries/` is built, the two switches co-exist and can disagree. Cross-refs: **C-110** (the switch exists only in an uncommitted tree), **C-63**, **C-126**. |
+
+### C-130 — The maturity migration leaves ten sources with no destination value
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Executing the `deployment_status` → `maturity` rename across the fleet (ADR-017 §11 Phase 2). |
+| **Source** | falsify audit of the four delivery documents (2026-08-04), probe P4 |
+| **Status** | Open |
+| **Location** | the 6 sources declaring `baseline`; `models/cool_cat`, `models/teenage_dirtbag`, `models/test_model`, `ensembles/test_ensemble` (no `config_deployment.py`) |
+| **Notes** | ADR-017 correctly holds that `baseline` is a **role**, not a maturity, and that it leaves `config_deployment.py` entirely — but every source still needs *some* maturity, and the migration table originally sent `baseline` to *(nothing)*. Six real sources carry it, and a research assistant migrating the fleet would have had no value to write. A further four source directories carry no `config_deployment.py` at all, so they have no `deployment_status` to migrate *from*. **Both now resolved in ADR-017's migration table** (`baseline` → `candidate`, role preserved where it already lives; the four unconfigured sources named explicitly). Entry retained because the migration is not yet executed and the table is the only thing that makes it mechanical. Cross-refs: **C-127**. |
+
+### C-131 — "Production-tier consumer" reads as a discriminating condition while `tier` has one value
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | A reader deriving `is_in_production` from ADR-017 §4e without also reading ADR-019 §3; or the addition of a second `tier` value. |
+| **Source** | falsify audit of the four delivery documents (2026-08-04), probe P2 |
+| **Status** | Open |
+| **Location** | `docs/ADRs/017_source_composition_delivery.md` §4e (the ⟺ definition) and §5 (the tier rule) vs `docs/ADRs/019_delivery_declaration.md` §3 (`tier`) |
+| **Notes** | §4e defines *in production ⟺ maturity is `graduate` **and** a delivery ships it to a **production-tier** consumer.* ADR-019 §3 fixes `tier` at exactly one value, `prod`, and says plainly that the gate is therefore *currently unconditional*. §4e did not, so the definition read as two independent conditions when one is presently always true. Not a correctness defect — the definition stays true as written, and becomes discriminating the moment a second tier value exists — but it is the kind of gap that makes a newcomer believe a check exists that does not. **Corrected by a clause in §4e pointing at ADR-019 §3.** The second tier value is itself blocked on ADR-017 §12's open shadow-destination question. Cross-refs: **C-129**. |
+
 
 ## Disagreements
 

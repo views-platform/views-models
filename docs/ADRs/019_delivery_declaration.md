@@ -70,17 +70,29 @@ If that sentence is what you were told to do, the file is right. That is the who
 - **`REQUIRE` refuses.** Change a line and nothing different is produced — a different set of things
   is *rejected*.
 
-**The rule, and it is testable: removing a line from `REQUIRE` must never change what is produced,
-only what is allowed through.** If removing it changes the output, it was a setting and belongs above.
+**The rule, and it is testable: removing an *optional* `REQUIRE` line must never change what is
+produced, only what is allowed through.** If removing it changes the output, it was a setting and
+belongs above.
+
+**The one exception, named rather than buried: `max_age` is mandatory for a `live()` delivery (§4).**
+Removing it does not widen what is accepted — it makes the file invalid, so nothing ships. That is a
+deliberate asymmetry, not an oversight: a missing freshness bound is the failure that already happened,
+five months of it (#320). A rule stated absolutely with an exception a section later is worse than a
+rule with its exception attached, because an implementer resolving the contradiction toward "`REQUIRE`
+never blocks" would build exactly the gap that caused the incident (register C-128).
 
 This split exists for a specific reason. The file it replaces mixed a setting into a description and
 then described itself as inert. Two blocks make that mistake impossible to repeat, because the
 question *"does this change anything?"* is answered by which block a key is in.
 
-**`REQUIRE` may be omitted entirely** when there is nothing to assert. A block that is always present
-stops carrying information, and the first person to delete an empty one teaches everyone else to
-delete theirs. Specific rules are still required — see §4 — but they are required by the *shape of the
-delivery*, not by ceremony.
+**`REQUIRE` may be omitted entirely — but only for a `paused()` delivery**, which is the only kind with
+nothing mandatory to assert. Every `live()` delivery carries `max_age`, so in practice every delivery
+that ships has a `REQUIRE` block. The allowance is narrow and is stated that way rather than as a
+general permission, because a general one would read as "this block is optional" and it is not.
+
+The reasoning behind the allowance still stands where it applies: a block that is always present stops
+carrying information, and the first person to delete an empty one teaches everyone else to delete
+theirs.
 
 ## 3. The keys
 
@@ -98,7 +110,7 @@ value is a name checked against something else, so no list can be complete.
 | `reconciled` | REQUIRE | `True`, `False` | closed — 2 values | which source *combinations* are refused |
 | `targets` | REQUIRE | a tuple of target names | **open** — checked against a run's manifests | a run missing one is refused |
 | `coverage` | REQUIRE | one region name | **open** — checked against views-postprocessing | a run with the wrong cell count is refused |
-| `max_age` | REQUIRE | `months(n)` | closed *(the wrapper)*, `n` free | an older run is refused |
+| `max_age` | REQUIRE | `months(n)` | closed *(the wrapper)*, `n` free | an older run is refused — **mandatory when `live()`** |
 
 **Three of the closed sets have exactly one or two values today.** That is stated so it cannot be
 mistaken for a rich vocabulary that merely looks small in an example. Each is explained below, with
@@ -130,16 +142,10 @@ disagrees. That is why `level` does not appear in `REQUIRE`: it is asserted wher
 which is where a reader looks for it. The shape extends — `admin1(...)` will exist the day an admin-1
 source does, and not before.
 
-**Why sources are plural.** A consumer may need a grid-cell forecast **and** the country-level forecast
-it was reconciled against. Both are real products. Summing grid-cell *draws* does not reproduce a
-country-level *distribution* — sum of marginals is not the marginal of the sum unless the joint is
-preserved — and **this platform is distribution-native**. Its PredictionFrame ensembles ship
-uncollapsed pooled draws, and consumers compute distributional quantities at serve time: HDI and MAP
-in one case today, threshold-exceedance probabilities in another. A consumer computing national
-uncertainty therefore needs the country-level model's own posterior, not a reconstruction of it.
-
-That is a claim about the *kind* of product this platform ships, not about any particular ensemble or
-API — and it is why `send` takes a list rather than a single source.
+**Why `send` is a list.** Because ADR-017 §3 decided the delivery edge runs from *sources*, plural: a
+consumer may need a grid-cell forecast **and** the country-level forecast it was reconciled against,
+and summing grid-cell draws does not reproduce a country-level distribution. **The full argument lives
+in ADR-017 §3 and is not repeated here** — it justifies the axis, and this ADR only gives it a syntax.
 
 It also answers the simpler case: a country-level-only delivery names one country-level source —
 `send = [cm("<some cm ensemble>")]`. Same key, different source, no schema change.
@@ -199,12 +205,35 @@ are never confused.
 - **`paused(reason, since=...)`** — the runner skips it. The reason and the date are **required**, and
   they surface in the status report, so a pause is a visible fact with an age rather than an absence.
 
+**`intent` is the arming switch — there is not a second one.** Today the FAO delivery is armed by
+`wire_upload_enabled` inside `postprocessors/un_fao/configs/config_meta.py`: views-postprocessing
+ADR-013 §11.4 sets `UPLOAD_ENABLED = False` and makes that launcher key its only override. That key
+and `intent` are **the same fact**, so the tooling **derives** the launcher key from `intent` rather
+than asking anyone to write both. Same principle as the filename carrying the consumer: a thing that
+is never typed twice cannot disagree with itself.
+
+This matters more than a tidy-up. Without it, this ADR would move the `"ensemble"` line out of that
+file and **leave the on/off switch behind in it** — the very file whose docstring claims to be inert.
+That would fix the smell and keep the disease (register C-129).
+
 The disease being treated is two halves quietly waiting with nobody able to see it. A paused delivery
 carrying a six-month-old date says so out loud.
 
 *Why not delete the file to turn a delivery off?* Because deleting throws away the reason.
 `paused("OCHA bucket not in the registry yet — ask Simon", since="2026-08-04")` is a sentence the next
 person can act on. An absent file is not.
+
+### What is deliberately *not* a key
+
+The file this replaces declares eight things. Five map onto the keys above — `name` is the filename,
+`level` and `ensemble` are `send`, `targets` and `region` are `REQUIRE`. The other three are named here
+so their absence reads as a decision rather than an oversight:
+
+| in the old file | where it goes |
+|---|---|
+| `wire_upload_enabled: True` | **derived from `intent`** (above) — not a key |
+| `wire_contract: True` | **a constant, not a choice.** The legacy leg was retired in #149, so contract mode is unconditional; a key implying it is optional would be false |
+| `algorithm: "Postprocessor"` | **stays put** — framework plumbing that tells the pipeline what kind of thing this is. It is not a delivery decision |
 
 ## 4. Coherence rules (fail-loud)
 
@@ -282,6 +311,11 @@ ordering dependency becomes derivable; a paused delivery cannot be silent.
 before writing their first line — mitigated only by the errors ADR-020 requires. And `targets` and
 `coverage` are assertions whose checks live outside this repository, so a file that *parses* is not a
 delivery that *works* — the tooling must say which kind of check it just ran.
+
+**Transitional, and real:** until `deliveries/` exists, `intent` and `wire_upload_enabled` both exist and
+can disagree — and `wire_upload_enabled` is currently present only in an uncommitted working tree
+(C-110), so two identical checkouts already publish differently. Deriving one from the other is what
+ends that, and it does not end until Phase 1 is built.
 
 **Not decided here:** whether a delivery *runs*. This ADR declares; execution is `monthly_run.sh`
 filtering on `frequency`, and that filter does not yet exist.

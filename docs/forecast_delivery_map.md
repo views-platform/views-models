@@ -155,7 +155,9 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 ## Where each config lives today
 
 - **A source's maturity-ish label:** `models/<m>/configs/config_deployment.py` → `deployment_status`.
-  *(Measured 2026-08-04 across all 131: **120 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`**.
+  *(Measured 2026-08-04: **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** across 128 files —
+  132 source directories exist, so four carry no maturity at all. Both quote styles must be counted;
+  see ADR-017 §2 and register C-127.
   The single `deployed` source is `ensembles/white_mustang` — whose two members, `lavender_haze` and
   `blank_space`, are both `shadow`.)*
 - **An ensemble's members:** `ensembles/<e>/configs/config_modelset.py`.

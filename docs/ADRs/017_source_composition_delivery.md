@@ -1,6 +1,11 @@
 # ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **amended 2026-08-04**
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**
+**Date:** 2026-07-27 (revised 2026-08-04)
+**Deciders:** Simon (maintainer)
+**Consulted:** platform contributors
+**Informed:** all contributors
+
 **Revised 2026-08-04 — split for containment.** This document had grown to ~13 pages and held four
 things that change at four different rates. Three moved out, and **no decision was reversed**:
 
@@ -14,9 +19,6 @@ What stays here is the part that should not need to change: the three axes, deri
 the maturity rules, and the shelf write-gate. Per ADR-000 this is a **re-organisation, not a
 supersession** — 017 keeps its number and its decisions.
 
-**Deciders:** Simon (maintainer) — Accepted 2026-07-27
-**Consulted:** platform contributors
-**Informed:** all contributors
 
 ---
 
@@ -71,7 +73,10 @@ measured on 2026-08-04 and names how to re-check it.
   **And it is inert.** Nothing anywhere branches `deployed`-vs-`shadow`; that is pinned in both
   repositories by `tests/test_deployment_status_inert.py`, which greps this repo *and* the installed
   `views_pipeline_core` for such a comparison and fails if one appears.
-  *Measured across all 131 sources:* **120 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`.*
+  *Measured 2026-08-04:* **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** — 128 files, across
+  132 source directories. *(Re-check with a pattern covering **both** quote styles: 81 of the 128 write
+  `{'deployment_status': 'shadow'}`, 47 write `{"deployment_status": "shadow"}`. A double-quote-only
+  grep reports 47 and silently omits the rest — register C-127.)*
 - **The one `deployed` thing in the repository is incoherent.** That single `deployed` source is
   `ensembles/white_mustang`, and both its members — `lavender_haze` and `blank_space` — are `shadow`.
   A deployed ensemble made entirely of things that are not deployed.
@@ -113,7 +118,20 @@ The three axes, and where each one lives:
   *Where:* one file per consumer, at `views-models/deliveries/<consumer>.py` — **never on the source**. The **filename is the consumer**; no key repeats it, so the two cannot disagree.
   *(This lifts today's buried `"ensemble"` line into a dedicated, honest file. **ADR-019** gives the format.)*
 
-  **Why *sources*, plural.** A consumer may need a grid-cell forecast **and** the country-level forecast it was reconciled against. Both are real products: summing grid-cell *draws* does not reproduce a country-level *distribution*, so a consumer computing national uncertainty needs the country model's own posterior, not a reconstruction. The delivery names both.
+  **Why *sources*, plural.** A consumer may need a grid-cell forecast **and** the country-level forecast
+  it was reconciled against. Both are real products, and one cannot be derived from the other: summing
+  grid-cell *draws* does not reproduce a country-level *distribution*, because the sum of marginals is
+  not the marginal of the sum unless the joint is preserved.
+
+  This matters here rather than being a statistical aside, because **the platform is
+  distribution-native**. Its PredictionFrame ensembles ship uncollapsed pooled draws and consumers
+  compute distributional quantities at serve time — highest-density intervals in one case today,
+  threshold-exceedance probabilities in another. A consumer computing national uncertainty therefore
+  needs the country-level model's own posterior, not a reconstruction of it. That is a claim about the
+  *kind* of product this platform ships, not about any particular ensemble or API.
+
+  So the delivery edge names **both** sources. ADR-019 gives that the syntax (`send` takes a list) and
+  cites this section rather than restating the argument.
 
 So, in one line: a **model's** config declares only its maturity. An **ensemble's** config declares its
 maturity **plus** its members. Neither says anything about delivery or "deployed."
@@ -167,8 +185,15 @@ that only `deprecated` does anything.
 |---|---|---|
 | `shadow` | `candidate` | the bulk of the fleet |
 | `deprecated` | `retired` | the only value with behaviour today |
-| `baseline` | *(nothing)* | a role, not a maturity — leaves this file (see above) |
+| `baseline` | `candidate` | the **role** leaves this file; the source still needs a maturity |
 | `deployed` | `graduate` **only if R2 holds**, else `candidate` | see below |
+
+**Two groups the table alone does not cover.** The six `baseline` sources keep their *role* — it already
+lives in the algorithm plus `regression_point_baselines`, which is why it leaves this file — and take
+`candidate` as their maturity, because nothing about being a baseline makes a source eligible to ship.
+And four source directories have **no `config_deployment.py` at all** (`models/cool_cat`,
+`models/teenage_dirtbag`, `models/test_model`, `ensembles/test_ensemble`), so they have nothing to
+migrate *from*; they get `config_maturity.py` created with `candidate`.
 
 **Why `deployed` is not a straight rename.** Mapped naively it breaks R2 immediately: measured
 2026-08-04, exactly one source is `deployed` — an ensemble whose two members are both `shadow`. A
@@ -226,6 +251,12 @@ forecast sitting there is fine: it is finished, just not routed anywhere yet.
 > A source is *in production* ⟺ its maturity is `graduate` **and** a delivery ships it (directly, or via a composite that contains it) to a **production-tier** consumer.
 
 Nobody types "deployed." "Is this in production?" is worked out on demand from those two facts, and never stored — so it can't lie, because there's no field to lie in.
+
+*One honest caveat about the second condition.* `tier` currently has exactly **one** value, `prod`
+(ADR-019 §3), so "to a **production-tier** consumer" is today equivalent to "at all". The definition is
+written for the general case and becomes discriminating the moment a second tier value exists — which
+is itself blocked on §12's open shadow-destination question. Until then, do not read the qualifier as a
+check that is running.
 
 *Analogy:* a sticky note reading *"light: ON"* can be wrong; but *checking that there's a working bulb **and** the switch is wired and flipped* cannot.
 
