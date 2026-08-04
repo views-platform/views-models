@@ -158,7 +158,7 @@ DELIVERY = Delivery(
     send      = [pgm("<ensemble>")],
     frequency = monthly,
     tier      = prod,
-    intent    = live(),
+    intent    = live(since=…),
 )                                                  #  full format: ADR-019
 ```
 
