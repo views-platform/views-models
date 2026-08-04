@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-07-31  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 126 (120 concerns + 6 disagreements)  
-**Concerns:** Open 50 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 5 | T2 37 | T3 50 | T4 24 (4 merge stubs carry no tier)  
-**Disagreements:** Open 4 | Resolved 1 | Subsumed 1  
+**Total entries:** 132 (124 concerns + 8 disagreements)  
+**Concerns:** Open 54 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 5 | T2 39 | T3 52 | T4 24 (4 merge stubs carry no tier)  
+**Disagreements:** Open 6 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
 ---
@@ -1249,7 +1249,7 @@
 | **Source** | maintainer ground truth (2026-07-19): "the pipeline is run once a month on a laptop; which laptop depends on who has time" — no production server exists |
 | **Status** | Open |
 | **Location** | `monthly_run.sh` (the entire production trigger: a hand-run bash list); no scheduler, no retry, no freshness check anywhere in the platform |
-| **Notes** | Production is a **rotating human ritual**: whoever has time runs `monthly_run.sh` on their own laptop, with their own env/credentials state. Consequences: run evidence is scattered across personal machines (this workstation holds Apr/May traces only); "did month X happen?" is unanswerable from any repo; a missed or failed month is invisible until a human notices downstream. The maintainer's stated goal is a **dedicated small production server modeled on the working datafactory box** (which already runs monthly by timer) — gated on this repo's cleanup. Exit criteria for closing: (a) scheduled execution on a dedicated host, (b) a dead-man's-switch freshness alarm ("month-X artifacts absent by day D ⇒ scream"), (c) the laptop ritual retired to backup after one both-run-and-compare month. The wiring-acceptance instrument for that host now exists: **`python -m tools.liveness`** (epic #238, was planned as `tools/preflight`) — its exit-code contract (0 healthy / 1 attention / 2 unreachable) is the dead-man's-switch primitive; what remains for this entry's exit is *scheduling* it (cron on the future host + an alarm on non-zero), which no code here does yet. See also C-97, C-100, C-03 (no integration in CI). |
+| **Notes** | Production is a **rotating human ritual**: whoever has time runs `monthly_run.sh` on their own laptop, with their own env/credentials state. Consequences: run evidence is scattered across personal machines (this workstation holds Apr/May traces only); "did month X happen?" is unanswerable from any repo; a missed or failed month is invisible until a human notices downstream. The maintainer's stated goal is a **dedicated small production server modeled on the working datafactory box** (which already runs monthly by timer) — gated on this repo's cleanup. Exit criteria for closing: (a) scheduled execution on a dedicated host, (b) a dead-man's-switch freshness alarm ("month-X artifacts absent by day D ⇒ scream"), (c) the laptop ritual retired to backup after one both-run-and-compare month. The wiring-acceptance instrument for that host now exists: **`python -m tools.liveness`** (epic #238, was planned as `tools/preflight`) — its exit-code contract (0 healthy / 1 attention / 2 unreachable) is the dead-man's-switch primitive; what remains for this entry's exit is *scheduling* it (cron on the future host + an alarm on non-zero), which no code here does yet. See also C-97, C-100, C-03 (no integration in CI). **Measured 2026-08-04:** the predicted silent failure has occurred and is quantified — FAO's forecast stream is **145 days stale** while a complete, deliverable run has sat on the internal shelf since 27 July. The specific mechanism at the delivery boundary is now **C-121** (no age bound on the resolved run); the missing scheduler remains this entry's. |
 
 ---
 
@@ -1392,7 +1392,7 @@
 | **Source** | run-0 delivery (2026-07-27/28); confirmed still uncommitted 2026-07-31 (`git status`) |
 | **Status** | Open |
 | **Location** | `postprocessors/un_fao/configs/config_queryset.py` (`REGION` `africa_me_legacy`→`land_gaul`; `"data_format": "feature_frame"`; datafactory pin `>=1.9.0,<2.0.0`), `postprocessors/un_fao/configs/config_meta.py` (`wire_contract`, `wire_upload_enabled`, `region: land_gaul`), `postprocessors/un_fao/README.md`, `postprocessors/un_fao/requirements.txt` — all `M` in the working tree, none on `origin/development` |
-| **Notes** | Tier 2 rationale: not silent corruption *today* (the served artifact is correct and its provenance is verifiable on the shelf), but a structurally fragile state with a realistic, one-command trigger and a wrong-output consequence — the delivered product is **not reproducible from any committed state**, and the reproduction attempt fails *quietly and plausibly* rather than loudly. The working tree is acting as the system of record for a UN-facing deliverable. Aggravating factor: the same tree also holds parallel-session-owned `violet_visitor` edits, so it cannot simply be committed wholesale — the un_fao paths must be staged by name. **Exit: commit the four un_fao paths via the merge ritual** (small, ready, blocked on nothing). Related cross-repo state, unverified from this repo and therefore not registered separately: the views-postprocessing bug-#1 name-scoping fix (`_prod_forecasts_datastore(name_scoped=False)`) was reported uncommitted in that checkout and may have the same exposure — worth a check in that repo. Cross-refs: **C-105** (the *inverse* direction of the same "working tree is the system of record" hazard — that entry is the checkout drifting *behind* the remote, this one is run-critical state living *ahead* of it and unbacked); C-53 (config value regression across merges). |
+| **Notes** | Tier 2 rationale: not silent corruption *today* (the served artifact is correct and its provenance is verifiable on the shelf), but a structurally fragile state with a realistic, one-command trigger and a wrong-output consequence — the delivered product is **not reproducible from any committed state**, and the reproduction attempt fails *quietly and plausibly* rather than loudly. The working tree is acting as the system of record for a UN-facing deliverable. Aggravating factor: the same tree also holds parallel-session-owned `violet_visitor` edits, so it cannot simply be committed wholesale — the un_fao paths must be staged by name. **Exit: commit the four un_fao paths via the merge ritual** (small, ready, blocked on nothing). Related cross-repo state, unverified from this repo and therefore not registered separately: the views-postprocessing bug-#1 name-scoping fix (`_prod_forecasts_datastore(name_scoped=False)`) was reported uncommitted in that checkout and may have the same exposure — worth a check in that repo. Cross-refs: **C-105** (the *inverse* direction of the same "working tree is the system of record" hazard — that entry is the checkout drifting *behind* the remote, this one is run-critical state living *ahead* of it and unbacked); C-53 (config value regression across merges). **Second variable found 2026-08-04, same file, same shape:** `postprocessors/un_fao/configs/config_meta.py` carries `wire_upload_enabled: True` in the working tree and **nowhere in git**. That key is the ADR-013 §11.4 upload interlock — with it absent the sink stages locally and makes ZERO store calls; with it present the run publishes to the UN FAO's bucket. So **whether this platform delivers to a partner is decided by an uncommitted edit on one laptop**, and two identical checkouts behave differently toward an external party. Registered here rather than as a new entry because it is the same defect at the same location: the configuration governing a UN-facing delivery exists only in a working tree. **Exit:** commit the key with whatever value is intended, so the deployed behaviour is derivable from a commit. Cross-ref: **C-117** (the dependency half, mitigated). |
 
 ---
 
@@ -1516,6 +1516,56 @@
 | **Location** | `tests/test_datafactory_parity.py` — `_experiment_in_progress()`, `test_both_trios_use_same_loss`, `test_constituent_posterior_samples_match`, and the guard now named `test_the_experiment_in_progress_roster_is_exactly_as_declared` |
 | **Notes** | The branch introduced a correct idea — an experiment whose values churn should not be pinned to an exact value that flickers red/green — and guarded it with `test_violet_visitor_is_experiment_in_progress`, which asserted only that **violet_visitor** carries the marker. **But `_experiment_in_progress()` applies to any model.** So the exemption was general and the alarm was specific. **Reproduced, not theorised:** adding one line to `models/pink_pirate/configs/config_hyperparameters.py` removed it from *both* parity pins and the suite reported **51 passed** with nothing to indicate a model had stopped being checked. A second probe marked all six trio models: both pins then compared `{} == {}` and passed — a test asserting nothing at all. **Fix:** pin the exemption **roster as a set** (`EXPERIMENTS_IN_PROGRESS = {"violet_visitor"}`), which fails in both directions — a model gaining the marker and a model losing it — plus an explicit non-empty assertion in each pin so neither can ever pass vacuously. Verified by re-running all three probes against the fix. **The generalisable rule:** *an escape hatch must be guarded at the same scope it operates.* A guard that names one subject cannot cover a mechanism that accepts any. Cross-refs: **C-112** (a check asked in a scope that cannot answer it), **C-113** (a gate that cannot tell "clean" from "did not run"), **C-115** (an invariant guarded by name rather than by the invariant). Member of **Cluster A** (declared-but-unenforced). **Near-miss recorded on C-71:** the same branch put prose after `Open` in a Status field, which silently dropped the entry from the header count — caught by `test_open_count_accurate`, which is what that test is for. |
 
+### C-121 — The delivery boundary accepts a forecast of unbounded age
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | `un_fao` running in a month where no fresh `rusty_bucket` run was produced first — which is every month, because `rusty_bucket` is not in `monthly_run.sh`. |
+| **Source** | expert-code-review of the delivery composition (2026-08-04), traced against the live store |
+| **Status** | Open |
+| **Location** | `views-postprocessing/views_postprocessing/unfao/managers/unfao.py::_read_forecast_data_contract`; `contract/wire/source_selection.py::resolve_run` |
+| **Notes** | `resolve_run` selects **the newest fully-manifested run for a named ensemble** — identity plus completeness, which is right, and is what **C-97** records as resolved. What it does not do is bound the run's **age**. So the delivery step will silently republish an arbitrarily old forecast as the current one. **Measured 2026-08-04:** FAO's forecast stream is 145 days stale (#320, newest `forecast_dataset` 2026-03-10) while `production_forecasts` holds exactly one complete run, `rusty_bucket_forecasting_20260727_095355` (all three `lr_ged_*` targets), untouched since 27 July. The forecast existed; nothing carried it across, and nothing would have objected if it had carried the March one instead. The method **already logs** `"Contract inbound resolved: run %s"` — the fact needed for the assertion is in hand and simply not asserted on. **Exit:** a declared freshness budget and a refusal, at the boundary that already knows the answer. This is the one change that addresses the failure that actually occurred. Cross-refs: **C-99** (no missed-month signal — this is its specific, now-measured instance at the delivery boundary), **C-97** (selection, resolved), **C-114** (a detector that reported its own failure as mild staleness). Member of **Cluster A** (declared-but-unenforced). |
+
+---
+
+### C-122 — The production pipeline's assembly is five ordered strings, and the order is an unstated data dependency
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Adding a producer *below* its consumer in `monthly_run.sh`, or reordering the existing five lines. Concretely: adding `rusty_bucket` after the `un_fao` line rather than before it. |
+| **Source** | expert-code-review of the delivery composition (2026-08-04) |
+| **Status** | Open |
+| **Location** | `monthly_run.sh` — the five `run_folder` lines; `postprocessors/un_fao/configs/config_meta.py` (`"ensemble"`); `views-postprocessing/unfao/product.py` (`UPLOAD_ENABLED`) |
+| **Notes** | `un_fao` consumes what the ensembles produce, and that dependency is encoded **only** as line order in a shell script. Getting it wrong raises nothing: the consumer simply delivers a previous run. **Everything beneath this point injects its dependencies** — `_ContractStorePort` is an explicit DIP port, `contract/` and `delivery/` are partner-neutral and a test proves it — while the composition root hard-codes five concrete paths in a fixed sequence. The three files that must agree to deliver a forecast live in two repositories with no reference between them. Related: **13 ensembles exist and only 4 are in `monthly_run.sh`**; the one `un_fao` is configured to consume, `rusty_bucket`, is **not among them**, so "run everything monthly" produces four forecasts nobody delivers and delivers one forecast nobody just made. **Deliberately not fixed yet.** A declared composition is an abstraction over exactly one instance in this repo, and the maintainer's rule is to extract on a second incident behind a named trigger. **The named trigger: when a second partner delivery needs a production run in views-models.** The scar already exists one repo away — views-postprocessing #211, *"every partner-scoped guard was scoped to ONE partner"*, fixed there with a declared list asserted against the filesystem (`tests/conftest.py::PARTNER_PACKAGES`), not a framework. That is the shape to copy when the trigger fires. Cross-refs: **C-99**, **C-97**, **C-121**, **C-120** (same bug class: a general mechanism guarded for one subject). |
+
+---
+
+### C-123 — `rusty_bucket`'s config does not describe what it emits
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Any tool or person deriving a delivery's target names from model config rather than from the manifests in the bucket. |
+| **Source** | expert-code-review (2026-08-04); confirmed against the live store |
+| **Status** | Open |
+| **Location** | `ensembles/rusty_bucket/configs/config_meta.py:4` |
+| **Notes** | Declares `regression_targets: ["lr_sb_best", "lr_ns_best", "lr_os_best"]`. The run it actually produced emitted `lr_ged_sb`, `lr_ged_ns`, `lr_ged_os` — verified by listing `production_forecasts`, where the manifests are named `rusty_bucket_forecasting_20260727_095355__lr_ged_*__manifest.json`. Delivery works **only** because `resolve_run` matches manifest filenames rather than the config. So the config is decorative at precisely the point a reader would trust it, and the only reliable source of truth for a delivery's contents is a live bucket query — which is what this review had to do. Cross-refs: views-models#151 (target-name standardisation), **C-104** (one quantity, four config keys). |
+
+---
+
+### C-124 — Coverage is validated after the expensive path, not at resolution
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | A run resolving successfully for a region whose cell coverage it cannot satisfy — e.g. an africa-only run against `region: land_gaul`. |
+| **Source** | expert-code-review (2026-08-04) |
+| **Status** | Open |
+| **Location** | `views-postprocessing/contract/wire/source_selection.py` — `resolve_run` (manifests) vs `TargetLease.load()` (`assert_complete_coverage`, `assert_no_excluded_cells`) |
+| **Notes** | `resolve_run` checks that every expected target has a content-verified manifest; `expected_cells` and `excluded_gids` are passed to the lease and only enforced when frames materialise. Resolution succeeding therefore does not mean delivery will succeed — the failure arrives after shard downloads, on a monthly hand-run on a laptop. The lazy design is correct for memory (it is the run-0 OOM fix); what is missing is a cheap precheck so an unsatisfiable run is rejected before the heavy fetch. Cross-refs: **C-121**. |
+
 ---
 
 ## Disagreements
@@ -1583,3 +1633,25 @@
 | **Source** | expert-code-review (2026-08-02; Hickey vs. Beck/Feathers) |
 | **Status** | Open |
 | **Notes** | **Hickey:** an allowlist of accepted exceptions is a place to hide, and its length is the metric — a test that begins by blessing the mess has inverted its own purpose. **Beck and Feathers:** the objection is about *size*, and size is a choice of ordering. Fix the one unparseable specifier (#316), then the three missing trailing newlines, then the 27 unbounded ceilings (**C-118**) — each rule is red for a real reason, gets fixed, and goes green with no baseline at all. Only the divergent-spec rule needs a recorded exception, and after that sequence it holds one entry: the r2darts split (**C-115**), with its reason. **Martin adds** the deciding criterion: an exception carrying a written reason is documentation; an exception without one is theatre. **Provisional resolution:** build in Beck's order and the disagreement does not arise; revisit if the exception list ever exceeds two entries. |
+
+---
+
+### D-07 — Is the delivery defect structural, or observational?
+
+| Field | Value |
+|---|---|
+| **Trigger** | Choosing between a declared composition (structure) and a freshness assertion (observation) as the next change |
+| **Source** | expert-code-review (2026-08-04; Nygard/Beck vs Martin/Kleppmann/Ousterhout) |
+| **Status** | Open |
+| **Notes** | **Nygard and Beck:** the incident that cost 145 days was not a wrong order — it was a delivery step that never ran, and which would have republished March data without objecting. A correctly ordered manifest would not have delivered anything either. So the assertion (**C-121**) addresses the failure that happened and the structure (**C-122**) does not. **Martin, Kleppmann and Ousterhout:** an unrepresented causal dependency in a partner-facing pipeline is a defect whether or not it has fired, and leaving it invites the next silent failure. **Provisional resolution:** both, in that order — the assertion now, the structure behind C-122's named trigger. Recorded because the ordering is the actual decision, and it is easy to reverse it in the name of tidiness. |
+
+---
+
+### D-08 — Does WET-before-DRY forbid a declared composition?
+
+| Field | Value |
+|---|---|
+| **Trigger** | Proposing a composition manifest, a dependency resolver, or moving composition into views-pipeline-core |
+| **Source** | expert-code-review (2026-08-04; Hickey vs Martin/Beck) |
+| **Status** | Open |
+| **Notes** | **Hickey:** views-models has exactly **one** composition (`monthly_run.sh`). Abstracting at n=1 is precisely the wrong-abstraction risk the rule exists to prevent, and a manifest that acquires conditionals has become a program. **Martin and Beck:** the second instance already exists one repo away — `crafd/` was cloned from `unfao/` per `docs/CLONING.md`, and views-postprocessing #211 is the recorded scar of that clone (*"every partner-scoped guard was scoped to ONE partner"*). **Provisional resolution:** the trigger has fired for views-postprocessing, **not** for views-models. Defer, behind C-122's named trigger. When it fires, copy views-postprocessing's remedy — a declared list asserted against the filesystem — not a framework. Unanimous against a dependency resolver and against moving composition into pipeline-core. |
