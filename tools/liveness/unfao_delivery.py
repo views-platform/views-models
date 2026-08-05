@@ -42,7 +42,16 @@ HISTORICAL_PREFIX = "historical_dataset_"
 
 # Monthly delivery cadence: a stream is "delivering" if something landed
 # within ~1.5 cycles.
-DELIVERING_WITHIN_DAYS = 45
+#: Where the freshness bound comes from, reported so an operator can tell it is the
+#: declared one rather than a number this tool invented.
+BOUND_SOURCE = "deliveries/un_fao.py"
+
+
+def _load_declared_max_age_days() -> int:
+    """The bound this delivery declares. Never a default — see the module docstring."""
+    from deliveries.status import declared_max_age_days
+
+    return declared_max_age_days("un_fao")
 
 @dataclass(frozen=True)
 class CheckReport:
@@ -53,6 +62,7 @@ class CheckReport:
     endpoint: Optional[str] = None
     bucket: str = UNFAO_BUCKET_ID
     total_files: Optional[int] = None
+    max_age_days: Optional[int] = None      # the DECLARED bound this run classified against
     forecast_verdict: Optional[str] = None  # DELIVERING | STALLED | NEVER_DELIVERED
     forecast_newest_name: Optional[str] = None
     forecast_newest_created: Optional[str] = None
@@ -75,7 +85,8 @@ def render(report: CheckReport) -> str:
         ("endpoint", report.endpoint),
         ("bucket", report.bucket),
         ("total_files", report.total_files),
-        ("delivering_within_days", DELIVERING_WITHIN_DAYS),
+        ("max_age_days", report.max_age_days),
+        ("max_age_declared_in", BOUND_SOURCE),
         ("forecast_verdict", report.forecast_verdict),
         ("forecast_newest_name", report.forecast_newest_name),
         ("forecast_newest_created", report.forecast_newest_created),
@@ -103,17 +114,26 @@ class UnfaoDeliveryCheck:
         self,
         credentials: Optional[AppwriteCredentials] = "RESOLVE",  # type: ignore[assignment]
         fetch: Optional[FetchJson] = None,
+        max_age_days: Optional[int] = None,
     ) -> None:
         self.credentials = (
             resolve_credentials() if credentials == "RESOLVE" else credentials
         )
         self._fetch = fetch or fetch_json
+        # Resolved lazily in run(), not here: a construction that reads the
+        # declaration would make an unreadable one fail before the credential
+        # skip could report itself, turning a truthful SKIP into a crash.
+        self._max_age_days = max_age_days
 
     def run(self, now: Optional[datetime] = None) -> CheckReport:
         if self.credentials is None:
             verdict, error = credential_gap_report()
             return CheckReport(verdict=verdict, error=error)
         now = now or datetime.now(timezone.utc)
+        max_age_days = (
+            self._max_age_days if self._max_age_days is not None
+            else _load_declared_max_age_days()
+        )
         creds = self.credentials
         headers = {
             "X-Appwrite-Project": creds.project_id,
@@ -154,8 +174,8 @@ class UnfaoDeliveryCheck:
         historical_total = int(historical_doc.get("total", 0))  # type: ignore[union-attr]
         other = total - forecast_total - historical_total
 
-        f_verdict, f_facts = self._stream_verdict(forecast_files, now)
-        h_verdict, h_facts = self._stream_verdict(historical_files, now)
+        f_verdict, f_facts = self._stream_verdict(forecast_files, now, max_age_days)
+        h_verdict, h_facts = self._stream_verdict(historical_files, now, max_age_days)
 
         overall = (
             "DELIVERING"
@@ -167,6 +187,7 @@ class UnfaoDeliveryCheck:
             verdict=overall,
             endpoint=creds.endpoint,
             total_files=total,
+            max_age_days=max_age_days,
             forecast_verdict=f_verdict,
             forecast_newest_name=f_facts[0],
             forecast_newest_created=f_facts[1],
@@ -182,7 +203,7 @@ class UnfaoDeliveryCheck:
 
     @staticmethod
     def _stream_verdict(
-        files: list, now: datetime
+        files: list, now: datetime, max_age_days: int
     ) -> Tuple[str, Tuple[Optional[str], Optional[str], Optional[int], Optional[int]]]:
         newest = _newest(files)
         if newest is None:
@@ -190,7 +211,7 @@ class UnfaoDeliveryCheck:
         created_text = str(newest["$createdAt"])
         created = datetime.fromisoformat(created_text.replace("Z", "+00:00"))
         days = (now - created).days
-        verdict = "DELIVERING" if days <= DELIVERING_WITHIN_DAYS else "STALLED"
+        verdict = "DELIVERING" if days <= max_age_days else "STALLED"
         return verdict, (
             str(newest.get("name")),
             created_text[:19],

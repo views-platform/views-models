@@ -76,6 +76,39 @@ def delivered_sources() -> dict[str, list[str]]:
     return reached
 
 
+def declared_max_age_days(consumer: str = "un_fao") -> int:
+    """The freshness bound this consumer's delivery declares, in days.
+
+    The *only* freshness threshold for a delivery. Instruments that measure
+    staleness read it from here rather than carrying their own number — two
+    thresholds in two files is what ADR-019 §8 rejects, and it is what
+    `tools/liveness/unfao_delivery.py` used to do with `DELIVERING_WITHIN_DAYS = 45`
+    while this file declared two months (register C-121).
+
+    Raises rather than defaulting. A fallback bound would re-create the same defect
+    with one of the two numbers invisible.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  The freshness bound is declared there; this will not invent one."
+        )
+    require = load_delivery(path).REQUIRE
+    if require.max_age is None:
+        raise ValueError(
+            f"deliveries/{consumer}.py declares no max_age, so there is no bound to "
+            f"measure staleness against.\n"
+            f"  Add max_age=months(n) to REQUIRE.\n"
+            f"  A live delivery must declare one (ADR-019 §4)."
+        )
+    # Months are a declaration unit, not a calendar computation: the bound exists to
+    # answer "has a monthly delivery been missed?", where 30-day months are exact
+    # enough and, unlike calendar arithmetic, do not vary by when you ask.
+    return require.max_age.count * 30
+
+
 def consumers_for(source: str) -> list[str]:
     """Which consumers this source reaches, directly or as a member."""
     return delivered_sources().get(source, [])
