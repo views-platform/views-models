@@ -46,6 +46,59 @@ def _meta() -> dict:
     return load_config_module(FAO_META, module_name="fao_meta_arming").get_meta_config()
 
 
+def _armed_in_a_copy(*, region: str, intent_src: str | None = None) -> tuple[bool, str]:
+    """Build a throwaway repo copy with a chosen REGION, and read the arming state.
+
+    The tests must not depend on whether *this* checkout happens to agree with itself.
+    A developer's tree has REGION = "land_gaul"; a clean checkout still has
+    "africa_me_legacy" (C-110). A test that asserted either would pass in one place and
+    fail in the other, which is how #348 first broke in CI.
+    """
+    import shutil
+    import sys
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        shutil.copytree(
+            REPO_ROOT, repo, symlinks=True,
+            ignore=shutil.ignore_patterns(
+                ".git", "__pycache__", "*.pyc", "models", "ensembles",
+                "envs", "wandb", "data", "artifacts", "logs", "reports", "docs",
+            ),
+        )
+        queryset = repo / "postprocessors/un_fao/configs/config_queryset.py"
+        text = queryset.read_text()
+        import re as _re
+        queryset.write_text(
+            _re.sub(r'REGION = "[a-z_]+"', f'REGION = "{region}"', text, count=1)
+        )
+        if intent_src is not None:
+            declaration = repo / "deliveries/un_fao.py"
+            body = declaration.read_text()
+            body = _re.sub(r"intent    = .*", f"intent    = {intent_src},", body, count=1)
+            # the real file imports only what it uses; a substituted intent may need more
+            body = body.replace(
+                "    Delivery, Require, pgm, live, monthly, prod, months,",
+                "    Delivery, Require, pgm, live, paused, monthly, prod, months,",
+            )
+            declaration.write_text(body)
+        proc = subprocess.run(
+            [sys.executable, "-c",
+             "import importlib.util,sys;"
+             f"sys.path.insert(0,{str(repo)!r});"
+             "s=importlib.util.spec_from_file_location('m',"
+             f"{str(repo / 'postprocessors/un_fao/configs/config_meta.py')!r});"
+             "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
+             "print(m.get_meta_config()['wire_upload_enabled'])"],
+            capture_output=True, text=True, cwd=repo,
+        )
+    assert proc.returncode == 0, (
+        f"the config failed to LOAD. It must disarm, not break.\n  {proc.stderr[-400:]}"
+    )
+    return proc.stdout.strip() == "True", proc.stderr
+
+
 def _region_in(source: str) -> str | None:
     """REGION as declared in a given text of config_queryset.py, read statically."""
     for node in ast.walk(ast.parse(source)):
@@ -66,30 +119,22 @@ class TestArmingIsDerivedFromIntent:
         """`unfao/managers/unfao.py:317` reads it as an optional launcher key."""
         assert "wire_upload_enabled" in _meta()
 
-    def test_live_arms(self):
-        from deliveries.un_fao import DELIVERY
+    def test_live_arms_when_the_repository_agrees_with_itself(self):
+        from deliveries.un_fao import DELIVERY, REQUIRE
 
         assert DELIVERY.intent.state == "live"
-        assert _meta()["wire_upload_enabled"] is True
+        armed, _ = _armed_in_a_copy(region=REQUIRE.coverage)
+        assert armed is True
 
-    def test_paused_disarms(self):
-        import deliveries.un_fao as declaration
-        from datetime import date
+    def test_paused_disarms_even_when_the_repository_agrees(self):
+        """Regions agreeing must not be enough — `intent` is what decides."""
+        from deliveries.un_fao import REQUIRE
 
-        from deliveries.vocabulary import Delivery, monthly, paused, prod
-
-        original = declaration.DELIVERY
-        try:
-            declaration.DELIVERY = Delivery(
-                send=original.send,
-                frequency=monthly,
-                tier=prod,
-                intent=paused("testing the disarm path", since=date(2026, 8, 5)),
-            )
-            assert _meta()["wire_upload_enabled"] is False
-        finally:
-            declaration.DELIVERY = original
-        assert _meta()["wire_upload_enabled"] is True
+        armed, _ = _armed_in_a_copy(
+            region=REQUIRE.coverage,
+            intent_src='paused("testing the disarm path", since=date(2026, 8, 5))',
+        )
+        assert armed is False
 
     def test_arming_is_not_hand_written(self):
         """The whole point: one fact, one place (ADR-019 §8, C-129)."""
@@ -111,57 +156,35 @@ class TestArmingIsDerivedFromIntent:
 
 @pytest.mark.red
 class TestArmingIsWithheldWhenTheRepoDisagreesWithItself:
-    def test_declared_coverage_matches_the_queryset_region_today(self):
+    def test_this_checkout_is_internally_consistent_or_disarmed(self):
+        """Asserts the *relationship*, not today's value.
+
+        Whether this checkout agrees with itself depends on whether it carries the
+        uncommitted `REGION = "land_gaul"` (C-110). A developer's tree usually does; a
+        clean checkout does not. Asserting either would be asserting that C-110 is
+        resolved, which it is not — and would pass here while failing in CI, which is
+        exactly how this story first broke.
+
+        What must hold everywhere: if the two disagree, the upload is not armed.
+        """
         from deliveries.un_fao import REQUIRE
 
-        assert REQUIRE.coverage == _region_in(FAO_QUERYSET.read_text()), (
-            "deliveries/un_fao.py declares a coverage that config_queryset.py's REGION "
-            "does not match. The delivery must not arm in this state."
-        )
+        agrees = REQUIRE.coverage == _region_in(FAO_QUERYSET.read_text())
+        armed = _meta()["wire_upload_enabled"]
+        if not agrees:
+            assert armed is False, (
+                "this checkout disagrees with itself about the region, yet the upload "
+                "is armed — a run would ship a region nobody declared (C-110)."
+            )
 
     def test_a_mismatch_disarms_without_crashing_and_names_the_file(self):
-        """Run in a subprocess against a copy with a deliberately wrong REGION, so the
-        real import path is exercised rather than a patched module."""
-        import shutil
-        import sys
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            fake_repo = Path(tmp) / "repo"
-            shutil.copytree(
-                REPO_ROOT, fake_repo, symlinks=True,
-                ignore=shutil.ignore_patterns(
-                    ".git", "__pycache__", "*.pyc", "models", "ensembles",
-                    "envs", "wandb", "data", "artifacts", "logs", "reports",
-                ),
-            )
-            queryset = fake_repo / "postprocessors/un_fao/configs/config_queryset.py"
-            text = queryset.read_text()
-            queryset.write_text(
-                text.replace('REGION = "land_gaul"', 'REGION = "africa_me_legacy"')
-            )
-            proc = subprocess.run(
-                [sys.executable, "-c",
-                 "import importlib.util,sys;"
-                 f"sys.path.insert(0,{str(fake_repo)!r});"
-                 "s=importlib.util.spec_from_file_location('m',"
-                 f"{str(fake_repo / 'postprocessors/un_fao/configs/config_meta.py')!r});"
-                 "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
-                 "print(m.get_meta_config()['wire_upload_enabled'])"],
-                capture_output=True, text=True, cwd=fake_repo,
-            )
-        assert proc.returncode == 0, (
-            f"the config failed to LOAD on a region mismatch. It must disarm, not "
-            f"break — raising here would stop runs that never intended to upload.\n"
-            f"  stderr: {proc.stderr[-500:]}"
+        armed, stderr = _armed_in_a_copy(region="africa_me_legacy")
+        assert armed is False, (
+            "a region mismatch armed the delivery anyway — a clean checkout would "
+            "upload the wrong region to a UN bucket (register C-110)"
         )
-        assert "False" in proc.stdout, (
-            f"a region mismatch armed the delivery anyway — a clean checkout would "
-            f"upload the wrong region to a UN bucket (register C-110).\n"
-            f"  stdout: {proc.stdout[-300:]}"
-        )
-        assert "config_queryset.py" in proc.stderr, (
-            f"the warning names no file (ADR-020).\n  stderr: {proc.stderr[-500:]}"
+        assert "config_queryset.py" in stderr, (
+            f"the warning names no file (ADR-020).\n  stderr: {stderr[-500:]}"
         )
 
     def test_a_clean_checkout_today_would_disarm_rather_than_arm(self):
