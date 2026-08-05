@@ -20,7 +20,9 @@ loudly (ADR-003): a silent default would deliver the *wrong forecast to a UN age
 say nothing, which is worse than any error this file could raise.
 """
 
+import ast
 import sys
+import warnings
 from pathlib import Path
 
 # The delivery declaration lives at the repository root. run.sh is immutable, so
@@ -57,6 +59,86 @@ def _declared_source() -> str:
     return sources[0].name
 
 
+def _declared_region() -> str:
+    """The coverage this consumer is declared to receive."""
+    from deliveries.un_fao import REQUIRE
+
+    if not REQUIRE.coverage:
+        raise RuntimeError(
+            "deliveries/un_fao.py declares no coverage, so this postprocessor cannot "
+            "confirm which region it would ship.\n"
+            "  Open deliveries/un_fao.py and add coverage=... to REQUIRE."
+        )
+    return REQUIRE.coverage
+
+
+def _queryset_region() -> str:
+    """`REGION` from config_queryset.py, read *statically*.
+
+    Parsed rather than imported: config_queryset imports pipeline-core and the
+    datafactory client, and this file must stay cheap enough to load anywhere. The
+    question here is one string.
+    """
+    source = (Path(__file__).parent / "config_queryset.py").read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "REGION":
+                    if isinstance(node.value, ast.Constant):
+                        return node.value.value
+    raise RuntimeError(
+        "could not find REGION in postprocessors/un_fao/configs/config_queryset.py.\n"
+        "  Open that file — this config reads REGION to confirm the repository agrees "
+        "with itself about which region ships."
+    )
+
+
+def _upload_armed() -> bool:
+    """Whether this delivery is armed — derived from `intent`, never typed.
+
+    views-postprocessing ADR-013 §11.4 sets ``UPLOAD_ENABLED = False`` and makes the
+    launcher key ``wire_upload_enabled`` its only override
+    (``unfao/managers/unfao.py:317``). That contract is unchanged; what changed is who
+    computes the key. `intent` and a hand-written boolean were the same fact in two
+    places, which ADR-019 §8 rejects by name (register C-129).
+
+    **Arming is withheld when the repository disagrees with itself.** The delivery
+    declares a `coverage`; `config_queryset.py` declares a `REGION`. If they differ,
+    a run would upload a region nobody declared — and a clean checkout is exactly that
+    case today, because `REGION` is committed as ``africa_me_legacy`` while the
+    delivery declares ``land_gaul`` (register C-110).
+
+    It **disarms and warns** rather than raising. Raising would make the config
+    unloadable from a clean checkout, breaking runs that never intended to upload —
+    a new failure mode invented to guard an old one. Disarming is exactly what the
+    interlock already does when the key is absent (vpp ADR-013 §11.4: artifacts are
+    staged locally), so this refuses the dangerous half and leaves the rest working.
+
+    That is what makes a derived arming state safe to commit: a fresh clone cannot
+    silently ship the wrong region to a UN agency, and it does not break either.
+    """
+    from deliveries.un_fao import DELIVERY
+
+    declared, actual = _declared_region(), _queryset_region()
+    if declared != actual:
+        warnings.warn(
+            f"NOT ARMING the FAO upload: this repository disagrees with itself about "
+            f"which region ships.\n"
+            f"  deliveries/un_fao.py declares coverage={declared!r}\n"
+            f"  postprocessors/un_fao/configs/config_queryset.py declares "
+            f"REGION={actual!r}\n"
+            f"  Open config_queryset.py and set REGION to {declared!r}, or change the "
+            f"delivery's coverage — they must agree before anything uploads.\n"
+            f"  The run will still produce artifacts locally, as it does whenever the "
+            f"upload interlock is closed (vpp ADR-013 §11.4). Nothing else in this "
+            f"config is wrong; this is the only thing holding the upload.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return False
+    return DELIVERY.intent.state == "live"
+
+
 def get_meta_config():
     """
     Meta data for the postprocessor (algorithm, name, targets, level).
@@ -73,7 +155,11 @@ def get_meta_config():
         "algorithm": "Postprocessor",
         "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm",
-        # Derived, never typed. Edit deliveries/un_fao.py to change it.
+        # Both derived, never typed. Edit deliveries/un_fao.py to change them.
         "ensemble": _declared_source(),
+        "wire_upload_enabled": _upload_armed(),
+        # run-0 contract-leg delivery — views-postprocessing instruction 2026-07-27:
+        # read/deliver the ADR-013 wire dialect and un-freeze the upload interlock,
+        # with the declared land_gaul region curation applied at the delivery boundary.
     }
     return meta_config
