@@ -28,7 +28,11 @@ DELIVERIES_DIR = REPO_ROOT / "deliveries"
 
 # Keys the FAO config carries in git. Anything outside this set is working-tree only
 # (C-110) and must not be asserted against — see the module docstring.
-COMMITTED_META_KEYS = {"name", "algorithm", "targets", "level", "ensemble"}
+COMMITTED_META_KEYS = {
+    "name", "algorithm", "targets", "level",
+    "ensemble",             # derived from the declaration since #347
+    "wire_upload_enabled",  # derived from DELIVERY.intent since #348
+}
 
 
 FAO_META = "postprocessors/un_fao/configs/config_meta.py"
