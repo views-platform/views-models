@@ -13,7 +13,7 @@
 > is also why it is not an ADR: when the source feeding a consumer changes, this page changes with it.
 > The ADRs describe the shape; this page records what currently occupies it.
 >
-> **Last re-traced against the code and the live buckets: 2026-08-04.**
+> **Last re-traced against the code and the live buckets: 2026-08-05.**
 > Every claim below names the file or the bucket it came from, so it can be re-checked rather than
 > believed.
 
@@ -164,15 +164,24 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 - **Which ensembles reconcile, and against what:** `ensembles/<e>/configs/config_meta.py` —
   `"reconciliation"` (the method) and `"reconcile_with"` (the partner). Two ensembles declare it:
   `skinny_love → pink_ponyclub`, `white_mustang → cruel_summer`.
-- **The FAO "which source feeds us" declaration:** `postprocessors/un_fao/configs/config_meta.py` —
-  the single line `"ensemble": "rusty_bucket"`.
-  - **The smell, exactly:** that file's own docstring says *"This config is for documentation purposes
-    only, and modifying it will not affect the model."* That is **false** — that one line decides which
-    forecast reaches the UN. ADR-019 exists to move it somewhere honest.
-- **Whether the FAO delivery actually uploads:** `wire_upload_enabled` in the same file. On
-  2026-08-04 that key is **absent from git** and present as `True` in the maintainer's uncommitted
-  working tree, so the platform's publish behaviour differs between two identical checkouts
-  (register C-110).
+- **The FAO "which source feeds us" declaration:** `deliveries/un_fao.py` — the `send` line.
+  `postprocessors/un_fao/configs/config_meta.py` **derives** its `"ensemble"` key from it and no longer
+  names a source (#347). The key survives because views-postprocessing reads `configs["ensemble"]` at
+  `unfao/managers/unfao.py:195`; the decision moved, the interface did not.
+  - *This entry used to describe a smell:* that config's docstring claimed the file was documentation
+    only, while one line in it decided which forecast reached the UN. #347 removed the line and rewrote
+    the docstring. **Recorded because it is what ADR-019 was written to fix — and because a map that
+    keeps reporting a repaired defect teaches readers to distrust it.**
+- **Whether the FAO delivery actually uploads:** `intent` in `deliveries/un_fao.py`. The launcher key
+  `wire_upload_enabled` is **derived** from it (#348) and is now committed, so arming is answerable
+  from a clean checkout — closing the observable half of **C-110**.
+  - **Arming is withheld when the repository disagrees with itself.** The delivery declares `coverage`;
+    `config_queryset.py` declares `REGION`. If they differ the upload disarms with a warning naming the
+    file, rather than shipping a region nobody declared. It warns rather than raising, so a run that
+    never intended to upload still works (vpp ADR-013 §11.4 stages artifacts locally).
+  - **C-110's residual is now `wire_contract` and `region`**, still working-tree only. A clean checkout
+    carries `REGION = "africa_me_legacy"`, so it disarms — visibly, with the file named — instead of
+    delivering the wrong region.
 - **The main public line's declaration:** *none exists.* It is emergent — `monthly_run.sh`, plus the
   legacy store, plus the external API.
 
@@ -185,6 +194,6 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 - **ADR-020** — errors must descend.
 - **views-postprocessing ADR-013** — the wire contract; owns *how* bytes travel.
 - **pipeline-core** *Lean Platform End-State Roadmap* (2026-07-27) — owns the retirement sequencing.
-- Register: **C-97** (selection; Resolved on a claim this page contradicts), **C-110** (uncommitted
-  arming state), **C-121** (no age bound at the delivery boundary), **C-123** (`rusty_bucket`'s config
+- Register: **C-97** (selection; Resolved on a claim this page contradicts), **C-110** (uncommitted config — residual narrowed to `wire_contract`
+  and `region` by #348), **C-121** (no age bound at the delivery boundary), **C-123** (`rusty_bucket`'s config
   does not describe what it emits), **#320** (the 145-day stall).
