@@ -231,3 +231,101 @@ def test_key_is_verified_before_any_listing_is_believed():
     assert calls and calls[0].endswith("/storage/buckets/unfao_bucket"), (
         f"first call was {calls[0] if calls else '<none>'}"
     )
+
+
+# ── A1 (#360): one freshness threshold, and it is the declared one ──────────
+#
+# `DELIVERING_WITHIN_DAYS = 45` used to live in unfao_delivery.py while
+# deliveries/un_fao.py declared `max_age = months(2)` ≈ 60 days. Two thresholds,
+# two files, disagreeing — the shape epic #342 removed for `ensemble` (#347) and
+# `wire_upload_enabled` (#348), still present in the one piece of code that
+# actually measures freshness (ADR-019 §8; register C-121).
+
+
+class TestTheThresholdIsDerivedFromTheDeclaration:
+    def test_the_hardcoded_constant_is_gone(self):
+        import tools.liveness.unfao_delivery as mod
+
+        assert not hasattr(mod, "DELIVERING_WITHIN_DAYS"), (
+            "DELIVERING_WITHIN_DAYS is back. The bound must come from "
+            "deliveries/un_fao.py's max_age — one fact, one place."
+        )
+
+    def test_the_default_bound_is_what_the_delivery_declares(self):
+        from deliveries.un_fao import REQUIRE
+
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        report = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
+        assert report.max_age_days == REQUIRE.max_age.count * 30
+
+    def test_the_same_run_flips_verdict_when_the_declared_bound_changes(self):
+        """The test that proves the wiring, not merely the constant's absence.
+
+        The forecast stream's newest file is 2026-03-10 and NOW is 2026-07-19 —
+        131 days. Under a 200-day bound that is DELIVERING; under 60 it is STALLED.
+        Same data, same clock, different declaration.
+        """
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        lenient = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch, max_age_days=200).run(now=NOW)
+        strict = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch, max_age_days=60).run(now=NOW)
+
+        assert lenient.forecast_verdict == "DELIVERING"
+        assert strict.forecast_verdict == "STALLED"
+        assert lenient.forecast_days_since == strict.forecast_days_since
+
+    def test_render_says_which_bound_was_used(self):
+        """An operator reading the output must be able to tell it is the declared
+        one, not a number the tool invented."""
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        text = render(UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW))
+        assert "max_age_days" in text
+        assert "deliveries/un_fao.py" in text
+
+
+class TestItRefusesToInventABound:
+    """ADR-003 / ADR-020. A default bound would silently re-create the two-thresholds
+    defect with one of the two numbers invisible."""
+
+    def test_a_missing_declaration_raises_and_names_the_file(self):
+        """The real message, from the real loader — not one a monkeypatch threw."""
+        from deliveries.status import declared_max_age_days
+
+        with pytest.raises(FileNotFoundError) as exc:
+            declared_max_age_days("no_such_consumer")
+        assert "deliveries/no_such_consumer.py" in str(exc.value)
+        assert "will not invent" in str(exc.value)
+
+    def test_a_declaration_without_max_age_raises_and_says_what_to_add(self, monkeypatch):
+        """Patched at the loader, because `declared_max_age_days` re-executes the
+        file from disk — patching the imported module object would not reach it."""
+        import types
+
+        import deliveries.status as status
+        from deliveries.vocabulary import Require
+
+        monkeypatch.setattr(
+            status, "load_delivery",
+            lambda path: types.SimpleNamespace(REQUIRE=Require(targets=("x",))),
+        )
+        with pytest.raises(ValueError) as exc:
+            status.declared_max_age_days("un_fao")
+        assert "max_age=months(n)" in str(exc.value)
+
+    def test_the_check_propagates_rather_than_defaulting(self, monkeypatch):
+        """If the bound cannot be read, the check must fail — not fall back to a
+        number and report a verdict computed against it."""
+        import tools.liveness.unfao_delivery as mod
+
+        def _boom():
+            raise RuntimeError("bound unavailable")
+
+        monkeypatch.setattr(mod, "_load_declared_max_age_days", _boom)
+        with pytest.raises(RuntimeError):
+            UnfaoDeliveryCheck(credentials=CREDS, fetch=_fake_fetch({})).run(now=NOW)
+
+
+class TestCredentialSkipIsUnaffected:
+    def test_still_skips_truthfully_without_credentials(self, no_machine_credentials):
+        """A silent pass here would report 'delivering' having read nothing (C-75)."""
+        report = UnfaoDeliveryCheck(credentials=None, fetch=_fake_fetch({})).run(now=NOW)
+        assert report.verdict == "SKIP_NO_CREDENTIALS"
