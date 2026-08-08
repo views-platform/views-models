@@ -7,7 +7,7 @@
 | **Model Algorithm** | HydraNet                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
-| **Features**       |  purple_alien   |
+| **Features**       |  purple_alien_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
