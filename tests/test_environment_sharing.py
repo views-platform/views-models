@@ -184,7 +184,9 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views-baseline": 37,
         "views_stepshifter": 32,
         "views_r2darts2": 22,
-        "views_ensemble": 13,
+        # 13 -> 11: Epic #242 S3 retired golden_hour + stellar_horizon (the two
+        # datafactory-parity ensembles, both views_ensemble tenants).
+        "views_ensemble": 11,
         "views-r2darts2": 9,
         "views-hydranet": 8,
         "views-stepshifter": 7,
