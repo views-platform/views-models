@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 140 (131 concerns + 9 disagreements)  
-**Concerns:** Open 61 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 5 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 141 (132 concerns + 9 disagreements)  
+**Concerns:** Open 62 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1647,6 +1647,17 @@
 | **Location** | `docs/ADRs/017_source_composition_delivery.md` §4e (the ⟺ definition) and §5 (the tier rule) vs `docs/ADRs/019_delivery_declaration.md` §3 (`tier`) |
 | **Notes** | §4e defines *in production ⟺ maturity is `graduate` **and** a delivery ships it to a **production-tier** consumer.* ADR-019 §3 fixes `tier` at exactly one value, `prod`, and says plainly that the gate is therefore *currently unconditional*. §4e did not, so the definition read as two independent conditions when one is presently always true. Not a correctness defect — the definition stays true as written, and becomes discriminating the moment a second tier value exists — but it is the kind of gap that makes a newcomer believe a check exists that does not. **Corrected by a clause in §4e pointing at ADR-019 §3.** The second tier value is itself blocked on ADR-017 §12's open shadow-destination question. Cross-refs: **C-129**. |
 
+
+### C-132 — Ensemble `concat` pool silently drops the occurrence/gate channel — every HydraNet ensemble's AP is understated
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | Anyone scores or delivers occurrence (AP / Brier) from a HydraNet `concat` ensemble (`golden_hour`, `stellar_horizon`, `rusty_bucket`, or the Epic #242 africa ensemble), or trusts an ensemble's occurrence calibration. |
+| **Source** | Epic #242 S6 ensemble scoring (views-hydranet ensemble dossier `reports/2026-08-08_hydranet_ensemble_dossier`, EXP-03, 2026-08-10) |
+| **Status** | Open |
+| **Location** | `views-pipeline-core/views_pipeline_core/managers/ensemble/prediction_frame_ensemble.py:373` (`ctx.targets = c.get("targets", c.get("regression_targets", []))`; pooled at ~:593/:655/:776/:814); ensemble metas `ensembles/{rusty_bucket,golden_hour,stellar_horizon}/configs/config_meta.py` (declare only `regression_targets`, no classification targets) |
+| **Notes** | The pool loops `for target in ctx.targets`, and `ctx.targets` = the ensemble config's `targets` **or** `regression_targets`. The HydraNet ensembles declare only the 3 `lr_*` magnitude targets — no `by_*` classification targets — so `concat` pools only magnitude and **never touches the gate**. No error signal: the ensemble emits a plausible-looking pooled forecast with `lr_` only, so occurrence can only be scored as `frac(pooled samples>0)` — a far coarser ranker than the members' gate-heads — and any AP/Brier from a HydraNet ensemble is **silently understated**. `_aggregate_prediction_frames` (:116) is generic (`np.concatenate(axis=1)`); the gate is per-sample `(N,16)`, same shape — the framework CAN pool it, it is simply never asked to. **Evidence (Epic #242 africa 8-member, 160L):** ungated ensemble AP sb-h1 **0.316** (members 0.38–0.47); adding a `"targets": [lr_*, by_*]` list to the ensemble meta and re-pooling the cached cubes (**no retrain**) recovered AP to near-best (sb 0.316→**0.456**, ns 0.177→0.355, os 0.135→0.225) — the gap fully explains the collapse, zero code change needed. **Consequence:** every prior HydraNet-ensemble occurrence number is understated; the `golden_hour`↔`stellar_horizon` occurrence comparisons (C-47 family) are affected. **Fix (durable, NOT the per-config hack):** pool the occurrence channel by default for gated/HydraNet ensembles — derive the classification targets from the constituents, or pool `by_*` alongside `lr_*` for the `hydranet_ucdp` evaluation profile — plus a test asserting a pooled HydraNet ensemble carries a `by_*` channel. The `"targets": [lr_*, by_*]` config edit proved the fix but is a hack. **Distinct from C-44** (that is aggregation *math* degrading below the best constituent; this is a dropped *channel*). See also **C-47** (trio parity — occurrence comparisons), **C-85 / C-14** (ensemble cache/identity). Member of the ensemble family (**Cluster E**). |
 
 ## Disagreements
 
