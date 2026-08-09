@@ -21,7 +21,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from tests.conftest import load_config_module, regression_targets_by_location
+from tests.conftest import (
+    get_produced_sample_count,
+    load_config_module,
+    regression_targets_by_location,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = REPO_ROOT / "models"
@@ -92,33 +96,38 @@ def _expected_output_width(name, base_dir=MODELS_DIR):
     """Expected ``y_pred`` sample-axis width for a single PF model (#216/#219).
 
     point ⇒ 1 (collapsed to a scalar per cell, à la HydraNet's
-    ``collapse_to_point``); stochastic ⇒ ``n_posterior_samples`` (skip if absent
-    — the green config test owns that failure).
+    ``collapse_to_point``); stochastic ⇒ the PRODUCED posterior width. For an
+    ADR-067 family head that is D×K (``n_posterior_samples × n_head_samples``), not
+    D alone (ADR-015 §6); ``get_produced_sample_count`` reduces to
+    ``n_posterior_samples`` for non-family models (K=1). Skip if D is absent — the
+    green config test owns that failure.
     """
     if _model_eval_mode(name, base_dir) == "point":
         return 1
     hp = _load_hp(name, base_dir)
-    return _require_n_posterior_samples(hp, name)
+    _require_n_posterior_samples(hp, name)  # skip (not fail) when D undeclared
+    return get_produced_sample_count(base_dir / name)
 
 
 def _constituent_sample_count(model_name, ensemble_name=None):
     """Sample-axis columns contributed by one PF constituent (#216/#219).
 
     A point constituent contributes a single column; a stochastic constituent
-    contributes its ``n_posterior_samples`` (skip if missing — the green config
-    test owns that failure). Keeps ``concat`` (sum) and ``arithmetic_mean``
-    expectations correct for ensembles mixing point + stochastic constituents.
+    contributes its PRODUCED posterior width — D×K (``n_posterior_samples ×
+    n_head_samples``) for an ADR-067 family head, D alone otherwise (ADR-015 §6).
+    Skip if D is missing — the green config test owns that failure. Keeps
+    ``concat`` (sum) and ``arithmetic_mean`` expectations correct for ensembles
+    mixing point + stochastic constituents.
     """
     if _model_eval_mode(model_name) == "point":
         return 1
     hp = _load_hp(model_name)
-    n = hp.get("n_posterior_samples")
-    if n is None:
+    if hp.get("n_posterior_samples") is None:
         pytest.skip(
             f"{ensemble_name or model_name}: constituent {model_name} missing "
             f"n_posterior_samples (green test catches this)"
         )
-    return n
+    return get_produced_sample_count(MODELS_DIR / model_name)
 
 
 def _discover_pf_models():

@@ -12,7 +12,7 @@ Ensembles do NOT have config_sweep.py or config_queryset.py.
 import pytest
 
 from tests.conftest import (
-    get_n_posterior_samples,
+    get_produced_sample_count,
     get_regression_targets,
     load_config_module,
     MODELS_DIR,
@@ -279,12 +279,17 @@ class TestEnsembleDependencies:
                 model_dir = MODELS_DIR / model_name
                 if not model_dir.is_dir():
                     continue  # existence covered by test_all_constituent_models_exist
-                n = get_n_posterior_samples(model_dir)
+                # The pooled sample axis is what each constituent actually EMITS.
+                # For an ADR-067 family head that is D×K (n_posterior_samples ×
+                # n_head_samples), not D alone (ADR-015 §6). get_produced_sample_count
+                # reduces to n_posterior_samples for non-family models (K=1).
+                n = get_produced_sample_count(model_dir)
                 if n != expected_samples:
                     mismatches[model_name] = n
             assert not mismatches, (
                 f"{ensemble_dir.name}: declares expected_samples_per_model="
-                f"{expected_samples} but these constituents declare a different "
-                f"n_posterior_samples: {mismatches} — equal counts keep each constituent "
-                f"equally weighted in the pooled mixture; normalize them (ADR-015)."
+                f"{expected_samples} but these constituents EMIT a different produced "
+                f"count (n_posterior_samples × n_head_samples): {mismatches} — equal "
+                f"counts keep each constituent equally weighted in the pooled mixture; "
+                f"normalize them (ADR-015 §6)."
             )

@@ -42,6 +42,14 @@ This pulls the check forward to CI — a mismatch fails in seconds, not at minut
 ### 5. The count reader is family-agnostic and divergence-guarded (amended 2026-07-20, register C-104)
 Posterior sample count is named differently by each family's runtime — baseline `n_samples`, hydranet `n_posterior_samples`, r2darts `num_samples`, stepshifter `pred_samples` — while the runtime object and the ADR-013 wire already agree on one name (`PredictionFrame.sample_count`). `conftest.get_n_posterior_samples` therefore reads **whichever** sample-count key a config declares, rather than forcing a cross-repo rename (prefer-agnostic-over-uniform). A config that declares **multiple** of these keys with **different values fails loud**: that divergence is the decoy trap that silently discarded a sample-count change during the 2026-07-20 FAO delivery (a baseline config carries both `n_samples`, the runtime key, and `n_posterior_samples`, this contract's key, kept equal only by hand). The authoritative check remains the produced `pf.sample_count` at aggregation (pipeline-core, register C-85); this getter guards the config layer.
 
+### 6. A family head emits D×K draws, not D (amended 2026-08-10, Epic #242 S4)
+
+ADR-067 introduced the HydraNet distribution-family head with a **D×K posterior sampler**: for each of `D = n_posterior_samples` MC-dropout passes it draws `K = n_head_samples` samples from the per-cell distribution, so the **emitted** sample-axis width per cell is **D×K**, not D. `rusty_bucket`'s eight `gated_NB`/`th_gated_NB`/`mixture_NB` members run `D=4 × K=4 = 16` (pooled 8 × 16 = 128).
+
+This means "the sample count a model produces" — the number that must match `expected_samples_per_model` (§2) and the on-disk `y_pred` width — is **the produced D×K count**, while `n_posterior_samples` alone (§5, D) is only one factor. The contract therefore derives the produced count via `conftest.get_produced_sample_count` = `get_n_posterior_samples × get_head_sample_count` (`n_head_samples`, defaulting to 1 for every non-family model, which keeps the pre-#242 behaviour byte-identical). `expected_samples_per_model` is the **produced** count (e.g. `rusty_bucket` declares 16), and the config-time contract (§3) and the PF output-width tests (`test_pfe_production_readiness`) both compare against D×K.
+
+The two config knobs stay distinct and each honest — `n_posterior_samples` is the MC-dropout depth, `n_head_samples` the family draws per pass; the produced width is their product. The 128 standard (§1) is a target on the produced count.
+
 ## Consequences
 
 ### Positive
