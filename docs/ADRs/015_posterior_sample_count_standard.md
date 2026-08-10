@@ -42,6 +42,40 @@ This pulls the check forward to CI — a mismatch fails in seconds, not at minut
 ### 5. The count reader is family-agnostic and divergence-guarded (amended 2026-07-20, register C-104)
 Posterior sample count is named differently by each family's runtime — baseline `n_samples`, hydranet `n_posterior_samples`, r2darts `num_samples`, stepshifter `pred_samples` — while the runtime object and the ADR-013 wire already agree on one name (`PredictionFrame.sample_count`). `conftest.get_n_posterior_samples` therefore reads **whichever** sample-count key a config declares, rather than forcing a cross-repo rename (prefer-agnostic-over-uniform). A config that declares **multiple** of these keys with **different values fails loud**: that divergence is the decoy trap that silently discarded a sample-count change during the 2026-07-20 FAO delivery (a baseline config carries both `n_samples`, the runtime key, and `n_posterior_samples`, this contract's key, kept equal only by hand). The authoritative check remains the produced `pf.sample_count` at aggregation (pipeline-core, register C-85); this getter guards the config layer.
 
+### 6. The count that matters is the count a model PRODUCES (amended 2026-08-10, Epic #242 S4)
+
+A HydraNet family head draws `K` samples from the per-cell distribution on each of `D`
+MC-dropout passes, so the **emitted** sample-axis width per cell is **D×K**, not `D`.
+This is an observation about what the artifacts contain, verifiable here: the Epic #242
+roster runs `D=4 × K=4 = 16`, and `tests/test_pfe_production_readiness.py` compares that
+product against the on-disk `y_pred` width. It corroborates **views-hydranet ADR-067**,
+which introduced the family head — that ADR is **`Proposed`, not Accepted**, in its own
+repository, so this clause is stated on this repo's own evidence and does not depend on
+its ratification. If ADR-067 changes, re-check the arithmetic here; nothing automatically
+will.
+
+**Consequence for §2 and §3.** "The sample count a model produces" — the number that must
+equal `expected_samples_per_model` and the on-disk `y_pred` width — is the **produced**
+count. `n_posterior_samples` alone (§5, `D`) is only one factor. The contract derives it
+via `conftest.get_produced_sample_count` = `get_n_posterior_samples × get_head_sample_count`,
+where `n_head_samples` **defaults to 1**, so every non-family model behaves exactly as it
+did before this amendment. `rusty_bucket` declares `expected_samples_per_model: 16`, the
+produced width.
+
+**Consequence for §1.** The 128 standard is a target on the **produced** count, and the
+roster is an order of magnitude under it (16 produced per constituent, 128 pooled across
+eight). That gap is deliberate and has a cause outside this ADR: the full-depth run peaks
+at ~28.6 GB and does not fit production hardware (thinned 2026-07-20). §4's non-blocking
+report is what keeps it visible — it currently names 73 models. **This amendment redefines
+the unit; it does not license the gap.** Register **C-91** tracks the tail-stability
+consequence and was restated in the same change, because a standard whose unit moves while
+the risk entry keeps the old numbers is how a measured concern quietly stops matching
+anything.
+
+**The two knobs stay distinct and each honest** — `n_posterior_samples` is the MC-dropout
+depth, `n_head_samples` the family draws per pass, and the produced width is their product.
+Neither is a rename of the other.
+
 ## Consequences
 
 ### Positive
