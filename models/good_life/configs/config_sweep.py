@@ -66,11 +66,11 @@ def get_sweep_config():
             "values": [{
                 # Group 1: Zero-Anchor Preservation (Conflict & Heavy Macro)
                 # Asinh compresses tails; MaxAbs scales to [-1, 1] keeping 0 at 0.
-                "AsinhTransform->MaxAbsScaler": [
+                "AsinhTransform": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    # "lr_acled_sb",  "lr_acled_sb_count", "lr_acled_os",
                     
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",

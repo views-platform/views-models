@@ -8,11 +8,22 @@ def get_meta_config():
     """
     meta_config = {
         "name": "rude_boy",
-        "regression_targets": ["lr_ged_sb"],
+        "models": ["smol_cat", 
+                   "revolving_door", 
+                   "elastic_heart", 
+                   "new_rules",
+                   "bus_radio",
+                   "demon_weeks",
+                   "higher_hopes",
+                   "fluorescent_adult",
+                   "unpopular_monster"
+                #    "good_life"
+                   ],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm", 
         "aggregation": "mean",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Dylan",
         # "regression_sample_baselines": ["red_ranger"],
     }

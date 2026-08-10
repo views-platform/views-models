@@ -6,6 +6,12 @@ def get_modelset_config():
     - modelset_config (dict): A dictionary with the key 'models' listing constituent model names.
     """
     modelset_config = {
-        "models": ["bad_romance", "cold_heart", "free_fallin"],
+        "models": ["bad_romance", 
+                   "free_fallin", 
+                   "cold_heart", 
+                   "beautiful_people",
+                   "lovely_creature",
+                #    "holy_grail"
+                   ],
     }
     return modelset_config

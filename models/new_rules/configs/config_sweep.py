@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_shadow_20260508_D",
+        "name": "new_rules_nbeats_shadow_20260519_A",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,
@@ -84,8 +84,8 @@ def get_sweep_config():
                 "AsinhTransform->StandardScaler": [
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-                    "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
+                    # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    # "lr_acled_sb",  "lr_acled_sb_count", "lr_acled_os",
                     
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
@@ -146,7 +146,7 @@ def get_sweep_config():
         # delta: multi-resolution spectral weight. DC bin masked.
         # "delta": {"distribution": "uniform", "min": 0.05, "max": 0.15},
         "delta": {"distribution": "uniform", "min": 0.0, "max": 0.1},
-        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         # ==============================================================================
         # TEMPORAL ENCODINGS
         # ==============================================================================
