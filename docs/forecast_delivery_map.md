@@ -155,8 +155,9 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 ## Where each config lives today
 
 - **A source's maturity-ish label:** `models/<m>/configs/config_deployment.py` → `deployment_status`.
-  *(Measured 2026-08-04: **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** across 128 files —
-  132 source directories exist, so four carry no maturity at all. Both quote styles must be counted;
+  *(Measured 2026-08-10: **115 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** across 126 files —
+  130 source directories exist, so four carry no maturity at all. (Epic #242 S3 retired the two datafactory-
+  parity ensembles `golden_hour` + `stellar_horizon`, both `shadow` — hence 117→115.) Both quote styles must be counted;
   see ADR-017 §2 and register C-127.
   The single `deployed` source is `ensembles/white_mustang` — whose two members, `lavender_haze` and
   `blank_space`, are both `shadow`.)*

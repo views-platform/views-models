@@ -166,15 +166,16 @@ class TestF4_StaleDocstrings:
 
     @pytest.mark.red
     def test_no_stale_loss_references_in_parity_test(self):
-        path = REPO / "tests" / "test_datafactory_parity.py"
+        # The datafactory-parity test was superseded by the roster-conformance test
+        # (Epic #242 S3): the viewser↔datafactory trio-mirror programme is resolved,
+        # so the file now pins each model to its roster family (all mse, no tobit).
+        path = REPO / "tests" / "test_roster_conformance.py"
         text = path.read_text()
-        # 'lognormal_nll' removed from this list 2026-06-09 (PR #116): it is now a
-        # *live* loss — violet_visitor's Arm-1 hurdle experiment (C-71) — so a
-        # reference in the parity test is current, not stale. 'shrinkage'/'basu_dpd'
-        # remain genuinely-removed loss functions and must not reappear.
+        # 'shrinkage'/'basu_dpd' are genuinely-removed loss functions and must not
+        # reappear in the conformance test.
         for stale in ["shrinkage", "basu_dpd"]:
             assert stale not in text, (
-                f"test_datafactory_parity.py still references '{stale}' — "
+                f"test_roster_conformance.py still references '{stale}' — "
                 f"that loss function was removed"
             )
 
