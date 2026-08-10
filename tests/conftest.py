@@ -183,6 +183,52 @@ def get_n_posterior_samples(model_dir: Path) -> int | None:
     return None
 
 
+#: ADR-067 HydraNet family heads draw K samples from the distribution head per
+#: MC-dropout pass. The emitted posterior width is therefore D×K, not D alone.
+HEAD_SAMPLE_CONFIG_KEY = "n_head_samples"
+
+
+def get_head_sample_count(model_dir: Path) -> int:
+    """K — family-head draws per MC-dropout pass (ADR-067 D×K sampler).
+
+    Defaults to 1 for any model that does not declare ``n_head_samples`` (the key
+    is HydraNet-family-specific), so the produced-count derivation below reduces to
+    plain ``n_posterior_samples`` for every non-family model.
+    """
+    for fname, getter_name in (
+        ("config_hyperparameters.py", "get_hp_config"),
+        ("config_meta.py", "get_meta_config"),
+    ):
+        path = model_dir / "configs" / fname
+        if not path.exists():
+            continue
+        getter = getattr(load_config_module(path), getter_name, None)
+        if getter is None:
+            continue
+        cfg = getter() or {}
+        k = cfg.get(HEAD_SAMPLE_CONFIG_KEY)
+        if k is not None:
+            return int(k)
+    return 1
+
+
+def get_produced_sample_count(model_dir: Path) -> int | None:
+    """Posterior draws per cell a model actually EMITS (ADR-015 §6, ADR-067).
+
+    A HydraNet family head draws ``n_head_samples`` (K) from the distribution per
+    MC-dropout pass, so the emitted sample-axis width is **D×K** —
+    ``n_posterior_samples × n_head_samples`` — not the declared D alone. This is the
+    number that must match an ensemble's ``expected_samples_per_model`` and the
+    on-disk ``y_pred`` width. For non-family models K=1 and this equals
+    ``get_n_posterior_samples``. Returns ``None`` when no posterior-count key is
+    declared (point models).
+    """
+    d = get_n_posterior_samples(model_dir)
+    if d is None:
+        return None
+    return d * get_head_sample_count(model_dir)
+
+
 @pytest.fixture(params=ALL_MODEL_DIRS, ids=MODEL_NAMES)
 def model_dir(request):
     """Parametrized fixture yielding each model directory."""
