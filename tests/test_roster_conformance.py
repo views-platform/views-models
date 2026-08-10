@@ -263,6 +263,41 @@ class TestModelMeta:
         assert meta["name"] == model_name, f"{model_name} name != directory"
 
 
+def test_every_hydranet_pf_ensemble_declares_the_occurrence_gate():
+    """C-132 class guard (fleet-wide, not just rusty_bucket).
+
+    A `prediction_frame` / `hydranet_ucdp` concat ensemble pools its constituents'
+    per-sample channels; the occurrence gate rides the `classification_targets`
+    (`by_*`) channel. If such an ensemble declares `regression_targets` but omits
+    `classification_targets`, the pool silently drops the gate and its AP/Brier is
+    understated with no error (C-132). The framework fix
+    (views-pipeline-core#422 — `_build_context` via `combined_targets`) makes the pool
+    *respect* a declared gate, but it does NOT synthesise one; this test is the
+    fail-loud that stops a NEW gate-less HydraNet ensemble from reintroducing C-132.
+    Today only rusty_bucket qualifies (and declares it), so this is green — it flips
+    red the moment a gate-less one is added.
+    """
+    offenders = {}
+    for meta_path in ENSEMBLES_DIR.rglob("configs/config_meta.py"):
+        name = meta_path.parent.parent.name
+        meta = _load_meta(name, ENSEMBLES_DIR)
+        is_hydranet_pf = (
+            meta.get("prediction_format") == "prediction_frame"
+            or meta.get("evaluation_profile") == "hydranet_ucdp"
+        )
+        reg = meta.get("regression_targets") or []
+        if not (is_hydranet_pf and reg):
+            continue
+        gate = meta.get("classification_targets") or []
+        if len(gate) != len(reg):
+            offenders[name] = {"regression_targets": reg, "classification_targets": gate}
+    assert not offenders, (
+        "these HydraNet/PF concat ensembles do not declare a 1:1 by_* gate channel, "
+        "so the concat pool silently drops occurrence (C-132): "
+        f"{offenders}. Declare classification_targets in the ensemble config_meta."
+    )
+
+
 class TestRustyBucketEnsemble:
     """The 8-member concat ensemble — the epic's delivery unit."""
 
