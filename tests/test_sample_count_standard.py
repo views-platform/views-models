@@ -10,7 +10,7 @@ import warnings
 
 import pytest
 
-from tests.conftest import ALL_MODEL_DIRS, get_n_posterior_samples
+from tests.conftest import ALL_MODEL_DIRS, get_produced_sample_count
 
 pytestmark = pytest.mark.beige
 
@@ -22,15 +22,17 @@ STANDARD_N_POSTERIOR_SAMPLES = 128
 def test_report_off_standard_sample_counts():
     off_standard = {}
     for model_dir in ALL_MODEL_DIRS:
-        n = get_n_posterior_samples(model_dir)
+        # Report the PRODUCED posterior width — D×K for an ADR-067 family head,
+        # D alone otherwise (ADR-015 §6). The 128 standard is on the produced count.
+        n = get_produced_sample_count(model_dir)
         if n is not None and n != STANDARD_N_POSTERIOR_SAMPLES:
             off_standard[model_dir.name] = n
 
     if off_standard:
         listing = ", ".join(f"{name}={n}" for name, n in sorted(off_standard.items()))
         warnings.warn(
-            f"{len(off_standard)} sample-producing model(s) declare "
-            f"n_posterior_samples != {STANDARD_N_POSTERIOR_SAMPLES} (ADR-015 standard): "
+            f"{len(off_standard)} sample-producing model(s) produce a posterior width "
+            f"!= {STANDARD_N_POSTERIOR_SAMPLES} (ADR-015 standard): "
             f"{listing}. This is a non-blocking report — intentional during model "
             f"integration; normalize before production delivery.",
             UserWarning,
