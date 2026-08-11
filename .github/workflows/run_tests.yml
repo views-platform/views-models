@@ -27,7 +27,7 @@ jobs:
       # Bump this deliberately, together with the ensembles' requirements.txt, never on its
       # own -- CI testing a version production does not install is the skew this pin removes.
       - name: Install dependencies
-        run: pip install "views_pipeline_core==3.0.0" pytest packaging
+        run: pip install "views_pipeline_core==3.0.1" pytest packaging
 
       - name: Run tests
         run: pytest
