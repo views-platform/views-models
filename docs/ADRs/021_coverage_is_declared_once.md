@@ -68,17 +68,40 @@ The actuals fetch region and the delivered coverage are **one fact**. This is no
 assumption: `config_queryset.py` set `REGION` to the delivery's region precisely because
 *"the historical actuals must cover the SAME cells the forecast does"*. Typing it in both
 places gave the repository two copies to disagree about, and it did — `africa_me_legacy`
-in git against `land_gaul` in a working tree, for seven weeks (**C-110**, closed by #127).
+in git against `land_gaul` in a working tree, for seven weeks (**C-110**; the region was
+committed by #377, which closes #127).
 
 ### 3. The producer's extent is a different fact and is not governed here.
 
 `rusty_bucket` forecasts **`land`, 64,818 cells**; the delivery boundary curates that to
-**`land_gaul`, 64,742**, by removing 76 sub-Antarctic cells outside FAO GAUL 2024. The
-run-0 manifest correctly declares `expected_cell_count: 64818`. That reduction is owned by
-`views_postprocessing/delivery/coverage.py`.
+**`land_gaul`, 64,742**, by removing 76 sub-Antarctic cells outside FAO GAUL 2024. That
+reduction is owned by `views_postprocessing/delivery/coverage.py`.
 
-**Do not "correct" the 76-cell gap.** Three scopes exist — producer extent, delivered
-coverage, actuals fetch — and only the last two are the same fact.
+**Run-0 has two manifests and they legitimately disagree.** Naming which one you mean is the
+whole point:
+
+| hop | store | filename shape | `expected_cell_count` |
+|---|---|---|---|
+| Producer (Hop-A) | `production_forecasts` | `..._lr_ged_{sb,ns,os}__manifest.json` — one **per target** | **64818** (`land`) |
+| Delivered (Hop-B) | `unfao_bucket` | `..._manifest.json` — **no target segment** | **64742** (`land_gaul`) |
+
+The delivered figure is corroborated by the shard itself: 8,286,976 rows ÷ 128 draws =
+64,742 cells.
+
+**Do not "correct" either manifest to match the other, and in particular do not push 64,818
+into the delivered one.** views-crafdapi enforces `n_rows == expected_cell_count` per shard
+(`wire_reader.py:251-255`), as does its preflight; a delivered manifest claiming the producer
+extent would be refused by every shard-level integrity check — a 503, or a preflight failure,
+in the name of conformance to this ADR.
+
+Three scopes exist — producer extent, delivered coverage, actuals fetch — and only the last
+two are the same fact.
+
+*(Corrected 2026-08-11. The first version of this section said "the run-0 manifest correctly
+declares `expected_cell_count: 64818`" without saying which manifest. In a delivery ADR that
+reads as the delivered one, which declares 64742 — so the sentence pointed a reader at the
+value that would break the ingest contract. Caught by views-crafdapi's review of this ADR,
+by executing against the artifacts rather than reading the document.)*
 
 ### 4. The cross-check is deleted. One assertion remains.
 
