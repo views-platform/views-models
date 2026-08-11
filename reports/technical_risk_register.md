@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 140 (131 concerns + 9 disagreements)  
-**Concerns:** Open 61 | Mitigated 20 | Resolved 41 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 5 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 141 (132 concerns + 9 disagreements)  
+**Concerns:** Open 61 | Mitigated 20 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1646,6 +1646,17 @@
 | **Status** | Open |
 | **Location** | `docs/ADRs/017_source_composition_delivery.md` §4e (the ⟺ definition) and §5 (the tier rule) vs `docs/ADRs/019_delivery_declaration.md` §3 (`tier`) |
 | **Notes** | §4e defines *in production ⟺ maturity is `graduate` **and** a delivery ships it to a **production-tier** consumer.* ADR-019 §3 fixes `tier` at exactly one value, `prod`, and says plainly that the gate is therefore *currently unconditional*. §4e did not, so the definition read as two independent conditions when one is presently always true. Not a correctness defect — the definition stays true as written, and becomes discriminating the moment a second tier value exists — but it is the kind of gap that makes a newcomer believe a check exists that does not. **Corrected by a clause in §4e pointing at ADR-019 §3.** The second tier value is itself blocked on ADR-017 §12's open shadow-destination question. Cross-refs: **C-129**. |
+
+### C-133 — The coverage copy the manager actually reads was the one nothing checked
+
+| Field | Value |
+|---|---|
+| **Tier** | 1 |
+| **Trigger** | Editing `coverage` in `deliveries/un_fao.py` or `REGION` in `config_queryset.py` without also editing `config_meta.py`'s `"region"` — or any consumer cloning the un_fao configs, which is what #333 was about to do. |
+| **Source** | expert-code-review of the proposed ADR-021 (2026-08-11), found while verifying #373 |
+| **Status** | Resolved (2026-08-11, ADR-021) |
+| **Location** | `postprocessors/un_fao/configs/config_meta.py` (was `"region": "land_gaul"`); consumed at `views-postprocessing unfao/managers/unfao.py:236,312,419`; written at `delivery/provenance.py:47` |
+| **Notes** | `land_gaul` was a typed literal in **three** places: the delivery declaration, `config_queryset.REGION`, and `config_meta["region"]`. `_upload_armed()` cross-checked the first two and disarmed loudly on disagreement — verified working, a clean checkout yielded `wire_upload_enabled = False`. It never checked the third, **and the third is the only one that leaves this repository**: the un_fao manager reads `configs.get("region")` and writes it into the provenance record delivered to the UN FAO. Setting the two guarded copies to `"land"` **arms** the upload while the consumed copy still says `"land_gaul"` — the run curates to `land_gaul` and ships provenance claiming `land_gaul` against a declaration saying `land`. No warning, plausible output, external partner. Tier 1: silent, wrong, and UN-facing. **The general shape: a reconciliation is not a derivation.** Cross-checking two copies leaves the duplication in place and implies all copies are covered; here it covered the two that did not matter. **Resolved by derivation, not by extending the check to a third copy** — hardening a duplication is the direction ADR-019 §8 already rejected. All three now read `deliveries.status.declared_coverage()`; the cross-check and its `ast` parser are deleted; a one-line assertion remains as belt-and-braces and is verified to bite. Cross-refs: **C-110** (the same region uncommitted for seven weeks, closed by #127), **C-129** (same fact in two places), **C-57** (`_queryset_region()` parsed a sibling's source text for a literal — same family). Member of **Cluster A** (declared-but-unenforced). |
 
 
 ## Disagreements
