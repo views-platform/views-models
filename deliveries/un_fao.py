@@ -1,7 +1,8 @@
 """The UN FAO delivery.
 
 **Written as a characterisation, not a change** (ADR-017 §11 Phase 1). Every value here
-describes what `postprocessors/un_fao/` already does today; nothing reads this file yet.
+describes what `postprocessors/un_fao/` already does today. It is no longer inert: since #347/#348
+and ADR-021 the FAO config derives its source, arming and coverage from here.
 `tests/test_deliveries_characterisation.py` pins that agreement against the *committed*
 FAO config, which is what makes views-models#347 and #348 safe to attempt.
 

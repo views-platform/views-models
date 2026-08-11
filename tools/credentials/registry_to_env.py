@@ -47,6 +47,8 @@ def coordinates(registry_path: str) -> list[str]:
 
     Why the skip exists. On 2026-07-31 views-appwrite added
     ``[target.APPWRITE_CRAFD_BUCKET_ID]`` with ``status = "planned — views-crafdapi"`` and
+    (NOTE: those four CRAFD slots graduated to valued ``[target]`` entries on 2026-08-02,
+    registry v1.4.0, so the example below is history rather than the current registry)
     no value, reserving the name for a consumer that does not exist yet. This function
     raised on it — and because it raises for the *whole registry*, the un_fao launcher
     lost **every** coordinate, not just the planned one. A neighbouring repository adding

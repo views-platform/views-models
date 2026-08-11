@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 141 (132 concerns + 9 disagreements)  
-**Concerns:** Open 61 | Mitigated 20 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 43 | T3 54 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 142 (133 concerns + 9 disagreements)  
+**Concerns:** Open 61 | Mitigated 21 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 43 | T3 55 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1657,6 +1657,17 @@
 | **Status** | Resolved (2026-08-11, ADR-021) |
 | **Location** | `postprocessors/un_fao/configs/config_meta.py` (was `"region": "land_gaul"`); consumed at `views-postprocessing unfao/managers/unfao.py:236,312,419`; written at `delivery/provenance.py:47` |
 | **Notes** | `land_gaul` was a typed literal in **three** places: the delivery declaration, `config_queryset.REGION`, and `config_meta["region"]`. `_upload_armed()` cross-checked the first two and disarmed loudly on disagreement — verified working, a clean checkout yielded `wire_upload_enabled = False`. It never checked the third, **and the third is the only one that leaves this repository**: the un_fao manager reads `configs.get("region")` and writes it into the provenance record delivered to the UN FAO. Setting the two guarded copies to `"land"` **arms** the upload while the consumed copy still says `"land_gaul"` — the run curates to `land_gaul` and ships provenance claiming `land_gaul` against a declaration saying `land`. No warning, plausible output, external partner. Tier 1: silent, wrong, and UN-facing. **The general shape: a reconciliation is not a derivation.** Cross-checking two copies leaves the duplication in place and implies all copies are covered; here it covered the two that did not matter. **Resolved by derivation, not by extending the check to a third copy** — hardening a duplication is the direction ADR-019 §8 already rejected. All three now read `deliveries.status.declared_coverage()`; the cross-check and its `ast` parser are deleted; a one-line assertion remains as belt-and-braces and is verified to bite. Cross-refs: **C-110** (the same region uncommitted for seven weeks, closed by #127), **C-129** (same fact in two places), **C-57** (`_queryset_region()` parsed a sibling's source text for a literal — same family). Member of **Cluster A** (declared-but-unenforced). |
+
+### C-134 — The partner launcher is now cloned twice, and the shared half is production infrastructure
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **A third partner launcher**, or **the first bug hand-patched in both** existing ones. Either is the signal that the current split (shared protocol, per-partner configs) has stopped describing reality. |
+| **Source** | views-crafdapi#43's design constraint, executed while building `un_crafd` (#333) |
+| **Status** | Mitigated (ADR-022) |
+| **Location** | `tools/launcher/postprocessor.sh` (the shared body); `postprocessors/un_fao/run.sh` and `postprocessors/un_crafd/run.sh` (the wrappers); per-partner copies remain in each `configs/` and `main.py` |
+| **Notes** | Adding `un_crafd` made the partner-launcher pattern n=2 in this repository. The register already noted at the `crafd/` clone entry that the trigger had fired for **views-postprocessing** and not for views-models; #333 is the event that fires it here. **What was extracted, and why that half and not the other:** `run.sh` changes for two unrelated reasons — because a partner differs (conda env, pin) and because the delivery *protocol* differs (registry before conda, environment after it, capability by import not grep). The second must not be copied: a protocol fix would need hand-applying per partner, and the first one missed fails silently. That is not hypothetical — views-postprocessing cloned `unfao/` into `crafd/` and shipped a follow-up whose message is *"every partner-scoped guard was scoped to ONE partner"* (their #211, their C-33). `un_fao/run.sh` went 136 lines → 21. **What was deliberately NOT extracted:** `configs/*.py` and `main.py`. Their values genuinely differ per partner, and the ones that must agree platform-wide are already derived from `deliveries/<consumer>.py` (ADR-019, ADR-021). Two partners is the trigger to share what must not vary, not a licence to abstract what must. **The residual risk this entry exists for:** the shared body is sourced by production launchers, so editing it changes the live FAO delivery whether or not FAO appears in the diff. It deserves `platform_env.sh`-grade care. Mitigated by the launcher guarantees being parametrised over **every** launcher and reading each one's *effective* text (wrapper + sourced body) — reading `run.sh` alone would have made all of them pass vacuously the moment the body moved. Cross-refs: **C-60** (grouping by responsibility), C-57 and C-112 (scars the body carries), ADR-018 (the same one-writer shape a layer down). |
 
 
 ## Disagreements

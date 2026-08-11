@@ -9,11 +9,14 @@
 > page instead of containing it.
 >
 > **The names here are not examples — they are the current state.** `rusty_bucket`, `un_fao`,
-> `pink_ponyclub` and the rest are what exists on 2026-08-04. That is the point of this page, and it
+> `un_crafd`, `pink_ponyclub` and the rest are what exists. That is the point of this page, and it
 > is also why it is not an ADR: when the source feeding a consumer changes, this page changes with it.
 > The ADRs describe the shape; this page records what currently occupies it.
 >
 > **Last re-traced against the code and the live buckets: 2026-08-05.**
+> *Partially amended 2026-08-11 for the second consumer (#333): the delivery-layer entries below
+> were re-checked against the code. The **buckets** were not re-observed, so the date above stands
+> rather than being bumped on a half re-trace.*
 > Every claim below names the file or the bucket it came from, so it can be re-checked rather than
 > believed.
 
@@ -164,7 +167,14 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 - **Which ensembles reconcile, and against what:** `ensembles/<e>/configs/config_meta.py` —
   `"reconciliation"` (the method) and `"reconcile_with"` (the partner). Two ensembles declare it:
   `skinny_love → pink_ponyclub`, `white_mustang → cruel_summer`.
-- **The FAO "which source feeds us" declaration:** `deliveries/un_fao.py` — the `send` line.
+- **Which source feeds a consumer:** `deliveries/<consumer>.py` — the `send` line. There are two:
+  `deliveries/un_fao.py` and `deliveries/un_crafd.py`, both currently sending `rusty_bucket`. Each
+  consumer's `postprocessors/<consumer>/configs/config_meta.py` **derives** its `"ensemble"`,
+  `"region"` and `"wire_upload_enabled"` from that file and names none of them (#347, #348, ADR-021).
+- **Whether a delivery is armed:** the `intent` line in the same file. `un_fao` is `live`;
+  `un_crafd` is `paused` until views-crafdapi's first delivery (their D5, #45), so its launcher
+  stages artifacts locally and makes zero store calls.
+- **The FAO declaration, in detail:** `deliveries/un_fao.py` — the `send` line.
   `postprocessors/un_fao/configs/config_meta.py` **derives** its `"ensemble"` key from it and no longer
   names a source (#347). The key survives because views-postprocessing reads `configs["ensemble"]` at
   `unfao/managers/unfao.py:195`; the decision moved, the interface did not.

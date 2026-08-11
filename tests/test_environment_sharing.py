@@ -28,7 +28,16 @@ from packaging.version import InvalidVersion, Version
 pytestmark = pytest.mark.green
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-_ENV_PATH = re.compile(r'^env_path="\$project_path/envs/(?P<env>[^"]+)"', re.M)
+# Two declaration shapes, because there are two kinds of launcher. Models and ensembles
+# carry the conda prefix inline; postprocessors name it and let the shared delivery body
+# build the path (ADR-022). Both are a launcher naming its environment, which is the only
+# thing this file is about — matching one and not the other would silently drop a whole
+# class of launcher from the mapping below.
+_ENV_PATH = re.compile(
+    r'^(?:env_path="\$project_path/envs/(?P<env>[^"]+)"'
+    r'|POSTPROCESSOR_ENV_NAME="(?P<env_name>[^"]+)")',
+    re.M,
+)
 
 # ── the trap ──────────────────────────────────────────────────────────
 # These two directory names differ by ONE character, and that character is
@@ -66,7 +75,7 @@ def _env_by_launcher():
             continue
         match = _ENV_PATH.search((REPO_ROOT / name).read_text(encoding="utf-8"))
         if match:
-            mapping[name] = match.group("env")
+            mapping[name] = match.group("env") or match.group("env_name")
     return mapping
 
 
@@ -189,7 +198,9 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views-hydranet": 8,
         "views-stepshifter": 7,
         "views-seldon": 1,
-        "views-postprocessing": 1,
+        # 1 -> 2: un_crafd joined un_fao in this prefix (#333). Both install the same
+        # views-postprocessing package, so sharing one environment is deliberate.
+        "views-postprocessing": 2,
         "views-graphdb": 1,
         "views-faoapi": 1,
     }

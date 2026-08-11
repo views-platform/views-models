@@ -1,4 +1,4 @@
-"""The un_fao launcher delegates its environment to the one writer (#309).
+"""Every postprocessor launcher delegates its environment to the one writer (#309).
 
 The *behaviour* — registry fatal, one writer, secret by name, nothing rendered — is tested
 against the real shell functions in `tests/test_platform_env.py`. These are the remaining
@@ -9,6 +9,12 @@ Ordering is the part a behavioural test cannot reach. A fatal registry check pla
 the conda/pip block still works, and still wastes several minutes building an environment
 the run is about to throw away — on a fresh machine, that is the difference between a
 useful failure and an infuriating one.
+
+**Parametrised over every launcher**, and reading each one's *effective* text — its own
+`run.sh` plus the shared delivery body it sources (`tools/launcher/postprocessor.sh`,
+ADR-022). The wrapper carries no protocol steps, so concatenating it with the body
+preserves the ordering these tests assert. Reading `run.sh` alone would make every
+assertion here pass vacuously now that the sequence lives elsewhere.
 """
 from pathlib import Path
 
@@ -16,15 +22,32 @@ import pytest
 
 pytestmark = [pytest.mark.beige]
 
-RUN_SH = Path(__file__).resolve().parent.parent / "postprocessors" / "un_fao" / "run.sh"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+POSTPROCESSORS = REPO_ROOT / "postprocessors"
+SHARED_BODY = REPO_ROOT / "tools" / "launcher" / "postprocessor.sh"
+
+LAUNCHERS = sorted(p.name for p in POSTPROCESSORS.iterdir() if (p / "run.sh").exists())
 
 
-def _run_sh() -> str:
-    return RUN_SH.read_text(encoding="utf-8")
+def _effective_text(name: str) -> str:
+    """A launcher's own text plus the delivery body it sources."""
+    run_sh = POSTPROCESSORS / name / "run.sh"
+    text = run_sh.read_text(encoding="utf-8")
+    assert "postprocessor_launch" in text, (
+        f"{name}/run.sh does not call the shared delivery body. If it has grown its own "
+        f"copy of the protocol, that is the duplication ADR-022 exists to prevent."
+    )
+    return text + "\n" + SHARED_BODY.read_text(encoding="utf-8")
 
 
-def test_launcher_sources_the_shared_environment_writer():
-    assert "tools/credentials/platform_env.sh" in _run_sh(), (
+def test_there_is_at_least_one_launcher_to_check():
+    """Guard the parametrisation: an empty list would pass every test below."""
+    assert LAUNCHERS, "no postprocessor launchers discovered — the checks below assert nothing"
+
+
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_launcher_sources_the_shared_environment_writer(launcher):
+    assert "tools/credentials/platform_env.sh" in _effective_text(launcher), (
         "the launcher must source tools/credentials/platform_env.sh rather than reimplementing the "
         "environment contract — two implementations is how the two writers happened (#309)"
     )
@@ -44,8 +67,9 @@ def _first_code_line(text: str, needle: str):
     return None
 
 
-def test_registry_check_happens_before_conda_and_pip():
-    text = _run_sh()
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_registry_check_happens_before_conda_and_pip(launcher):
+    text = _effective_text(launcher)
     guard = _first_code_line(text, "platform_env_require_registry")
     assert guard is not None, "the launcher must assert the registry resolves (#308)"
     for later in ("conda shell.bash hook", "conda activate", "pip install"):
@@ -57,7 +81,8 @@ def test_registry_check_happens_before_conda_and_pip():
         )
 
 
-def test_the_full_contract_is_asserted_before_main_runs():
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_the_full_contract_is_asserted_before_main_runs(launcher):
     """The whole sequence, fatal, before main.py. A partial environment is not a start.
 
     The launcher calls `platform_env_load` rather than the individual steps. That is the
@@ -66,7 +91,7 @@ def test_the_full_contract_is_asserted_before_main_runs():
     single sequence — and it ends in `platform_env_validate`, which it previously omitted
     while its own comment claimed to be "everything the platform needs".
     """
-    text = _run_sh()
+    text = _effective_text(launcher)
     # `_first_code_line`, not `str.find` — the same C-57 trap that broke the ordering test
     # above. These happen not to have a commented mention today; relying on that is how it
     # comes back.
@@ -80,12 +105,15 @@ def test_the_full_contract_is_asserted_before_main_runs():
         ln for ln in text.splitlines()
         if "platform_env_load" in ln and not ln.strip().startswith("#")
     )
-    assert "|| exit 1" in line, f"loading must be fatal, not advisory: {line.strip()!r}"
+    assert "|| exit 1" in line or "|| return 1" in line, (
+        f"loading must be fatal, not advisory: {line.strip()!r}"
+    )
 
 
-def test_the_launcher_does_not_hand_roll_the_sequence():
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_the_launcher_does_not_hand_roll_the_sequence(launcher):
     """Calling the steps individually is how the launcher and bootstrap.sh drifted apart."""
-    text = _run_sh()
+    text = _effective_text(launcher)
     hand_rolled = [
         ln.strip() for ln in text.splitlines()
         if not ln.strip().startswith("#")
@@ -103,9 +131,10 @@ def test_the_launcher_does_not_hand_roll_the_sequence():
     )
 
 
-def test_the_launcher_does_not_export_the_secret_itself():
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_the_launcher_does_not_export_the_secret_itself(launcher):
     """One writer. The launcher sources .env for GITHUB_TOKEN and nothing else."""
-    text = _run_sh()
+    text = _effective_text(launcher)
     live = [
         ln for ln in text.splitlines()
         if "export APPWRITE_DATASTORE_API_KEY" in ln and not ln.strip().startswith("#")
@@ -116,7 +145,8 @@ def test_the_launcher_does_not_export_the_secret_itself():
     )
 
 
-def test_no_live_set_a():
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_no_live_set_a(launcher):
     """`set -a` exports unquoted *_NAME values truncated at the first space (#293).
 
     Checks for USE, not mention: the file explains in a comment why `set -a` is wrong, and
@@ -124,20 +154,21 @@ def test_no_live_set_a():
     draft of this test made exactly that mistake.
     """
     live = [
-        ln for ln in _run_sh().splitlines()
+        ln for ln in _effective_text(launcher).splitlines()
         if "set -a" in ln and not ln.strip().startswith("#")
     ]
     assert not live, f"`set -a` is used, not merely explained: {live}"
 
 
-def test_the_293_correction_survived_the_extraction():
+@pytest.mark.parametrize("launcher", LAUNCHERS)
+def test_the_293_correction_survived_the_extraction(launcher):
     """A removal must name what it was carrying (þing-02, S25).
 
     #293 records that `source` without `export` left no carrier for the secret at all
     between two dates — a real production failure. Extractions lose that kind of note
     silently, so it is pinned in both places it could live.
     """
-    from_launcher = "#293" in _run_sh()
+    from_launcher = "#293" in _effective_text(launcher)
     shared = Path(__file__).resolve().parent.parent / "tools" / "credentials" / "platform_env.sh"
     from_shared = "#293" in shared.read_text(encoding="utf-8")
     assert from_launcher or from_shared, (
