@@ -183,15 +183,34 @@ class TestTheRegionCrossCheckIsCorrectlyRetired:
             "(ADR-021) — a literal here recreates the C-110 split."
         )
 
-    def test_both_derived_values_equal_the_declaration(self):
-        """Queryset and meta agree with the declaration because they read it."""
+    def test_the_meta_region_equals_the_declaration(self):
+        """The copy the manager reads agrees with the declaration, because it reads it."""
+        from deliveries.un_fao import REQUIRE
+
+        assert _meta()["region"] == REQUIRE.coverage
+
+    def test_the_queryset_region_equals_the_declaration(self):
+        """Same for the fetch region — but this one needs the package to import.
+
+        `config_queryset.py` imports `datafactory_query` at module scope, so it cannot be
+        imported without views-datafactory installed. CI does not install it, and that is
+        precisely why the deleted `_queryset_region()` parsed the file rather than
+        importing it. A truthful skip (ADR-005) rather than a parse: re-introducing a
+        parser here to dodge the dependency would rebuild the thing ADR-021 removed.
+
+        The structural half — that no literal remains — is asserted above without
+        importing anything, so the skip does not leave the rule unchecked.
+        """
+        pytest.importorskip(
+            "datafactory_query",
+            reason="views-datafactory not installed; config_queryset cannot be imported",
+        )
         from deliveries.un_fao import REQUIRE
 
         queryset_region = load_config_module(
             FAO_QUERYSET, module_name="fao_queryset_arming"
         ).generate()["region"]
         assert queryset_region == REQUIRE.coverage
-        assert _meta()["region"] == REQUIRE.coverage
 
     def test_changing_the_declaration_changes_both(self):
         """Direction, not tautology.
