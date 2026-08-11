@@ -146,6 +146,57 @@ def declared_coverage(consumer: str = "un_fao") -> str:
     return require.coverage
 
 
+def declared_source(consumer: str) -> str:
+    """The single source this consumer's delivery declares.
+
+    The postprocessor that serves a consumer derives its `ensemble` from here rather than
+    typing it — #347 for FAO, and every consumer since. Raises rather than guessing, and
+    every failure names the file to open (ADR-020).
+
+    One source only: delivering several to one consumer needs the reconciliation rules in
+    ADR-019 §4, which no postprocessor implements. Refusing is honest; picking the first
+    would be a silent choice.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  The source is declared there; this will not guess one."
+        )
+    sources = list(load_delivery(path).DELIVERY.send)
+    if len(sources) != 1:
+        raise ValueError(
+            f"deliveries/{consumer}.py declares {len(sources)} sources, and a postprocessor "
+            f"can carry exactly one.\n"
+            f"  Open deliveries/{consumer}.py and check `send`.\n"
+            f"  Several sources to one consumer needs ADR-019 §4's reconciliation rules, "
+            f"which the postprocessor does not implement."
+        )
+    return sources[0].name
+
+
+def upload_armed(consumer: str) -> bool:
+    """Whether this consumer's delivery is armed — derived from `intent`, never typed.
+
+    `intent` and a hand-written boolean were the same fact in two places, which ADR-019 §8
+    rejects by name (register C-129). views-postprocessing ADR-013 §11.4 keeps
+    `UPLOAD_ENABLED = False` and treats the launcher's `wire_upload_enabled` as its only
+    override; what changed in #348 is who computes that key.
+
+    `paused` disarms. That is the whole mechanism: a delivery that should not ship says so
+    in its declaration, with a reason and a date, and the launcher follows.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  Arming is derived from its `intent`; this will not default to armed."
+        )
+    return load_delivery(path).DELIVERY.intent.state == "live"
+
+
 def consumers_for(source: str) -> list[str]:
     """Which consumers this source reaches, directly or as a member."""
     return delivered_sources().get(source, [])

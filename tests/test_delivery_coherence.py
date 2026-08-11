@@ -8,6 +8,7 @@ invented source directories. A fixture that invents a model can drift from how t
 actually spells things; a fixture that mis-claims a real one cannot.
 """
 
+import warnings
 from datetime import date
 
 import pytest
@@ -172,12 +173,38 @@ class TestTierWarnsDuringTransition:
         with pytest.warns(UserWarning, match="candidate"):
             check(delivery, require, consumer="un_fao")
 
-    def test_the_real_delivery_file_still_passes(self):
-        """Whatever else changes, deliveries/un_fao.py must remain checkable."""
-        from deliveries import un_fao
+    def test_every_real_delivery_file_still_passes(self):
+        """**Every** declaration must be checkable, not just the one we remembered.
 
-        with pytest.warns(UserWarning):
-            check(un_fao.DELIVERY, un_fao.REQUIRE, consumer="un_fao")
+        Until 2026-08-11 this asserted `deliveries/un_fao.py` by name, and every other
+        `check()` call site in the suite used a synthetic fixture. So a second consumer
+        could ship a flatly incoherent declaration and the suite would stay green — the
+        gap was invisible for exactly as long as there was only one consumer, which is
+        the worst time to notice it (#333).
+
+        Discovery is by `delivery_files()`, the same glob production uses, so a new
+        consumer is covered the moment its file exists.
+        """
+        from deliveries.status import delivery_files, load_delivery
+
+        files = list(delivery_files())
+        assert files, "no delivery declarations discovered — this test asserts nothing"
+
+        for path in files:
+            module = load_delivery(path)
+            consumer = path.stem
+            # `rusty_bucket` is `candidate` and both consumers are prod tier, so a
+            # UserWarning is expected today (ADR-017 §11 day-one state). What must not
+            # happen is a CoherenceError.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                try:
+                    check(module.DELIVERY, module.REQUIRE, consumer=consumer)
+                except Exception as exc:  # noqa: BLE001 — any refusal is the finding
+                    raise AssertionError(
+                        f"deliveries/{consumer}.py is not coherent: "
+                        f"{type(exc).__name__}: {exc}"
+                    ) from exc
 
 
 # ── What is deliberately not checked here ──────────────────────────────────

@@ -113,18 +113,22 @@ def test_every_run_sh_is_executable():
     )
 
 
-def test_the_sourced_library_stays_non_executable():
-    """The exception, pinned so it is a decision and not an oversight.
+#: Shell files that are SOURCED, never executed. Each defines functions and does nothing
+#: useful when run. An executable bit on one would claim an entry point it does not have,
+#: which is the inverse of the defect above.
+SOURCED_LIBRARIES = (
+    ("tools/credentials/platform_env.sh", "ADR-018"),
+    ("tools/launcher/postprocessor.sh", "ADR-022"),
+)
 
-    `platform_env.sh` is sourced by its consumers and defines functions; running it
-    does nothing useful. An executable bit here would claim an entry point that does
-    not exist, which is the inverse of the defect above.
-    """
-    library = REPO_ROOT / "tools" / "credentials" / "platform_env.sh"
-    assert library.is_file(), "the single-writer library moved — update this test"
+
+@pytest.mark.parametrize("relative,adr", SOURCED_LIBRARIES)
+def test_the_sourced_libraries_stay_non_executable(relative, adr):
+    """The exception, pinned so it is a decision and not an oversight."""
+    library = REPO_ROOT / relative
+    assert library.is_file(), f"{relative} moved — update this test"
     assert not library.stat().st_mode & 0o111, (
-        "platform_env.sh is sourced, never executed (ADR-018); it should not be "
-        "marked executable"
+        f"{relative} is sourced, never executed ({adr}); it should not be marked executable"
     )
 
 

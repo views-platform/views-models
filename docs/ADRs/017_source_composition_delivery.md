@@ -354,7 +354,7 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
 - **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
 
-**Day-one state (known, temporary).** On adoption, the platform inherits exactly one coherence violation: the placeholder `rusty_bucket` (`candidate`) delivers to the production-tier `fao` consumer — a pre-production shakedown. During the transition, the tier-rule check **warns, not blocks**, on this edge, until the real production ensemble is graduated. The migration is *not* gated on a hasty graduation.
+**Day-one state (known, temporary).** On adoption, the platform inherited exactly one coherence violation: the placeholder `rusty_bucket` (`candidate`) delivers to the production-tier `fao` consumer — a pre-production shakedown. **As of 2026-08-11 there are two of the same kind**: `un_crafd` (#333) delivers the same `candidate` ensemble to the production-tier CRAF'd consumer. One source, two edges — the count changed, the situation did not, and it resolves the same way, by graduating `rusty_bucket`. During the transition, the tier-rule check **warns, not blocks**, on this edge, until the real production ensemble is graduated. The migration is *not* gated on a hasty graduation.
 
 ## 12. Decided vs Deferred/Open
 

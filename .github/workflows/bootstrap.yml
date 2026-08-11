@@ -51,7 +51,7 @@ jobs:
 
           [target.APPWRITE_CRAFD_BUCKET_ID]
           class = "target"
-          status = "planned — a reserved name with no value, as the real registry carries"
+          status = "planned — a reserved name with no value (a FIXTURE shape; the real registry has none since v1.4.0)"
           TOML
           # The fake secret. Never a real one: this repo is public and so are its logs.
           echo 'APPWRITE_DATASTORE_API_KEY=FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL' > .env

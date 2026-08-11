@@ -111,20 +111,32 @@ class TestOfflineClaims:
                 f"'{name}' declares reconciliation but the map does not mention it."
             )
 
-    def test_the_fao_source_is_no_longer_a_buried_literal(self):
-        """#347 moved it. The map used to call that line 'the smell, exactly'."""
-        config = REPO_ROOT / "postprocessors/un_fao/configs/config_meta.py"
-        literals = {
-            node.value for node in ast.walk(ast.parse(config.read_text(encoding="utf-8")))
-            if isinstance(node, ast.Constant) and isinstance(node.value, str)
-        }
-        from deliveries.un_fao import DELIVERY
+    def test_no_source_is_a_buried_literal_in_any_postprocessor(self):
+        """#347 moved it. The map used to call that line 'the smell, exactly'.
 
-        for source in DELIVERY.send:
-            assert source.name not in literals, (
-                f"'{source.name}' is a literal in the FAO config again — the map's "
-                f"description of where the delivery is declared would be wrong."
-            )
+        Generalised 2026-08-11: this named `un_fao` until a second consumer existed, so a
+        cloned config with a literal `ensemble` would have passed it — the exact mistake
+        cloning invites (#333).
+        """
+        from deliveries.status import delivery_files, load_delivery
+
+        checked = 0
+        for path in delivery_files():
+            consumer = path.stem
+            config = REPO_ROOT / "postprocessors" / consumer / "configs" / "config_meta.py"
+            if not config.exists():
+                continue  # a declared consumer need not have a postprocessor here
+            literals = {
+                node.value for node in ast.walk(ast.parse(config.read_text(encoding="utf-8")))
+                if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            }
+            for source in load_delivery(path).DELIVERY.send:
+                assert source.name not in literals, (
+                    f"'{source.name}' is a literal in {consumer}'s config again — the "
+                    f"map's description of where the delivery is declared would be wrong."
+                )
+            checked += 1
+        assert checked, "no postprocessor configs checked — this test asserts nothing"
 
     def test_the_map_does_not_still_call_the_fao_docstring_false(self):
         """#347 rewrote it. A map that keeps reporting a fixed defect trains readers
