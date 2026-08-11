@@ -46,13 +46,15 @@ def _meta() -> dict:
     return load_config_module(FAO_META, module_name="fao_meta_arming").get_meta_config()
 
 
-def _armed_in_a_copy(*, region: str, intent_src: str | None = None) -> tuple[bool, str]:
-    """Build a throwaway repo copy with a chosen REGION, and read the arming state.
+def _armed_in_a_copy(
+    *, coverage: str | None = None, intent_src: str | None = None
+) -> tuple[bool, str]:
+    """Build a throwaway repo copy with a chosen declaration, and read the arming state.
 
-    The tests must not depend on whether *this* checkout happens to agree with itself.
-    A developer's tree has REGION = "land_gaul"; a clean checkout still has
-    "africa_me_legacy" (C-110). A test that asserted either would pass in one place and
-    fail in the other, which is how #348 first broke in CI.
+    Rewrites the DECLARATION (`deliveries/un_fao.py`), not the queryset. Before ADR-021
+    this rewrote `REGION` in `config_queryset.py`, because that was a second place the
+    region was typed; it derives now, so there is nothing there to rewrite and the
+    declaration is the only input.
     """
     import shutil
     import sys
@@ -67,14 +69,14 @@ def _armed_in_a_copy(*, region: str, intent_src: str | None = None) -> tuple[boo
                 "envs", "wandb", "data", "artifacts", "logs", "reports", "docs",
             ),
         )
-        queryset = repo / "postprocessors/un_fao/configs/config_queryset.py"
-        text = queryset.read_text()
         import re as _re
-        queryset.write_text(
-            _re.sub(r'REGION = "[a-z_]+"', f'REGION = "{region}"', text, count=1)
-        )
+        declaration = repo / "deliveries/un_fao.py"
+        if coverage is not None:
+            body = declaration.read_text()
+            body = _re.sub(r'coverage   = "[a-z_]+"',
+                           f'coverage   = "{coverage}"', body, count=1)
+            declaration.write_text(body)
         if intent_src is not None:
-            declaration = repo / "deliveries/un_fao.py"
             body = declaration.read_text()
             body = _re.sub(r"intent    = .*", f"intent    = {intent_src},", body, count=1)
             # the real file imports only what it uses; a substituted intent may need more
@@ -119,19 +121,18 @@ class TestArmingIsDerivedFromIntent:
         """`unfao/managers/unfao.py:317` reads it as an optional launcher key."""
         assert "wire_upload_enabled" in _meta()
 
-    def test_live_arms_when_the_repository_agrees_with_itself(self):
-        from deliveries.un_fao import DELIVERY, REQUIRE
+    def test_live_arms(self):
+        """Since ADR-021 the repository cannot disagree with itself about the region,
+        so `intent` is the only thing arming depends on."""
+        from deliveries.un_fao import DELIVERY
 
         assert DELIVERY.intent.state == "live"
-        armed, _ = _armed_in_a_copy(region=REQUIRE.coverage)
+        armed, _ = _armed_in_a_copy()
         assert armed is True
 
-    def test_paused_disarms_even_when_the_repository_agrees(self):
-        """Regions agreeing must not be enough — `intent` is what decides."""
-        from deliveries.un_fao import REQUIRE
-
+    def test_paused_disarms(self):
+        """`intent` decides, and nothing else does."""
         armed, _ = _armed_in_a_copy(
-            region=REQUIRE.coverage,
             intent_src='paused("testing the disarm path", since=date(2026, 8, 5))',
         )
         assert armed is False
@@ -155,53 +156,52 @@ class TestArmingIsDerivedFromIntent:
 
 
 @pytest.mark.red
-class TestArmingIsWithheldWhenTheRepoDisagreesWithItself:
-    def test_this_checkout_is_internally_consistent_or_disarmed(self):
-        """Asserts the *relationship*, not today's value.
+class TestTheRegionCrossCheckIsCorrectlyRetired:
+    """**Inverted, not deleted** — the same fact, with the opposite expected value.
 
-        Whether this checkout agrees with itself depends on whether it carries the
-        uncommitted `REGION = "land_gaul"` (C-110). A developer's tree usually does; a
-        clean checkout does not. Asserting either would be asserting that C-110 is
-        resolved, which it is not — and would pass here while failing in CI, which is
-        exactly how this story first broke.
+    This class used to assert that a region mismatch disarms the upload: the delivery
+    declared `land_gaul` while committed `config_queryset.py` said `africa_me_legacy`
+    (C-110), so `_upload_armed()` refused and a clean checkout could not ship a region
+    nobody declared.
 
-        What must hold everywhere: if the two disagree, the upload is not armed.
-        """
+    ADR-021 removed the disagreement instead of detecting it. Both `REGION` and
+    `config_meta["region"]` now derive from `deliveries.status.declared_coverage()`, so
+    there is no second value to mismatch. The cross-check and the `ast` parser that fed
+    it are gone.
+
+    A guard dropped because it became inconvenient teaches the next person that guards
+    are negotiable — the same reasoning `test_deliveries_characterisation.py` gives for
+    inverting the additive guard rather than removing it. So the fact is still checked
+    here, with the expectation flipped: a mismatch must now be **unrepresentable**.
+    """
+
+    def test_the_queryset_declares_no_region_literal(self):
+        """There is nothing left to disagree with the declaration."""
+        assert _region_in(FAO_QUERYSET.read_text()) is None, (
+            "config_queryset.py has a literal REGION assignment again. Coverage is "
+            "declared once, in deliveries/un_fao.py, and derived everywhere else "
+            "(ADR-021) — a literal here recreates the C-110 split."
+        )
+
+    def test_both_derived_values_equal_the_declaration(self):
+        """Queryset and meta agree with the declaration because they read it."""
         from deliveries.un_fao import REQUIRE
 
-        agrees = REQUIRE.coverage == _region_in(FAO_QUERYSET.read_text())
-        armed = _meta()["wire_upload_enabled"]
-        if not agrees:
-            assert armed is False, (
-                "this checkout disagrees with itself about the region, yet the upload "
-                "is armed — a run would ship a region nobody declared (C-110)."
-            )
+        queryset_region = load_config_module(
+            FAO_QUERYSET, module_name="fao_queryset_arming"
+        ).generate()["region"]
+        assert queryset_region == REQUIRE.coverage
+        assert _meta()["region"] == REQUIRE.coverage
 
-    def test_a_mismatch_disarms_without_crashing_and_names_the_file(self):
-        armed, stderr = _armed_in_a_copy(region="africa_me_legacy")
-        assert armed is False, (
-            "a region mismatch armed the delivery anyway — a clean checkout would "
-            "upload the wrong region to a UN bucket (register C-110)"
-        )
-        assert "config_queryset.py" in stderr, (
-            f"the warning names no file (ADR-020).\n  stderr: {stderr[-500:]}"
-        )
+    def test_changing_the_declaration_changes_both(self):
+        """Direction, not tautology.
 
-    def test_a_clean_checkout_today_would_disarm_rather_than_arm(self):
-        """The committed `config_queryset.py` still says africa_me_legacy (C-110).
-
-        This test states what that means, so the fact is visible rather than implied:
-        a fresh clone does not silently upload the wrong region; it refuses.
+        Comparing two derived values to each other would compare the declaration to
+        itself and pass for any implementation. What must hold is that the declaration
+        *drives* them: change it, and both follow.
         """
-        committed = subprocess.run(
-            ["git", "show", "HEAD:postprocessors/un_fao/configs/config_queryset.py"],
-            cwd=REPO_ROOT, capture_output=True, text=True,
+        armed, _stderr = _armed_in_a_copy(coverage="africa_me_legacy")
+        assert armed is True, (
+            "changing the declared coverage should leave the delivery armed — both "
+            "derived values move with it, so nothing disagrees"
         )
-        assert committed.returncode == 0
-        from deliveries.un_fao import REQUIRE
-
-        committed_region = _region_in(committed.stdout)
-        if committed_region != REQUIRE.coverage:
-            # Expected today. The guard above is what makes it safe.
-            assert committed_region is not None
-        # If they now agree, C-110's region half has been resolved — nothing to assert.

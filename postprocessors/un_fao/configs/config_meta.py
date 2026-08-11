@@ -20,9 +20,7 @@ loudly (ADR-003): a silent default would deliver the *wrong forecast to a UN age
 say nothing, which is worse than any error this file could raise.
 """
 
-import ast
 import sys
-import warnings
 from pathlib import Path
 
 # The delivery declaration lives at the repository root. run.sh is immutable, so
@@ -72,27 +70,6 @@ def _declared_region() -> str:
     return REQUIRE.coverage
 
 
-def _queryset_region() -> str:
-    """`REGION` from config_queryset.py, read *statically*.
-
-    Parsed rather than imported: config_queryset imports pipeline-core and the
-    datafactory client, and this file must stay cheap enough to load anywhere. The
-    question here is one string.
-    """
-    source = (Path(__file__).parent / "config_queryset.py").read_text(encoding="utf-8")
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "REGION":
-                    if isinstance(node.value, ast.Constant):
-                        return node.value.value
-    raise RuntimeError(
-        "could not find REGION in postprocessors/un_fao/configs/config_queryset.py.\n"
-        "  Open that file — this config reads REGION to confirm the repository agrees "
-        "with itself about which region ships."
-    )
-
-
 def _upload_armed() -> bool:
     """Whether this delivery is armed — derived from `intent`, never typed.
 
@@ -102,40 +79,23 @@ def _upload_armed() -> bool:
     computes the key. `intent` and a hand-written boolean were the same fact in two
     places, which ADR-019 §8 rejects by name (register C-129).
 
-    **Arming is withheld when the repository disagrees with itself.** The delivery
-    declares a `coverage`; `config_queryset.py` declares a `REGION`. If they differ,
-    a run would upload a region nobody declared — and a clean checkout is exactly that
-    case today, because `REGION` is committed as ``africa_me_legacy`` while the
-    delivery declares ``land_gaul`` (register C-110).
+    **There is no longer a region cross-check here, and that is the point.** Until
+    ADR-021 this function compared the delivery's `coverage` against a `REGION` literal
+    in `config_queryset.py` — parsed out of that file's source with `ast`, because
+    importing it pulls in pipeline-core — and disarmed when they disagreed. Both are
+    now derived from `deliveries.status.declared_coverage()`, so they cannot disagree:
+    the check was deleted rather than extended to the third copy, because reconciling
+    a duplication keeps the duplication.
 
-    It **disarms and warns** rather than raising. Raising would make the config
-    unloadable from a clean checkout, breaking runs that never intended to upload —
-    a new failure mode invented to guard an old one. Disarming is exactly what the
-    interlock already does when the key is absent (vpp ADR-013 §11.4: artifacts are
-    staged locally), so this refuses the dangerous half and leaves the rest working.
+    The residual assertion in `get_meta_config()` is deliberate belt-and-braces, not a
+    reconciliation. It costs one line, and the value it guards is written into the
+    provenance record delivered to a UN agency.
 
     That is what makes a derived arming state safe to commit: a fresh clone cannot
     silently ship the wrong region to a UN agency, and it does not break either.
     """
     from deliveries.un_fao import DELIVERY
 
-    declared, actual = _declared_region(), _queryset_region()
-    if declared != actual:
-        warnings.warn(
-            f"NOT ARMING the FAO upload: this repository disagrees with itself about "
-            f"which region ships.\n"
-            f"  deliveries/un_fao.py declares coverage={declared!r}\n"
-            f"  postprocessors/un_fao/configs/config_queryset.py declares "
-            f"REGION={actual!r}\n"
-            f"  Open config_queryset.py and set REGION to {declared!r}, or change the "
-            f"delivery's coverage — they must agree before anything uploads.\n"
-            f"  The run will still produce artifacts locally, as it does whenever the "
-            f"upload interlock is closed (vpp ADR-013 §11.4). Nothing else in this "
-            f"config is wrong; this is the only thing holding the upload.",
-            UserWarning,
-            stacklevel=2,
-        )
-        return False
     return DELIVERY.intent.state == "live"
 
 
@@ -172,4 +132,13 @@ def get_meta_config():
         # this string that nothing checked (register C-133).
         "region": _declared_region(),
     }
+    # Belt-and-braces, not a reconciliation (ADR-021). Derived values cannot disagree,
+    # so this can only fire if someone reintroduces a literal. One line, and what it
+    # guards is the region written into the provenance record shipped to the UN FAO.
+    assert meta_config["region"] == _declared_region(), (
+        f"config_meta emits region={meta_config['region']!r} but "
+        f"deliveries/un_fao.py declares {_declared_region()!r}.\n"
+        f"  Do not fix this by editing the literal — there should not be one.\n"
+        f"  See docs/ADRs/021_coverage_is_declared_once.md."
+    )
     return meta_config
