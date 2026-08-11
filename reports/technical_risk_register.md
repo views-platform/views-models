@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-04  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 142 (133 concerns + 9 disagreements)  
-**Concerns:** Open 61 | Mitigated 21 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 43 | T3 55 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 143 (134 concerns + 9 disagreements)  
+**Concerns:** Open 62 | Mitigated 21 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 44 | T3 55 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1668,6 +1668,17 @@
 | **Status** | Mitigated (ADR-022) |
 | **Location** | `tools/launcher/postprocessor.sh` (the shared body); `postprocessors/un_fao/run.sh` and `postprocessors/un_crafd/run.sh` (the wrappers); per-partner copies remain in each `configs/` and `main.py` |
 | **Notes** | Adding `un_crafd` made the partner-launcher pattern n=2 in this repository. The register already noted at the `crafd/` clone entry that the trigger had fired for **views-postprocessing** and not for views-models; #333 is the event that fires it here. **What was extracted, and why that half and not the other:** `run.sh` changes for two unrelated reasons — because a partner differs (conda env, pin) and because the delivery *protocol* differs (registry before conda, environment after it, capability by import not grep). The second must not be copied: a protocol fix would need hand-applying per partner, and the first one missed fails silently. That is not hypothetical — views-postprocessing cloned `unfao/` into `crafd/` and shipped a follow-up whose message is *"every partner-scoped guard was scoped to ONE partner"* (their #211, their C-33). `un_fao/run.sh` went 136 lines → 21. **What was deliberately NOT extracted:** `configs/*.py` and `main.py`. Their values genuinely differ per partner, and the ones that must agree platform-wide are already derived from `deliveries/<consumer>.py` (ADR-019, ADR-021). Two partners is the trigger to share what must not vary, not a licence to abstract what must. **The residual risk this entry exists for:** the shared body is sourced by production launchers, so editing it changes the live FAO delivery whether or not FAO appears in the diff. It deserves `platform_env.sh`-grade care. Mitigated by the launcher guarantees being parametrised over **every** launcher and reading each one's *effective* text (wrapper + sourced body) — reading `run.sh` alone would have made all of them pass vacuously the moment the body moved. Cross-refs: **C-60** (grouping by responsibility), C-57 and C-112 (scars the body carries), ADR-018 (the same one-writer shape a layer down). |
+
+### C-135 — The live FAO delivery runs on a build whose upload check fails OPEN
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any armed delivery run while `VIEWS_POSTPROCESSING_PIN` resolves to a views-postprocessing build predating their #222 — which is every merged branch today. Acute on `un_fao`, which is `live`. |
+| **Source** | views-postprocessing's review of views-models#380 (2026-08-11), verified here against their tree |
+| **Status** | Open |
+| **Location** | `postprocessors/un_fao/run.sh` (`VIEWS_POSTPROCESSING_PIN="main"`); upstream `views_postprocessing/{unfao,crafd}/managers/*.py`, fixed in their `a69d1a0` on `development` |
+| **Notes** | Until views-postprocessing#222 the upload verification read `if success is False: raise`. That **fails open**: a result that is `None`, lacks the attribute, or carries a non-bool passes as though the upload succeeded. The consequence is an **orphan** — a file in the partner bucket with no metadata document — and both consumer APIs select on metadata, so the partner sees nothing while the run reports success and exits 0. Their fix is `if success is not True`. **Why it cannot simply be fixed here:** the fix lives on their `development` (`2eb29f1`), not on `main` (`3286eab`). `main` is the newest merged state carrying the crafd package at all — the only tag, `1.0.0`, predates it and contains zero crafd files. So **no merged pin exists today with both crafd and C-79**, which is why **#364** (pin to a released tag) now blocks two repositories rather than one. Moving a live delivery's pin to an unmerged branch is a worse trade than waiting for the sync, so this is registered rather than patched. **`un_crafd` is not exposed**: it is `paused`, so the manager never constructs a partner store and makes zero store calls — the gap needs an upload to reach. **Exit:** views-postprocessing merges `development` → `main` (the same action that lets them cut a tag), then both pins move and `tests/test_launcher_pin_safety.py`'s strict xfail flips to XPASS, forcing the marker's removal. Guarded meanwhile by that file: an armed launcher on a deficient pin fails, so the arming and the pin must move together. Cross-refs: **C-134** (the shared launcher body where the pin now lives), #364, #333. |
 
 
 ## Disagreements
