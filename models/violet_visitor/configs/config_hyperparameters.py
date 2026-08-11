@@ -84,7 +84,20 @@ def get_hp_config():
         'sampling_strategy': 'sigmoid',
         'sampling_steepness': 1.0,
 
-        'n_posterior_samples': 8,
+        # D x K = 4 x 4 = 16 produced draws, matching the other seven roster members
+    # (ADR-015 6: the count that matters is the count a model PRODUCES). Was D=8
+    # with no head sampler, i.e. 8 produced -- which is why rusty_bucket could not
+    # be rewired to the roster: it declares expected_samples_per_model: 16 and the
+    # ADR-015 contract refuses a constituent that emits something else.
+    #
+    # Settled 2026-08-11 by maintainer decision (#146, #372 item 2). This model stays
+    # EXPERIMENT_IN_PROGRESS -- its family, composition and seed are still unsettled
+    # and its queryset is not yet migrated -- but the SAMPLE COUNT is no longer part
+    # of the experiment. It is pinned by the ensemble contract
+    # (tests/test_ensemble_configs.py::test_declared_modelset_and_sample_counts_match_reality),
+    # not by the roster foundation pins that this model is exempt from.
+    'n_posterior_samples': 4,
+    'n_head_samples': 4,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,
