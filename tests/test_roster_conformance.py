@@ -341,3 +341,28 @@ class TestModelMeta:
 # emit D×K = 4×4 = 16, and violet emits 8 (D=8, no head sampler). Rewiring now would
 # fail `test_ensemble_configs.py::test_declared_modelset_and_sample_counts_match_reality`
 # — correctly. The ensemble is rewired in the change that settles violet.
+#
+# WHEN THAT REWIRING HAPPENS, the gate declaration goes with it, and these are the
+# values (decided 2026-08-11, after views-models#372 proposed a different pair):
+#
+#     "classification_targets":        ["by_sb_best", "by_ns_best", "by_os_best"],
+#     "classification_point_metrics":  ["AP"],
+#     "classification_sample_metrics": ["Brier_cls_sample"],
+#
+# All three lines together. Declaring `classification_targets` without a classification
+# metric key is refused at load by `CoreConfigSniffer._check_targets_and_metrics`, which
+# runs before any side effect — that is the defect views-models#367 shipped, now caught
+# by `tests/test_core_config_sniffer_contract.py`.
+#
+# `AP` belongs under **point**, not sample. views-models#372 proposed
+# `classification_sample_metrics: ["AP"]`; that passes the sniffer and then fails
+# `views_evaluation.NativeEvaluator._validate_config`, because METRIC_MEMBERSHIP puts AP
+# in ("classification", "point"). The pair above was verified against both gates.
+# `Brier_cls_sample` is additionally what all eight roster models already declare.
+#
+# It cannot land before the rewiring, and not only for the sample-count reason above:
+# the eight `temporary_*` stand-ins declare NO classification_targets at all, so the
+# ensemble would be claiming a `by_*` channel its constituents do not produce. The
+# roster models do declare it. Separately, the pool only *respects* a declared gate once
+# views-pipeline-core#422 ships and a release is pinned here (CI pins 3.0.0 exactly), so
+# landing it earlier would be inert rather than wrong.
