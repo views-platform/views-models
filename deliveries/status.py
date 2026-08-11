@@ -109,6 +109,43 @@ def declared_max_age_days(consumer: str = "un_fao") -> int:
     return require.max_age.count * 30
 
 
+
+def declared_coverage(consumer: str = "un_fao") -> str:
+    """The coverage region this consumer's delivery declares.
+
+    The *only* declaration of which cells a consumer receives. Everything that needs
+    the region derives it from here: the postprocessor's actuals fetch region
+    (`config_queryset.REGION`) and the region it reports to the manager
+    (`config_meta["region"]`). Three typed copies of one string is what ADR-019 §8
+    rejects, and it is what this repository did until ADR-021 — with the copy the
+    manager actually reads being the one nothing checked (register C-110, C-133).
+
+    **This is the delivered coverage, not the producer's extent.** `rusty_bucket`
+    forecasts `land` (64,818 cells); the delivery boundary curates that to `land_gaul`
+    (64,742) by removing 76 sub-Antarctic cells outside FAO GAUL 2024. That reduction
+    is owned by `views_postprocessing/delivery/coverage.py`, not by this function.
+
+    Raises rather than defaulting, for the same reason as `declared_max_age_days`:
+    a fallback region would re-create the defect with one of the copies invisible.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  The coverage region is declared there; this will not invent one."
+        )
+    require = load_delivery(path).REQUIRE
+    if not require.coverage:
+        raise ValueError(
+            f"deliveries/{consumer}.py declares no coverage, so there is no region to "
+            f"fetch or deliver.\n"
+            f"  Add coverage=\"<region>\" to REQUIRE.\n"
+            f"  Every consumer must declare one (ADR-019 §3, ADR-021)."
+        )
+    return require.coverage
+
+
 def consumers_for(source: str) -> list[str]:
     """Which consumers this source reaches, directly or as a member."""
     return delivered_sources().get(source, [])

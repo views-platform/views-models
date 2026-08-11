@@ -165,6 +165,11 @@ def get_meta_config():
         # working-tree only. wire_upload_enabled is no longer here — it is derived
         # from DELIVERY.intent above (#348).
         "wire_contract": True,
-        "region": "land_gaul",
+        # Derived, never typed (ADR-021). This is the copy the manager actually reads
+        # — views-postprocessing unfao/managers/unfao.py:236,312,419 — and the one
+        # written into the delivered provenance record (delivery/provenance.py:47).
+        # It was a literal until 2026-08-11, and the only one of the three copies of
+        # this string that nothing checked (register C-133).
+        "region": _declared_region(),
     }
     return meta_config
