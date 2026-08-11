@@ -26,12 +26,23 @@ pytestmark = pytest.mark.beige
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DELIVERIES_DIR = REPO_ROOT / "deliveries"
 
-# Keys the FAO config carries in git. Anything outside this set is working-tree only
-# (C-110) and must not be asserted against — see the module docstring.
+# Keys the FAO config carries in git.
+#
+# C-110 is CLOSED as of #127: the config's working-tree-only state was committed, so
+# "committed" and "working tree" are now the same set. The comment that used to say
+# anything outside this set is working-tree only no longer applies.
 COMMITTED_META_KEYS = {
     "name", "algorithm", "targets", "level",
     "ensemble",             # derived from the declaration since #347
     "wire_upload_enabled",  # derived from DELIVERY.intent since #348
+    "wire_contract",        # committed by #127
+    # Committed by #127, and this guard's own question — "might this key belong in the
+    # delivery declaration?" — answers YES for this one. `region` duplicates
+    # REQUIRE.coverage in deliveries/un_fao.py and REGION in config_queryset.py, and it
+    # is the only one of the three the un_fao manager actually reads
+    # (unfao/managers/unfao.py:236,312,419 -> delivery/provenance.py:47). Scheduled to
+    # become derived by ADR-021; until then it is a typed literal that nothing checks.
+    "region",
 }
 
 

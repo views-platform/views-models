@@ -161,5 +161,10 @@ def get_meta_config():
         # run-0 contract-leg delivery — views-postprocessing instruction 2026-07-27:
         # read/deliver the ADR-013 wire dialect and un-freeze the upload interlock,
         # with the declared land_gaul region curation applied at the delivery boundary.
+        # NOT COMMITTED (register C-110): wire_contract and region are still
+        # working-tree only. wire_upload_enabled is no longer here — it is derived
+        # from DELIVERY.intent above (#348).
+        "wire_contract": True,
+        "region": "land_gaul",
     }
     return meta_config
