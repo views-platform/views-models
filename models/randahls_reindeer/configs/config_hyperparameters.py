@@ -22,7 +22,7 @@ def get_hp_config():
         'regression_method': 'single',
         'random_state': 42,
         'n_jobs': -1,
-        '"num_samples"': 1,
+        'num_samples': 1,
         'verbose': True,
         'rf_class_params': {
             'n_estimators': 500,
