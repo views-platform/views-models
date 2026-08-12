@@ -17,5 +17,6 @@ def get_hp_config():
         'n_posterior_samples': 256,
         'regression_targets': ['lr_ged_sb', 'lr_ged_ns', 'lr_ged_os'],
         'skip_predictions_delivery': True,
+        'seed': 42,
     }
     return hyperparameters

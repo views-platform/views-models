@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "yellow_ranger",
         "algorithm": "MixtureBaseline",
-        "regression_targets": ["lr_os_best", "lr_ns_best", "lr_sb_best"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Simon",
         "prediction_format": "prediction_frame",
