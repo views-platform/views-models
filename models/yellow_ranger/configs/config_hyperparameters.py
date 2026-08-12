@@ -16,7 +16,7 @@ def get_hp_config():
         'n_samples': 256,
         'n_posterior_samples': 256,
         'seed': 42,
-        'regression_targets': ['lr_os_best'],
+        'regression_targets': ['lr_os_best', 'lr_ns_best', 'lr_sb_best'],
         'skip_predictions_delivery': True,
     }
     return hyperparameters

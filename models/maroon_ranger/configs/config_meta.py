@@ -10,11 +10,11 @@ def get_meta_config():
     meta_config = {
         "name": "maroon_ranger",
         "algorithm": "MixtureBaseline",
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Simon",
         "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
-        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample"],
+        "regression_sample_metrics": ["twCRPS", "QIS", "MIS", "MCR_sample", "CRPS", "y_hat_bar"],
     }
     return meta_config
