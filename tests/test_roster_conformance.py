@@ -30,6 +30,7 @@ a green test for a thing that does not happen. And the ``rusty_bucket`` membersh
 rewiring waits on violet_visitor settling; see the note at the foot of this file.
 """
 
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -64,10 +65,16 @@ ROSTER_MODELS = list(ROSTER)
 #     This mechanism is inherited verbatim from test_datafactory_parity.py, which was
 #     its only reader in the entire repository. Deleting that file without re-homing
 #     this here would have removed the escape hatch silently — and the marker's own
-#     text in models/violet_visitor/configs/config_hyperparameters.py instructs the
-#     reader to remove it "when the roster lands", which is a decision for whoever
-#     owns the experiment, not a side effect of a test rewrite. ---
-EXPERIMENTS_IN_PROGRESS = {"violet_visitor"}
+#     text in models/violet_visitor/configs/config_hyperparameters.py instructed the
+#     reader to remove it "when the roster lands", which was a decision for whoever
+#     owns the experiment, not a side effect of a test rewrite.
+#
+#     **Empty since 2026-08-12.** violet_visitor was the only member, and the maintainer
+#     un-fenced it: it is now a full roster member on the same foundation as the other
+#     seven, pinned like the rest. The mechanism stays rather than being deleted — an
+#     empty set still fails loudly if a marker reappears, which is the point of pinning
+#     it as a set in both directions. ---
+EXPERIMENTS_IN_PROGRESS: set[str] = set()
 
 #: Roster members whose values ARE pinned — everything not mid-experiment.
 PINNED_MODELS = [m for m in ROSTER_MODELS if m not in EXPERIMENTS_IN_PROGRESS]
@@ -312,10 +319,24 @@ class TestDatafactorySource:
 
     @pytest.mark.parametrize("model_name", PINNED_MODELS)
     def test_no_viewser_import(self, model_name):
-        """Exempt for in-flight models — see the class docstring."""
-        text = _queryset_text(model_name)
-        assert "from viewser" not in text and "import viewser" not in text, (
-            f"{model_name} imports viewser — should use datafactory"
+        """No *executable* viewser import — parsed, not grepped.
+
+        This substring-matched `"from viewser"` until 2026-08-12, and violet_visitor's
+        migration docstring opens *"Migrated from viewser to views-datafactory"*. The test
+        failed on the sentence describing the fix. That is C-57 — a regex cannot tell a
+        commented or quoted mention from a live statement — committed inside the very
+        check meant to catch it. The AST can, so it does.
+        """
+        tree = ast.parse(_queryset_text(model_name))
+        offenders = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                offenders += [a.name for a in node.names if a.name.split(".")[0] == "viewser"]
+            elif isinstance(node, ast.ImportFrom):
+                if (node.module or "").split(".")[0] == "viewser":
+                    offenders.append(node.module)
+        assert not offenders, (
+            f"{model_name} imports viewser ({offenders}) — should use datafactory"
         )
 
     @pytest.mark.parametrize("model_name", ROSTER_MODELS)

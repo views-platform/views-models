@@ -1,17 +1,15 @@
-# EXPERIMENT_IN_PROGRESS: violet_visitor is the active HydraNet R&D reference model,
-# mid-reconstruction toward the validated v2 gated_NB foundation (Epic #242 S1 #244 /
-# S3 #246). Its exact loss_reg / n_posterior_samples are intentionally UNPINNED until
-# the roster settles — the datafactory parity tests skip it (C-71/C-87; views-platform/
-# views-models#254/#297). Remove this marker + re-pin the parity tests when the roster
-# lands.
-EXPERIMENT_IN_PROGRESS = True
+# UN-FENCED 2026-08-12 (maintainer decision, Epic #242 S3). The marker that lived here
+# said the reconstruction toward the v2 gated_NB foundation was still in flight and this
+# model's values were intentionally unpinned. It has landed: violet is now a full roster
+# member on the same foundation as the other seven, and it is pinned by
+# tests/test_roster_conformance.py like the rest. No exemption remains.
 
 
 def get_hp_config():
     """
     violet_visitor — the HydraNet R&D reference model (pgm, africa_me_legacy datafactory).
 
-    STATUS: EXPERIMENT_IN_PROGRESS. This is the legacy committed base — gated forecast
+    STATUS: roster member (Epic #242 S3). Gated forecast
     (gate x body) via a hurdle_shrinkage-composed output, all-cell MSE body, weighted-BCE
     gate. It is mid-reconstruction toward the v2 gated_NB foundation (output_distribution=nb,
     soft_gate, 300 lessons); until that lands (Epic #242 S1 #244 / S3 #246) its exact
@@ -39,7 +37,8 @@ def get_hp_config():
         'weight_init': 'xavier_norm',
         'h_init': 'abs_rand_exp-100',
         # gated forecast (gate x body); all-cell body
-        'output_distribution': 'hurdle_shrinkage',
+        'output_distribution': 'nb',
+        'forecast_composition': 'soft_gate',
         'reg_activation': 'softplus',
         'body_supervision': 'all',  # all-cell body supervision (ADR-065; supersedes the retired point-mask knob)
 
@@ -49,8 +48,8 @@ def get_hp_config():
         'scheduler': 'WarmupDecay',
         'warmup_steps': 100,
         'clip_grad_norm': True,
-        'torch_seed': 44,
-        'np_seed': 44,
+        'torch_seed': 42,
+        'np_seed': 42,
         'freeze_multitask_balancer': True,
 
         'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
@@ -75,7 +74,7 @@ def get_hp_config():
         'ss_warmup_lessons': 15,
         'ss_epsilon_max': 0.0,
 
-        'total_lessons': 40,
+        'total_lessons': 160,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
@@ -98,6 +97,8 @@ def get_hp_config():
     # not by the roster foundation pins that this model is exempt from.
     'n_posterior_samples': 4,
     'n_head_samples': 4,
+    'rollout_feedback': 'sample',
+    'bn_recalibrate': True,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
         'skip_predictions_delivery': True,
