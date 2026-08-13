@@ -9,17 +9,23 @@
 # Shared with un_fao: both install the same package into the same prefix.
 POSTPROCESSOR_ENV_NAME="views-postprocessing"
 
-# An IMMUTABLE commit, not a branch. views-models#294 is the scar: `@main` was once 208
-# commits behind, carried no wire modules, and would have run green while delivering the
-# legacy artifact. `3286eab` is views-postprocessing origin/main as of 2026-08-11 and is
-# the first state containing views_postprocessing/crafd/ — the package this launcher
-# imports.
+# An IMMUTABLE tag. views-models#294 is the scar: `@main` was once 208 commits behind,
+# carried no wire modules, and would have run green while delivering the legacy artifact.
 #
-# NOT a tag, because no tag carries crafd: the only tag is 1.0.0 and it predates the
-# package (verified `git ls-tree -r 1.0.0 | grep -c crafd` -> 0, and there are no GitHub
-# releases). A commit is immutable, which is the property the pin is for. Move it to a
-# tag the day views-postprocessing cuts one that contains crafd.
-VIEWS_POSTPROCESSING_PIN="3286eabeaebc74eabf4bb86e71998a79c6d507a9"
+# Was `3286eabe...` (views-postprocessing origin/main as of 2026-08-11, the first state
+# containing views_postprocessing/crafd/) with the note "move it to a tag the day
+# views-postprocessing cuts one that contains crafd". **That day was 2026-08-13**: tag
+# `1.1.0` (`1e21d723`) carries crafd AND views-postprocessing#222 — the C-79 fix,
+# `if success is not True:` replacing the fail-open `if success is False:`.
+#
+# Moving it is not optional housekeeping. Both launchers install into the SAME prefix
+# (POSTPROCESSOR_ENV_NAME above, shared with un_fao). Leaving this on 3286eab means any
+# un_crafd run — the views-crafdapi D4 dry run, for instance — DOWNGRADES the shared
+# environment to the fail-open build, and `tools/launcher/postprocessor.sh` does not check
+# that a later reinstall succeeded (no set -e, no `|| return 1`), while the #294 capability
+# assertion passes on the stale build anyway. That is a live path back to C-135 on the
+# armed FAO delivery. Same shared-prefix argument as the numpy pin in requirements.txt.
+VIEWS_POSTPROCESSING_PIN="1.1.0"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh
