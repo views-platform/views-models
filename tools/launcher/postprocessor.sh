@@ -92,6 +92,44 @@ postprocessor_launch() {
   echo "Installing views-postprocessing @ $VIEWS_POSTPROCESSING_PIN ..."
   pip install "git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@${VIEWS_POSTPROCESSING_PIN}"
 
+  # ── #385: the pin is VERIFIED, not assumed ──────────────────────────────────────────
+  # views-postprocessing declares a STATIC version in pyproject.toml, so pip treats the
+  # requirement as satisfied whenever any build of that version is installed and skips the
+  # rebuild. Moving the pin to a different COMMIT of the same version is therefore a
+  # silent no-op on any machine that has run this launcher before. Found during the first
+  # CRAF'd delivery (views-crafdapi#44).
+  #
+  # Pinning a TAG largely dodges this — a tag maps 1:1 to a version, so the two move
+  # together — and both launchers now do (#391/#364). But that is a property of today's
+  # pins, not of the mechanism, and the next person to pin a raw commit gets the old
+  # behaviour with no warning.
+  #
+  # pip records what it actually installed in direct_url.json. Compare it. This is exactly
+  # the manual check performed before the 2026-08-13 FAO delivery; a check you have to
+  # remember to run by hand is one you will one day forget.
+  installed_ref="$(python - <<'PY' 2>/dev/null
+import glob, json, sysconfig
+hits = glob.glob(f"{sysconfig.get_paths()['purelib']}/views_postprocessing-*.dist-info/direct_url.json")
+print(json.load(open(hits[0]))["vcs_info"].get("requested_revision", "") if hits else "")
+PY
+)"
+  if [ -z "$installed_ref" ]; then
+    echo "WARNING: could not read the installed views-postprocessing ref from" >&2
+    echo "  direct_url.json — cannot confirm the pin was applied. Continuing, because a" >&2
+    echo "  missing provenance file is not itself evidence of a wrong build (#385)." >&2
+  elif [ "$installed_ref" != "$VIEWS_POSTPROCESSING_PIN" ]; then
+    echo "FATAL: the pin was NOT applied (#385)." >&2
+    echo "  requested: $VIEWS_POSTPROCESSING_PIN" >&2
+    echo "  installed: $installed_ref" >&2
+    echo "  pip skipped the rebuild because the version string did not change. Force it:" >&2
+    echo "    pip install --force-reinstall --no-deps \\" >&2
+    echo "      'git+https://github.com/views-platform/views-postprocessing.git@${VIEWS_POSTPROCESSING_PIN}'" >&2
+    echo "  Do NOT proceed: the build about to run is not the one this launcher declares." >&2
+    return 1
+  else
+    echo "Pin verified: views-postprocessing @ $installed_ref is what is installed."
+  fi
+
   # ── #294: does the build we just installed do what config_meta DECLARES? ────────────
   # Whether the installed package can produce the artifact this postprocessor declares is
   # a fact about someone else's repository on the day you run, and nothing above checked
