@@ -33,16 +33,13 @@ postprocessor_launch() {
   config_meta="$script_path/configs/config_meta.py"
 
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
-      echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
-    fi
-    if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
-      echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
-    fi
-    if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
-      echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
-    fi
-    source ~/.zshrc
+    # libomp sits in Homebrew's prefix on macOS and is not on the default search paths.
+    # Exported for THIS run only: the values are needed while the delivery runs, and a
+    # script named "run this postprocessor" should not rewrite the user's shell profile.
+    # Persisting them is bootstrap.sh's job (#311), not a launcher's (#310, #384).
+    export LDFLAGS="-L/opt/homebrew/opt/libomp/lib $LDFLAGS"
+    export CPPFLAGS="-I/opt/homebrew/opt/libomp/include $CPPFLAGS"
+    export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"
   fi
 
   # ── the environment contract lives in ONE place (#309) ─────────────────────────────

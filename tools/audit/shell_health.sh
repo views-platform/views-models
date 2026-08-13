@@ -19,8 +19,13 @@ set -uo pipefail
 #   bash tools/audit/shell_health.sh --parity    # also run zsh/bash parity diff
 #   bash tools/audit/shell_health.sh --fix       # report what --fix would change (dry-run)
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Two levels up, not one: this script lived in tools/ until the C-60 fix moved it to
+# tools/audit/, and the `..` came along unchanged. From 2026-08-02 until 2026-08-13 it
+# therefore rooted itself at tools/ and audited 4 scripts while reporting a repo-wide
+# verdict — a FAIL that named tools/ and an implied all-clear for the other 137.
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
+[ -d .git ] || { echo "shell_health: REPO_ROOT=$REPO_ROOT is not a repo root" >&2; exit 2; }
 
 PARITY=false
 FIX_MODE=false
@@ -109,12 +114,27 @@ for script in "${SCRIPTS[@]}"; do
     fi
     fi # end self-skip
 
-    # 3. Executable permission
-    if [ -x "$script" ]; then
-        pass
-    else
-        warn "not executable (chmod +x needed)"
-    fi
+    # 3. Executable permission.
+    # Two files are deliberately NOT executable: they are sourced, never run, and an
+    # executable bit would advertise an entry point they do not have (ADR-018, ADR-022).
+    # The decision is pinned by test_run_sh_portability.py; without this exception the
+    # audit nags about it forever, and a warning nobody can action is one nobody reads.
+    case "${script#./}" in
+        tools/credentials/platform_env.sh|tools/launcher/postprocessor.sh)
+            if [ -x "$script" ]; then
+                fail "sourced library is executable — it claims an entry point it lacks (ADR-018/022)"
+            else
+                pass
+            fi
+            ;;
+        *)
+            if [ -x "$script" ]; then
+                pass
+            else
+                warn "not executable (chmod +x needed)"
+            fi
+            ;;
+    esac
 
     # 4. Trailing newline
     if [ -s "$script" ] && [ "$(tail -c1 "$script" | xxd -p)" != "0a" ]; then
@@ -201,6 +221,19 @@ if $PARITY; then
         echo "Parity: $PARITY_PASS pass, $PARITY_FAIL differ, $PARITY_SKIP skip"
     fi
 fi
+
+# Clone-header burn-down (#310). Reported, never enforced here — the gate is
+# tests/test_run_sh_portability.py, which fails. This is the operator's count.
+CLONE_TOTAL=0; CLONE_STAMPED=0
+while IFS= read -r f; do
+    [ "$(basename "$f")" = "run.sh" ] || continue
+    CLONE_TOTAL=$((CLONE_TOTAL + 1))
+    grep -qF '# GENERATED — do not edit by hand.' "$f" && CLONE_STAMPED=$((CLONE_STAMPED + 1))
+done < <(git ls-files '*run.sh')
+
+echo ""
+echo "Clone header (#310): $CLONE_STAMPED/$CLONE_TOTAL run.sh stamped as generated"
+echo "  baseline 2026-08-13: 129 stamped, 4 hand-written (apis/*, postprocessors/* per ADR-022)"
 
 # Summary
 echo ""
