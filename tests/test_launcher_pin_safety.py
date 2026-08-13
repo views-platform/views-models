@@ -171,3 +171,35 @@ def test_no_launcher_can_downgrade_a_shared_prefix_under_an_armed_one():
         f"give it its own prefix."
         for prefix, consumer, armed, why in offenders
     )
+
+
+def test_the_launcher_verifies_the_pin_it_installed():
+    """Declaring a pin is not the same as installing it (#385).
+
+    views-postprocessing declares a STATIC version, so pip treats the requirement as
+    satisfied whenever any build of that version is present and skips the rebuild. Moving
+    the pin to a different COMMIT of the same version is a silent no-op on any machine
+    that has run the launcher before — found during the first CRAF'd delivery
+    (views-crafdapi#44).
+
+    Pinning a tag mostly dodges it, and both launchers now pin tags. That is a property
+    of today's pins, not of the mechanism: the next raw-commit pin gets the old behaviour
+    with no warning. So the body must CHECK, and the check must abort rather than warn —
+    the whole failure mode is a run that proceeds on the wrong build believing it is
+    right.
+    """
+    body = (REPO_ROOT / "tools" / "launcher" / "postprocessor.sh").read_text(encoding="utf-8")
+    assert "direct_url.json" in body, (
+        "the shared launcher body does not read direct_url.json, so it cannot know which "
+        "build pip actually installed (#385)."
+    )
+    assert "installed_ref" in body and "VIEWS_POSTPROCESSING_PIN" in body, (
+        "no comparison of the installed ref against the declared pin (#385)."
+    )
+    # It must ABORT on a mismatch. A warning here would be worse than nothing: it reads as
+    # a check while still running the wrong build against a partner bucket.
+    after = body.split("installed_ref", 1)[1]
+    assert "return 1" in after, (
+        "the pin mismatch does not abort. A mismatch means the build about to deliver is "
+        "not the one declared — that must stop the run, not warn (#385, ADR-020)."
+    )
