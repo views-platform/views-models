@@ -7,11 +7,21 @@ worked. The consequence is an orphan — a file in the bucket with no metadata d
 and the consumer APIs select on metadata, so the partner sees nothing while the run
 reports success. Their register calls it C-79.
 
-**Where the fix is.** On views-postprocessing's `development` (`2eb29f1`), not on `main`
-(`3286eab`). `main` is 33 commits behind and is the newest state that carries the crafd
-package at all — the only tag, `1.0.0`, predates it. So today there is **no** pin that has
-both crafd and C-79 on a merged branch, which is why views-models#364 (cut a tag) now
-blocks two repositories.
+**Where the fix is — RESOLVED 2026-08-13.** It used to be that C-79 lived only on
+views-postprocessing's `development` (`2eb29f1`) while `main` (`3286eab`) was the newest
+state carrying the crafd package, so no merged pin had both and views-models#364 blocked
+two repositories. That ended when views-postprocessing tagged **`1.1.0`** (`1e21d723`,
+2026-08-13 06:33): it carries the crafd package *and* `if success is not True:`.
+
+`un_fao` moved to that tag the same morning, during the delivery that refilled the wiped
+FAO buckets — and the move was not cosmetic. Verified in the installed prefix before the
+run: `unfao/managers/unfao.py:71` reads `success is not True`, and
+`delivery/provenance.py:57` carries `DESCRIPTION_MAX = 255`, the bound whose absence
+produced the real orphan logged at 19:41 on 2026-07-27. The delivery then landed 111 files
+with **111 metadata documents and zero orphans**, confirmed by reading the bucket directly.
+
+The strict xfail below did exactly what its author intended: it XPASSed the moment the pin
+moved, failed the suite, and forced its own removal. That is the mechanism, not a nuisance.
 
 **What this file asserts.** Not "the pin is current" — that would be a moving target and a
 nag. Only the narrow thing that matters: **a delivery that is armed must not be pinned to a
@@ -86,8 +96,6 @@ def test_a_disarmed_launcher_stays_disarmed_while_its_pin_is_deficient(consumer)
     why = _deficiency(_pin(consumer))
     if why is None:
         return
-    if consumer == "un_fao":
-        pytest.skip("un_fao's pre-existing state is documented by the xfail below")
     assert not _is_armed(consumer), (
         f"{consumer} is ARMED while pinned to a build that {why}.\n"
         f"  Move VIEWS_POSTPROCESSING_PIN in postprocessors/{consumer}/run.sh to a build "
@@ -97,18 +105,14 @@ def test_a_disarmed_launcher_stays_disarmed_while_its_pin_is_deficient(consumer)
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "un_fao is live and pinned to @main, which lacks C-79 — a real, current gap on "
-        "the UN-facing delivery, not a hypothetical. It cannot be fixed here: no merged "
-        "views-postprocessing branch carries both the crafd package and C-79. Flips to "
-        "XPASS (and so fails, forcing this marker's removal) the day the pin moves — "
-        "views-models#364."
-    ),
-)
 def test_no_armed_launcher_is_pinned_to_a_deficient_build():
-    """The state we actually want, recorded as expected-to-fail rather than omitted."""
+    """The state we actually want — and, since 2026-08-13, the state we are in.
+
+    Carried a `strict=True` xfail from 2026-08-11 to 2026-08-13 because it was honestly
+    false: `un_fao` was armed on `@main`, which lacked C-79. The marker was removed when
+    the tag existed and the pin moved. Do not reintroduce it — if this fails, an armed
+    delivery is on a build that can ship orphans, and the fix is the pin, not the marker.
+    """
     offenders = {
         c: why
         for c in LAUNCHERS

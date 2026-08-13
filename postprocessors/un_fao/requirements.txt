@@ -1,1 +1,10 @@
 views-datafactory>=1.9.0,<2.0.0
+# numpy stays on 1.x. views-datafactory allows <3, so pip resolves 2.x — and the pandas
+# wheel in envs/views-postprocessing is built against the numpy 1.x C ABI. Importing the
+# delivery manager then dies at views_pipeline_core/modules/datastore/datastore.py:54:
+#   ValueError: numpy.dtype size changed ... Expected 96 from C header, got 88
+# Found 2026-08-13 by the pre-delivery rehearsal, before the FAO run, not during it.
+# Lifting this means rebuilding pandas against numpy 2 in that prefix, deliberately.
+# Declared identically in un_crafd/requirements.txt — one shared prefix (C-116), so
+# pinning only one lets the other upgrade numpy out from under it on its next run.
+numpy>=1.26.4,<2.0.0
