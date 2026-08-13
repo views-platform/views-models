@@ -73,24 +73,68 @@ postprocessor_launch() {
 
   if [ -d "$env_path" ]; then
     echo "Conda environment already exists at $env_path. Checking dependencies..."
-    conda activate "$env_path"
+    # Checked here too, not only on the create path (#392) — this is the branch that
+    # actually runs. A silent activate failure leaves python/pip on the base interpreter
+    # (3.10, no tomllib), so every install below lands in the wrong prefix and the first
+    # visible symptom is platform_env_load failing to parse the registry, hundreds of
+    # lines later and blaming the wrong thing.
+    conda activate "$env_path" || {
+      echo "FATAL: could not activate the existing environment at $env_path (#392)." >&2
+      echo "  Continuing would install into, and run from, the base interpreter." >&2
+      return 1
+    }
     echo "$env_path is activated"
 
     missing_packages=$(pip install --dry-run -r "$script_path/requirements.txt" 2>&1 | grep -v "Requirement already satisfied" | wc -l)
     if [ "$missing_packages" -gt 0 ]; then
       echo "Installing missing or outdated packages..."
-      pip install -r "$script_path/requirements.txt"
+      # ── #392: a failed dependency install STOPS the run ───────────────────────────
+      # There is no `set -e` here (see the header: this body is sourced, and set -e in a
+      # sourced function would change the caller's shell). So every install that matters
+      # carries its own check.
+      #
+      # Without this the launcher printed pip's error and carried on — through the #294
+      # capability assertion, into main.py — with the data source simply absent. Observed
+      # 2026-08-12 on un_crafd: "No matching distribution found for views-datafactory",
+      # then "Capability check: ... passed", then the run. The queryset declares
+      # `"source": "views-datafactory"`, so the historical leg had no data at all.
+      pip install -r "$script_path/requirements.txt" || {
+        echo "FATAL: could not install $script_path/requirements.txt (#392)." >&2
+        echo "  The run is stopped here rather than continuing without the dependency." >&2
+        echo "  A postprocessor whose queryset declares a source it cannot import has no" >&2
+        echo "  historical leg, and every check after this point would still pass." >&2
+        return 1
+      }
     else
       echo "All packages are up-to-date."
     fi
   else
     echo "Creating new Conda environment at $env_path..."
-    conda create --prefix "$env_path" python=3.11 -y
-    conda activate "$env_path"
-    pip install -r "$script_path/requirements.txt"
+    conda create --prefix "$env_path" python=3.11 -y || {
+      echo "FATAL: could not create the conda environment at $env_path (#392)." >&2
+      return 1
+    }
+    conda activate "$env_path" || {
+      echo "FATAL: could not activate $env_path (#392). Without this, python and pip stay" >&2
+      echo "  on the base interpreter and everything below installs into the wrong place." >&2
+      return 1
+    }
+    pip install -r "$script_path/requirements.txt" || {
+      echo "FATAL: could not install $script_path/requirements.txt into the new" >&2
+      echo "  environment at $env_path (#392)." >&2
+      return 1
+    }
   fi
   echo "Installing views-postprocessing @ $VIEWS_POSTPROCESSING_PIN ..."
-  pip install "git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@${VIEWS_POSTPROCESSING_PIN}"
+  # Reported where it happens, not inferred two steps later (ADR-020). The #385 check
+  # below would also catch a failed install — but only when the stale build's ref differs
+  # from the pin, and it would blame the pin rather than the install.
+  pip install "git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@${VIEWS_POSTPROCESSING_PIN}" || {
+    echo "FATAL: could not install views-postprocessing @ $VIEWS_POSTPROCESSING_PIN (#392)." >&2
+    echo "  Not continuing on whatever build happens to be installed: the #294 capability" >&2
+    echo "  assertion passes on a stale build too, so this would otherwise run green." >&2
+    return 1
+  }
 
   # ── #385: the pin is VERIFIED, not assumed ──────────────────────────────────────────
   # views-postprocessing declares a STATIC version in pyproject.toml, so pip treats the
