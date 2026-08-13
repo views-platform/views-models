@@ -3,7 +3,7 @@
 **Status:** Active
 **Owner:** Project maintainers
 **Last reviewed:** 2026-07-21
-**Related ADRs:** ADR-006 (Intent Contracts), ADR-005 (the `Live` test category), ADR-003 (fail-loud), ADR-017 (the observability instrument behind derived `deployed`)
+**Related ADRs:** ADR-006 (Intent Contracts), ADR-005 (the `Live` test category), ADR-003 (fail-loud), vmo_017 (the observability instrument behind derived `deployed`)
 
 ---
 
@@ -93,7 +93,7 @@ string — never narration.
 
 - **Depends on** `tools.partitions.domain` (month math) and, at run time, the real surfaces (API, datafactory, Appwrite, wandb, VPN store) via the injected `fetch`.
 - **DIP seam** mirrors `reconciliation/` — the fetch is the port; the default stdlib fetch is the concrete; tests inject a stub. No new cross-repo coupling, no new dependency.
-- **Consumed by** ADR-017's observability decision: a delivery surface counts as `deployed` only when its liveness surface is green (ADR-017 §7). The `live` test category (ADR-005) is the CI-side companion — one skip-truthful probe per surface.
+- **Consumed by** vmo_017's observability decision: a delivery surface counts as `deployed` only when its liveness surface is green (vmo_017 §7). The `live` test category (ADR-005) is the CI-side companion — one skip-truthful probe per surface.
 - Import-time purity (C-93) keeps `python -m tools.liveness.<surface>` cheap and side-effect-free.
 
 ## 8. Examples of Correct Usage

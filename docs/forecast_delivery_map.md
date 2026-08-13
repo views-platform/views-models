@@ -5,7 +5,7 @@
 > is a **shrinking list, by design**.
 >
 > That is exactly why it is not an ADR: ADR-000 says decisions are *"never deleted… superseded, not
-> erased"*, and a page designed to shrink cannot live under that rule. ADR-017 and ADR-019 cite this
+> erased"*, and a page designed to shrink cannot live under that rule. vmo_017 and ADR-019 cite this
 > page instead of containing it.
 >
 > **The names here are not examples — they are the current state.** `rusty_bucket`, `un_fao`,
@@ -160,7 +160,7 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 - **A source's maturity-ish label:** `models/<m>/configs/config_deployment.py` → `deployment_status`.
   *(Measured 2026-08-04: **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** across 128 files —
   132 source directories exist, so four carry no maturity at all. Both quote styles must be counted;
-  see ADR-017 §2 and register C-127.
+  see vmo_017 §2 and register C-127.
   The single `deployed` source is `ensembles/white_mustang` — whose two members, `lavender_haze` and
   `blank_space`, are both `shadow`.)*
 - **An ensemble's members:** `ensembles/<e>/configs/config_modelset.py`.
@@ -199,7 +199,7 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 
 ## References
 
-- **ADR-017** — sources, composition and delivery (the three axes). Cites this page for today's state.
+- **vmo_017** — sources, composition and delivery (the three axes). Cites this page for today's state.
 - **ADR-019** — the delivery declaration (the file format that replaces the buried `"ensemble"` line).
 - **ADR-020** — errors must descend.
 - **views-postprocessing ADR-013** — the wire contract; owns *how* bytes travel.
