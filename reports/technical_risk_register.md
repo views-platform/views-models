@@ -1,10 +1,10 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-08-04  
+**Last updated:** 2026-08-13  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 143 (134 concerns + 9 disagreements)  
-**Concerns:** Open 62 | Mitigated 21 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 44 | T3 55 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 146 (137 concerns + 9 disagreements)  
+**Concerns:** Open 65 | Mitigated 21 | Resolved 42 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 45 | T3 57 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1680,6 +1680,46 @@
 | **Location** | `postprocessors/un_fao/run.sh` (`VIEWS_POSTPROCESSING_PIN="main"`); upstream `views_postprocessing/{unfao,crafd}/managers/*.py`, fixed in their `a69d1a0` on `development` |
 | **Notes** | Until views-postprocessing#222 the upload verification read `if success is False: raise`. That **fails open**: a result that is `None`, lacks the attribute, or carries a non-bool passes as though the upload succeeded. The consequence is an **orphan** — a file in the partner bucket with no metadata document — and both consumer APIs select on metadata, so the partner sees nothing while the run reports success and exits 0. Their fix is `if success is not True`. **Why it cannot simply be fixed here:** the fix lives on their `development` (`2eb29f1`), not on `main` (`3286eab`). `main` is the newest merged state carrying the crafd package at all — the only tag, `1.0.0`, predates it and contains zero crafd files. So **no merged pin exists today with both crafd and C-79**, which is why **#364** (pin to a released tag) now blocks two repositories rather than one. Moving a live delivery's pin to an unmerged branch is a worse trade than waiting for the sync, so this is registered rather than patched. **`un_crafd` is not exposed**: it is `paused`, so the manager never constructs a partner store and makes zero store calls — the gap needs an upload to reach. **Exit:** views-postprocessing merges `development` → `main` (the same action that lets them cut a tag), then both pins move and `tests/test_launcher_pin_safety.py`'s strict xfail flips to XPASS, forcing the marker's removal. Guarded meanwhile by that file: an armed launcher on a deficient pin fails, so the arming and the pin must move together. Cross-refs: **C-134** (the shared launcher body where the pin now lives), #364, #333. |
 
+---
+
+### C-136 — The pandas-free evaluation path is built, tested and unreachable: `data_format` defaults to `dataframe` and no model declares it
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | The Epic #242 roster is switched from `land` to global `land_gaul` coverage and evaluated on the server (S5) — the actuals load then pulls ~28.4M rows through pandas on a box that is already holding the model. Also fires the first time anyone tries to *use* the pandas-free branch and discovers it has never run in production. |
+| **Source** | cradle-to-grave pandas audit, 2026-08-12 (three parallel sweeps + live process inspection of the `blazing_meteor` training run) |
+| **Status** | Open |
+| **Location** | views-pipeline-core `modules/dataloaders/datafactory_contract.py:40-41` (absent key → `dataframe`), `managers/evaluation/stage.py:53` (the default), `:112`, `:288-299` (`read_dataframe` on the actuals), `modules/validation/adapter.py:308-349` (the pandas→numpy reduction); the **unreachable alternative** at `stage.py:170-257` (`_load_actuals_frame`) + `adapter.py:351-399` (`from_actual_arrays`); consumers: `models/*/configs/config_queryset.py` — **zero** `data_format` declarations across all 131 models |
+| **Notes** | The frame-native actuals path (#301/#302) is fully implemented, pandas-free, and has **no production caller**. It is selected by `data_format` on the queryset, and `declared_data_format` returns `dataframe` when the key is absent — so the branch is off not because anyone chose pandas but because **nobody typed a key**. The only two `data_format` declarations in this entire repository are `postprocessors/un_fao/configs/config_queryset.py:78` and `postprocessors/un_crafd/configs/config_queryset.py:77`. Every HydraNet run, including all eight Epic #242 constituents, takes the pandas branch of live code that has a working alternative sitting beside it. **Not a correctness risk — a scale ceiling and a false-assurance risk.** The output is right; what is wrong is that "the platform is going pandas-free" is true of the delivery leg and false of the evaluation leg, and nothing in the repository says so. `rusty_bucket` pins the pandas branch harder still: `prediction_frame_ensemble.py:531-539` builds its `EvaluationContext` without `data_format`, and `evaluation/stage.py:103-107` refuses `feature_frame` for ensembles outright ("Frame-fed ensemble constituents are not supported yet"). **The delivery is not exposed by this** — the postprocessors call `get_queryset()` on their own path manager, and absence there is a *refusal*, not a fallback (`views_postprocessing/contract/launch_config.py:117` — *"there is no fallback to omit your way into"*). **Priority, per the maintainer (2026-08-13): get pandas to the seams first, then out.** That ordering is what this entry tracks — the seam here already exists and is one key wide, so declaring `data_format` on the model querysets is the cheapest possible first move and is a prerequisite for the second. **Exit:** (a) declare `data_format` on the HydraNet querysets so the frame branch runs at all, which also gives it its first production exercise; (b) lift the ensemble refusal at `stage.py:103-107`. Note that pipeline-core reached the same verdict independently and recorded it in `tests/test_falsification_engines_pandas_free.py` (*"VERDICT: FALSIFIED — 4 hard"*), env-gated behind `RUN_PANDAS_FREE_E2E=1` so it never fails CI — a known-true finding that cannot nag anyone, which is the C-113 shape. Cross-refs: **C-137** (the fetch leg, which has no seam to declare), **C-138** (the import leaks), **C-89** (the same migration, reconciliation leg), C-113, C-99, views-postprocessing C-56 (the producer OOM this pattern caused, now Resolved), views-faoapi C-191 (the serving-side twin, still open). |
+
+---
+
+### C-137 — HydraNet's input path is pandas from zarr to the volume, and there is no frame-native replacement to switch on
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | views-hydranet#157 is scheduled and scoped from the assumption that a FeatureFrame path partly exists — it does not; the repository has **zero** `zarr` or `FeatureFrame` references, so this is a build, not a switch. Also fires whenever the `[pandas-free PredictionFrame path]` log line is read as a statement about the run rather than about the output container. |
+| **Source** | cradle-to-grave pandas audit, 2026-08-12 (verified empirically: 212 pandas and 121 pyarrow shared objects mapped into live training pid 3161064) |
+| **Status** | Open |
+| **Location** | views-hydranet `views_hydranet/utils/grid_to_dataframe.py:87` (`pd.DataFrame`), `data/data_fetcher.py:60` (re-reads the parquet), `data/volume_handler.py:325` (`vol[...] = df[col].values` — the df→numpy boundary), `data/feature_scaler.py`; views-pipeline-core `modules/dataloaders/dataloaders.py:600-742`; artifact `models/<name>/data/raw/calibration_datafactory_df.parquet` (the `_df` form, not `_ff`) |
+| **Notes** | The fresh Epic #242 fetch wrote the pandas artifact, and the same parquet is read through pandas **three times** on one run: building it, loading it for training, and again for actuals at evaluation. Everything downstream of `volume_handler.py:325` — `training_engine.py`, `hydranet_inference.py`, the PredictionFrame — is genuinely clean, which is why the log line reads as it does; it describes the *output container*, not the lifecycle. **Sizing, so the risk is not overstated:** `bold_comet`'s parquet is 5,034,240 rows × 6 cols = 262 MB in pandas, projecting to roughly 1.3 GB at `land_gaul`. The model-side fetch is therefore **not** where the memory ceiling lives — the ceiling is at evaluation (C-136) and at serving (views-faoapi C-191, 24 GB co-hosted box). This entry is registered as a **migration and honesty risk**, not a memory one. **Why separate from C-136:** C-136's seam exists and is one key wide; here there is no seam at all and three files must be written. Different exit, different repository, different owner. **Exit:** views-hydranet#157 — now **unblocked**, its prerequisites pipeline-core #161 and #162 both closed. It names the three files above. Under the maintainer's stated ordering (seams first, then out), this is the *second* move: C-136 declares the seam, this removes the pandas behind it. Cross-refs: **C-136**, **C-138**, C-89, Epic #242, views-hydranet#157, views-pipeline-core Epic #265 / #268. |
+
+---
+
+### C-138 — Two eager re-exports pull pandas into every "pandas-free" process, and the purity test probes neither
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | Someone cites `tests/test_import_purity.py` as evidence that the PredictionFrame path is pandas-free — for `views_pipeline_core.managers.ensemble` (which is `ensembles/rusty_bucket/main.py:3`'s own import) and for `managers.prediction.savers` it proves nothing, because the test never imports them. |
+| **Source** | cradle-to-grave pandas audit, 2026-08-12 |
+| **Status** | Open |
+| **Location** | views-pipeline-core `managers/ensemble/__init__.py:1` (eager `DataFrameEnsembleManager` re-export → `dataframe_ensemble.py:20 import pandas`), `managers/prediction/prediction_frame_converter.py:15` (module-scope `import pandas`, reached unconditionally via `savers.py:22-25` and `model.py:623`), `tests/test_import_purity.py`; consumer `ensembles/rusty_bucket/main.py:3` |
+| **Notes** | Neither import executes pandas code on the PF path — pooling is `np.concatenate` (`prediction_frame_ensemble.py:119`) and `to_arrow_table` is pyarrow-only. The cost is not runtime; it is that **the claim and the check have drifted apart**. `test_import_purity.py` asserts pandas-freeness for `import views_pipeline_core` and for `managers.model.ForecastingModelManager`, and both of those still hold — so the test stays green while two modules that every PF and PFE run actually imports pull pandas in. `managers/__init__.py` and `managers/prediction/__init__.py` were given lazy `__getattr__` treatment under #320; `managers/ensemble/__init__.py` was not. Also note `prediction_frame_converter.py` has no `from __future__ import annotations`, so the `pd.DataFrame` annotation at `:157` is evaluated at runtime too. **Tier 3 rather than 4** because the risk is the false assurance, not the import: a future "the ensemble path is pandas-free" assertion would be made on a test that does not cover the ensemble path. Same shape as C-113 (a gate that cannot tell "clean" from "did not run"). **Exit:** extend the purity probe to `managers.ensemble` and `managers.prediction.savers`, then make it pass — lazy `__getattr__` on the ensemble package, and move the converter's pandas import inside the two functions that use it. Cross-refs: **C-136**, **C-137**, C-113, views-pipeline-core #320. |
+
+---
 
 ## Disagreements
 
