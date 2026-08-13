@@ -174,3 +174,40 @@ def test_the_293_correction_survived_the_extraction(launcher):
     assert from_launcher or from_shared, (
         "the #293 correction must survive wherever the secret handling now lives"
     )
+
+
+def test_every_install_in_the_shared_body_is_exit_checked():
+    """A failed dependency install must stop the run, not be printed and ignored (#392).
+
+    The body is SOURCED, so it cannot use `set -e` — that would change the caller's shell.
+    Every install therefore carries its own `|| { ...; return 1; }`.
+
+    What this prevents, observed on un_crafd 2026-08-12:
+
+        ERROR: No matching distribution found for views-datafactory<2.0.0,>=1.9.0
+        Installing views-postprocessing @ 3286eab...      <- carried straight on
+        Capability check: wire_contract declared and ...  <- passed
+        Running .../un_crafd/main.py                      <- ran
+
+    The queryset declares `"source": "views-datafactory"`, so the historical leg had no
+    data source for the entire run — and every check after the failure still passed,
+    because none of them look at whether the dependency arrived.
+    """
+    body = (REPO_ROOT / "tools" / "launcher" / "postprocessor.sh").read_text(encoding="utf-8")
+    lines = body.split("\n")
+
+    unchecked = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#") or "--dry-run" in stripped:
+            continue
+        # Only real invocations, not the same words inside an echo of help text.
+        if stripped.startswith(("pip install", "conda create", "conda activate")):
+            # The guard may sit on this line (`cmd || {`) or be the whole construct.
+            if "||" not in line:
+                unchecked.append(f"  line {i + 1}: {stripped[:88]}")
+
+    assert not unchecked, (
+        "these installs/activations do not check their exit code, so a failure prints and "
+        "the run continues without the dependency (#392):\n" + "\n".join(unchecked)
+    )
