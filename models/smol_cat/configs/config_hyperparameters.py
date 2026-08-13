@@ -35,7 +35,7 @@ def get_hp_config():
         "force_reset": True,
 
         # Optimizer
-        "optimizer_cls": "Muon",
+        "optimizer_cls": "AdamW",
         "lr": 2e-4,
         "weight_decay": 5e-5,
         "optimizer_kwargs": {
