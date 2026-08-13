@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-02
-**Supersedes:** nothing. **Related:** ADR-002 (topology), ADR-003 (fail loud), ADR-017 (source/composition/delivery)
+**Supersedes:** nothing. **Related:** ADR-002 (topology), ADR-003 (fail loud), vmo_017 (source/composition/delivery)
 
 ---
 

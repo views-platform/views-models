@@ -1,6 +1,12 @@
-# ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
+# vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
 **Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**
+
+> **Cite this as `vmo_017` outside this repository.** views-postprocessing and
+> views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
+> cannot read*, and *Reference Data in Repository*), so a bare "ADR-017" resolves to
+> the wrong document for a reader sitting in either of them (#393). The number is
+> unchanged and every existing citation stays valid — the prefix is additive.
 **Date:** 2026-07-27 (revised 2026-08-04)
 **Deciders:** Simon (maintainer)
 **Consulted:** platform contributors
