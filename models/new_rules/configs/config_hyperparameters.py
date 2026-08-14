@@ -9,11 +9,11 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 1,
+        "num_stacks": 2,
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 64,
-        "expansion_coefficient_dim": 64,
+        "expansion_coefficient_dim": 128,
         "trend_polynomial_degree": 2,
         "activation": "Tanh",
         "dropout": 0.4,
