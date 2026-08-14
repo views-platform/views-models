@@ -12,7 +12,7 @@ def get_hp_config():
         "num_stacks": 1,          # was 2
         "num_blocks": 1,          # keep
         "num_layers": 2,          # keep
-        "layer_widths": 64,       # was 128
+        "layer_widths": 128,       # was 128
         "expansion_coefficient_dim": 64,  # was 512
         "trend_polynomial_degree": 2,     # keep
         "activation": "Tanh",     # was GELU — bounded, prevents explosion

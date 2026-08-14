@@ -55,7 +55,7 @@ def get_hp_config():
         "num_stacks": 1,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 64,
+        "layer_widths": 128,
         "pooling_kernel_sizes": [[2]],
         "n_freq_downsample": [[1]],
         "activation": "Tanh",
