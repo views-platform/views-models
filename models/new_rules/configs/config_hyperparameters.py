@@ -9,7 +9,7 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
+        "num_stacks": 1,
         "num_blocks": 1,
         "num_layers": 2,
         "layer_widths": 64,
