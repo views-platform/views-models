@@ -124,7 +124,7 @@ def get_hp_config():
         "layer_widths": 256,
         "pooling_kernel_sizes": [[2, 2],[2, 2],[1, 1]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
-        "activation": "GELU",
+        "activation": "Tanh",
         "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
