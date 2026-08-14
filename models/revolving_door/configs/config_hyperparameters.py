@@ -57,7 +57,7 @@ def get_hp_config():
         "num_layers": 2,
         "layer_widths": 128,
         "pooling_kernel_sizes": [[2]],
-        "n_freq_downsample": [[1]],
+        "n_freq_downsample": [[2]],
         "activation": "Tanh",
         "dropout": 0.4,
         "use_reversible_instance_norm": True,
