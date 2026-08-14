@@ -51,17 +51,17 @@ def get_hp_config():
         "force_target_only": True,
         "target_scaler": "AsinhTransform",
         
-        # --- N-HiTS Architecture (Spike & Capacity Optimized) ---
+        # --- N-HiTS Architecture ---
         "num_stacks": 1,
-        "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": 128,
-        "pooling_kernel_sizes": [[2]],
-        "n_freq_downsample": [[2]],
+        "num_blocks": 2,
+        "num_layers": 3,
+        "layer_widths": 256,
+        "pooling_kernel_sizes": [[2], [4]],
+        "n_freq_downsample": [[2], [4]],
         "activation": "Tanh",
-        "dropout": 0.4,
+        "dropout": 0.3,
         "use_reversible_instance_norm": True,
-"force_reset": True,
+        "force_reset": True,
         
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
