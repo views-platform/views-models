@@ -17,7 +17,7 @@ def get_hp_config():
         "trend_polynomial_degree": 2,
         "activation": "Tanh",
         "dropout": 0.3,
-        "batch_norm": False,
+        "batch_norm": True,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
         "use_cyclic_encoders": False,
