@@ -121,11 +121,11 @@ def get_hp_config():
         "num_stacks": 3,
         "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 128,
-        "pooling_kernel_sizes": [[2, 2], [2, 2], [1, 1]],  # Multi-scale: [1,1] uses small kernels to see local spikes
-        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],     # The [1,1] stack models the raw residuals/spikes
+        "layer_widths": 256,
+        "pooling_kernel_sizes": [[2,2],[4,4],[4,4]],
+        "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
         "activation": "Tanh",
-        "dropout": 0.3,
+        "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,
