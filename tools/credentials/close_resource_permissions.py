@@ -151,33 +151,47 @@ def _audit_collection(ep: str, db: str, coll: str, headers: dict, project_id: st
     }
 
 
-def _close_collection(ep: str, db: str, headers: dict, before: dict) -> list:
+# The fields the collection PUT resets when they are omitted, so the read-modify-write has
+# to carry every one of them back. Named once: the preserve list and the drift check must
+# not be able to drift apart.
+PRESERVED_FIELDS = ("name", "documentSecurity", "enabled")
+
+
+def _close_collection(ep: str, db: str, headers: dict, before: dict) -> tuple[bool, list]:
     """Empty the permission list, preserving everything else the endpoint can reset.
+
+    Returns `(wrote, problems)`. The two failures are reported separately because they
+    need opposite responses from the operator: a refusal changed nothing and needs no
+    repair, while a drifted write did change something and does.
 
     `PUT /databases/{db}/collections/{id}` takes `name` as REQUIRED and resets omitted
     optional parameters to their defaults. A naive PUT carrying only `permissions` would
     therefore rename the collection and silently flip `documentSecurity`. Read first, pass
     the rest back through unchanged, mutate one field.
+
+    Refuses if the GET did not supply one of those fields. `None` is not a safe stand-in
+    for "unchanged" — sending it would write the very configuration change this function
+    exists to prevent, and the drift check below would only notice afterwards. An absent
+    field means the response shape is not what this script was written against, and
+    guessing is worse than stopping.
     """
-    body = {
-        "name": before["name"],
-        "permissions": [],
-        "documentSecurity": before["documentSecurity"],
-        "enabled": before["enabled"],
-    }
+    absent = [f for f in PRESERVED_FIELDS if before.get(f) is None]
+    if absent:
+        return False, [f"the collection read did not supply {absent}, so the write was "
+                       f"not attempted — cannot preserve what was not returned"]
+
+    body = {"permissions": [], **{f: before[f] for f in PRESERVED_FIELDS}}
     after = _call("PUT", f"{ep}/databases/{db}/collections/{before['id']}", headers, body)
 
     # The read-modify-write is the risky part, so verify it rather than trusting the 200.
     drift = [
-        f"{field}: {before[field]!r} -> {after.get(key)!r}"
-        for field, key in (("name", "name"),
-                           ("documentSecurity", "documentSecurity"),
-                           ("enabled", "enabled"))
-        if after.get(key) != before[field]
+        f"{field}: {before[field]!r} -> {after.get(field)!r}"
+        for field in PRESERVED_FIELDS
+        if after.get(field) != before[field]
     ]
     if after.get("$permissions"):
         drift.append(f"permissions not emptied: {after['$permissions']}")
-    return drift
+    return True, drift
 
 
 def main() -> int:
@@ -253,10 +267,17 @@ def main() -> int:
     failed = False
     for before in open_collections:
         print(f"closing {before['name']!r} ({before['id']}) ...")
-        drift = _close_collection(ep, db, headers, before)
-        if drift:
+        wrote, problems = _close_collection(ep, db, headers, before)
+        if problems and not wrote:
+            # Nothing was sent, so nothing needs repairing. Saying "restore by hand" here
+            # would send the operator looking for damage that does not exist.
             failed = True
-            print(f"  FATAL: the update changed more than permissions — {'; '.join(drift)}\n"
+            print(f"  REFUSED, nothing written — {'; '.join(problems)}", file=sys.stderr)
+            continue
+        if problems:
+            failed = True
+            print(f"  FATAL: the update changed more than permissions — "
+                  f"{'; '.join(problems)}\n"
                   f"    RESTORE BY HAND: name={before['name']!r} "
                   f"documentSecurity={before['documentSecurity']} "
                   f"enabled={before['enabled']}", file=sys.stderr)
