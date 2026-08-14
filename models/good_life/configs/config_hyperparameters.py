@@ -15,7 +15,7 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        "activation": "SwiGLU",
+        "activation": "GELU",
         "batch_size": 128,
         "d_model": 96,
         "dim_feedforward": 256,
