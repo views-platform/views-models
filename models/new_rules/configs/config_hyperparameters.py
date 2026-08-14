@@ -9,14 +9,14 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
+        "num_stacks": 1,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 128,
-        "expansion_coefficient_dim": 512,
+        "layer_widths": 64,
+        "expansion_coefficient_dim": 64,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.1,
+        "dropout": 0.4,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
