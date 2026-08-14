@@ -29,7 +29,7 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 5e-5,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
         "gradient_clip_val": 10.0,
 
@@ -52,7 +52,7 @@ def get_hp_config():
 
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 5e-5,
+            "lr": 1e-4,
             "weight_decay": 1e-4,
         },
 
@@ -124,7 +124,7 @@ def get_hp_config():
         "layer_widths": 256,
         "pooling_kernel_sizes": [[2,2],[4,4],[4,4]],
         "n_freq_downsample": [[4, 4], [2, 2], [1, 1]],
-        "activation": "Tanh",
+        "activation": "GELU",
         "dropout": 0.2,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,

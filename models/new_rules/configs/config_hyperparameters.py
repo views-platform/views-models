@@ -15,7 +15,7 @@ def get_hp_config():
         "layer_widths": 128,
         "expansion_coefficient_dim": 512,
         "trend_polynomial_degree": 2,
-        "activation": "Tanh",
+        "activation": "GELU",
         "dropout": 0.1,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
@@ -36,12 +36,12 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 5e-5,
+        "lr": 1e-4,
         "weight_decay": 1e-4,
         "gradient_clip_val": 5.0,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 5e-5,
+            "lr": 1e-4,
             "weight_decay": 1e-4,
         },
 
