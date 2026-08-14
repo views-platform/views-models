@@ -123,7 +123,7 @@ def get_hp_config():
         "num_layers": 2,
         "layer_widths": 64,
         "pooling_kernel_sizes": [[2]],
-        "n_freq_downsample": [[1, 1]],
+        "n_freq_downsample": [[1]],
         "activation": "Tanh",
         "dropout": 0.3,
         "use_static_covariates": True,
