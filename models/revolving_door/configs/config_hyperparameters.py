@@ -59,7 +59,7 @@ def get_hp_config():
         "pooling_kernel_sizes": [[2]],
         "n_freq_downsample": [[1]],
         "activation": "Tanh",
-        "dropout": 0.3,
+        "dropout": 0.4,
         "use_reversible_instance_norm": True,
 "force_reset": True,
         
