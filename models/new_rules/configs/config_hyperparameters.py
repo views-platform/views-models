@@ -9,15 +9,15 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
-        "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": 64,
-        "expansion_coefficient_dim": 16,
-        "trend_polynomial_degree": 2,
-        "activation": "GELU",
-        "dropout": 0.4,
-        "batch_norm": True,
+        "num_stacks": 1,          # was 2
+        "num_blocks": 1,          # keep
+        "num_layers": 2,          # keep
+        "layer_widths": 64,       # was 128
+        "expansion_coefficient_dim": 64,  # was 512
+        "trend_polynomial_degree": 2,     # keep
+        "activation": "Tanh",     # was GELU — bounded, prevents explosion
+        "dropout": 0.4,           # was 0.1
+        "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
         "use_cyclic_encoders": False,
@@ -36,13 +36,13 @@ def get_hp_config():
 
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
-        "lr": 3e-5,
-        "weight_decay": 1e-3,
-        "gradient_clip_val": 1.0,
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 5.0,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 3e-5,
-            "weight_decay": 1e-3,
+            "lr": 1e-4,
+            "weight_decay": 1e-4,
         },
 
         # --- LR Scheduler ---
