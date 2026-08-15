@@ -1,7 +1,7 @@
 # Big Chungus 
 ## Overview
 
-This folder contains code for the Rude Boy model, an ensemble machine learning model designed for predicting fatalities. 
+This folder contains code for the Big Chungus model, an ensemble machine learning model designed for predicting fatalities. 
 
 
 | Information         | Details                        |
