@@ -7,17 +7,17 @@ def get_meta_config():
     - meta_config (dict): A dictionary containing model meta configuration.
     """
     meta_config = {
-        "name": "big_chungus",
+        "name": "small_chungus",
         "models": [
-            "little_talks",
-            "mister_bluesky"
+            "dark_necessities",
+            "dancing_monkey"
             ],
         "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm", 
-        "aggregation": "concat",
+        "aggregation": "mean",
+        "regression_point_baselines": ["average_pgmbaseline", "zero_pgmbaseline", "locf_pgmbaseline"],
+        "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Dylan",
-        "regression_sample_metrics": ["y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
-        "regression_sample_baselines": ["black_ranger", "blue_ranger", "pink_ranger", "white_ranger"],
         "rolling_origin_stride": 1,
         "prediction_format": "prediction_frame",
         "skip_predictions_delivery": True,

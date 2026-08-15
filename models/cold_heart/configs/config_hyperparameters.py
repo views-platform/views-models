@@ -9,14 +9,14 @@ def get_hp_config():
 
         # --- Architecture ---
         "generic_architecture": True,
-        "num_stacks": 2,
+        "num_stacks": 1,
         "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 128,
-        "expansion_coefficient_dim": 512,
+        "layer_widths": 16,
+        "expansion_coefficient_dim": 16,
         "trend_polynomial_degree": 2,
         "activation": "GELU",
-        "dropout": 0.1,
+        "dropout": 0.3,
         "batch_norm": False,
         "use_reversible_instance_norm": True,
         "use_static_covariates": True,
@@ -38,7 +38,7 @@ def get_hp_config():
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
         "weight_decay": 1e-4,
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 10.0,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
             "lr": 1e-4,
@@ -116,6 +116,7 @@ def get_hp_config():
         #     #     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
         #     # ]
         # },
+
         # --- Loss: SpotlightLoss v36 ---
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)

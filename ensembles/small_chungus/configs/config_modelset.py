@@ -8,7 +8,7 @@ def get_modelset_config():
     modelset_config = {
         "models": [
             "little_talks",
-            "mister_bluesky"
+            "dancing_monkey"
         ],
     }
     return modelset_config

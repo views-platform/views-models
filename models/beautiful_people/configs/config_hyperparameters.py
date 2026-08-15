@@ -23,15 +23,15 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 14,
+        "early_stopping_patience": 8,
         "early_stopping_min_delta": 0.002,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4,
-        "weight_decay": 5e-5,
-        "gradient_clip_val": 5.0,
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 10.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -52,8 +52,8 @@ def get_hp_config():
 
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 3e-4,
-            "weight_decay": 5e-5,
+            "lr": 1e-4,
+            "weight_decay": 1e-4,
         },
 
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
@@ -71,7 +71,7 @@ def get_hp_config():
         #             # Conflict counts + deltas + spatial lags
         #             # "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
         #             # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
-        #             # "lr_acled_sb",  
+        #             # "lr_acled_sb", 
         #             # "lr_acled_sb_count", 
         #             # "lr_acled_os", "lr_acled_ns",
         #             "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
@@ -118,14 +118,14 @@ def get_hp_config():
         # },
 
         # N-HiTS Architecture
-        "num_stacks": 3,
-        "num_blocks": 2,
+        "num_stacks": 1,
+        "num_blocks": 1,
         "num_layers": 2,
-        "layer_widths": 256,
-        "pooling_kernel_sizes": [[2, 2], [4, 4], [8, 8]],
-        "n_freq_downsample":    [[4, 4], [2, 2], [1, 1]],
+        "layer_widths": 32,
+        "pooling_kernel_sizes": [[2]],
+        "n_freq_downsample": [[1]],
         "activation": "GELU",
-        "dropout": 0.4,
+        "dropout": 0.3,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
         "max_pool_1d": True,

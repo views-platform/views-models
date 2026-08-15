@@ -1,22 +1,22 @@
-# Big Chungus 
+# Small Chungus
 ## Overview
 
-This folder contains code for the Rude Boy model, an ensemble machine learning model designed for predicting fatalities. 
+This folder contains code for the Small Chungus model, an ensemble machine learning model designed for predicting fatalities. 
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | little_talks, mister_blueshy                  |
+| **Models** | dark_necessities, dancing_monkey                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | ln_ged_sb, ln_ged_ns, ln_ged_os |
-| **Aggregation**       |  concat   |
-| **Metrics**       |  y_hat_bar, twCRPS, QIS, MIS, MCR_sample, CRPS    |
+| **Aggregation**       |  mean   |
+| **Metrics**       |  MCR_point", MSE, MSLE, y_hat_bar    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-Big Chungus
+Small Chungus
 ├── README.md
 ├── main.py
 ├── requirements.txt
