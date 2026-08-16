@@ -135,7 +135,7 @@ def get_hp_config():
         "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
-        "normalize_before": True,
+        "normalize_before": False,
         "dropout": 0.20,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
