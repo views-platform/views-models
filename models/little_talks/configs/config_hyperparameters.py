@@ -73,7 +73,7 @@ def get_hp_config():
 
         # Prediction
         "likelihood": None,
-        "num_samples": 500,
+        "num_samples": 100,
         "mc_dropout": True,
 
         # Scalers
