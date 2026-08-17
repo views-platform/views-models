@@ -21,5 +21,7 @@ def get_meta_config():
         "rolling_origin_stride": 1,
         "prediction_format": "prediction_frame",
         "skip_predictions_delivery": True,
+        "reconciliation": "pgm_cm_point",
+        "reconcile_with": "rude_boy",
     }
     return meta_config

@@ -13,11 +13,11 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
+        "hidden_size": 64,
         "decoder_output_dim": 32,
         "temporal_decoder_hidden": 48,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
-        "temporal_width_past": 2,
+        "temporal_width_past": 4,
         "temporal_width_future": 2,
         "temporal_hidden_size_past": 32,
         "temporal_hidden_size_future": 8,
@@ -30,18 +30,18 @@ def get_hp_config():
 
         # Training
         "n_epochs": 300,
-        "batch_size": 2048,
+        "batch_size": 1024,
         "random_state": 67,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 2e-4,
-        "weight_decay": 5e-5,
+        "lr": 1e-4,
+        "weight_decay": 5e-4,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
             "lr": 1e-4,
-            "weight_decay": 5e-5,
+            "weight_decay": 5e-4,
         },
 
 # LR Scheduler
@@ -61,8 +61,8 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 10.0,
-        "early_stopping_patience": 12,
+        "gradient_clip_val": 5.0,
+        "early_stopping_patience": 4,
         "early_stopping_min_delta": 0.0003,
 
         # Loss
@@ -73,7 +73,7 @@ def get_hp_config():
 
         # Prediction
         "likelihood": None,
-        "num_samples": 100,
+        "num_samples": 500,
         "mc_dropout": True,
 
         # Scalers

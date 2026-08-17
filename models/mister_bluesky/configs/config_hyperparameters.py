@@ -16,24 +16,24 @@ def get_hp_config():
         "time_steps": 36,  # Checksum: Must match len(steps)
 
         # Inference
-        "num_samples": 100,
+        "num_samples": 500,
         "mc_dropout": True,
         "n_jobs": -1,
 
         # Training
-        "batch_size": 2048,
+        "batch_size": 1024,
         "n_epochs": 300,
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
-        "early_stopping_patience": 8,
+        "early_stopping_patience": 4,
         "early_stopping_min_delta": 0.0003,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1.5e-4,
-        "weight_decay": 1e-4,
-        "gradient_clip_val": 15.0,
+        "lr": 0.0005,
+        "weight_decay": 0.0002,
+        "gradient_clip_val": 5.0,
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         
@@ -45,14 +45,14 @@ def get_hp_config():
             "factor": 0.5,
             "patience": 5,
             "min_lr": 3e-6,
-            "cooldown": 2,
+            "cooldown": 0,
             "threshold": 0.0003,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 1.5e-4,
-            "weight_decay": 1e-4,
+            "lr": 0.0005,
+            "weight_decay": 0.0002,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -130,13 +130,13 @@ def get_hp_config():
         # },
 
         # TSMixer Architecture
-        "num_blocks": 3,
-        "hidden_size": 128,
+        "num_blocks": 2,
+        "hidden_size": 64,
         "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": False,
-        "dropout": 0.20,
+        "dropout": 0.5,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 
