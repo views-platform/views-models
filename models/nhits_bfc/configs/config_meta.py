@@ -12,10 +12,12 @@ def get_meta_config():
         "algorithm": "NHiTSModel",
         "level": "cm",
         "regression_targets": ["lr_gdp_pcap"],
-        "regression_point_metrics": ["CRPS", "MSE", "MSLE"],
+        "regression_point_metrics": ["MSE", "MSLE"],
         "creator": "Xiaolong",
         "time_steps": 36,
-        "prediction_format": "dataframe",
-        "rolling_origin_stride": 1
+        "evaluation_sequencing": "horizon_chunks",
+        "prediction_format": "prediction_frame",
+        "rolling_origin_stride": 1,
+        "skip_predictions_delivery": True,
     }
     return meta_config

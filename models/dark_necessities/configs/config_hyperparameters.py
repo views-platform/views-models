@@ -13,35 +13,35 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
-        "decoder_output_dim": 32,
-        "temporal_decoder_hidden": 48,
+        "hidden_size": 256,
+        "decoder_output_dim": 64,
+        "temporal_decoder_hidden": 64,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
-        "temporal_width_past": 4,
-        "temporal_width_future": 2,
+        "temporal_width_past": 16,
+        "temporal_width_future": 8,
         "temporal_hidden_size_past": 64,
         "temporal_hidden_size_future": 8,
-        "num_encoder_layers": 2,
-        "num_decoder_layers": 2,
+        "num_encoder_layers": 3,
+        "num_decoder_layers": 3,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.3,
+        "dropout": 0.4,
         "use_static_covariates": True,
 
         # Training
         "n_epochs": 300,
-        "batch_size": 2048,
+        "batch_size": 4096,
         "random_state": 67,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.00005,
-        "weight_decay": 0.00005,
+        "lr": 0.0001,
+        "weight_decay": 0.001,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 0.00005,
-            "weight_decay": 0.00005,
+            "lr": 0.0001,
+            "weight_decay": 0.001,
         },
 
 # LR Scheduler
