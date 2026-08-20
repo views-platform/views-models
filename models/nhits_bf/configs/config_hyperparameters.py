@@ -32,32 +32,39 @@ def get_hp_config():
         "mc_dropout": False,
         "n_jobs": -1,
         # Training
-        "batch_size": 64,
+        "batch_size": 128,
         "n_epochs": 100,
-        "early_stopping_patience": 15,
-        "early_stopping_min_delta": 0.001,
+        "early_stopping_patience": 4,
+        "early_stopping_min_delta": 0.0005,
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "checkpoint_monitor": "val_metrics/MSLE",
         "force_reset": True,
         # Optimizer
-        "optimizer_cls": "Adam",
+        "optimizer_cls": "AdamW",
         "lr": 0.0005,
         "weight_decay": 0.000001,
         "gradient_clip_val": 1.0,
         # LR Scheduler
-        "lr_scheduler_cls": "CosineAnnealingWarmRestarts",
-        "lr_scheduler_T_0": 10,
-        "lr_scheduler_T_mult": 2,
-        "lr_scheduler_eta_min": 0.000001,
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 2,
+        "lr_scheduler_min_lr": 3e-6,
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         "lr_scheduler_kwargs": {
-            "T_0": 10,
-            "T_mult": 2,
-            "eta_min": 0.000001,
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 2,
+            "min_lr": 3e-6,
+            "cooldown": 0,
+            "threshold": 0.0005,
+            "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
             "lr": 0.0005,
             "weight_decay": 0.000001,
         },
         # Loss: SpotlightLoss (alpha=0, beta=0 → Huber + temporal gradient Huber)
-        "loss_function": "SpotlightLoss",
+        "loss_function": "SpotlightLossLogcosh",
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)
         "kappa": 0.0,  # unused when beta=0, but required by constructor
@@ -81,9 +88,9 @@ def get_hp_config():
         "pooling_kernel_sizes": [[12], [1]],  # annual trend + monthly detail
         "n_freq_downsample": [[12], [1]],  # 3 + 36 basis functions
         "max_pool_1d": False,
-        "activation": "ReLU",
-        "dropout": 0.0,  # 0.10 → 0.0: tiny model, no overfitting risk
-        "use_reversible_instance_norm": False,
+        "activation": "GELU",
+        "dropout": 0.3,  # 0.10 → 0.0: tiny model, no overfitting risk
+        "use_reversible_instance_norm": True,
         "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
