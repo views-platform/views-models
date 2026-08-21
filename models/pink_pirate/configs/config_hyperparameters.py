@@ -79,6 +79,10 @@ def get_hp_config():
     'ss_schedule': 'linear',
     'ss_warmup_lessons': 10,
     'ss_epsilon_max': 0.5,
+    # C-259: must equal the resolved rollout_feedback ('sample') whenever ss_epsilon_max > 0,
+    # or training feeds back a different object than inference rolls out on. Absent here, it
+    # defaulted to 'mean' and the config FAILED validation — see views-models#404.
+    'ss_feedback': 'sample',
     'total_lessons': 160,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
