@@ -56,6 +56,17 @@ DEFICIENT_PINS = {
         "runs — unverifiable by construction. It moved on 2026-08-13 at 06:33, hours "
         "before a live delivery. (It now happens to carry C-79; that is not the point.)"
     ),
+    # Added 2026-08-24. 1.1.0 fixed the UPLOAD gap (C-79) and this file was written for
+    # that one — which is exactly why it could not see the next one. A deficiency map
+    # that learns only the defect it was born with is a guard that ages into decoration.
+    "1.1.0": (
+        "lacks views-postprocessing#268: the store port's `download` chains `.get()` onto "
+        "an unvalidated result, so a store result whose `data` is present-and-null raises "
+        "AttributeError three frames away inside a dict comprehension over pinned shard "
+        "ids — naming neither the file_id nor the fact that a download failed. It killed "
+        "the first un_crafd delivery on 2026-08-13 and is byte-identical on the un_fao "
+        "leg, where it has simply not fired yet"
+    ),
 }
 
 _PIN = re.compile(r'^VIEWS_POSTPROCESSING_PIN="([^"]+)"', re.M)
@@ -110,8 +121,8 @@ def test_a_disarmed_launcher_stays_disarmed_while_its_pin_is_deficient(consumer)
     assert not _is_armed(consumer), (
         f"{consumer} is ARMED while pinned to a build that {why}.\n"
         f"  Move VIEWS_POSTPROCESSING_PIN in postprocessors/{consumer}/run.sh to a build "
-        f"carrying views-postprocessing#222 before arming, or set intent back to "
-        f"paused(...) in deliveries/{consumer}.py.\n"
+        f"without that gap before arming, or set intent back to paused(...) in "
+        f"deliveries/{consumer}.py.\n"
         f"  Tracked as views-models#364."
     )
 

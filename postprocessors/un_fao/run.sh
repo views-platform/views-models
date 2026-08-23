@@ -19,6 +19,13 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 #      with no metadata document, invisible to both consumer APIs, while the run exits 0.
 #      That is not hypothetical — it happened here at 19:41 on 2026-07-27 (see
 #      logs/views_pipeline_ERROR.log, and register C-135).
+#   3. Moved to 1.1.1 on 2026-08-24 (#403). 1.1.0 carries views-postprocessing#268: the
+#      store port's `download` chains `.get()` onto an unvalidated result, so a result
+#      whose `data` is present-and-null raises AttributeError three frames away, naming
+#      neither the file_id nor the fact that a download failed. It killed the first
+#      un_crafd delivery on 2026-08-13 and is byte-identical here — it has simply not
+#      fired on this leg yet. 1.1.1 refuses and names what it got. Both launchers moved
+#      together: they share one prefix, so moving one alone is not a fix (C-139).
 #
 # `tools/launcher/postprocessor.sh` does NOT check that the install succeeded (no set -e,
 # no `|| return 1` on the pip line). A failed install silently leaves the previously
@@ -28,7 +35,7 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 #   python -c "import views_postprocessing, pathlib; \
 #     print(pathlib.Path(views_postprocessing.__file__).parent / 'unfao/managers/unfao.py')"
 #   grep -n 'success is not True' <that path>
-VIEWS_POSTPROCESSING_PIN="1.1.0"
+VIEWS_POSTPROCESSING_PIN="1.1.1"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh
