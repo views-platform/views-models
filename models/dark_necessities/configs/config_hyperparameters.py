@@ -17,9 +17,9 @@ def get_hp_config():
         "decoder_output_dim": 32,
         "temporal_decoder_hidden": 32,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
-        "temporal_width_past": 8,
-        "temporal_width_future": 8,
-        "temporal_hidden_size_past": 32,
+        "temporal_width_past": 4,
+        "temporal_width_future": 2,
+        "temporal_hidden_size_past": 16,
         "temporal_hidden_size_future": 4,
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
@@ -62,7 +62,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
         "gradient_clip_val": 1.0,
-        "early_stopping_patience": 4,
+        "early_stopping_patience": 8,
         "early_stopping_min_delta": 0.0003,
 
         # Loss
