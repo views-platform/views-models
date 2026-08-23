@@ -13,7 +13,7 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
+        "hidden_size": 96,
         "decoder_output_dim": 32,
         "temporal_decoder_hidden": 32,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
@@ -37,11 +37,11 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0001,
-        "weight_decay": 0.01,
+        "weight_decay": 0.005,
         "optimizer_kwargs": {
-            "betas": (0.9, 0.999), 
+            "betas": (0.85, 0.98),
             "lr": 0.0001,
-            "weight_decay": 0.01,
+            "weight_decay": 0.005,
         },
 
 # LR Scheduler
@@ -62,7 +62,7 @@ def get_hp_config():
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
         "gradient_clip_val": 1.0,
-        "early_stopping_patience": 8,
+        "early_stopping_patience": 6,
         "early_stopping_min_delta": 0.0003,
 
         # Loss
@@ -74,7 +74,7 @@ def get_hp_config():
         # Prediction
         "likelihood": None,
         "num_samples": 100,
-        "mc_dropout": True ,
+        "mc_dropout": True,
 
         # Scalers
         "target_scaler": "AsinhTransform",
