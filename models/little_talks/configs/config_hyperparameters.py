@@ -39,7 +39,7 @@ def get_hp_config():
         "lr": 0.0001,
         "weight_decay": 0.005,
         "optimizer_kwargs": {
-            "betas": (0.85, 0.98),
+            "betas": (0.9, 0.999),
             "lr": 0.0001,
             "weight_decay": 0.005,
         },
