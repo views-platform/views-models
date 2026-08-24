@@ -1,12 +1,23 @@
 """Liveness check for the FAO delivery bucket (unfao_bucket).
 
 Answers, with raw facts: when did FAO last actually receive anything —
-per delivery stream? The bucket carries two streams (verified live
-2026-07-19; register context: real monthly deliveries ran Jan–Mar 2026,
-then stalled unnoticed):
+per delivery stream? The bucket carries two streams:
 
-    forecast_dataset_*.parquet    (~191MB — the forecast delivery)
-    historical_dataset_*.parquet  (~20MB  — the historical actuals delivery)
+    <source>_forecasting_<ts>__manifest.json   the ADR-013 commit marker, written LAST
+                                               (after shards and sidecar) — so its
+                                               presence means the run finished, and its
+                                               age is the forecast stream's freshness
+    historical_dataset_*.parquet               (~170MB — the historical actuals delivery)
+
+Observed live 2026-08-24: 108 shards + 1 sidecar + 1 manifest + 1 historical = 111 files.
+
+**The forecast stream was judged on the wrong name until 2026-08-24** (C-102, #411). This
+module matched `forecast_dataset_*.parquet`, a per-file name from the pre-ADR-013 era that
+nothing writes any more, so it reported `NEVER_DELIVERED` over 110 delivered files —
+permanently, on every run, and indistinguishably from a real stall. That matters beyond
+tidiness: #320 is "FAO forecast delivery has been stalled for 145 days and nothing detected
+it", and this surface is the answer to it. It was blind in exactly the stream it exists to
+watch, and the 110 shards sat in `other_files` reading as an incidental count.
 
 Usage:
     python -m tools.liveness.unfao_delivery   # exit 0 delivering/skip / 1 stalled / 2 unreachable
@@ -32,12 +43,25 @@ from tools.liveness.appwrite_api import (
     newest_first_query,
     credential_gap_report,
     resolve_credentials,
+    count_with_prefix_query,
     stream_newest_query,
+    stream_newest_suffix_query,
 )
 from tools.liveness.report import exit_code_for, render_facts
 
 UNFAO_BUCKET_ID = "unfao_bucket"
-FORECAST_PREFIX = "forecast_dataset_"
+#: The ADR-013 commit marker. A forecast delivery writes its shards, then a sidecar, then
+#: this — so the manifest's presence is what says the run finished, and its age is the
+#: freshness of the forecast stream.
+#:
+#: Matched by SUFFIX deliberately. The full name is
+#: `<source>_forecasting_<timestamp>__manifest.json`, and `<source>` is a model that can be
+#: replaced. This surface previously matched `forecast_dataset_` — a legacy per-file name
+#: nothing writes any more — and therefore reported NEVER_DELIVERED over 110 delivered
+#: files, permanently and on every run (C-102, #411). Hardcoding `rusty_bucket_forecasting_`
+#: instead would fix today and break the next time the source model changes;
+#: `__manifest.json` is the wire convention rather than the producer.
+FORECAST_MANIFEST_SUFFIX = "__manifest.json"
 HISTORICAL_PREFIX = "historical_dataset_"
 
 # Monthly delivery cadence: a stream is "delivering" if something landed
@@ -156,11 +180,20 @@ class UnfaoDeliveryCheck:
             overall = self._fetch(f"{base}?{newest_first_query(limit=1)}", headers)
             total = int(overall.get("total", 0))  # type: ignore[union-attr]
             forecast_doc = self._fetch(
-                f"{base}?{stream_newest_query(FORECAST_PREFIX)}", headers
+                f"{base}?{stream_newest_suffix_query(FORECAST_MANIFEST_SUFFIX)}", headers
             )
             historical_doc = self._fetch(
                 f"{base}?{stream_newest_query(HISTORICAL_PREFIX)}", headers
             )
+            # The manifest identifies its own run, so the run's files can be counted
+            # rather than landing in `other_files`. Without this the residual would read
+            # 109 on a healthy bucket — one misleading number swapped for another.
+            run_total = 0
+            manifest_files = list(forecast_doc.get("files", []))  # type: ignore[union-attr]
+            if manifest_files:
+                stem = manifest_files[0]["name"][: -len(FORECAST_MANIFEST_SUFFIX)]
+                run_doc = self._fetch(f"{base}?{count_with_prefix_query(stem)}", headers)
+                run_total = int(run_doc.get("total", 0))  # type: ignore[union-attr]
         except Exception as exc:  # noqa: BLE001 — any storage failure is the fact
             return CheckReport(
                 verdict="UNREACHABLE",
@@ -170,9 +203,10 @@ class UnfaoDeliveryCheck:
 
         forecast_files = list(forecast_doc.get("files", []))  # type: ignore[union-attr]
         historical_files = list(historical_doc.get("files", []))  # type: ignore[union-attr]
-        forecast_total = int(forecast_doc.get("total", 0))  # type: ignore[union-attr]
         historical_total = int(historical_doc.get("total", 0))  # type: ignore[union-attr]
-        other = total - forecast_total - historical_total
+        # `run_total` counts the whole forecast run (shards + sidecar + manifest), not just
+        # the manifest, so this stays a real residual: files belonging to neither stream.
+        other = total - run_total - historical_total
 
         f_verdict, f_facts = self._stream_verdict(forecast_files, now, max_age_days)
         h_verdict, h_facts = self._stream_verdict(historical_files, now, max_age_days)

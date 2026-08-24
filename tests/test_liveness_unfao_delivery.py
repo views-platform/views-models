@@ -2,7 +2,7 @@
 
 TDD suite written BEFORE the implementation. Ground truth captured live
 2026-07-19: bucket `unfao_bucket`, 18 files, two delivery streams —
-``forecast_dataset_*.parquet`` (newest 2026-03-10, ~191MB) and
+the ADR-013 manifest (newest 2026-08-13) and
 ``historical_dataset_*.parquet`` (newest 2026-03-30, ~20MB). Real monthly
 deliveries ran Jan–Mar 2026, then stalled; nobody noticed (register C-99
 class). This check makes "when did FAO last receive anything?" a machine
@@ -30,11 +30,22 @@ NOW = datetime(2026, 7, 19, 12, 0, 0, tzinfo=timezone.utc)
 SENTINEL_KEY = "SECRET-KEY-NEVER-RENDER"
 CREDS = AppwriteCredentials("https://fra.cloud.appwrite.io/v1", "proj", SENTINEL_KEY)
 
+#: Captured live 2026-08-24. The forecast stream is judged on the ADR-013 commit marker —
+#: written after the shards and the sidecar, so its presence means the run finished.
+#: The fixtures below deliberately carry a source model in the run stem
+#: (`rusty_bucket_forecasting_...`) that the module never matches on: the module keys on
+#: the `__manifest.json` suffix, and a fixture that agreed with a hardcoded model name
+#: would be re-creating C-102 in the tests.
+STEM = "rusty_bucket_forecasting_20260727_095355"
+MANIFEST = f"{STEM}__manifest.json"
+
 REAL_FORECAST_DOC = {
-    "total": 9,
+    "total": 1,
     "files": [{"$id": "f1", "$createdAt": "2026-03-10T10:47:48.000+00:00",
-               "name": "forecast_dataset_20260310_114703.parquet", "sizeOriginal": 191_400_000}],
+               "name": "old_run_20260310_114703__manifest.json", "sizeOriginal": 26_544}],
 }
+#: How many files the newest manifest's own run owns — shards + sidecar + manifest.
+REAL_RUN_DOC = {"total": 9, "files": []}
 REAL_HISTORICAL_DOC = {
     "total": 8,
     "files": [{"$id": "h1", "$createdAt": "2026-03-30T09:48:45.000+00:00",
@@ -45,8 +56,9 @@ REAL_OVERALL_DOC = {"total": 18, "files": []}
 FRESH_FORECAST_DOC = {
     "total": 1,
     "files": [{"$id": "f", "$createdAt": "2026-07-10T08:00:00.000+00:00",
-               "name": "forecast_dataset_20260710_100000.parquet", "sizeOriginal": 190_000_000}],
+               "name": MANIFEST, "sizeOriginal": 26_544}],
 }
+FRESH_RUN_DOC = {"total": 1, "files": []}
 FRESH_HISTORICAL_DOC = {
     "total": 1,
     "files": [{"$id": "h", "$createdAt": "2026-07-11T08:00:00.000+00:00",
@@ -54,9 +66,22 @@ FRESH_HISTORICAL_DOC = {
 }
 FRESH_OVERALL_DOC = {"total": 2, "files": []}
 
-def _responses(forecast, historical, overall):
-    # order matters: stream keys first, catch-all base last
-    return {"forecast_dataset_": forecast, "historical_dataset_": historical,
+def _responses(forecast, historical, overall, run=None):
+    """Keyed on what actually appears in each URL, which is the point of the rewrite.
+
+    The manifest query encodes `endsWith(name, "__manifest.json")`, so its URL carries
+    `__manifest.json` and NOT the run stem. The run-count query encodes
+    `startsWith(name, "<stem>")`, so it carries the stem and not the suffix. They are
+    distinguishable without either fixture restating a constant the module owns — which
+    is what made the previous version assert that the tool agreed with itself.
+    """
+    run = run if run is not None else {"total": 0, "files": []}
+    stem = ""
+    if forecast.get("files"):
+        stem = forecast["files"][0]["name"].removesuffix("__manifest.json")
+    return {"__manifest.json": forecast,
+            **({stem: run} if stem else {}),
+            "historical_dataset_": historical,
             "unfao_bucket/files": overall,
             # The bucket GET that proves the key is accepted before any listing is
             # believed. Last, so the `/files` listings above still match first. Its
@@ -97,16 +122,21 @@ def no_machine_credentials(monkeypatch, tmp_path):
 # ── verdicts on the real capture ──────────────────────────────────────
 
 def test_both_streams_stalled_on_real_capture():
-    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
     report = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
     assert report.verdict == "DELIVERY_STALLED"
     assert report.forecast_verdict == "STALLED"
     assert report.historical_verdict == "STALLED"
-    assert report.forecast_newest_name == "forecast_dataset_20260310_114703.parquet"
+    assert report.forecast_newest_name == "old_run_20260310_114703__manifest.json"
     assert report.forecast_days_since == 131
     assert report.historical_newest_name == "historical_dataset_20260330_114835.parquet"
     assert report.historical_days_since == 111
-    assert report.other_files == 1  # readme.txt matches neither stream
+    # 18 total - 9 in the newest manifest's run - 8 historical = 1 belonging to neither.
+    # Counted from the run rather than from the manifest alone: with the manifest as the
+    # only forecast match this would read 8, and a residual that counts a healthy
+    # delivery's own shards is the same misleading number C-102 produced, relabelled.
+    assert report.other_files == 1
 
 def test_delivering_when_both_streams_recent():
     fetch = _fake_fetch(_responses(FRESH_FORECAST_DOC, FRESH_HISTORICAL_DOC, FRESH_OVERALL_DOC))
@@ -143,12 +173,13 @@ def test_skip_when_no_credentials(no_machine_credentials):
 # ── raw facts + redaction ─────────────────────────────────────────────
 
 def test_render_facts_and_redaction():
-    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
     text = render(UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW))
     lines = text.strip().splitlines()
     assert all(":" in line for line in lines)
     assert SENTINEL_KEY not in text
-    assert any("forecast_dataset_20260310_114703.parquet" in line for line in lines)
+    assert any("old_run_20260310_114703__manifest.json" in line for line in lines)
     assert any("DELIVERY_STALLED" in line for line in lines)
 
 
@@ -162,7 +193,8 @@ def test_exit_zero_skip(no_machine_credentials, capsys):
     assert main(check=UnfaoDeliveryCheck(credentials=None, fetch=_fake_fetch({})), now=NOW) == 0
 
 def test_exit_one_stalled(capsys):
-    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+    fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
     assert main(check=UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch), now=NOW) == 1
 
 @pytest.mark.red
@@ -254,7 +286,8 @@ class TestTheThresholdIsDerivedFromTheDeclaration:
     def test_the_default_bound_is_what_the_delivery_declares(self):
         from deliveries.un_fao import REQUIRE
 
-        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
         report = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW)
         assert report.max_age_days == REQUIRE.max_age.count * 30
 
@@ -265,7 +298,8 @@ class TestTheThresholdIsDerivedFromTheDeclaration:
         131 days. Under a 200-day bound that is DELIVERING; under 60 it is STALLED.
         Same data, same clock, different declaration.
         """
-        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
         lenient = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch, max_age_days=200).run(now=NOW)
         strict = UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch, max_age_days=60).run(now=NOW)
 
@@ -276,7 +310,8 @@ class TestTheThresholdIsDerivedFromTheDeclaration:
     def test_render_says_which_bound_was_used(self):
         """An operator reading the output must be able to tell it is the declared
         one, not a number the tool invented."""
-        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC))
+        fetch = _fake_fetch(_responses(REAL_FORECAST_DOC, REAL_HISTORICAL_DOC, REAL_OVERALL_DOC,
+                                   run=REAL_RUN_DOC))
         text = render(UnfaoDeliveryCheck(credentials=CREDS, fetch=fetch).run(now=NOW))
         assert "max_age_days" in text
         assert "deliveries/un_fao.py" in text
@@ -329,3 +364,95 @@ class TestCredentialSkipIsUnaffected:
         """A silent pass here would report 'delivering' having read nothing (C-75)."""
         report = UnfaoDeliveryCheck(credentials=None, fetch=_fake_fetch({})).run(now=NOW)
         assert report.verdict == "SKIP_NO_CREDENTIALS"
+
+
+# ── the guard C-102 needed: the module's queries, run against real bucket contents ──
+
+
+#: A faithful sample of what `unfao_bucket` held on 2026-08-24 — 108 shards, a sidecar,
+#: the ADR-013 manifest, and the historical artifact. Trimmed to 6 shards; the count is
+#: irrelevant to what this guards, the NAMES are the point.
+REAL_BUCKET_LISTING = (
+    [{"$id": f"s{i}", "$createdAt": "2026-08-13T06:00:30.000+00:00",
+      "name": f"{STEM}__lr_ged_sb__m{559 + i:06d}.arrow.parquet", "sizeOriginal": 920_000}
+     for i in range(6)]
+    + [{"$id": "sc", "$createdAt": "2026-08-13T06:00:42.000+00:00",
+        "name": f"{STEM}__sidecar.parquet", "sizeOriginal": 850_000},
+       {"$id": "mf", "$createdAt": "2026-08-13T06:00:43.000+00:00",
+        "name": MANIFEST, "sizeOriginal": 26_544},
+       {"$id": "h", "$createdAt": "2026-08-13T06:00:55.000+00:00",
+        "name": "historical_dataset_20260813_080043.parquet", "sizeOriginal": 171_838_903}]
+)
+
+
+def _appwrite_like_fetch(listing):
+    """A fake that PARSES the query and filters, instead of pattern-matching the URL.
+
+    This is the difference between a fixture and a guard. The previous fake keyed on the
+    literal prefix constants the module supplies, so it answered whatever the module
+    asked and the test asserted that the tool agreed with itself. It stayed green for
+    months while `forecast_dataset_` matched nothing in the real bucket, because the
+    capture it was built from was faithful to **2026-03** and the naming had moved to the
+    ADR-013 manifest (C-102, #411).
+
+    Here the module's real query is decoded and applied to real file names. A matcher that
+    does not match reality returns nothing and the verdict goes to NEVER_DELIVERED — which
+    is exactly the failure that went unseen.
+    """
+    import json
+    from urllib.parse import parse_qs, unquote, urlparse
+
+    def fetch(url, headers):
+        assert headers["X-Appwrite-Key"] == SENTINEL_KEY
+        if "/buckets/unfao_bucket" in url and "/files" not in url:
+            return {"$id": "unfao_bucket"}
+        raw = parse_qs(urlparse(url).query).get("queries[]", [])
+        queries = [json.loads(unquote(q)) for q in raw]
+        files, limit = list(listing), None
+        for q in queries:
+            method, values = q.get("method"), q.get("values") or []
+            if method == "startsWith":
+                files = [f for f in files if f["name"].startswith(values[0])]
+            elif method == "endsWith":
+                files = [f for f in files if f["name"].endswith(values[0])]
+            elif method == "orderDesc":
+                files = sorted(files, key=lambda f: f["$createdAt"], reverse=True)
+            elif method == "limit":
+                limit = values[0]
+        total = len(files)
+        return {"total": total, "files": files[:limit] if limit else files}
+
+    return fetch
+
+
+class TestTheSurfaceFindsWhatIsActuallyInTheBucket:
+    """Every assertion here is against real 2026-08-24 file names, not a restated constant."""
+
+    def test_a_real_delivery_reads_as_delivering(self):
+        report = UnfaoDeliveryCheck(
+            credentials=CREDS, fetch=_appwrite_like_fetch(REAL_BUCKET_LISTING)
+        ).run(now=datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc))
+        assert report.forecast_verdict == "DELIVERING", (
+            "the forecast stream is invisible to this surface against real bucket "
+            "contents — the C-102 failure, which reported NEVER_DELIVERED over 110 "
+            "delivered files"
+        )
+        assert report.verdict == "DELIVERING"
+        assert report.forecast_newest_name == MANIFEST
+
+    def test_the_residual_does_not_count_the_delivery_itself(self):
+        """`other_files` must mean "belongs to neither stream", not "is not the manifest"."""
+        report = UnfaoDeliveryCheck(
+            credentials=CREDS, fetch=_appwrite_like_fetch(REAL_BUCKET_LISTING)
+        ).run(now=datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc))
+        assert report.other_files == 0, (
+            f"{report.other_files} files read as belonging to neither stream, but every "
+            f"file in this listing belongs to the forecast run or the historical stream"
+        )
+
+    def test_an_empty_bucket_still_reads_as_never_delivered(self):
+        """The verdict must remain reachable in both directions, or it asserts nothing."""
+        report = UnfaoDeliveryCheck(
+            credentials=CREDS, fetch=_appwrite_like_fetch([])
+        ).run(now=datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc))
+        assert report.forecast_verdict == "NEVER_DELIVERED"
