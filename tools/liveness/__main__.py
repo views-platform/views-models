@@ -15,6 +15,7 @@ from typing import Callable, List, Optional, Tuple
 
 from tools.liveness import (
     appwrite_store,
+    crafd_delivery,
     datafactory_input,
     old_api,
     unfao_delivery,
@@ -28,6 +29,7 @@ SURFACES: Tuple[Tuple[str, Callable[[], int]], ...] = (
     ("datafactory_input", datafactory_input.main),
     ("appwrite_store", appwrite_store.main),
     ("unfao_delivery", unfao_delivery.main),
+    ("crafd_delivery", crafd_delivery.main),
     ("wandb_execution", wandb_execution.main),
     ("vpn_store", vpn_store.main),
 )

@@ -18,6 +18,7 @@ conda run -n views_pipeline python -m tools.liveness.old_api
 conda run -n views_pipeline python -m tools.liveness.datafactory_input
 conda run -n views_pipeline python -m tools.liveness.appwrite_store
 conda run -n views_pipeline python -m tools.liveness.unfao_delivery
+conda run -n views_pipeline python -m tools.liveness.crafd_delivery
 conda run -n views_pipeline python -m tools.liveness.wandb_execution
 conda run -n views_pipeline python -m tools.liveness.vpn_store
 ```
@@ -68,6 +69,13 @@ metadata collection exist?
   which produced a false-idle verdict on 2026-07-19).
 - `STORE_IDLE` — nothing new in 45 days.
 - `SKIP_NO_CREDENTIALS` / `CREDENTIALS_INCOMPLETE` / `UNREACHABLE`.
+
+### `crafd_delivery` — the CRAF'd partner bucket (`crafd_bucket`)
+
+Same two streams as `unfao_delivery`, and deliberately a near-copy of it: 14 differing
+lines in 269 once the consumer name is normalised. Registered as **C-141** with a named
+trigger rather than extracted, because this is the *second* partner surface and the rule
+below waited for six. Added #413, after #399 armed the delivery.
 
 ### `unfao_delivery` — the FAO partner bucket (`unfao_bucket`)
 When did FAO last receive anything, per stream (`forecast_dataset_*` and

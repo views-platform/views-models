@@ -41,12 +41,13 @@ string — never narration.
   *first* (so an unregistered verdict raises loud before a half-block prints — C-101/P7), then prints
   one fact per line, then returns the exit code. Guarded by `if __name__ == "__main__"`.
 
-**The six surfaces** (epic #238; verdict catalogue in `tools/liveness/README.md`):
+**The seven surfaces** (epic #238, plus `crafd_delivery` from #413; verdict catalogue in `tools/liveness/README.md`):
 
 - `old_api.OldApiCheck` — the public API `api.viewsforecasting.org`: newest fatalities run fresh, and serving rows at **both** `cm` and `pgm` levels.
 - `datafactory_input.*` — the datafactory zarr input store: observed coverage vs the requirement **derived from `meta/partitions.json`** (re-arms on every partition bump — automates the C-96 tripwire).
 - `appwrite_store.*` — the internal Appwrite `production_forecasts` shelf: is anything landing, and does the real metadata collection exist (server-side `orderDesc($createdAt)`, never the 25-per-page default — the #241/#242 false-idle fix).
-- `unfao_delivery.*` — the FAO partner `unfao_bucket`: per-stream freshness of `forecast_dataset_*` and `historical_dataset_*`, judged independently.
+- `unfao_delivery.*` — the FAO partner `unfao_bucket`: per-stream freshness of the ADR-013 `__manifest.json` commit marker and `historical_dataset_*`, judged independently. (Judged the legacy `forecast_dataset_*` name until #411; see C-102.)
+- `crafd_delivery.*` — the CRAF'd partner `crafd_bucket`: same two streams. Added #413, after the delivery was armed in #399 — before that it would have reported `NEVER_DELIVERED` against a bucket the declaration forbade filling.
 - `wandb_execution.*` — did the team actually compute this cycle (execution recency)?
 - `vpn_store.*` — the `gjoll` store behind the VPN: truthful `VPN_REQUIRED` when off-network.
 
@@ -127,7 +128,7 @@ assert exit_code_for(report.verdict) == 0
 
 ## 10. Test Alignment
 
-- Per-surface: `tests/test_liveness_old_api.py`, `..._datafactory_input.py`, `..._appwrite_store.py`, `..._unfao_delivery.py`, `..._wandb_execution.py`, `..._vpn_store.py`.
+- Per-surface: `tests/test_liveness_old_api.py`, `..._datafactory_input.py`, `..._appwrite_store.py`, `..._unfao_delivery.py`, `..._crafd_delivery.py`, `..._wandb_execution.py`, `..._vpn_store.py`.
 - Runner: `tests/test_liveness_runner.py` (crash-containment + `worst_exit`).
 - Adversarial: `tests/test_liveness_falsifications.py` (the falsify-audit fixes, C-101/C-102).
 - Taxonomy: `tests/test_liveness_taxonomy.py` (the ADR-005 `live` marker, C-103).
