@@ -13,11 +13,11 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 96,
+        "hidden_size": 128,
         "decoder_output_dim": 32,
         "temporal_decoder_hidden": 32,
         # Keep temporal projection widths below feature count to avoid expansion overhead.
-        "temporal_width_past": 4,
+        "temporal_width_past": 2,
         "temporal_width_future": 2,
         "temporal_hidden_size_past": 16,
         "temporal_hidden_size_future": 4,
@@ -25,7 +25,7 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.4,
+        "dropout": 0.5,
         "use_static_covariates": True,
 
         # Training
