@@ -8,6 +8,12 @@ A real-viewser-geography build is exercised skip-when-unavailable.
 import numpy as np
 import pytest
 
+from tests.live_deadline import (
+    VIEWSER_DEADLINE_SECONDS,
+    DeadlineExceeded,
+    deadline,
+)
+
 # reconciliation/__init__.py imports composition, which needs pipeline-core's Reconciler
 # port (3.0.0+, unreleased). Guard BEFORE any reconciliation import: placed after one,
 # collection ERRORS instead of skipping, which is what turned CI red (ADR-005 §skip).
@@ -81,6 +87,7 @@ def test_all_zero_country_sample_stays_zero():
 
 
 @pytest.mark.red
+@pytest.mark.live
 def test_real_viewser_geography_wires_end_to_end():
     try:
         import viewser  # noqa: F401
@@ -93,7 +100,11 @@ def test_real_viewser_geography_wires_end_to_end():
     ).Reconciler
     skinny_love = Path(__file__).resolve().parent.parent / "ensembles" / "skinny_love"
     try:
-        reconciler = build_reconciler_for_run(skinny_love)
+        # Bounded — see tests/live_deadline.py and #409.
+        with deadline(VIEWSER_DEADLINE_SECONDS, "viewser geography fetch"):
+            reconciler = build_reconciler_for_run(skinny_love)
+    except DeadlineExceeded as e:  # before the bare Exception — it is one
+        pytest.skip(str(e))
     except Exception as e:  # network/credentials/schema
         pytest.skip(f"viewser geography fetch failed: {type(e).__name__}: {e}")
     assert isinstance(reconciler, reconciler_port)

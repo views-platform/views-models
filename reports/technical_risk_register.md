@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-08-13  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 147 (138 concerns + 9 disagreements)  
-**Concerns:** Open 64 | Mitigated 22 | Resolved 43 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Total entries:** 148 (139 concerns + 9 disagreements)  
+**Concerns:** Open 65 | Mitigated 22 | Resolved 43 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
 **Concerns by tier:** T1 6 | T2 46 | T3 57 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
@@ -1731,6 +1731,19 @@
 | **Status** | Mitigated |
 | **Location** | `postprocessors/un_fao/run.sh:10`, `postprocessors/un_crafd/run.sh:10` (both `POSTPROCESSOR_ENV_NAME="views-postprocessing"`); `tools/launcher/postprocessor.sh:92-93` (the unchecked pip line); `tests/test_launcher_pin_safety.py` (the guard) |
 | **Notes** | Both postprocessors pip-install into the **same conda prefix**, but `intent`/arming is declared **per consumer**. So the safety property "an armed delivery must not run on a fail-open build" was being enforced at the wrong scope: `test_a_disarmed_launcher_stays_disarmed_while_its_pin_is_deficient` correctly passes for a `paused` consumer on a bad pin — and uselessly, because the danger is not to that consumer, it is to its **neighbour**. Concretely, before #391 `un_crafd` pinned `3286eab` (a build in this file's own `DEFICIENT_PINS`, lacking C-79) while `un_fao` was `live`. Running `un_crafd` — the D4 dry run — would have **downgraded the prefix the armed FAO delivery then uses**. Two things make that silent rather than loud: `tools/launcher/postprocessor.sh` has no `set -e` and no `\|\| return 1` on the pip line, so a later reinstall can fail without stopping the run; and the #294 capability assertion still passes on the stale build, because that build also carries `contract/wire`. The end state is C-135 reintroduced on a UN-facing delivery, reported as success. **The PR's own reasoning already contained the argument** — it pins numpy in *both* requirements files with the note "one shared prefix (C-116), so pinning only one lets the other upgrade numpy out from under it" — and then did not apply it to the views-postprocessing pin itself. **Mitigated, not Resolved:** #391 moves `un_crafd` to `1.1.0` and adds `test_no_launcher_can_downgrade_a_shared_prefix_under_an_armed_one`, which asserts that *if any consumer on a prefix is armed, every launcher writing to that prefix must be on a sound pin* — verified to fail when `un_crafd` is re-pinned to the deficient commit. What is **not** fixed is the structure: the prefix is still shared, the pip line is still unchecked, and a third partner inherits the same shape. **Exit:** either a prefix per consumer (costly, and C-116 argues against proliferating environments), or `|| return 1` on the installs in the shared launcher body so a failed reinstall cannot be silent. Cross-refs: **C-135** (the fail-open this would reintroduce, now Resolved), **C-116** (the general shared-environment/run-order concern this is a sharp instance of), **C-134** (the shared launcher body), **C-70**, #364, #333, views-crafdapi #44/#45. |
+
+---
+
+### C-140 — The bound that stops the suite hanging is unverifiable by CI, and its threshold was chosen against a broken backend
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **When viewser's backend is healthy again**, time one real `ViewserCountryMappingProvider(480, 481).build()` and confirm 90s is comfortably above it. Also fires if anyone reports these tests skipping with "did not return within 90s" while the backend is demonstrably up. |
+| **Source** | review of #409 / PR for S1 of epic #412 (2026-08-23) |
+| **Status** | Open |
+| **Location** | `tests/live_deadline.py` (`VIEWSER_DEADLINE_SECONDS = 90`); the four bounded tests in `tests/test_reconciliation_e2e.py`, `tests/test_reconciliation_viewser_provider.py`, `tests/test_un_fao_datafactory_equivalence.py`; `.github/workflows/run_tests.yml:30` |
+| **Notes** | Two residuals from the #409 fix, registered together because they share one cause — **nothing automated ever runs the bounded path.** (a) **CI cannot exercise it.** `run_tests.yml:30` installs only `views_pipeline_core`, `pytest` and `packaging`, so `viewser` and `datafactory_query` are absent and every bounded call short-circuits at `ImportError` before reaching a socket. A green CI is therefore not evidence the bound works; the only machines that execute it are developer machines with the model packages installed, which is the same inversion #409 itself describes. (b) **The threshold is provisional.** 90s was chosen on 2026-08-23 while the backend returned **502 Bad Gateway**, so a *healthy* fetch could not be timed. If a real fetch exceeds 90s these tests skip while the backend is fine — a false negative on a genuine integration guard, and one that reads identically to a real outage. The failure mode is quiet in both halves: the tests skip, the suite is green, and nobody learns the guard stopped guarding. What the fix does establish is bounded and worth keeping separate from the above: the suite completes (404s where it previously ran past a 30-minute kill), and `tests/test_live_deadline.py` proves the mechanism itself — deadline fires, handler restored, timer cancelled, refuses off the main thread, and re-arms so an alarm swallowed by viewser's bare `except:` is not lost — each shown to fail by mutation. Cross-refs: **#409**, **#412** (S1), C-102 (the other place a liveness guard was green and blind). |
 
 ---
 

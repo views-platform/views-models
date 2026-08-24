@@ -37,7 +37,17 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.red
+from tests.live_deadline import (
+    VIEWSER_DEADLINE_SECONDS,
+    DeadlineExceeded,
+    deadline,
+)
+
+pytestmark = [pytest.mark.red, pytest.mark.live]
+
+
+#: One fetch serves all three tests — see `_fetch_pair`.
+_FETCH_STATE: dict = {}
 
 WINDOW = (480, 485)  # fixed 6-month window for deterministic comparison
 REGION = "africa_me_legacy"
@@ -87,7 +97,18 @@ MAX_NET_DIFF_FRACTION = 0.10    # net fatality drift per target, as a fraction o
 
 def _fetch_pair():
     """Fetch (old_viewser, new_datafactory) actuals aligned on (month_id, priogrid_gid).
-    Skips if either data source is unavailable."""
+    Skips if either data source is unavailable.
+
+    **Memoised.** Three tests need the same pair and the fetch is bounded at
+    VIEWSER_DEADLINE_SECONDS, so without this a dead backend costs three deadlines
+    (measured: 271s) instead of one. The pair is read-only and identical for all three —
+    that is why they already shared this helper — so caching changes no verdict."""
+    if "skip" in _FETCH_STATE:
+        # Inherited, not observed here — say so, or the second and third tests read as
+        # three independent confirmations of a failure that was seen once.
+        pytest.skip(f"inherited from the first attempt in this session: {_FETCH_STATE['skip']}")
+    if "pair" in _FETCH_STATE:
+        return _FETCH_STATE["pair"]
     try:
         import pandas as pd  # noqa: F401
         from viewser import Queryset, Column
@@ -104,17 +125,31 @@ def _fetch_pair():
             Column(tgt, from_loa="priogrid_month", from_column=src).transform.missing.replace_na()
         )
     try:
-        old = qs.publish().fetch(start_date=start, end_date=end).sort_index()
+        # Bounded — viewser has no timeout of its own and retries a persistent failure
+        # sys.maxsize times at 5s (#409). datafactory is already bounded at 120s by
+        # backends_zarr._REMOTE_TIMEOUT_SECONDS, so viewser is the one that needs this.
+        with deadline(VIEWSER_DEADLINE_SECONDS, "viewser actuals fetch"):
+            old = qs.publish().fetch(start_date=start, end_date=end).sort_index()
+        # datafactory is NOT inside the bound: it already carries its own 120s
+        # (backends_zarr._REMOTE_TIMEOUT_SECONDS). Wrapping both in one 90s window would
+        # fail a pair that was healthy on each leg — viewser 50s + datafactory 60s is
+        # within both budgets and over the combined bound.
         new = load_dataset(
             region=REGION, features=list(TARGETS),
             start=start, end=end, output_format="dataframe",
             data_dir=DEFAULT_REMOTE.zarr_url,
         )
+    except DeadlineExceeded as e:  # before the bare Exception — it is one
+        _FETCH_STATE["skip"] = str(e)
+        pytest.skip(str(e))
     except Exception as e:  # network/credentials/region failure → can't validate here
-        pytest.skip(f"data fetch failed (viewser/datafactory/.netrc): {type(e).__name__}: {e}")
+        reason = f"data fetch failed (viewser/datafactory/.netrc): {type(e).__name__}: {e}"
+        _FETCH_STATE["skip"] = reason
+        pytest.skip(reason)
 
     rename = {df_col: tgt for df_col, (_src, tgt) in TARGETS.items()}
     new = new.rename(columns=rename).fillna(0.0).astype("float64").sort_index()
+    _FETCH_STATE["pair"] = (old, new)
     return old, new
 
 
