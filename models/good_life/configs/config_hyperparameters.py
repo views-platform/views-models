@@ -15,11 +15,11 @@ def get_hp_config():
         "detect_anomaly": False,
         "time_steps": 36,  # Checksum: Must match len(steps)
 
-        "activation": "ReGLU",
+        "activation": "GELU",
         "batch_size": 128,
-        "d_model": 64,
-        "dim_feedforward": 128,
-        "dropout": 0.30,
+        "d_model": 96,
+        "dim_feedforward": 256,
+        "dropout": 0.25,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 12,
         "feature_scaler": None,
@@ -75,7 +75,7 @@ def get_hp_config():
         #     # ]
         # },
         "force_reset": True,
-        "gradient_clip_val": 1.0,
+        "gradient_clip_val": 10.0,
         "input_chunk_length": 36,
         "loss_function": "SpotlightLossLogcosh",
         "non_zero_threshold": 0.88,
@@ -105,14 +105,14 @@ def get_hp_config():
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
             "lr": 1e-4,
-            "weight_decay": 5e-3,
+            "weight_decay": 1e-5,
         },
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
         "random_state": 67,
         "target_scaler": "AsinhTransform",
         "use_reversible_instance_norm": True,
-        "weight_decay": 5e-3,
+        "weight_decay": 1e-5,
 
         # Encoders
         "use_cyclic_encoders": False,
