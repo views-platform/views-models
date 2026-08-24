@@ -25,7 +25,13 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 # that a later reinstall succeeded (no set -e, no `|| return 1`), while the #294 capability
 # assertion passes on the stale build anyway. That is a live path back to C-135 on the
 # armed FAO delivery. Same shared-prefix argument as the numpy pin in requirements.txt.
-VIEWS_POSTPROCESSING_PIN="1.1.0"
+#
+# Moved again to `1.1.1` on 2026-08-24 (#403), for the same shared-prefix reason one step
+# on: 1.1.0 fixed the UPLOAD gap and still carried a DOWNLOAD one (views-postprocessing
+# #268) — the defect that killed this launcher's first delivery attempt on 2026-08-13.
+# Both launchers moved together; leaving either on 1.1.0 re-creates the downgrade path
+# described above, now with un_crafd armed as well.
+VIEWS_POSTPROCESSING_PIN="1.1.1"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh

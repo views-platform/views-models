@@ -56,6 +56,15 @@ DELIVERY = Delivery(               # DECIDES  — change a line, something diffe
     # (this launcher was pinned to 3286eab, whose upload check fails open, on a prefix
     # shared with the armed FAO delivery — C-139).
     #
+    # A FIFTH, and the most recent: their 2026-08-13 attempt died on
+    # views-postprocessing#268 — the store port's `download` chained `.get()` onto an
+    # unvalidated result, so a present-and-null `data` raised AttributeError three frames
+    # away, naming neither the file_id nor the failed download. Fixed by moving both
+    # launchers to `1.1.1` (views-models#403, S2 of #412) — both, because they share one
+    # conda prefix, so moving only this one would leave the armed FAO leg on the defect.
+    # Verified before merging this: with both deliveries armed on 1.1.1 the pin-safety
+    # guards pass 6/6; on 1.1.0 they fail 4/6. That is why #403 had to land first.
+    #
     # `paused` stays imported: disarming is one word, and the reason to reach for it is
     # exactly the kind of moment when you do not want to be editing an import list.
     intent    = live(since=date(2026, 8, 14)),
