@@ -194,6 +194,48 @@ def stream_newest_query(prefix: str) -> str:
     return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
 
 
+def stream_newest_suffix_query(suffix: str) -> str:
+    """Appwrite query string: newest file whose name ENDS with ``suffix``.
+
+    Sibling of `stream_newest_query`, which matches a prefix. Both exist because the two
+    things a delivery surface must find are named at opposite ends: the historical
+    artifact carries a stable *prefix* (`historical_dataset_`), while the ADR-013 commit
+    marker carries a stable *suffix* (`__manifest.json`) behind a run stem that includes
+    the source model and a timestamp.
+
+    Matching the suffix is what keeps this surface out of the business of knowing which
+    model produced the forecast. `rusty_bucket` is a model that can be replaced;
+    `__manifest.json` is the wire convention. C-102 is what happens when a surface
+    hardcodes the former: `forecast_dataset_` matched nothing for months and the check
+    reported NEVER_DELIVERED over 110 delivered files.
+    """
+    import json as _json
+    from urllib.parse import quote as _quote
+
+    queries = (
+        {"method": "endsWith", "attribute": "name", "values": [suffix]},
+        {"method": "orderDesc", "attribute": "$createdAt"},
+        {"method": "limit", "values": [1]},
+    )
+    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
+
+
+def count_with_prefix_query(prefix: str) -> str:
+    """Appwrite query string: how many files share ``prefix``. Body carries `total`.
+
+    Used to count a delivery run's own files once its manifest has identified the run,
+    so `other_files` stays a real residual instead of counting the run itself.
+    """
+    import json as _json
+    from urllib.parse import quote as _quote
+
+    queries = (
+        {"method": "startsWith", "attribute": "name", "values": [prefix]},
+        {"method": "limit", "values": [1]},
+    )
+    return "&".join("queries[]=" + _quote(_json.dumps(q)) for q in queries)
+
+
 def assert_bucket_reachable(
     endpoint: str,
     bucket_id: str,
