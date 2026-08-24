@@ -17,9 +17,9 @@ def get_hp_config():
 
         "activation": "ReLU",
         "batch_size": 128,
-        "d_model": 64,
-        "dim_feedforward": 256,
-        "dropout": 0.4,
+        "d_model": 32,
+        "dim_feedforward": 128,
+        "dropout": 0.25,
         "early_stopping_min_delta": 0.001,
         "early_stopping_patience": 12,
         "feature_scaler": None,
@@ -99,8 +99,8 @@ def get_hp_config():
         # Deep encoder/decoder stacks allow more refined temporal mixing.
         "nhead": 4,
         "norm_type": "LayerNorm",
-        "num_decoder_layers": 2,
-        "num_encoder_layers": 2,
+        "num_decoder_layers": 1,
+        "num_encoder_layers": 1,
         "optimizer_cls": "AdamW",
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
