@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-08-13  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 148 (139 concerns + 9 disagreements)  
-**Concerns:** Open 65 | Mitigated 22 | Resolved 43 | Accepted 3 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Total entries:** 149 (140 concerns + 9 disagreements)  
+**Concerns:** Open 65 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
 **Concerns by tier:** T1 6 | T2 46 | T3 57 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
@@ -1744,6 +1744,19 @@
 | **Status** | Open |
 | **Location** | `tests/live_deadline.py` (`VIEWSER_DEADLINE_SECONDS = 90`); the four bounded tests in `tests/test_reconciliation_e2e.py`, `tests/test_reconciliation_viewser_provider.py`, `tests/test_un_fao_datafactory_equivalence.py`; `.github/workflows/run_tests.yml:30` |
 | **Notes** | Two residuals from the #409 fix, registered together because they share one cause — **nothing automated ever runs the bounded path.** (a) **CI cannot exercise it.** `run_tests.yml:30` installs only `views_pipeline_core`, `pytest` and `packaging`, so `viewser` and `datafactory_query` are absent and every bounded call short-circuits at `ImportError` before reaching a socket. A green CI is therefore not evidence the bound works; the only machines that execute it are developer machines with the model packages installed, which is the same inversion #409 itself describes. (b) **The threshold is provisional.** 90s was chosen on 2026-08-23 while the backend returned **502 Bad Gateway**, so a *healthy* fetch could not be timed. If a real fetch exceeds 90s these tests skip while the backend is fine — a false negative on a genuine integration guard, and one that reads identically to a real outage. The failure mode is quiet in both halves: the tests skip, the suite is green, and nobody learns the guard stopped guarding. What the fix does establish is bounded and worth keeping separate from the above: the suite completes (404s where it previously ran past a 30-minute kill), and `tests/test_live_deadline.py` proves the mechanism itself — deadline fires, handler restored, timer cancelled, refuses off the main thread, and re-arms so an alarm swallowed by viewser's bare `except:` is not lost — each shown to fail by mutation. Cross-refs: **#409**, **#412** (S1), C-102 (the other place a liveness guard was green and blind). |
+
+---
+
+### C-141 — Two partner delivery surfaces are 95% the same file, so a shared bug costs two fixes
+
+| Field | Value |
+|---|---|
+| **Tier** | 4 |
+| **Trigger** | **A THIRD partner delivery surface**, or **any bug that has to be fixed in both `unfao_delivery.py` and `crafd_delivery.py`.** Either one is the moment to extract; until then this is a recorded choice rather than an oversight. |
+| **Source** | S5 of epic #412 (2026-08-24), measured while adding the CRAF'd surface |
+| **Status** | Accepted |
+| **Location** | `tools/liveness/unfao_delivery.py`, `tools/liveness/crafd_delivery.py` |
+| **Notes** | Measured, not estimated: **14 differing lines in 269** once the consumer name is normalised. The two differ in bucket id, consumer string, class name, surface name and docstring — nothing structural. Copied rather than extracted for three reasons, none of them "it seemed easier". (1) `tools/liveness/README.md:131-140` records the house rule — shared code here was extracted only after **six** surfaces demonstrably duplicated it, and this is the **second** partner surface; WET-before-DRY says duplication is fine at the second occurrence. (2) Extracting would have refactored `unfao_delivery.py` **the same day #416 changed it**, plus its 26 tests, at the end of a five-story sprint — destabilising freshly-verified work for an abstraction the repo's own rule says to wait on. (3) The shape is now *proven* on two live buckets rather than guessed, which means extraction later will be cheap and correct; extraction now would have been both. **The cost is real and already demonstrated:** C-102 (#411) was a bug in exactly this code. Had the CRAF'd surface existed before #416, the fix would have been needed twice — and a copy made *before* #416 would have inherited a matcher reporting `NEVER_DELIVERED` over a healthy delivery. That is why S5 was sequenced after S4. Cross-refs: **#413**, **#412** (S5), **C-102**, `tools/liveness/README.md` (the six-duplications rule). |
 
 ---
 

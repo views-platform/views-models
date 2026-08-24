@@ -3,7 +3,7 @@
 TDD for the WET->DRY consolidation. Extraction covers ONLY what >=2 checks
 demonstrably duplicated: the fact renderer, the Appwrite API helpers
 (credentials/fetch/query builders), and the verdict->exit-code map. The
-aggregate runner composes the six checks' mains: one raw-facts block per
+aggregate runner composes the checks' mains: one raw-facts block per
 surface, exit code = worst verdict, SKIP verdicts non-fatal.
 """
 
@@ -61,10 +61,16 @@ def test_worst_exit():
 
 # ── the aggregate runner ──────────────────────────────────────────────
 
-def test_registry_covers_all_six_surfaces():
+def test_registry_covers_every_surface():
+    """Exact list, in order — a set comparison would not notice a surface going missing
+    and being replaced by a new one, which is the regression that matters here.
+
+    `crafd_delivery` joined 2026-08-24 (#413): the CRAF'd delivery was armed on 08-14 and
+    had no instrument until then.
+    """
     assert [name for name, _ in SURFACES] == [
         "old_api", "datafactory_input", "appwrite_store",
-        "unfao_delivery", "wandb_execution", "vpn_store",
+        "unfao_delivery", "crafd_delivery", "wandb_execution", "vpn_store",
     ]
 
 def test_run_all_prints_blocks_and_returns_worst(capsys):
@@ -94,7 +100,7 @@ def test_run_all_survives_a_crashing_check(capsys):
     assert "check exploded" in out        # reported as a fact, not swallowed
 
 
-# ── behavior preservation: the six mains still exist and are callable ──
+# ── behavior preservation: every main still exists and is callable ──
 
 def test_all_surface_mains_importable():
     for name, main_callable in SURFACES:
@@ -103,9 +109,9 @@ def test_all_surface_mains_importable():
 
 @pytest.mark.beige
 def test_structural_conventions_runner():
-    """ADR-005 beige: registry structure — six uniquely named surfaces, all
+    """ADR-005 beige: registry structure — uniquely named surfaces, all
     runnable, in the canonical order."""
     names = [name for name, _ in SURFACES]
     assert names == ["old_api", "datafactory_input", "appwrite_store",
-                     "unfao_delivery", "wandb_execution", "vpn_store"]
+                     "unfao_delivery", "crafd_delivery", "wandb_execution", "vpn_store"]
     assert all(callable(run_main) for _, run_main in SURFACES)
