@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-08-13  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 149 (140 concerns + 9 disagreements)  
-**Concerns:** Open 65 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Total entries:** 150 (141 concerns + 9 disagreements)  
+**Concerns:** Open 66 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
 **Concerns by tier:** T1 6 | T2 46 | T3 57 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
@@ -1757,6 +1757,19 @@
 | **Status** | Accepted |
 | **Location** | `tools/liveness/unfao_delivery.py`, `tools/liveness/crafd_delivery.py` |
 | **Notes** | Measured, not estimated: **14 differing lines in 269** once the consumer name is normalised. The two differ in bucket id, consumer string, class name, surface name and docstring — nothing structural. Copied rather than extracted for three reasons, none of them "it seemed easier". (1) `tools/liveness/README.md:131-140` records the house rule — shared code here was extracted only after **six** surfaces demonstrably duplicated it, and this is the **second** partner surface; WET-before-DRY says duplication is fine at the second occurrence. (2) Extracting would have refactored `unfao_delivery.py` **the same day #416 changed it**, plus its 26 tests, at the end of a five-story sprint — destabilising freshly-verified work for an abstraction the repo's own rule says to wait on. (3) The shape is now *proven* on two live buckets rather than guessed, which means extraction later will be cheap and correct; extraction now would have been both. **The cost is real and already demonstrated:** C-102 (#411) was a bug in exactly this code. Had the CRAF'd surface existed before #416, the fix would have been needed twice — and a copy made *before* #416 would have inherited a matcher reporting `NEVER_DELIVERED` over a healthy delivery. That is why S5 was sequenced after S4. Cross-refs: **#413**, **#412** (S5), **C-102**, `tools/liveness/README.md` (the six-duplications rule). |
+
+---
+
+### C-142 — The CIC sync gate fails on the release PR while the contract it guards is satisfied
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | **Any `development` → `main` release PR** — it is red today on #410 and will be red on the next one. Also fires if anyone reaches for `[cic-skip]` to get past it, which would spend a documented escape hatch (reserved for "purely cosmetic" changes) on a 448-commit release that is not cosmetic. |
+| **Source** | release review of #410 (2026-08-24) |
+| **Status** | Open |
+| **Location** | `.github/workflows/cic_sync_check.yml` |
+| **Notes** | The gate reports all nine CIC-governed pairs as missing on #410. **The contract is satisfied.** Verified by running the workflow's own script verbatim, with its own `BASE` (`120ff879`) and the merge commit its log records checking out (`86472880`): 1354 changed files, every governed source paired with its updated CIC, result **PASS**. CI reports FAIL on the same inputs, deterministically across two re-runs — so it is not a race. The failure shape is specific and is the clue: CI evidently sees the *source* files in `CHANGED_FILES` (otherwise nothing would be reported) but not the `docs/CICs/*.md` files, which are demonstrably in the same diff. Cause not established, and this entry does not guess one. **One fact narrows it, observed 2026-08-24:** the same workflow **passes** on every `development`-based PR of this sprint — including #418, which carries this very entry — and fails only on the `main`-based release PR. So the difference tracks the BASE, not the content: whatever `git diff "$BASE"...HEAD` resolves to when the base is a two-month-old `main` is not what it resolves to locally, while the same expression against a recent `development` base is fine. **Why Tier 2 rather than 3:** a gate that fails when the thing it guards is correct trains people to override it, and the override here is a title token that silently disables the check for the whole PR. That converts a real ADR-006 guard into a formality on exactly the changesets — releases — where the most CIC-governed code moves at once. It is also cluster-G shaped: a check believed to be protecting something while its verdict is uninformative. **Second, separable observation:** even working correctly, this gate is a *per-change* rule applied to a *release aggregate*. Every commit in #410 already passed it on its own PR, so re-running it across 448 commits can only produce noise or false failure — arguably the workflow should not fire on `main`-based PRs at all. That is a design question for the workflow's owner, not a fix to make while unblocking a release. Cross-refs: **#410**, ADR-006, `docs/CICs/`. |
 
 ---
 
