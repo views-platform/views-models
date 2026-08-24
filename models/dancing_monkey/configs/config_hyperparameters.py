@@ -25,14 +25,14 @@ def get_hp_config():
         "n_epochs": 300,
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
-        "early_stopping_patience": 4,
+        "early_stopping_patience": 8,
         "early_stopping_min_delta": 0.0003,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 0.0001,
-        "weight_decay": 0.02,
+        "weight_decay": 0.01,
         "gradient_clip_val": 1.0,
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -52,7 +52,7 @@ def get_hp_config():
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
             "lr": 0.0001,
-            "weight_decay": 0.02,
+            "weight_decay": 0.01,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
@@ -131,11 +131,11 @@ def get_hp_config():
 
         # TSMixer Architecture
         "num_blocks": 2,
-        "hidden_size": 48,
-        "ff_size": 96,
-        "activation": "GELU",
+        "hidden_size": 64,
+        "ff_size": 128,
+        "activation": "ReLU",
         "norm_type": "LayerNorm",
-        "normalize_before": False,
+        "normalize_before": True,
         "dropout": 0.5,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
