@@ -1,6 +1,8 @@
 # ADR-019: The delivery declaration — one file per consumer
 
-**Status:** **Accepted** (2026-08-04) — **amended 2026-08-04** (`live()` → `live(since=…)`, §3)
+**Status:** **Accepted** (2026-08-04) — **amended 2026-08-04** (`live()` → `live(since=…)`, §3);
+**amended 2026-08-25** (four documentation corrections from the #420 falsification: §1's example, §3/§7
+on `monthly_run.sh`, §4's "where these run", §5's scope — #425. No rule changed.)
 **Date:** 2026-08-04
 **Deciders:** Simon (maintainer)
 **Builds on:** **ADR-017**, which decides that delivery is a `sources → consumer` edge written on the
@@ -34,9 +36,17 @@ which decides only what is refused.
 
 ## 1. The file
 
-**An example**, not a specification of a real delivery. `un_ocha`, `skinny_love` and `land_gaul` are
-names that could exist; `fat_smooch` is invented, precisely so that nothing here reads as a statement
-about a delivery we actually make.
+**An example**, not a specification of a real delivery. `un_ocha`, `slim_chance`, `fat_smooch` and
+`land_gaul` are names that could exist, precisely so that nothing here reads as a statement about a
+delivery we actually make.
+
+**Both source names are invented (amended 2026-08-25, #425).** This example previously named
+`skinny_love`, which is real — and which declares one target, `lr_ged_sb`
+(`ensembles/skinny_love/configs/config_meta.py`), while the example asserts three. The note above once
+said names are real *"where possible, because concrete examples are easier to read than placeholders"*;
+a real name carrying a real constraint the example violates is the one case where that trade-off bites.
+The example also does not say **which source provides which target** — a two-source three-target
+delivery has no way to express that today. That gap is the subject of #424.
 
 ```python
 # deliveries/<consumer>.py         <- the filename is the consumer
@@ -44,7 +54,7 @@ about a delivery we actually make.
 from datetime import date
 
 DELIVERY = Delivery(               # DECIDES  — change a line, something different happens
-    send      = [pgm("skinny_love"),
+    send      = [pgm("slim_chance"),
                  cm("fat_smooch")],
     frequency = monthly,
     tier      = prod,
@@ -59,7 +69,7 @@ REQUIRE = Require(                 # REFUSES  — change a line, a different set
 )
 ```
 
-Read aloud: *"we send skinny_love and fat_smooch to OCHA, monthly, to a production consumer, switched on
+Read aloud: *"we send slim_chance and fat_smooch to OCHA, monthly, to a production consumer, switched on
 since 4 August; they must be reconciled with each other, carry these three targets, cover land_gaul, and
 be no older than two months."*
 
@@ -155,10 +165,17 @@ It also answers the simpler case: a country-level-only delivery names one countr
 nothing — a silent non-delivery, the exact failure ADR-017 exists to prevent — or picked up by
 everything, so a weekly runner ships monthly products.
 
-Requiring it does something further: **`monthly_run.sh` stops being a hand-kept list of five paths and
-becomes a filter over declarations.** What runs, and in what order, is then derived from the same
-declarations a human reads, rather than typed a second time. Today's order is an unstated data
-dependency (register C-122); this removes the need to state it.
+Requiring it is also what would let **`monthly_run.sh` stop being a hand-kept list of five paths and
+become a filter over declarations** — what runs, and in what order, derived from the same declarations
+a human reads rather than typed a second time. Today's order is an unstated data dependency (register
+C-122); a filter would remove the need to state it.
+
+**That filter does not exist (amended 2026-08-25, #425).** This paragraph and §7 previously described
+it in a tense that read as achieved, while §7's own "Not decided here" said the opposite. Measured:
+`monthly_run.sh` contains **zero** references to `deliveries/` or `frequency`, and still ends in a
+hand-written block of `run_folder` calls. Worse, `postprocessors/un_crafd` is not among them although
+`deliveries/un_crafd.py` is `live()` — so there is a live, armed delivery the monthly path cannot run.
+`frequency` makes the filter *possible*; it does not make it *exist*.
 
 *Why a key with one value:* the alternative is no key, and then a second cadence — a weekly internal
 run, a quarterly partner — is a schema change touching every existing file rather than one new word.
@@ -268,12 +285,26 @@ unchanged and remain there.
   while a complete forecast sat unshipped (#320, C-121).
 - **Tier.** A delivery to a `prod` consumer requires every source to be `graduate` (ADR-017 §5).
 
-**Where these run.** All of them are answerable inside this repository, at edit time, except `targets`
-and `coverage` — see ADR-020 §4 and §6 below.
+**Where these run.** Freshness, Level, Reconciliation and Tier are answerable inside this repository at
+edit time. `targets` and `coverage` are not — see ADR-020 §4 and §6 below.
 
-## 5. Serving-time curation — the FAO approve / quarantine lists
+**Resolution is answerable here only in part (amended 2026-08-25, #425).** It resolves a *source* name
+against `models/` and `ensembles/`, which is in-repo. It does **not** establish that the *consumer* is
+real: §3 above says so plainly — *"there is no edit-time check that a consumer is real … answered by the
+platform coordinate registry at run time — one repo away and later."* This summary previously read as
+though only `targets` and `coverage` left the repository. Three things do.
+
+## 5. Serving-time curation — the approve / quarantine lists
 
 *(Moved unchanged from ADR-017 §4d; it is delivery-side, not axis-side.)*
+
+**This is a per-consumer pattern, not an FAO arrangement (amended 2026-08-25, #425).** It is written
+below in FAO's variables because FAO was the first consumer to need it; a second consumer already has
+the same mechanism. views-crafdapi defines `APPWRITE_CRAFD_APPROVED_FILE_IDS` and
+`APPWRITE_CRAFD_QUARANTINED_FILE_IDS` — `src/views_crafdapi/managers/prediction/quarantine.py`,
+documented in its `docs/CICs/PredictionStoreManager.md` — with the same semantics: read at selection
+time, unset or empty meaning unrestricted. **A new consumer should expect to need its own pair**, named
+for itself, rather than reading this section as something FAO alone has.
 
 Two variables govern *which already-delivered artifacts* the FAO serving layer may return:
 `APPWRITE_UNFAO_APPROVED_FILE_IDS` and `APPWRITE_UNFAO_QUARANTINED_FILE_IDS`. Despite the `APPWRITE_`
@@ -316,7 +347,8 @@ time.
 
 **Positive:** "what goes where" collapses from three files in two repositories plus a live bucket query
 into one file; a delivery can be read and tested without executing it; `monthly_run.sh`'s hidden
-ordering dependency becomes derivable; a paused delivery cannot be silent.
+ordering dependency becomes *derivable* — derivable, not derived: see §3 and "Not decided here" below;
+a paused delivery cannot be silent.
 
 **Negative:** one more directory to know about. The vocabulary is a small language someone must learn
 before writing their first line — mitigated only by the errors ADR-020 requires. And `targets` and

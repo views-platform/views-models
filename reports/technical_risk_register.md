@@ -1534,8 +1534,20 @@
 | Field | Value |
 |---|---|
 | **Tier** | 2 |
-| **Trigger** | Adding a producer *below* its consumer in `monthly_run.sh`, or reordering the existing five lines. Concretely: adding `rusty_bucket` after the `un_fao` line rather than before it. |
+| **Trigger** | Adding a producer *below* its consumer in `monthly_run.sh`, or reordering the existing five lines. Concretely: adding `rusty_bucket` after the `un_fao` line rather than before it. **Extended 2026-08-25 (#425):** also **arming a delivery without adding its launcher to the list** — the same hand-kept-list root cause, failing by omission rather than by order. |
 | **Source** | expert-code-review of the delivery composition (2026-08-04) |
+
+> **Second symptom, observed 2026-08-25 (#425): omission, not just order.** `deliveries/un_crafd.py` has
+> been `live(since=2026-08-14)` since #399, and `postprocessors/un_crafd` **is not in `monthly_run.sh` at
+> all** — so there is an armed, production-tier delivery the monthly path cannot run. `rusty_bucket`, which
+> `un_fao` is declared to consume, is likewise absent. The register's earlier summary of this composition —
+> *"produces four forecasts nobody delivers and delivers one forecast nobody just made"* — now has a third
+> clause: and does not deliver one that is armed.
+>
+> Same root cause, which is why this is an extension rather than a new entry: the list is typed, not derived.
+> ADR-019 §3 and §7 claimed `frequency` had already made it *"a filter over declarations"*; measured, it
+> contains **zero** references to `deliveries/` or `frequency`. That claim was corrected in the ADR by #425;
+> **building the filter is not done, and is what would close this entry rather than patch it.**
 | **Status** | Open |
 | **Location** | `monthly_run.sh` — the five `run_folder` lines; `postprocessors/un_fao/configs/config_meta.py` (`"ensemble"`); `views-postprocessing/unfao/product.py` (`UPLOAD_ENABLED`) |
 | **Notes** | `un_fao` consumes what the ensembles produce, and that dependency is encoded **only** as line order in a shell script. Getting it wrong raises nothing: the consumer simply delivers a previous run. **Everything beneath this point injects its dependencies** — `_ContractStorePort` is an explicit DIP port, `contract/` and `delivery/` are partner-neutral and a test proves it — while the composition root hard-codes five concrete paths in a fixed sequence. The three files that must agree to deliver a forecast live in two repositories with no reference between them. Related: **13 ensembles exist and only 4 are in `monthly_run.sh`**; the one `un_fao` is configured to consume, `rusty_bucket`, is **not among them**, so "run everything monthly" produces four forecasts nobody delivers and delivers one forecast nobody just made. **Deliberately not fixed yet.** A declared composition is an abstraction over exactly one instance in this repo, and the maintainer's rule is to extract on a second incident behind a named trigger. **The named trigger: when a second partner delivery needs a production run in views-models.** The scar already exists one repo away — views-postprocessing #211, *"every partner-scoped guard was scoped to ONE partner"*, fixed there with a declared list asserted against the filesystem (`tests/conftest.py::PARTNER_PACKAGES`), not a framework. That is the shape to copy when the trigger fires. Cross-refs: **C-99**, **C-97**, **C-121**, **C-120** (same bug class: a general mechanism guarded for one subject). |
