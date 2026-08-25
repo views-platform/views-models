@@ -2,7 +2,9 @@
 
 **Status:** **Accepted** (2026-08-04) — **amended 2026-08-04** (`live()` → `live(since=…)`, §3);
 **amended 2026-08-25** (four documentation corrections from the #420 falsification: §1's example, §3/§7
-on `monthly_run.sh`, §4's "where these run", §5's scope — #425. No rule changed.)
+on `monthly_run.sh`, §4's "where these run", §5's scope — #425. No rule changed.);
+**amended 2026-08-25** (`reconciled` documented as three-valued, matching what the checks already do —
+§3, §4 — #426. No rule changed.)
 **Date:** 2026-08-04
 **Deciders:** Simon (maintainer)
 **Builds on:** **ADR-017**, which decides that delivery is a `sources → consumer` edge written on the
@@ -118,7 +120,7 @@ value is a name checked against something else, so no list can be complete.
 | `frequency` | DELIVERY | `monthly` | closed — 1 value | **which** scheduled run picks it up |
 | `tier` | DELIVERY | `prod` | closed — 1 value | **whether** sources must be `graduate` |
 | `intent` | DELIVERY | `live(since=…)`, `paused(reason, since=…)` | closed — 2 values | **whether** it ships at all |
-| `reconciled` | REQUIRE | `True`, `False` | closed — 2 values | which source *combinations* are refused |
+| `reconciled` | REQUIRE | `True`, `False`, unset (`None`) | closed — 3 values | which source *combinations* are refused |
 | `targets` | REQUIRE | a tuple of target names | **open** — checked against a run's manifests | a run missing one is refused |
 | `coverage` | REQUIRE | one region name | **open** — checked against views-postprocessing | a run with the wrong cell count is refused |
 | `max_age` | REQUIRE | `months(n)` | closed *(the wrapper)*, `n` free | an older run is refused — **mandatory when `live()`** |
@@ -144,6 +146,15 @@ The DELIVERY / REQUIRE split from §2 is visible in the last column: the top fou
 
 `cm` and `pgm` are the **only** two values `"level"` takes anywhere in this repository today. A third
 wrapper arrives with a third source, not before (§3, `send`).
+
+*On `reconciled` being three-valued (amended 2026-08-25, #426).* This row previously said *"closed — 2
+values"*. It is three: `Require.reconciled` is declared `bool | None` and **defaults to `None`**, and no
+delivery in the platform sets it — `un_fao.py` and `un_crafd.py` both omit the key. So the undocumented
+state was the one every real delivery is in. §4 now gives it a rule, and that rule is the one the checks
+already implement: unset behaves as `False`. Documented rather than changed — the checks decided this
+before the ADR described it, and making the ADR agree is cheaper than a behaviour change nobody asked
+for.
+
 
 **`send` — one or more sources, each with its level claimed.**
 
@@ -280,6 +291,13 @@ unchanged and remain there.
   meaningful use-case has emerged."* Shipping several sources with no stated relationship silently
   permits a country total that disagrees with the sum of its cells, which is worse than either source
   alone.
+  **Unset (`None`) and two or more sources: the same hard error as `False` (amended 2026-08-25, #426).**
+  The reason is the one above — several sources with no stated relationship is the failure, and not
+  having said anything is not a statement that they are unrelated. Unset is the *default*, so this is
+  the state a two-source delivery lands in by simply not mentioning the key.
+  **With one source, `reconciled` is not examined at all** — `True`, `False` and unset are equally
+  accepted and none of them means anything. Reconciliation is a property of a *combination*; there is
+  no combination to check.
 - **Freshness.** A delivery whose `intent` is `live()` **must** declare `max_age`, and refuses to ship
   a run older than it. This is the rule whose absence let a partner receive nothing for five months
   while a complete forecast sat unshipped (#320, C-121).

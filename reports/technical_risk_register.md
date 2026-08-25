@@ -2,8 +2,8 @@
 
 **Last updated:** 2026-08-13  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 150 (141 concerns + 9 disagreements)  
-**Concerns:** Open 66 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Total entries:** 151 (142 concerns + 9 disagreements)  
+**Concerns:** Open 67 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
 **Concerns by tier:** T1 6 | T2 46 | T3 57 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
@@ -1782,6 +1782,19 @@
 | **Status** | Open |
 | **Location** | `.github/workflows/cic_sync_check.yml` |
 | **Notes** | The gate reports all nine CIC-governed pairs as missing on #410. **The contract is satisfied.** Verified by running the workflow's own script verbatim, with its own `BASE` (`120ff879`) and the merge commit its log records checking out (`86472880`): 1354 changed files, every governed source paired with its updated CIC, result **PASS**. CI reports FAIL on the same inputs, deterministically across two re-runs — so it is not a race. The failure shape is specific and is the clue: CI evidently sees the *source* files in `CHANGED_FILES` (otherwise nothing would be reported) but not the `docs/CICs/*.md` files, which are demonstrably in the same diff. Cause not established, and this entry does not guess one. **One fact narrows it, observed 2026-08-24:** the same workflow **passes** on every `development`-based PR of this sprint — including #418, which carries this very entry — and fails only on the `main`-based release PR. So the difference tracks the BASE, not the content: whatever `git diff "$BASE"...HEAD` resolves to when the base is a two-month-old `main` is not what it resolves to locally, while the same expression against a recent `development` base is fine. **Why Tier 2 rather than 3:** a gate that fails when the thing it guards is correct trains people to override it, and the override here is a title token that silently disables the check for the whole PR. That converts a real ADR-006 guard into a formality on exactly the changesets — releases — where the most CIC-governed code moves at once. It is also cluster-G shaped: a check believed to be protecting something while its verdict is uninformative. **Second, separable observation:** even working correctly, this gate is a *per-change* rule applied to a *release aggregate*. Every commit in #410 already passed it on its own PR, so re-running it across 448 commits can only produce noise or false failure — arguably the workflow should not fire on `main`-based PRs at all. That is a design question for the workflow's owner, not a fix to make while unblocking a release. Cross-refs: **#410**, ADR-006, `docs/CICs/`. |
+
+---
+
+### C-143 — ADR-019 states five coherence rules and `coherence.py` implements them; nothing checks that the two agree
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **Adding or changing a rule in `deliveries/coherence.py`, or a rule statement in ADR-019 §4.** Concretely: the `provides` coverage rule (#428) and the reconciliation/coverage split (#429) each add or change one, and each is a chance for the pair to drift again. |
+| **Source** | S2 of epic #424 (2026-08-26), generalising the #420 falsification |
+| **Status** | Open |
+| **Location** | `docs/ADRs/019_delivery_declaration.md` §4; `deliveries/coherence.py` (`_check_resolution_and_level`, `_check_reconciliation`, `_check_freshness`, `_check_maturity_rules`, `_check_tier`) |
+| **Notes** | ADR-019 §4 is a specification of five fail-loud rules. `coherence.py` is their implementation. **Nothing reads the ADR, and no test asserts the two describe the same behaviour** — verified: no test file cites ADR-019 §4, and `docs/validate_docs.sh` checks cross-ADR *references*, not content. The cost is measured, not hypothetical: the #420 audit found six defects in ADR-019 and **three were exactly this drift** — §4's reconciliation rule forbidding a composition the platform needs (HARD 2), §3 documenting two values for a key the code treats as three (HARD 1), and §3/§7 describing a `monthly_run.sh` filter that does not exist (SOFT 4). Each was found by a human reading both, not by a check. **The `None` case is the sharpest illustration:** `coherence.py:187` reads `if require.reconciled is not True`, so unset has always behaved as `False`; the ADR said nothing; and the test suite pinned `False` but **not** `None` — the state that is the default and that both real deliveries are in. S2 (#426) closed that specific hole by documenting the rule and adding the two missing tests, and mutation-proved them: flipping `is not True` to `is False` — precisely the semantics #419 proposed — fails **only** the new test, so the suite as it stood would have accepted that change silently. **What is registered here is the general form, which S2 did not close.** A mechanical check is possible but not obviously worth its overhead — the rules are prose with real nuance, and a shallow "does §4 mention every `_check_*` name" test would be the vacuous guard this register keeps recording. The cheaper discipline, adopted by #424's stories, is that **each story carrying a rule change carries its own ADR edit in the same PR.** Registered so that discipline is visible rather than remembered. Cross-refs: **#420**, **#424**, **#426**, C-122 (the same typed-versus-derived shape in `monthly_run.sh`). |
 
 ---
 
