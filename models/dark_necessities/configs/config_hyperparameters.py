@@ -13,9 +13,9 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 256,
-        "decoder_output_dim": 64,
-        "temporal_decoder_hidden": 96,
+        "hidden_size": 128,
+        "decoder_output_dim": 32,
+        "temporal_decoder_hidden": 64,
         # Only 2 past covariates here. Projection width=2 expands/noises them; pass raw.
         "temporal_width_past": 0,
         "temporal_width_future": 0,
@@ -25,23 +25,23 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.15,
+        "dropout": 0.3,
         "use_static_covariates": True,
 
         # Training
         "n_epochs": 300,
-        "batch_size": 1024,
+        "batch_size": 4096,
         "random_state": 67,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0002,
-        "weight_decay": 0.0001,
+        "lr": 1e-4,
+        "weight_decay": 1e-2,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999),
-            "lr": 0.0002,
-            "weight_decay": 0.0001,
+            "lr": 1e-4,
+            "weight_decay": 1e-2,
         },
 
 # LR Scheduler
@@ -61,7 +61,7 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 5.0,
+        "gradient_clip_val": 50.0,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
 
