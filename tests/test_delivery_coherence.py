@@ -135,6 +135,39 @@ class TestReconciliation:
         delivery, require = _delivery([pgm("rusty_bucket")], reconciled=False)
         check(delivery, require, consumer="un_fao")
 
+    def test_unset_multi_source_is_the_same_hard_error_as_false(self):
+        """`reconciled` is `bool | None` and defaults to `None`, and **no delivery in the
+        platform sets it** — `un_fao.py` and `un_crafd.py` both omit the key. So unset is
+        the state a two-source delivery lands in by simply not mentioning it, and it was
+        the one state with no test (#420 HARD 1).
+
+        `coherence.py` decides it with `if require.reconciled is not True`, so unset has
+        always behaved as `False`. ADR-019 §4 now says so; this pins it, so the ADR and
+        the checks cannot drift apart again — which is the whole subject of #420.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("pink_ponyclub")], reconciled=None
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        message = str(exc.value)
+        assert "not currently supported" in message
+        assert "reconciled=None" in message, (
+            "the message must show the value it actually found, or a reader who never "
+            "wrote `reconciled` cannot tell which key the error is about"
+        )
+
+    def test_one_source_ignores_reconciled_whatever_it_says(self):
+        """ADR-019 §4: with one source the key is not examined at all.
+
+        Reconciliation is a property of a *combination*. Asserted for all three values
+        because `True` being accepted here is the surprising one — it reads as a promise
+        the checks never verify.
+        """
+        for value in (True, False, None):
+            delivery, require = _delivery([pgm("rusty_bucket")], reconciled=value)
+            check(delivery, require, consumer="un_fao")
+
 
 # ── Freshness ──────────────────────────────────────────────────────────────
 
