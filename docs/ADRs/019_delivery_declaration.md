@@ -6,7 +6,14 @@ on `monthly_run.sh`, §4's "where these run", §5's scope — #425. No rule chan
 **amended 2026-08-25** (`reconciled` documented as three-valued, matching what the checks already do —
 §3, §4 — #426. No rule changed.);
 **amended 2026-08-25** (`provides` added to §3 — per-source target responsibility, optional, unset
-means all — #427. The key exists; the rule that checks it is #428.)
+means all — #427. The key exists; the rule that checks it is #428.);
+**amended 2026-08-26** (§4 gains the target-coverage rule: with two or more sources, every required
+target claimed by exactly one source at a level — #428. **A rule was added.**);
+**amended 2026-08-26** (§4's reconciliation rule **rewritten**, not extended: a source must either
+join the reconciliation group or be present solely to provide targets no other source provides —
+#429, closing #420 HARD 2. **A rule changed what it refuses.**);
+**amended 2026-08-26** (§3 states the consumption constraint, true before and written down nowhere:
+a delivery may declare several sources, a postprocessor consumes one — #430. No rule changed.)
 **Date:** 2026-08-04
 **Deciders:** Simon (maintainer)
 **Builds on:** **ADR-017**, which decides that delivery is a `sources → consumer` edge written on the
