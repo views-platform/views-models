@@ -1,6 +1,5 @@
 def get_hp_config():
     """
-    https://wandb.ai/views_pipeline/smol_cat_tide_shadow_20260505_A_sweep/runs/aaxcc2fh
     """
     
     hyperparameters = {
@@ -13,12 +12,11 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
+        "hidden_size": 64,
         "decoder_output_dim": 16,
-        "temporal_decoder_hidden": 16,
-        # Keep temporal projection widths below feature count to avoid expansion overhead.
-        "temporal_width_past": 2,
-        "temporal_width_future": 2,
+        "temporal_decoder_hidden": 32,
+        "temporal_width_past": 0,
+        "temporal_width_future": 0,
         "temporal_hidden_size_past": 16,
         "temporal_hidden_size_future": 4,
         "num_encoder_layers": 2,
@@ -55,15 +53,15 @@ def get_hp_config():
             "patience": 5,
             "min_lr": 3e-6,
             "cooldown": 0,
-            "threshold": 0.0003,
+            "threshold": 0.002,
             "threshold_mode": "rel",
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
         "gradient_clip_val": 1.0,
-        "early_stopping_patience": 6,
-        "early_stopping_min_delta": 0.0003,
+        "early_stopping_patience": 8,
+        "early_stopping_min_delta": 0.002,
 
         # Loss
         # "loss_function": "SpotlightLossLogcosh",

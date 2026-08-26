@@ -1,6 +1,5 @@
 def get_hp_config():
     """
-    https://wandb.ai/views_pipeline/smol_cat_tide_shadow_20260505_A_sweep/runs/aaxcc2fh
     """
     
     hyperparameters = {
@@ -13,10 +12,9 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 128,
-        "decoder_output_dim": 32,
-        "temporal_decoder_hidden": 64,
-        # Only 2 past covariates here. Projection width=2 expands/noises them; pass raw.
+        "hidden_size": 64,
+        "decoder_output_dim": 16,
+        "temporal_decoder_hidden": 32,
         "temporal_width_past": 0,
         "temporal_width_future": 0,
         "temporal_hidden_size_past": 16,
@@ -25,7 +23,7 @@ def get_hp_config():
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.3,
+        "dropout": 0.5,
         "use_static_covariates": True,
 
         # Training
@@ -36,12 +34,12 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 1e-4,
-        "weight_decay": 1e-2,
+        "lr": 0.0001,
+        "weight_decay": 0.01,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999),
-            "lr": 1e-4,
-            "weight_decay": 1e-2,
+            "lr": 0.0001,
+            "weight_decay": 0.01,
         },
 
 # LR Scheduler
@@ -61,8 +59,8 @@ def get_hp_config():
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         # Trainer
-        "gradient_clip_val": 50.0,
-        "early_stopping_patience": 12,
+        "gradient_clip_val": 1.0,
+        "early_stopping_patience": 8,
         "early_stopping_min_delta": 0.002,
 
         # Loss
