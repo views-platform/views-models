@@ -8,7 +8,6 @@ def get_meta_config():
     """
     meta_config = {
         "name": "rude_boy",
-        "models": ["smol_cat", "dancing_queen", "elastic_heart", "new_rules"], # add heat_waves (tft) later.
         "regression_targets": ["lr_ged_sb"],
         "level": "cm", 
         "aggregation": "mean",

@@ -74,6 +74,161 @@ def load_config_module(config_path: Path, module_name: str = None):
     return module
 
 
+# ── Regression targets: single source of truth (EPIC #154 / S1 #155) ───────
+# A model may declare ``regression_targets`` in config_meta.py and/or
+# config_hyperparameters.py. The pipeline merges both with config_meta taking
+# precedence (ConfigurationManager.get_combined_config). These helpers are the
+# ONE way views-models code should obtain a model's targets — derive, never
+# hardcode a target-name literal.
+
+def _read_regression_targets(config_path: Path, getter_name: str):
+    """Return the regression_targets list declared in one config file, or None
+    if the file / accessor / key is absent. A bare string is normalized to a list."""
+    if not config_path.exists():
+        return None
+    module = load_config_module(config_path)
+    getter = getattr(module, getter_name, None)
+    if getter is None:
+        return None
+    config = getter() or {}
+    targets = config.get("regression_targets")
+    if targets is None:
+        return None
+    if isinstance(targets, str):
+        targets = [targets]
+    return list(targets)
+
+
+def regression_targets_by_location(model_dir: Path) -> dict:
+    """Map each config location that declares regression_targets to its list.
+
+    Keys are a subset of {"meta", "hp"}; a location absent from the dict did not
+    declare the key. Used to enforce cross-location agreement.
+    """
+    config_dir = model_dir / "configs"
+    out = {}
+    meta = _read_regression_targets(config_dir / "config_meta.py", "get_meta_config")
+    if meta is not None:
+        out["meta"] = meta
+    hp = _read_regression_targets(config_dir / "config_hyperparameters.py", "get_hp_config")
+    if hp is not None:
+        out["hp"] = hp
+    return out
+
+
+def get_regression_targets(model_dir: Path) -> list[str]:
+    """The single source of truth for a model's regression targets.
+
+    Mirrors the pipeline merge precedence (config_meta wins over
+    config_hyperparameters; hp is the fallback). Returns ``[]`` if undeclared.
+    """
+    located = regression_targets_by_location(model_dir)
+    return located.get("meta") or located.get("hp") or []
+
+
+# The same concept — posterior draws per cell — is named differently by each
+# model family's runtime: baseline reads `n_samples`, hydranet
+# `n_posterior_samples`, r2darts `num_samples`, stepshifter `pred_samples`
+# (register C-104). The runtime object and the ADR-013 wire already agree on one
+# name (`PredictionFrame.sample_count` / header `sample_count`); only the config
+# layer is fragmented. This getter reads whichever key a config declares rather
+# than forcing a rename (prefer-agnostic-over-uniform).
+SAMPLE_COUNT_CONFIG_KEYS = (
+    "n_posterior_samples",
+    "n_samples",
+    "num_samples",
+    "pred_samples",
+)
+
+
+def get_n_posterior_samples(model_dir: Path) -> int | None:
+    """A model's declared posterior sample count, family-agnostic, or None.
+
+    Reads whichever of ``SAMPLE_COUNT_CONFIG_KEYS`` a config declares (C-104), so
+    the ensemble sample-count contract (ADR-015) works regardless of which family
+    name a model uses. **Divergence guard:** a config that declares more than one
+    of these keys with DIFFERENT values is the decoy trap that silently discarded
+    a sample-count change during the 2026-07-20 FAO delivery (a baseline config
+    carries both `n_samples` — the runtime key — and `n_posterior_samples` — this
+    contract's key — kept equal only by hand); such divergence fails loud here
+    (register C-85/C-104) rather than letting CI validate a value the runtime
+    ignores.
+    """
+    config_dir = model_dir / "configs"
+    for fname, getter_name in (
+        ("config_hyperparameters.py", "get_hp_config"),
+        ("config_meta.py", "get_meta_config"),
+    ):
+        path = config_dir / fname
+        if not path.exists():
+            continue
+        getter = getattr(load_config_module(path), getter_name, None)
+        if getter is None:
+            continue
+        cfg = getter() or {}
+        present = {k: int(cfg[k]) for k in SAMPLE_COUNT_CONFIG_KEYS if cfg.get(k) is not None}
+        if not present:
+            continue
+        distinct = set(present.values())
+        if len(distinct) > 1:
+            raise ValueError(
+                f"{model_dir.name}: sample-count config keys disagree: {present}. "
+                f"A model declares one concept (posterior draws per cell) under "
+                f"multiple family names; they must hold the same value — a "
+                f"divergence means the runtime and the CI contract read different "
+                f"numbers (register C-104). Set them equal, or keep only the key "
+                f"this model's runtime reads."
+            )
+        return distinct.pop()
+    return None
+
+
+#: ADR-067 HydraNet family heads draw K samples from the distribution head per
+#: MC-dropout pass. The emitted posterior width is therefore D×K, not D alone.
+HEAD_SAMPLE_CONFIG_KEY = "n_head_samples"
+
+
+def get_head_sample_count(model_dir: Path) -> int:
+    """K — family-head draws per MC-dropout pass (ADR-067 D×K sampler).
+
+    Defaults to 1 for any model that does not declare ``n_head_samples`` (the key
+    is HydraNet-family-specific), so the produced-count derivation below reduces to
+    plain ``n_posterior_samples`` for every non-family model.
+    """
+    for fname, getter_name in (
+        ("config_hyperparameters.py", "get_hp_config"),
+        ("config_meta.py", "get_meta_config"),
+    ):
+        path = model_dir / "configs" / fname
+        if not path.exists():
+            continue
+        getter = getattr(load_config_module(path), getter_name, None)
+        if getter is None:
+            continue
+        cfg = getter() or {}
+        k = cfg.get(HEAD_SAMPLE_CONFIG_KEY)
+        if k is not None:
+            return int(k)
+    return 1
+
+
+def get_produced_sample_count(model_dir: Path) -> int | None:
+    """Posterior draws per cell a model actually EMITS (ADR-015 §6, ADR-067).
+
+    A HydraNet family head draws ``n_head_samples`` (K) from the distribution per
+    MC-dropout pass, so the emitted sample-axis width is **D×K** —
+    ``n_posterior_samples × n_head_samples`` — not the declared D alone. This is the
+    number that must match an ensemble's ``expected_samples_per_model`` and the
+    on-disk ``y_pred`` width. For non-family models K=1 and this equals
+    ``get_n_posterior_samples``. Returns ``None`` when no posterior-count key is
+    declared (point models).
+    """
+    d = get_n_posterior_samples(model_dir)
+    if d is None:
+        return None
+    return d * get_head_sample_count(model_dir)
+
+
 @pytest.fixture(params=ALL_MODEL_DIRS, ids=MODEL_NAMES)
 def model_dir(request):
     """Parametrized fixture yielding each model directory."""
@@ -83,6 +238,12 @@ def model_dir(request):
 @pytest.fixture(params=ALL_ENSEMBLE_DIRS, ids=ENSEMBLE_NAMES)
 def ensemble_dir(request):
     """Parametrized fixture yielding each ensemble directory."""
+    return request.param
+
+
+@pytest.fixture(params=ALL_POSTPROCESSOR_DIRS, ids=POSTPROCESSOR_NAMES)
+def postprocessor_dir(request):
+    """Parametrized fixture yielding each postprocessor directory."""
     return request.param
 
 

@@ -1,0 +1,342 @@
+import json
+import os
+from pathlib import Path
+import re
+from views_pipeline_core.managers.model import ModelManager, ModelPathManager
+from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathManager
+
+# Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
+try:
+    from readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
+except ImportError:
+    from tools.catalogs.readme_preserve import (
+        extract_manual_blocks, merge_manual_blocks, strip_manual_blocks,
+    )
+
+
+base_dir = os.getcwd()
+target_dir = Path(base_dir + "/models")
+
+# Scaffold/fixture entries that exist for testing purposes only and should
+# not appear in the README or be processed by path managers. Single source of
+# truth: meta/fixtures.json (shared with create_catalogs.py + tools/partitions/
+# fileops.py; consistency enforced by test_bump_partitions.TestFixtureSetConsistency). C-61.
+_FIXTURES_PATH = Path(__file__).resolve().parent.parent.parent / "meta" / "fixtures.json"
+with open(_FIXTURES_PATH) as _f:
+    _FIXTURE_ENTRIES: set[str] = set(json.load(_f))
+
+# The catalog reads a model's target variable, and models do not all declare it the
+# same way. Measured across the tree on 2026-08-03:
+#
+#     "regression_targets"   87 configs   the only key actually used
+#     (no target key at all) 28 configs   catalog says so rather than crashing
+#     "targets"               0 configs   (one commented-out line in fake_model)
+#
+# The synthetic fixtures are NOT a separate key: they declare
+# `"regression_targets": ["synth_target"]` -- "synth_target" is the VALUE. An earlier
+# draft of this helper listed it as a second key, which would have been dead code;
+# reading all 128 configs showed the value arriving through regression_targets.
+#
+# `targets` was a key views-pipeline-core SYNTHESIZED; 3.0.0 retired it outright
+# (pipeline-core #381). Reading it here raised KeyError on the first model every time,
+# which is why "Update Model Catalogs" failed on every run from 2026-06-26 onward and
+# the README catalogs went five weeks stale (#336).
+#
+# One helper rather than two copies: the two call sites below ask the same question of
+# a model and of an ensemble, in one module, and letting them drift is how a catalog
+# starts reporting different things about the two.
+_TARGET_KEYS = ("regression_targets",)
+
+
+def _target_of(configs):
+    """The declared target(s), rendered for the catalog; never raises.
+
+    Absence is a fact about the config, not an error -- 28 models declare no target key
+    and the catalog should say so rather than fail. Mirrors the existing `metrics`
+    fallback a few lines below each call site.
+    """
+    for key in _TARGET_KEYS:
+        value = configs.get(key)
+        if value:
+            return ", ".join(value) if isinstance(value, list) else value
+    return "No information provided"
+
+
+# Update repository structure:
+def generate_repo_structure(folders, scripts, model_name):
+    """Generate a structured repository tree dynamically from folders and scripts."""
+
+    root_path = Path(folders["model_dir"])  # Root directory
+    tree = [model_name]  # Start with the model name
+
+    # Sort folders to ensure correct hierarchy
+    sorted_folders = sorted(folders.values(), key=lambda x: x.count("/"))  
+    folder_structure = {folder: [] for folder in sorted_folders}  
+
+    # Assign scripts to their respective folders
+    for script, script_path in scripts.items():
+        parent_folder = str(Path(script_path).parent)
+        if parent_folder in folder_structure:
+            folder_structure[parent_folder].append(script)
+
+    # Function to recursively build the tree
+    def build_tree(current_path, depth=0):
+        indent = "│   " * depth
+        rel_path = Path(current_path).relative_to(root_path)
+        tree.append(f"{indent}├── {rel_path.name}")
+
+        # Add scripts in the current folder
+        for script in sorted(folder_structure[current_path]):
+            tree.append(f"{indent}│   ├── {script}")
+
+        # Add subfolders in order
+        subfolders = [f for f in sorted_folders if Path(f).parent == Path(current_path)]
+        for subfolder in subfolders:
+            build_tree(subfolder, depth + 1)
+
+
+    root_scripts = []
+    for key, value in scripts.items():
+        #print(Path(value).parent)
+        if Path(value).parent==Path(root_path):
+                root_scripts.append(key)
+
+    for script in sorted(root_scripts):
+        tree.append(f"├── {script}")
+
+    # Build tree from root
+    for folder in sorted_folders:
+        if Path(folder).parent == root_path:  # Start from root-level folders
+            build_tree(folder)
+
+    return "\n".join(tree)
+
+##############################################
+####            Single Models             ####
+##############################################
+
+
+for subfolder in target_dir.iterdir():
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:  # Check if it's a directory
+        print(f"Model: {subfolder.name}")
+        configs_dir = target_dir / subfolder.name / "configs"
+        model_manager = ModelManager(model_path=ModelPathManager(configs_dir), use_prediction_store=False)
+        mpm = ModelPathManager(configs_dir)
+
+        ## Get Meta Info
+        model_name = model_manager.configs['name']
+        model_name = " ".join(word.capitalize() for word in model_name.split("_"))
+
+        algorithm = model_manager.configs['algorithm']
+        if algorithm=='HurdleModel':
+            classifier = model_manager.configs['model_clf']
+            regressor = model_manager.configs['model_reg']
+            algorithm_all = f"{algorithm} (Classifier: {classifier}, Regressor: {regressor})"
+        else:
+            algorithm_all = algorithm
+
+        target = _target_of(model_manager.configs)
+        level = model_manager.configs['level']
+        try:
+            metrics = model_manager.configs['metrics']
+        except KeyError:
+            metrics = "No information provided"
+        if isinstance(metrics, list):
+            metrics = ", ".join(metrics)
+
+        ## Get deployment mode 
+        deployment = model_manager.configs['deployment_status']
+
+        ## Get queryset description
+        if subfolder.name.endswith('baseline'):
+            name = "N/A"
+            description = "N/A"
+        else:
+            queryset_info = mpm.get_queryset()
+            if queryset_info:
+                if isinstance(queryset_info, dict):
+                    features = queryset_info.get("features", [])
+                    name = ", ".join(features) if features else queryset_info.get("source", "")
+                    pattern = queryset_info.get("pattern", "unknown")
+                    description = f"Synthetic data ({pattern})"
+                else:
+                    description = getattr(queryset_info, "description", None)
+                    try:
+                        description = " ".join(description.split())
+                    except AttributeError:
+                        description = "No description provided"
+                    name = getattr(queryset_info, "name", "")
+            else:
+                name = f"{subfolder.name}_features"
+                description = "No description provided"
+
+        ## Update old README file - For Bitter Symphony Model 
+        scaffold_path = target_dir / "README_scaffold.md"
+        readme_path = target_dir / subfolder.name / "README.md"
+
+        # Read old README
+        with open(readme_path, "r") as file:
+            old_readme_content = file.read()
+
+        # Add created section if it exists
+
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
+        if match is None:
+            new_string=''
+        else:
+            created_section = match.group(1).strip()
+            end_of_heading = len("##")
+            new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
+
+        # Read scaffold.md content
+        with open(scaffold_path, "r") as file:
+            content = file.read()
+
+
+        # Dictionary of placeholders and their replacements
+        replacements = {
+            "{{MODEL_NAME}}": model_name,
+            "{{MODEL_ALGORITHM}}": algorithm_all,
+            "{{LEVEL_OF_ANALYSIS}}": level,
+            "{{TARGET}}": target,
+            "{{FEATURES}}": name, 
+            "{{DESCRIPTION}}": description,
+            "{{DEPLOYMENT}}": deployment,
+            "{{METRICS}}": metrics,
+            "{{CREATED_SECTION}}": new_string,
+        }
+
+
+        # Replace placeholders in scaffold content
+        for placeholder, value in replacements.items():
+            content = content.replace(placeholder, value)
+
+
+        #repo_root = target_dir / subfolder.name
+        scripts = mpm.get_scripts()
+        folders = mpm.get_directories()
+        scripts["run.sh"] = folders['model_dir']+'/run.sh'
+        scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
+        repo_structure = generate_repo_structure(folders, scripts, model_name=model_name)
+        formatted_structure = f"```\n{repo_structure}\n```"
+
+        updated_readme = content.replace("## Repository Structure",
+                f"## Repository Structure\n\n{formatted_structure}",
+            )
+
+        # Re-attach hand-written <!-- manual --> blocks from the old README (C-78)
+        updated_readme = merge_manual_blocks(
+            updated_readme, extract_manual_blocks(old_readme_content)
+        )
+
+        # Write the updated content to README.md
+        with open(readme_path, "w") as file:
+            file.write(updated_readme)
+
+
+##############################################
+####             Ensembles                ####
+##############################################
+
+base_dir = os.getcwd()
+target_ens_dir = Path(base_dir + "/ensembles")
+
+for subfolder in target_ens_dir.iterdir():
+    if subfolder.is_dir() and subfolder.name not in _FIXTURE_ENTRIES:
+        print(f"Model: {subfolder.name}")
+        configs_dir = target_ens_dir / subfolder.name / "configs"
+        ens_manager = EnsembleManager(ensemble_path=EnsemblePathManager(configs_dir), use_prediction_store=False)
+        epm = EnsemblePathManager(configs_dir)
+
+        ## Get Meta Info
+        ens_name = ens_manager.configs['name']
+        ens_name = " ".join(word.capitalize() for word in ens_name.split("_"))
+
+        models = ens_manager.configs['models']
+        models = ", ".join(models)
+
+        target = _target_of(ens_manager.configs)
+        level = ens_manager.configs['level']
+        try:
+            metrics = ens_manager.configs['metrics']
+        except KeyError:
+            metrics = "No information provided"
+        if isinstance(metrics, list):
+            metrics = ", ".join(metrics)
+        
+        aggregation = ens_manager.configs['aggregation']
+
+        ## Get deployment mode 
+        deployment = ens_manager.configs['deployment_status']
+
+        ## Update old README file - For Bitter Symphony Model 
+        scaffold_path = target_ens_dir / "README_ensemble_scaffold.md"
+        readme_path = target_ens_dir / subfolder.name / "README.md"
+
+        # Read old README
+        with open(readme_path, "r") as file:
+            old_readme_content = file.read()
+
+        # Add created section if it exists
+
+        # C-82: capture on stripped text — the DOTALL tail-capture would otherwise
+        # swallow manual blocks (which sit at end-of-file) into the created section.
+        match = re.search(
+            r"(## Created on.*)", strip_manual_blocks(old_readme_content), re.DOTALL
+        )
+        if match is None:
+            new_string=''
+        else:
+            created_section = match.group(1).strip()
+            end_of_heading = len("##")
+            new_string = created_section[:end_of_heading] + " " + 'Model' + created_section[end_of_heading:]
+
+        # Read scaffold.md content
+        with open(scaffold_path, "r") as file:
+            content = file.read()
+
+
+        # Dictionary of placeholders and their replacements
+        replacements = {
+            "{{ENSEMBLE_NAME}}": ens_name,
+            "{{MODELS}}": models,
+            "{{LEVEL_OF_ANALYSIS}}": level,
+            "{{TARGET}}": target,
+            "{{AGGREGATION}}": aggregation,
+            "{{DEPLOYMENT}}": deployment,
+            "{{METRICS}}": metrics,
+            "{{CREATED_SECTION}}": new_string,
+        }
+
+
+        # Replace placeholders in scaffold content
+        for placeholder, value in replacements.items():
+            content = content.replace(placeholder, value)
+
+        scripts = epm.get_scripts()
+        folders = epm.get_directories()
+        scripts["run.sh"] = folders['model_dir']+'/run.sh'
+        scripts["requirements.txt"] = folders['model_dir'] +'/requirements.txt'
+        repo_structure = generate_repo_structure(folders, scripts, model_name=ens_name)
+        formatted_structure = f"```\n{repo_structure}\n```"
+
+        updated_readme = content.replace("## Repository Structure",
+                f"## Repository Structure\n\n{formatted_structure}",
+            )
+
+        # Re-attach hand-written <!-- manual --> blocks from the old README (C-78)
+        updated_readme = merge_manual_blocks(
+            updated_readme, extract_manual_blocks(old_readme_content)
+        )
+
+        # Write the updated content to README.md
+        with open(readme_path, "w") as file:
+            file.write(updated_readme)
+
+print("Readme files updated!")

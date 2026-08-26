@@ -22,7 +22,7 @@ External Packages (views_pipeline_core, views_stepshifter, etc.)
          ↑
     models/*/main.py  (each model imports ONE manager from ONE package)
          ↑
-    models/*/configs/  (config files import from ingester3, viewser)
+    models/*/configs/  (config files use stdlib only, except config_queryset.py which uses viewser)
 ```
 
 ### Self-Contained Config Files
@@ -36,10 +36,13 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 | From | May Depend On |
 |------|--------------|
 | `models/*/main.py` | `views_pipeline_core`, one algorithm package, `pathlib` |
-| `models/*/configs/config_partitions.py` | `ingester3` only (for `ViewsMonth`) |
+| `models/*/configs/config_partitions.py` | `datetime` only (stdlib) |
 | `models/*/configs/config_queryset.py` | `viewser`, `views_pipeline_core` |
 | `models/*/configs/config_*.py` (others) | Nothing (pure dict-returning functions) |
-| `ensembles/*/main.py` | `views_pipeline_core` |
+| `ensembles/*/main.py` | `views_pipeline_core`; **reconciling** ensembles may also import the `reconciliation/` composition layer (ADR-014) |
+| `postprocessors/*/main.py` | `views_pipeline_core`, one external postprocessor manager (`views_postprocessing`), `pathlib`. Delegates fetch/transform/deliver to that manager (ADR-001 Postprocessors). |
+| `apis/*/main.py` | `views_pipeline_core` + the external `views-*` API package it launches (`views-faoapi`, `views-seldon`), installed by its `run.sh`. The service code lives in that package (ADR-001 APIs). |
+| `reconciliation/` (composition layer) | `views_pipeline_core` (the `Reconciler` port — `domain.reconciliation_port`, split out by pipeline-core #237); `views_frames_reconcile` (the concrete reconciler — in `reconciler_factory.py` only; moved from `views_postprocessing` by Epic 11 / #191); `viewser`/`views-datafactory` (geography — in provider files only). See ADR-014. |
 | Tooling scripts (root) | `views_pipeline_core`, `importlib`, standard library |
 | `tests/` | `conftest.py` helpers, `importlib`, standard library |
 
@@ -47,7 +50,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 
 - **No cross-model imports** — `models/A/` must never import from `models/B/`
 - **No model → tooling imports** — models must not import from root-level scripts
-- **No repo-internal imports in config files** — config files must only import from installed packages (`ingester3`, `viewser`), not from repo-local modules
+- **No repo-internal imports in config files** — config files must only import from stdlib or installed packages (`viewser` for querysets), not from repo-local modules
 - **No config files with side effects** — config files must be pure functions returning dicts (exception: `config_queryset.py` which builds `Queryset` objects)
 
 ---
@@ -55,6 +58,7 @@ This means partition logic is duplicated across ~66 models. This duplication is 
 ## Known Deviations
 
 - `config_queryset.py` files import from `viewser` and `views_pipeline_core`, making them impossible to load without these packages installed. This is an accepted deviation — querysets require the VIEWS data layer.
+- **Reconciliation composition root (ADR-014):** reconciling `ensembles/*/main.py` import the repo-internal `reconciliation/` composition layer (and bootstrap the repo root onto `sys.path`, since `run.sh` is immutable). That layer constructs the concrete `views_frames_reconcile` reconciler (moved from `views_postprocessing` by Epic 11 / #191) — the single sanctioned cross-repo composition wire. Config files remain self-contained.
 
 ---
 

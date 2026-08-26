@@ -1,4 +1,4 @@
-# Smol Cat
+# Smol Cat 
 ## Overview
 
 
@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TiDEModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  smol_cat   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

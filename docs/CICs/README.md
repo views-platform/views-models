@@ -18,6 +18,7 @@ An Intent Contract is a human-readable, unambiguous declaration of:
 - `CatalogExtractor.md`
 - `PackageScaffoldBuilder.md`
 - `IntegrationTestRunner.md`
+- `LivenessChecks.md`
 
 ---
 

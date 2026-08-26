@@ -1,0 +1,40 @@
+name: Runtime Smoke
+
+# C-106 exit: the main `run_tests.yml` suite verifies declarations (config,
+# structure, contracts) but never executes a model. This job runs ONE real
+# model config through the real config -> catalog -> model path and asserts the
+# produced forecast honors the config (sample count, shape, no NaN/Inf,
+# determinism) — the runtime signal that config-green cannot give.
+#
+# It is deliberately DECOUPLED from the main suite's dependency situation:
+#   * It does NOT install views_pipeline_core, so it dodges the published-core
+#     skew (C-42/C-73) that keeps run_tests.yml red (C-80). The baseline model
+#     layer + catalog import zero pipeline-core (verified 2026-07-20).
+#   * views_baseline / views_frames are installed --no-deps (numpy/pandas only),
+#     pinned for reproducibility so a red smoke means a views-models regression,
+#     not sibling drift. Bump the refs deliberately (or switch views-baseline to
+#     a release tag once it publishes one).
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  runtime-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install runtime deps (no pipeline-core — dodges the published-core skew)
+        run: |
+          pip install pytest numpy pandas
+          pip install --no-deps "git+https://github.com/views-platform/views-frames@v1.8.1"
+          pip install --no-deps "git+https://github.com/views-platform/views-baseline@b53fc41"
+
+      - name: Runtime smoke — execute a model train+forecast, assert output honors config
+        run: pytest tests/test_runtime_smoke.py -v

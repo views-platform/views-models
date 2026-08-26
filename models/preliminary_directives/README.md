@@ -1,4 +1,4 @@
-# New Rules 
+# Preliminary Directives 
 ## Overview
 
 
@@ -6,16 +6,16 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  preliminary_directives   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
 
 ```
-New Rules
+Preliminary Directives
 ├── README.md
 ├── main.py
 ├── requirements.txt

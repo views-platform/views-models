@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ShurfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_sb_best |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  structural_brief_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with a small number of structural features, no conflict history    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
