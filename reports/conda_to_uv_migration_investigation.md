@@ -91,7 +91,7 @@ Each model has a minimal `requirements.txt` containing typically one or two pack
 views-stepshifter>=1.0.0,<2.0.0
 
 # R2darts2 models (19 models, three different version specs!)
-views-r2darts2==0.2.0          # 6 models
+views-r2darts2>=0.2.0          # 6 models
 views-r2darts2>=0.1.0          # 4 models (no upper bound)
 views-r2darts2>=1.0.0,<2.0.0   # 9 models
 

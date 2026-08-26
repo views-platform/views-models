@@ -34,7 +34,7 @@ _ENV_PATH = re.compile(r'^env_path="\$project_path/envs/(?P<env>[^"]+)"', re.M)
 # These two directory names differ by ONE character, and that character is
 # load-bearing. Their tenants declare mutually unsatisfiable versions:
 #
-#   envs/views_r2darts2  (22 tenants)  views-r2darts2==0.2.0  x12
+#   envs/views_r2darts2  (22 tenants)  views-r2darts2>=0.2.0  x12
 #                                      views-r2darts2>=0.1.0  x10
 #   envs/views-r2darts2  ( 9 tenants)  views-r2darts2>=1.0.0,<2.0.0
 #
