@@ -7,10 +7,15 @@ not an instrument: `tools/` observes, this refuses.
 ADR-019 §4 are deliberately absent, and their absence is a decision recorded in
 ADR-020 §4:
 
-- **`targets`** — checked against a real run's manifests, not a config. A gate here
-  today would reject a *correct* delivery file, because `rusty_bucket` declares
-  `lr_*_best` and emits `lr_ged_*` (register C-123). The first thing this repository
-  would teach a newcomer is that its errors are wrong (C-125).
+- **`targets`** — whether a target *exists* is checked against a real run's manifests,
+  not a config. A gate here today would reject a *correct* delivery file, because
+  `rusty_bucket` declares `lr_*_best` and emits `lr_ged_*` (register C-123). The first
+  thing this repository would teach a newcomer is that its errors are wrong (C-125).
+
+  `_check_target_coverage` is **not** that gate and does not weaken this (#428). It compares
+  `REQUIRE.targets` against the `provides=` written beside it in the same file — two
+  strings in one namespace, no source config consulted. A file can pass it and still
+  name a target no run will ever contain.
 - **`coverage`** — the cell counts defining a region live in views-postprocessing,
   beside the GAUL asset. They belong there.
 
@@ -180,6 +185,82 @@ def _check_resolution_and_level(delivery) -> None:
             )
 
 
+def _check_target_coverage(delivery, require, consumer: str) -> None:
+    """Every required target is claimed by exactly one source at a level (ADR-019 §4).
+
+    Named `target_coverage` and not `coverage`, because `Require.coverage` in the same
+    file is an unrelated thing — a GAUL region name, whose cell counts live in
+    views-postprocessing and are not checked here at all.
+
+    This is the *other* reason a delivery names several sources. Reconciliation says the
+    sources agree with each other about one target; coverage says that between them they
+    carry the targets asked for. `un_crafd` needs three, every reconciling ensemble
+    carries one, and the ensemble that carries three reconciles with nothing (#424).
+
+    **It compares two things written in the same file, and nothing else.** It is not
+    evidence that the targets exist: `ensembles/rusty_bucket/configs/config_meta.py`
+    declares `lr_*_best` while both deliveries REQUIRE `lr_ged_*` — different strings,
+    register C-123. Checking a target against a source config would refuse a *correct*
+    delivery file, which is why that stair is deliberately absent (module docstring,
+    ADR-020 §4). Nothing here changes that.
+
+    Same target at two *different* levels is the reconciliation case (ADR-017 §3) and is
+    allowed; the same target twice at one level is two answers to one question.
+    """
+    if len(delivery.send) < 2:
+        return
+
+    annotated = [s for s in delivery.send if s.provides is not None]
+    if not annotated:
+        # `provides` omitted throughout means "everything this source contains", so
+        # nothing is claimed exclusively and there is nothing here to be wrong about.
+        return
+    if len(annotated) != len(delivery.send):
+        silent = [s.name for s in delivery.send if s.provides is None]
+        raise CoherenceError(
+            f"deliveries/{consumer}.py annotates some sources with provides= but not "
+            f"{', '.join(silent)}.\n"
+            f"  Open deliveries/{consumer}.py and either give every source a provides=, "
+            f"or remove them all.\n"
+            f"  An un-annotated source claims every target it contains, so it overlaps "
+            f"whatever the others claim and the division stops meaning anything."
+        )
+
+    claims: dict[tuple[str, str], list[str]] = {}
+    for source in annotated:
+        for target in source.provides:
+            claims.setdefault((source.level, target), []).append(source.name)
+
+    for (level, target), sources in sorted(claims.items()):
+        if len(sources) > 1:
+            raise CoherenceError(
+                f"deliveries/{consumer}.py has '{target}' claimed by "
+                f"{' and '.join(sources)}, both at level {level}.\n"
+                f"  Open deliveries/{consumer}.py and remove '{target}' from one of "
+                f"their provides=.\n"
+                f"  Two sources at one level answering for one target is two answers "
+                f"to one question; the consumer has no rule for choosing.\n"
+                f"  (The same target at pgm *and* cm is different — that is "
+                f"reconciliation, and it is allowed.)"
+            )
+
+    # `Require.targets` defaults to `()`, so a delivery that states no targets has
+    # nothing to be missing — but the duplicate rule above still applies to it, because
+    # two sources contradicting each other is wrong whether or not anyone asked.
+    claimed = {target for _level, target in claims}
+    unclaimed = [t for t in require.targets if t not in claimed]
+    if unclaimed:
+        raise CoherenceError(
+            f"deliveries/{consumer}.py requires {', '.join(unclaimed)} but no source "
+            f"claims {'them' if len(unclaimed) > 1 else 'it'}.\n"
+            f"  Open deliveries/{consumer}.py and add "
+            f"{unclaimed[0]!r} to the provides= of whichever source carries it.\n"
+            f"  Sources: {', '.join(f'{s.level}({s.name})' for s in delivery.send)}.\n"
+            f"  This compares REQUIRE against provides= in this file only; it is not "
+            f"evidence that the target exists in any run (register C-123)."
+        )
+
+
 def _check_reconciliation(delivery, require, consumer: str) -> None:
     if len(delivery.send) < 2:
         return
@@ -280,6 +361,7 @@ def check(delivery, require, *, consumer: str) -> None:
     """Run every rule that is answerable here. Raises CoherenceError on the first
     violation; warns for the transitional tier rule."""
     _check_resolution_and_level(delivery)
+    _check_target_coverage(delivery, require, consumer=consumer)
     _check_reconciliation(delivery, require, consumer)
     _check_freshness(delivery, require, consumer)
     _check_maturity_rules(delivery)

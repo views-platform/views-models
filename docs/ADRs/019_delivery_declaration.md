@@ -327,13 +327,49 @@ unchanged and remain there.
   **With one source, `reconciled` is not examined at all** — `True`, `False` and unset are equally
   accepted and none of them means anything. Reconciliation is a property of a *combination*; there is
   no combination to check.
+- **Coverage of the required targets (added 2026-08-26, #428).** With two or more sources and
+  `provides=` declared (§3), every name in `REQUIRE.targets` must be claimed by **exactly one source
+  at a level**.
+  This is the *other* reason a delivery names several sources. Reconciliation says the sources agree
+  with each other about one target; coverage says that between them they carry the targets asked for.
+  `un_crafd` needs three targets, every reconciling ensemble carries one, and the ensemble that
+  carries three reconciles with nothing — so this composition could not previously be written down.
+  - A required target claimed by **no** source is an error naming the target.
+  - The same target claimed by **two sources at one level** is an error naming both — two answers to
+    one question, and the consumer has no rule for choosing.
+  - The same target at **pgm and cm** is allowed. That is reconciliation (ADR-017 §3), not a clash.
+  - **Annotate every source or none.** A mixed file is an error: an un-annotated source claims
+    everything it contains, so it overlaps whatever the others claim and the division stops meaning
+    anything.
+  - `provides=` omitted throughout means "every target this source contains", so nothing is claimed
+    exclusively and the rule does not apply. This is the shape every delivery has today.
+  - **With one source the rule does not apply at all**, even if `provides=` is narrower than
+    `REQUIRE.targets`. With nowhere else a target could come from, a narrow `provides=` is no longer
+    a claim about the division of labour but a claim about what that one source *contains* — which is
+    the check below that deliberately does not run.
+  - **Its two halves are gated differently.** Coverage needs `REQUIRE.targets`; duplication does not,
+    because two sources contradicting each other at one level is wrong whether or not anybody asked
+    for that target.
+  **This is internal consistency of one file and nothing more.** It compares `REQUIRE.targets`
+  against the `provides=` written beside it, both in the same namespace, with no source config
+  consulted. **It is not evidence that a target exists in any run** — `rusty_bucket` declares
+  `lr_*_best` while both deliveries require `lr_ged_*` (register C-123), and that gap is untouched.
 - **Freshness.** A delivery whose `intent` is `live()` **must** declare `max_age`, and refuses to ship
   a run older than it. This is the rule whose absence let a partner receive nothing for five months
   while a complete forecast sat unshipped (#320, C-121).
 - **Tier.** A delivery to a `prod` consumer requires every source to be `graduate` (ADR-017 §5).
 
-**Where these run.** Freshness, Level, Reconciliation and Tier are answerable inside this repository at
-edit time. `targets` and `coverage` are not — see ADR-020 §4 and §6 below.
+**Where these run.** Freshness, Level, Reconciliation, Coverage and Tier are answerable inside this
+repository at edit time. Two questions are not, and the wording matters because one of them shares a
+name with a rule that *does* run: whether a **target exists** in a real run, and what cells a
+**`coverage` region** contains, both leave the repository — see ADR-020 §4 and §6 below. The Coverage
+rule added by #428 is a third thing, named for what it checks: that the sources in one file cover the
+targets that file requires.
+
+**These are edit-time guards.** `deliveries/coherence.py:check()` is invoked from the test suite, not
+at delivery time — `tests/test_delivery_coherence.py` and `tests/test_delivery_errors_descend.py` are
+its only callers. A rule here stops a wrong file being *written*; it does not stop a wrong file being
+*used*.
 
 **Resolution is answerable here only in part (amended 2026-08-25, #425).** It resolves a *source* name
 against `models/` and `ensembles/`, which is in-repo. It does **not** establish that the *consumer* is
