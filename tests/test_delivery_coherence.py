@@ -172,6 +172,176 @@ class TestReconciliation:
             check(delivery, require, consumer="un_fao")
 
 
+
+class TestCoverageSourcesAreExemptFromReconciliation:
+    """#420 HARD 2 — the finding this whole epic exists for.
+
+    The rule this replaces required *every* source in a delivery to join one connected
+    reconciliation group. Against the real ensembles that forbids the only composition
+    that works: `un_crafd` needs three targets, every ensemble that reconciles carries
+    one, and the only ensemble carrying three (`rusty_bucket`) reconciles with nothing.
+    So the source supplying the missing targets was refused **for supplying them**.
+
+    The new rule: a source must *either* join the reconciliation group *or* be present
+    solely to provide targets no other source here provides.
+    """
+
+    CRAFD = [
+        pgm("skinny_love", provides=("lr_ged_sb",)),
+        cm("pink_ponyclub", provides=("lr_ged_sb",)),
+        pgm("rusty_bucket", provides=("lr_ged_ns", "lr_ged_os")),
+    ]
+    TARGETS = ("lr_ged_sb", "lr_ged_ns", "lr_ged_os")
+
+    def test_the_three_source_crafd_composition_passes(self):
+        delivery, require = _delivery(
+            list(self.CRAFD), reconciled=True, targets=self.TARGETS
+        )
+        check(delivery, require, consumer="un_crafd")
+
+    def test_it_passes_with_the_coverage_source_listed_first(self):
+        """The previous implementation seeded its search at `send[0]`, which was harmless
+        only while every source was expected to reconcile. With `rusty_bucket` first, the
+        genuinely reconciled pair read as stranded and the same delivery was refused —
+        so the rule's answer depended on the order lines were typed in.
+
+        Components have no first element. Pinned because the ordering is invisible in a
+        passing test that only ever writes one order.
+        """
+        reordered = [self.CRAFD[2], self.CRAFD[0], self.CRAFD[1]]
+        delivery, require = _delivery(reordered, reconciled=True, targets=self.TARGETS)
+        check(delivery, require, consumer="un_crafd")
+
+    def test_a_source_with_neither_a_relationship_nor_unique_targets_still_fails(self):
+        """The guard is exempted, not weakened. `white_mustang` and `rude_boy` reconcile
+        with nothing here and both claim `lr_ged_ns`, which the other also claims — so
+        neither is uniquely needed, and a disagreement between them would go undetected.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("pink_ponyclub", provides=("lr_ged_sb",)),
+             pgm("white_mustang", provides=("lr_ged_ns",)),
+             cm("rude_boy", provides=("lr_ged_ns",))],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_ns"),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "white_mustang" in message and "rude_boy" in message, (
+            "both are unattached; naming one sends the reader round the loop twice"
+        )
+        assert "config_meta.py" in message and "deliveries/un_crafd.py" in message, (
+            "there are two ways out — declare the relationship, or declare the targets — "
+            "and the message must name the file for each"
+        )
+
+    def test_solely_means_solely_a_shared_target_is_not_unique_enough(self):
+        """ADR-019 §4 says "present **solely** to provide targets no other source
+        provides". A source sharing one target with a group member while declaring no
+        reconciliation with it is exactly the silent-disagreement case, not a coverage
+        source — even though its *other* targets are unique.
+
+        `rude_boy` (cm) claims `lr_ged_sb`, which `skinny_love` (pgm) also claims, and
+        declares no reconciliation with it. That the two would be pgm and cm is what
+        makes it dangerous, not what makes it safe: it is a country total and a cell sum
+        for one target with nothing tying them together. Its `lr_ged_os` being unique
+        does not buy the rest a pass.
+
+        **The first version of this test was vacuous** and only mutation showed it: it
+        had `rude_boy` and `pink_ponyclub` both cm claiming `lr_ged_sb`, so S4's
+        same-level duplicate rule refused it before this rule ran at all. Weakening
+        "solely" to "at least one unique target" left it green. The shape here keeps the
+        shared claim across levels, where S4 permits it and only this rule can object.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("pink_ponyclub", provides=("lr_ged_ns",)),
+             cm("rude_boy", provides=("lr_ged_sb", "lr_ged_os"))],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "rude_boy" in message
+        assert "nor carrying targets no other source provides" in message, (
+            "it must fail on the reconciliation rule, not on S4's duplicate rule — "
+            "the first draft of this test failed on the wrong one and stayed green "
+            "when 'solely' was weakened"
+        )
+
+    def test_a_source_reconciling_with_something_outside_the_delivery_does_not_count(self):
+        """ADR-019 §4 has always said "among those sources". The previous implementation
+        did not honour it — it added an edge to `reconcile_with` whoever that was, so two
+        members could be joined through an ensemble the delivery never names.
+
+        `skinny_love` declares `reconcile_with: pink_ponyclub`. Sent without it, and with
+        no provides to fall back on, it is attached to nothing in this delivery.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("rude_boy")], reconciled=True
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "a partner outside this delivery does not count" in str(exc.value)
+
+    def test_two_rival_reconciliation_groups_are_refused(self):
+        """Not the coverage case: two pairs that reconcile internally and not with each
+        other, neither carrying unique targets. Nothing would detect the two groups
+        disagreeing — the same failure one level up, so it keeps the same answer.
+
+        Both pairs are real: `skinny_love` declares `reconcile_with: pink_ponyclub`, and
+        `white_mustang` declares `reconcile_with: cruel_summer`.
+
+        **Found vacuous by mutation.** The first version paired `white_mustang` with
+        `rude_boy`, which it does not reconcile with — so there was only ever one group
+        and the un-attached branch was doing the refusing. Deleting the rival-groups
+        branch left the suite green.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("pink_ponyclub"),
+             pgm("white_mustang"), cm("cruel_summer")],
+            reconciled=True,
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "2 separate reconciliation groups" in message
+        assert "deliveries/un_crafd.py" in message
+
+
+class TestTheSplitDidNotMoveTheGate:
+    """S5 changes what happens *after* the `reconciled is not True` gate, not the gate.
+
+    #429 asked for this to be verified rather than assumed, because S2 (#426) had just
+    documented and pinned the `None` semantics and #419 proposed changing them.
+    """
+
+    def test_unset_is_still_the_same_hard_error_even_with_full_coverage(self):
+        """Every source here carries unique targets, so the *split* would let them all
+        through — the gate is what still refuses them, and it refuses them for the
+        original reason.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("rude_boy", provides=("lr_ged_os",))],
+            reconciled=None,
+            targets=("lr_ged_sb", "lr_ged_os"),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "not currently supported" in message
+        assert "reconciled=None" in message
+
+    def test_one_source_still_ignores_reconciled_whatever_it_says(self):
+        for value in (True, False, None):
+            delivery, require = _delivery([pgm("rusty_bucket")], reconciled=value)
+            check(delivery, require, consumer="un_fao")
+
+
+
 # ── Freshness ──────────────────────────────────────────────────────────────
 
 

@@ -312,14 +312,40 @@ unchanged and remain there.
   **filename** — must be a valid identifier; there is no key to disagree with it.
 - **Level.** `pgm("x")` fails unless `x` declares `"level": "pgm"`. Neither is authoritative over the
   other; they must agree.
-- **Reconciliation.** With `reconciled = True` and two or more sources, the `reconciliation` /
-  `reconcile_with` declarations *among those sources* must form **one connected group covering every
-  source listed**. A source that reconciles with nothing, or with something outside the delivery, is
-  an error naming both files.
+- **Reconciliation (rewritten 2026-08-26, #429 — this replaces the rule, it does not extend it).**
+  With `reconciled = True` and two or more sources, every source must **either** join the
+  reconciliation group formed by the `reconciliation` / `reconcile_with` declarations *among those
+  sources*, **or** be present **solely** to provide targets no other source in the delivery provides.
+  A source that does neither — no stated relationship *and* no unique targets — is an error naming
+  both files.
+  - **What the previous rule said, and why it had to go (#420 HARD 2).** It required one connected
+    group covering *every* source. Against the real ensembles that forbids the only composition that
+    works: `un_crafd` needs three targets, every ensemble that reconciles carries one, and the only
+    ensemble carrying three (`rusty_bucket`) reconciles with nothing. The source supplying the
+    missing targets was refused **for supplying them**.
+  - **"Solely" is the operative word.** A source that shares even one target with another source and
+    declares no reconciliation with it is the silent-disagreement case this rule exists to catch, not
+    a coverage source — however unique its remaining targets are. Sharing a target across pgm and cm
+    is what makes it dangerous, not what makes it safe.
+  - **A source with no `provides=` is never exempt.** The question is unanswerable, so the stricter
+    branch applies. This is what keeps every delivery written before #427 behaving exactly as it did.
+  - **A partner outside the delivery does not count**, which this section always said and the
+    implementation did not do until #429.
+  - **Two separate reconciliation groups in one delivery is still an error.** Two groups that do not
+    reconcile with each other is the same disagreement one level up.
+  - The rule is **order-independent**. The previous implementation seeded its search at the first
+    source listed, so with a coverage source typed first the genuinely reconciled pair read as
+    stranded. Corrected in #429.
   With `reconciled = False` and two or more sources: **hard error** — *"not currently supported; no
   meaningful use-case has emerged."* Shipping several sources with no stated relationship silently
   permits a country total that disagrees with the sum of its cells, which is worse than either source
   alone.
+  **The gate did not move (#429).** Splitting reconciliation from coverage changed what happens
+  *after* the check below, not the check itself. So a delivery whose sources are combined only for
+  coverage — every source carrying unique targets, none reconciling — must still declare
+  `reconciled=True`, which is the one thing left in this section that reads as a claim nobody
+  verifies. Registered as **C-145** with the first such delivery as its trigger; changing it is a
+  behaviour change to semantics #426 has just pinned, not a wording fix.
   **Unset (`None`) and two or more sources: the same hard error as `False` (amended 2026-08-25, #426).**
   The reason is the one above — several sources with no stated relationship is the failure, and not
   having said anything is not a statement that they are unrelated. Unset is the *default*, so this is
