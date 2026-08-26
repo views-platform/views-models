@@ -4,7 +4,9 @@
 **amended 2026-08-25** (four documentation corrections from the #420 falsification: §1's example, §3/§7
 on `monthly_run.sh`, §4's "where these run", §5's scope — #425. No rule changed.);
 **amended 2026-08-25** (`reconciled` documented as three-valued, matching what the checks already do —
-§3, §4 — #426. No rule changed.)
+§3, §4 — #426. No rule changed.);
+**amended 2026-08-25** (`provides` added to §3 — per-source target responsibility, optional, unset
+means all — #427. The key exists; the rule that checks it is #428.)
 **Date:** 2026-08-04
 **Deciders:** Simon (maintainer)
 **Builds on:** **ADR-017**, which decides that delivery is a `sources → consumer` edge written on the
@@ -120,6 +122,7 @@ value is a name checked against something else, so no list can be complete.
 | `frequency` | DELIVERY | `monthly` | closed — 1 value | **which** scheduled run picks it up |
 | `tier` | DELIVERY | `prod` | closed — 1 value | **whether** sources must be `graduate` |
 | `intent` | DELIVERY | `live(since=…)`, `paused(reason, since=…)` | closed — 2 values | **whether** it ships at all |
+| `provides` | DELIVERY (on a source) | a tuple of target names, or unset | **open** — names are not checked here | which source is responsible for which target |
 | `reconciled` | REQUIRE | `True`, `False`, unset (`None`) | closed — 3 values | which source *combinations* are refused |
 | `targets` | REQUIRE | a tuple of target names | **open** — checked against a run's manifests | a run missing one is refused |
 | `coverage` | REQUIRE | one region name | **open** — checked against views-postprocessing | a run with the wrong cell count is refused |
@@ -171,6 +174,32 @@ in ADR-017 §3 and is not repeated here** — it justifies the axis, and this AD
 
 It also answers the simpler case: a country-level-only delivery names one country-level source —
 `send = [cm("<some cm ensemble>")]`. Same key, different source, no schema change.
+
+**`provides` — optional, and only meaningful with two or more sources (added 2026-08-25, #427).**
+
+A delivery may name several sources for two quite different reasons: because they *reconcile* with
+each other, or because between them they *cover* the targets asked for. The second case has no way to
+say which source is responsible for which target, and that omission is why §1's example could not be
+satisfied by the sources it named.
+
+```python
+send = [
+    pgm("skinny_love",  provides=("lr_ged_sb",)),
+    cm("pink_ponyclub"),
+    pgm("rusty_bucket", provides=("lr_ged_ns", "lr_ged_os")),
+]
+```
+
+**Unset means "every target this source contains."** So a one-source delivery never writes it, and
+both existing files are unchanged. Like the level wrappers, it is a **claim**: writing it states what
+you believe. It is not verified where it is written — whether the targets add up is a cross-file rule
+(§4), and whether a target name is *real* needs a run's manifests and stays at the delivery boundary
+(register C-125, C-123).
+
+*Why on the source rather than in `REQUIRE`:* `REQUIRE.targets` says what the delivery must contain;
+`provides` says where each one comes from. Putting the second in `REQUIRE` would make it a refusal
+rather than a description, and would separate it from the source it describes.
+
 
 **`frequency` — required, and today `monthly` is the only value.** There is no safe default. An unlabelled delivery is either picked up by
 nothing — a silent non-delivery, the exact failure ADR-017 exists to prevent — or picked up by
