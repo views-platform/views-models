@@ -21,6 +21,7 @@ What is enforced here is only what a single value can be wrong about on its own.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -58,20 +59,48 @@ class Source:
     ADR-019 §3: `pgm("x")` does not make x pgm. The level already lives on the source
     (`"level": "pgm"`); writing it here states what you believe, and the system refuses
     if the source disagrees. That correspondence check is #344's, not this module's.
+
+    `provides` is the same kind of claim, one axis over: which targets **this** source is
+    responsible for in **this** delivery. It exists because a delivery may name several
+    sources for target coverage rather than for reconciliation — `un_crafd` needs three
+    targets, every reconciling ensemble carries one, and the ensemble that carries three
+    reconciles with nothing (#424, ADR-019 §3).
+
+    **`None` means "every target this source contains"**, so `pgm("x")` is unchanged and
+    a one-source delivery never needs the key. Nothing here checks the claim: whether the
+    targets add up is a cross-file rule and belongs with the checks (#428), and whether a
+    target name is *real* needs a run's manifests and stays at the delivery boundary.
     """
 
     name: str
     level: str
+    provides: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        if self.provides is None:
+            return
+        # A bare string is a Sequence[str], so `provides="lr_ged_sb"` would normalise to
+        # ('l','r','_','g',...) and refuse a delivery for reasons no one could read. The
+        # same slip on `send` is already caught below; this is that guard, one field over.
+        if isinstance(self.provides, str):
+            raise TypeError(
+                f"provides must be a tuple of target names, not a bare string "
+                f"(got {self.provides!r} on source {self.name!r}).\n"
+                f"  Write: provides=({self.provides!r},)   <- note the comma\n"
+                f"  A string is a sequence of characters, so this would have claimed "
+                f"{len(self.provides)} single-letter targets."
+            )
+        object.__setattr__(self, "provides", tuple(self.provides))
 
 
-def pgm(name: str) -> Source:
+def pgm(name: str, *, provides: Sequence[str] | None = None) -> Source:
     """Claim that `name` is a grid-cell (PRIO-GRID month) source."""
-    return Source(name=name, level="pgm")
+    return Source(name=name, level="pgm", provides=provides)
 
 
-def cm(name: str) -> Source:
+def cm(name: str, *, provides: Sequence[str] | None = None) -> Source:
     """Claim that `name` is a country-month source."""
-    return Source(name=name, level="cm")
+    return Source(name=name, level="cm", provides=provides)
 
 
 # ── Whether it ships ───────────────────────────────────────────────────────
