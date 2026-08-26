@@ -19,7 +19,13 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from deliveries.coherence import CoherenceError, maturity_of, require_source, source_config
+from deliveries.coherence import (
+    CoherenceError,
+    locked_door,
+    maturity_of,
+    require_source,
+    source_config,
+)
 
 DELIVERIES_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DELIVERIES_DIR.parent
@@ -153,9 +159,21 @@ def declared_source(consumer: str) -> str:
     typing it — #347 for FAO, and every consumer since. Raises rather than guessing, and
     every failure names the file to open (ADR-020).
 
-    One source only: delivering several to one consumer needs the reconciliation rules in
-    ADR-019 §4, which no postprocessor implements. Refusing is honest; picking the first
-    would be a silent choice.
+    **One source only, and the reason is not the one this used to give (#430).** It said
+    several sources "needs ADR-019 §4's reconciliation rules, which the postprocessor does
+    not implement". §4 no longer says that — since #429 it permits one reconciliation group
+    plus any source present solely to provide targets no other source provides. The limit
+    that remains is in a different repository: `views_postprocessing` reads
+    `configs["ensemble"]` as a single string (`unfao/managers/unfao.py:140`, `:195`;
+    `crafd/managers/crafd.py:240` — a subscript, so absence is a `KeyError`), and there is
+    no key for a list.
+
+    So the refusal stands and its message became a locked door (ADR-020 §5): the reader
+    cannot fix this here, and the honest thing is to say where it is fixed rather than
+    point them at a rule that no longer forbids anything.
+
+    Refusing is still right. Picking the first would be a silent choice about which
+    forecast reaches an external partner.
     """
     path = DELIVERIES_DIR / f"{consumer}.py"
     if not path.exists():
@@ -166,12 +184,25 @@ def declared_source(consumer: str) -> str:
         )
     sources = list(load_delivery(path).DELIVERY.send)
     if len(sources) != 1:
+        listed = ", ".join(f"{s.level}({s.name})" for s in sources) or "none"
         raise ValueError(
-            f"deliveries/{consumer}.py declares {len(sources)} sources, and a postprocessor "
-            f"can carry exactly one.\n"
-            f"  Open deliveries/{consumer}.py and check `send`.\n"
-            f"  Several sources to one consumer needs ADR-019 §4's reconciliation rules, "
-            f"which the postprocessor does not implement."
+            locked_door(
+                what=(
+                    f"deliveries/{consumer}.py declares {len(sources)} sources "
+                    f"({listed}), and a postprocessor config carries exactly one"
+                ),
+                why=(
+                    "this is not a rule about deliveries — ADR-019 §4 permits several "
+                    "sources since #429. views_postprocessing reads configs[\"ensemble\"] "
+                    "as a single string, one repository away, and has no key for a list.\n"
+                    f"  To send one source instead, open deliveries/{consumer}.py "
+                    "and edit `send`"
+                ),
+                request=(
+                    "let a postprocessor carry several sources for one consumer "
+                    "(views-postprocessing)"
+                ),
+            )
         )
     return sources[0].name
 

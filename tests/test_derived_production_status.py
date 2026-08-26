@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from deliveries.status import (
+    declared_source,
     delivered_sources,
     in_production,
     report,
@@ -71,6 +72,76 @@ class TestDerivation:
 
 
 # ── The value is computed, not stored ──────────────────────────────────────
+
+
+
+class TestDeclaredSourceRefusesSeveral:
+    """#430. A postprocessor config carries exactly one source, and the reason changed.
+
+    The refusal used to say several sources "needs ADR-019 §4's reconciliation rules,
+    which the postprocessor does not implement". Since #429 §4 permits several — one
+    reconciliation group plus any source present solely to provide targets no other source
+    provides. So the message named a rule that no longer forbids anything, while the real
+    limit sat in another repository: `views_postprocessing` reads `configs["ensemble"]` as
+    a single string and has no key for a list.
+
+    The refusal is right and stays. Picking the first would be a silent choice about which
+    forecast reaches an external partner. What it owes the reader is the truth about where
+    it is fixed.
+    """
+
+    def _two_source_delivery(self, tmp_path):
+        """A real delivery file with a second source added, written somewhere harmless."""
+        import shutil
+
+        source = REPO_ROOT / "deliveries" / "un_crafd.py"
+        body = source.read_text()
+        assert 'send      = [pgm("rusty_bucket")],' in body, (
+            "deliveries/un_crafd.py no longer has the send line this test rewrites"
+        )
+        body = body.replace('send      = [pgm("rusty_bucket")],',
+                            'send      = [pgm("rusty_bucket"), cm("pink_ponyclub")],', 1)
+        body = body.replace("Delivery, Require, pgm, live,", "Delivery, Require, cm, pgm, live,", 1)
+        shutil.copytree(REPO_ROOT / "deliveries", tmp_path / "deliveries")
+        (tmp_path / "deliveries" / "two_sources.py").write_text(body)
+        return tmp_path / "deliveries"
+
+    def test_it_refuses_and_says_where_the_limit_actually_is(self, tmp_path, monkeypatch):
+        import deliveries.status as status
+
+        monkeypatch.setattr(status, "DELIVERIES_DIR", self._two_source_delivery(tmp_path))
+        with pytest.raises(ValueError) as exc:
+            declared_source("two_sources")
+        message = str(exc.value)
+        assert "rusty_bucket" in message and "pink_ponyclub" in message, (
+            "name the sources it found — the reader has to know which two"
+        )
+        assert "views_postprocessing" in message, (
+            "the limit is one repository away; naming ADR-019 §4 instead sends the reader "
+            "to a rule that has permitted this since #429"
+        )
+        assert "ADR-019 §4 permits several sources" in message, (
+            "say plainly that the delivery side is not what refused, or the reader "
+            "edits the wrong file"
+        )
+        assert "Ask Simon" in message, (
+            "ADR-020 §5: a check that cannot be answered here is a locked door, and a "
+            "locked door names the person and supplies the request"
+        )
+
+    def test_it_still_refuses_rather_than_picking_the_first(self, tmp_path, monkeypatch):
+        """The whole point. A silent choice here delivers a different forecast to an
+        external partner and says nothing."""
+        import deliveries.status as status
+
+        monkeypatch.setattr(status, "DELIVERIES_DIR", self._two_source_delivery(tmp_path))
+        with pytest.raises(ValueError):
+            declared_source("two_sources")
+
+    def test_one_source_is_unchanged(self):
+        assert declared_source("un_fao") == "rusty_bucket"
+        assert declared_source("un_crafd") == "rusty_bucket"
+
 
 
 class TestNothingStoresTheAnswer:
