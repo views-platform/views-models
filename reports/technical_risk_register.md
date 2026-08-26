@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-08-26  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 152 (143 concerns + 9 disagreements)  
-**Concerns:** Open 68 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 46 | T3 58 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 153 (144 concerns + 9 disagreements)  
+**Concerns:** Open 69 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 46 | T3 59 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1808,6 +1808,19 @@
 | **Status** | Open |
 | **Location** | `deliveries/coherence.py:check()`; callers: `tests/test_delivery_coherence.py`, `tests/test_delivery_errors_descend.py` — and nothing else |
 | **Notes** | `check()` runs the six fail-loud rules over a delivery file. **Nothing invokes it at delivery time.** Verified: the only two call sites in the repository are test modules; `monthly_run.sh`, the launchers, and the liveness tools never import it. The rules therefore stop a wrong file being *written*, not a wrong file being *used* — a delivery edited on a branch where the suite is not run, or a rule added after a file was written, is refused by nobody. **This is not new and #428 did not cause it**, but #428 is what makes it worth an entry: until now every rule guarded a property the single-source deliveries could not violate, so the gap cost nothing. The coverage rule is the first one written for a composition that does not yet exist, and the stories that create that composition are the ones listed in the trigger. **Not obviously worth closing by calling `check()` at delivery time** — that would put an import-time refusal on the production path, where the failure mode is a partner getting nothing rather than a developer getting a message, which is the trade ADR-020 §1 is careful about. The cheaper reading is that this is a CI-enforced invariant and should be *described* as one: ADR-019 §4 now says so in as many words (added by #428), so the risk is that someone reads a rule and assumes it protects the run. Cross-refs: **#424**, **#428**, **#429**, **#430**, C-143 (the ADR/code drift these same rules are exposed to), C-125 (why the `targets` stair deliberately stops here). |
+
+---
+
+### C-145 — A delivery combining sources only for coverage must still declare `reconciled=True`, which nothing verifies
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **The first delivery whose sources are combined only for target coverage** — every source carrying unique targets, none reconciling with another. #430 (S6) makes such a delivery consumable and #422 decides the cm coverage that would make one realistic. Writing it requires `reconciled=True`, and whoever writes it will either believe the claim or notice it is empty. |
+| **Source** | S5 of epic #424 (2026-08-26), verifying rather than assuming per #429 |
+| **Status** | Open |
+| **Location** | `deliveries/coherence.py:_check_reconciliation` (the `require.reconciled is not True` gate); `docs/ADRs/019_delivery_declaration.md` §4 |
+| **Notes** | #429 split the reconciliation requirement from the coverage requirement — every source must now either join the reconciliation group **or** carry targets no other source provides. **The split governs what happens after the `reconciled is not True` gate, not the gate**, which #429 asked to be verified rather than assumed. Verified, with a test (`TestTheSplitDidNotMoveTheGate`): two sources with fully disjoint `provides` and `reconciled=None` still raise the original hard error, and they raise it for the original reason. **The residue is that `reconciled=True` becomes a required incantation for a delivery containing no reconciliation at all.** ADR-019 §4 says the key means the sources are reconciled; a pure-coverage delivery would set it while nothing in the file reconciles with anything, and no rule would object — the split's own exemption is what lets every source through. It is not currently reachable: no delivery in the platform has two sources, and `un_crafd`'s intended three-source shape *does* contain a reconciling pair, so `True` is honest there. **Deliberately not fixed in S5.** Moving the gate is a behaviour change to the `None`/`False` semantics that S2 (#426) documented and pinned four days earlier, and is precisely what #419 proposed and this epic corrected as being a behaviour change rather than a documentation fix. **Two exits, and the choice is the maintainer's:** (a) let `reconciled` mean "reconciled *where the sources overlap*", which makes `True` vacuously honest for disjoint sources and needs only ADR wording; or (b) admit a third state — sources combined for coverage — and let the gate accept it, which needs a new key and a test change. Cross-refs: **#419**, **#424**, **#426**, **#429**, **#430**, **#422**, C-143 (the ADR/code drift these rules are exposed to), C-144 (all of this is edit-time only). |
 
 ---
 
