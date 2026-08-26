@@ -175,6 +175,17 @@ in ADR-017 §3 and is not repeated here** — it justifies the axis, and this AD
 It also answers the simpler case: a country-level-only delivery names one country-level source —
 `send = [cm("<some cm ensemble>")]`. Same key, different source, no schema change.
 
+**A delivery may declare several sources; a postprocessor consumes one (stated 2026-08-26, #430).**
+This was true before and written down nowhere — it lived only in `deliveries/status.py`, where the
+message gave a reason that #429 has since made false. The constraint is not on the delivery side:
+`views_postprocessing` reads `configs["ensemble"]` as a **single string** — `unfao/managers/unfao.py:140`
+and `:195`, `crafd/managers/crafd.py:240`, the last a subscript, so absence is a `KeyError` — and it
+has no key for a list. `declared_source()` therefore refuses at more than one rather than picking the
+first, because picking the first is a silent choice about which forecast reaches an external partner.
+Since the answer is in another repository, that refusal is a **locked door** (ADR-020 §5): it names
+what is blocked, why, and the request to make. **So S3–S5 make a multi-source delivery expressible
+and checkable; they do not make it consumable, and nothing in views-models can.**
+
 **`provides` — optional, and only meaningful with two or more sources (added 2026-08-25, #427).**
 
 A delivery may name several sources for two quite different reasons: because they *reconcile* with

@@ -58,6 +58,58 @@ def _string_literals_excluding_docs(path: Path) -> set[str]:
     }
 
 
+def _config_in_a_copy(*, edit=None, delete_declaration: bool = False) -> subprocess.CompletedProcess:
+    """Load the FAO config in a throwaway repo copy, optionally with a rewritten or
+    deleted declaration.
+
+    **Why a copy rather than patching `sys.modules` (#430).** These two tests used to
+    monkeypatch `deliveries.un_fao` in the importing process — assigning `DELIVERY`, or
+    setting `sys.modules['deliveries.un_fao'] = None`. That worked only because the config
+    carried a private accessor doing `from deliveries.un_fao import DELIVERY`. It now calls
+    `deliveries.status.declared_source`, which re-executes the declaration **from disk**
+    via `spec_from_file_location` and so cannot be reached by either trick.
+
+    The guarantee is unchanged — a missing or altered declaration still decides the config,
+    and still fails loudly. What changed is that simulating one by patching an import is no
+    longer faithful. A copy is: it exercises the real filesystem and the real import
+    machinery, which is what the subprocess in the second test was already reaching for.
+
+    Same shape as `_armed_in_a_copy` in `test_intent_arms_the_delivery.py`, deliberately
+    not shared. That one rewrites `intent` and reads `wire_upload_enabled`; this one
+    rewrites `send` or removes the file and reads `ensemble`. Two copies that are
+    understood beat one parameterised helper that is guessed.
+    """
+    import shutil
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        shutil.copytree(
+            REPO_ROOT, repo, symlinks=True,
+            ignore=shutil.ignore_patterns(
+                ".git", "__pycache__", "*.pyc", "models", "ensembles",
+                "envs", "wandb", "data", "artifacts", "logs", "reports", "docs",
+            ),
+        )
+        declaration = repo / "deliveries" / "un_fao.py"
+        if delete_declaration:
+            declaration.unlink()
+        elif edit is not None:
+            body = declaration.read_text()
+            assert edit[0] in body, f"{edit[0]!r} is no longer in deliveries/un_fao.py"
+            declaration.write_text(body.replace(edit[0], edit[1], 1))
+        return subprocess.run(
+            [sys.executable, "-c",
+             "import importlib.util,sys;"
+             f"sys.path.insert(0,{str(repo)!r});"
+             "s=importlib.util.spec_from_file_location('m',"
+             f"{str(repo / 'postprocessors/un_fao/configs/config_meta.py')!r});"
+             "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
+             "print(m.get_meta_config()['ensemble'])"],
+            capture_output=True, text=True, cwd=repo,
+        )
+
+
 # ── The derivation ─────────────────────────────────────────────────────────
 
 
@@ -96,22 +148,23 @@ class TestConfigDerivesFromTheDeclaration:
 
     def test_changing_the_declaration_changes_the_config(self):
         """The invariant that replaces #343's parity test: the config is downstream
-        of the declaration, not merely equal to it today."""
-        import deliveries.un_fao as declaration
-        from deliveries.vocabulary import Delivery, monthly, pgm, prod
+        of the declaration, not merely equal to it today.
 
-        original = declaration.DELIVERY
-        try:
-            declaration.DELIVERY = Delivery(
-                send=[pgm("skinny_love")],
-                frequency=monthly,
-                tier=prod,
-                intent=original.intent,
-            )
-            assert _meta()["ensemble"] == "skinny_love"
-        finally:
-            declaration.DELIVERY = original
-        assert _meta()["ensemble"] != "skinny_love"
+        Rewrites `send` in a repo copy rather than reassigning `DELIVERY` on the imported
+        module, because the config now reads the declaration from disk (#430) — see
+        `_config_in_a_copy`. The copy is the stronger test: it changes the file the
+        production path actually reads.
+        """
+        proc = _config_in_a_copy(
+            edit=('send      = [pgm("rusty_bucket")]', 'send      = [pgm("skinny_love")]')
+        )
+        assert proc.returncode == 0, proc.stderr[-500:]
+        assert proc.stdout.strip() == "skinny_love", (
+            f"the config did not follow the declaration: {proc.stdout!r}"
+        )
+        assert _meta()["ensemble"] == "rusty_bucket", (
+            "the real repo must be untouched — the edit belonged to the copy"
+        )
 
 
 # ── The failure paths, which are the ones that matter ──────────────────────
@@ -134,24 +187,18 @@ class TestItFailsLoudlyRatherThanFallingBack:
             )
 
     def test_a_missing_declaration_names_the_file(self):
-        """Run in a subprocess so the real import machinery is exercised, not a mock."""
-        script = (
-            "import sys; sys.path.insert(0, %r)\n"
-            "import importlib.util, pathlib\n"
-            "sys.modules['deliveries.un_fao'] = None\n"
-            "spec = importlib.util.spec_from_file_location('m', %r)\n"
-            "m = importlib.util.module_from_spec(spec)\n"
-            "spec.loader.exec_module(m)\n"
-            "m.get_meta_config()\n"
-        ) % (str(REPO_ROOT), str(FAO_CONFIG))
-        proc = subprocess.run(
-            [sys.executable, "-c", script],
-            capture_output=True, text=True, cwd=REPO_ROOT,
-        )
+        """The declaration is actually deleted, in a copy, and the config must refuse.
+
+        This used to set `sys.modules['deliveries.un_fao'] = None` in a subprocess, which
+        stopped simulating anything once the config began reading the file from disk
+        (#430). Deleting the file is what the test was always describing.
+        """
+        proc = _config_in_a_copy(delete_declaration=True)
         assert proc.returncode != 0, (
-            "a broken delivery declaration must fail, not fall back to a default"
+            "a missing delivery declaration must fail, not fall back to a default.\n"
+            f"  it printed: {proc.stdout!r}"
         )
-        assert "un_fao" in proc.stderr or "deliveries" in proc.stderr, (
+        assert "un_fao" in proc.stderr and "deliveries" in proc.stderr, (
             f"the failure names no file, so a reader cannot act on it (ADR-020).\n"
             f"  stderr: {proc.stderr[-400:]}"
         )
