@@ -1,7 +1,10 @@
 """The delivery coherence rules (ADR-019 §4, ADR-017 §5).
 
 Every rule here is answerable **inside this repository, offline**. The two that are not —
-`targets` and `coverage` — are deliberately absent; see `TestChecksThatDoNotRunHere`.
+whether a target *exists*, and what a coverage region contains — are deliberately absent;
+see `TestChecksThatDoNotRunHere`. The coverage *rule* added in #428 is a different thing
+with a confusingly similar name: it compares two declarations inside one delivery file.
+See `TestTargetCoverage`.
 
 Failing cases are built from *real* sources making *wrong claims*, rather than from
 invented source directories. A fixture that invents a model can drift from how the repo
@@ -23,7 +26,7 @@ from deliveries.vocabulary import Delivery, Require, cm, live, monthly, months, 
 pytestmark = pytest.mark.beige
 
 
-def _delivery(send, *, reconciled=None, max_age=months(2), intent=None):
+def _delivery(send, *, reconciled=None, max_age=months(2), intent=None, targets=()):
     return (
         Delivery(
             send=send,
@@ -31,7 +34,7 @@ def _delivery(send, *, reconciled=None, max_age=months(2), intent=None):
             tier=prod,
             intent=intent or live(since=date(2026, 8, 4)),
         ),
-        Require(reconciled=reconciled, max_age=max_age),
+        Require(reconciled=reconciled, max_age=max_age, targets=targets),
     )
 
 
@@ -244,10 +247,19 @@ class TestTierWarnsDuringTransition:
 
 
 class TestChecksThatDoNotRunHere:
-    """ADR-020 §4: two stairs end outside this repository. Their absence is a decision."""
+    """ADR-020 §4: two stairs end outside this repository. Their absence is a decision.
 
-    def test_targets_are_not_gated_at_edit_time(self):
-        """A `targets` gate today would reject a *correct* delivery file.
+    **#428 changed what this class is asserting, and the change is narrow.** There is now
+    a rule that reads `REQUIRE.targets` (`_check_target_coverage`, `TestTargetCoverage`) — but it
+    compares that tuple against the `provides=` written beside it in the same file. What
+    is still not checked, and is what these two tests pin, is anything that would require
+    opening a *source config* or a *run*: whether a target exists, and what cells a
+    coverage region contains. Both cases below use one source, where the coverage rule
+    does not apply at all.
+    """
+
+    def test_target_existence_is_not_gated_at_edit_time(self):
+        """A gate on whether a target is *real* would reject a *correct* delivery file.
 
         `rusty_bucket` declares `lr_*_best` in `regression_targets` and emits
         `lr_ged_*` (register C-123). Checking the delivery's targets against the
@@ -265,6 +277,172 @@ class TestChecksThatDoNotRunHere:
         require = Require(coverage="not_a_real_region", max_age=months(2))
         with pytest.warns(UserWarning):
             check(delivery, require, consumer="un_fao")  # must not raise
+
+
+
+# ── Coverage: which source answers for which target ────────────────────────
+
+
+class TestTargetCoverage:
+    """ADR-019 §4, #428. The *other* reason a delivery names several sources.
+
+    Named `TargetCoverage`, not `Coverage`: `Require.coverage` is an unrelated key (a
+    GAUL region), and `TestChecksThatDoNotRunHere` is where *that* one is pinned.
+
+    Reconciliation says the sources agree with each other about one target. Coverage
+    says that between them they carry the targets asked for. Until `provides` (#427)
+    there was no way to say which, so the composition `un_crafd` needs — three targets,
+    no reconciling ensemble that carries three — could not be written down.
+
+    These deliveries all set `reconciled=True`, because `_check_reconciliation` still
+    refuses any two-source delivery that does not. Splitting the two rules apart is
+    #429 (S5); this story only adds the coverage half. The order in `check()` puts
+    coverage first, so these cases are decided on their own terms either way.
+    """
+
+    def test_a_target_nobody_claims_is_refused(self):
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("pink_ponyclub", provides=("lr_ged_ns",))],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "lr_ged_os" in message, "the message must name the missing target"
+        assert "deliveries/un_crafd.py" in message, "ADR-020: name the file to open"
+        assert "provides=" in message, "say what to write, not only what is wrong"
+
+    def test_two_sources_claiming_one_target_at_one_level_is_refused(self):
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             pgm("white_mustang", provides=("lr_ged_sb",))],
+            reconciled=True,
+            targets=("lr_ged_sb",),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "skinny_love" in message and "white_mustang" in message, (
+            "naming the target alone leaves the reader grepping for who else claimed it"
+        )
+        assert "lr_ged_sb" in message
+
+    def test_the_same_target_at_two_levels_is_the_reconciliation_case_and_passes(self):
+        """ADR-017 §3: a pgm source and a cm source answering for the same target is
+        exactly what reconciliation *is*. Refusing it here would forbid `un_fao`'s own
+        intended shape."""
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("pink_ponyclub", provides=("lr_ged_sb",))],
+            reconciled=True,
+            targets=("lr_ged_sb",),
+        )
+        check(delivery, require, consumer="un_fao")
+
+    def test_a_complete_two_source_split_passes(self):
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb", "lr_ged_ns")),
+             cm("pink_ponyclub", provides=("lr_ged_os",))],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        check(delivery, require, consumer="un_crafd")
+
+    def test_annotating_some_sources_but_not_others_is_refused(self):
+        """Not in #428's table — decided here, and the reason is in the message.
+
+        An un-annotated source claims everything it contains, so it overlaps whatever
+        the others claim: the duplicate check goes vacuous and the coverage check passes
+        for the wrong reason. The realistic slip is adding a second source and only
+        annotating the new one.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love"),
+             cm("pink_ponyclub", provides=("lr_ged_os",))],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_os"),
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_crafd")
+        message = str(exc.value)
+        assert "skinny_love" in message, "name the source that was left un-annotated"
+        assert "remove them all" in message, "both ways out, not just one"
+
+
+class TestTargetCoverageDoesNotApply:
+    """The rule must stay invisible to every delivery that exists today."""
+
+    def test_one_source_is_untouched_even_with_provides_narrower_than_targets(self):
+        """#428: with one source the rule does not apply — and the reason is not
+        deference, it is C-123.
+
+        With nowhere else a target could come from, `provides` narrower than `targets`
+        is no longer a claim about the *division of labour*; it is a claim about what
+        this one source contains. That is the check the module deliberately does not
+        make, because `rusty_bucket` declares `lr_*_best` and emits `lr_ged_*`, so it
+        would refuse a correct file.
+
+        Found by mutation: relaxing the guard to `< 1` passed every test here, because
+        the one-source case was only ever asserted *without* `provides` and the
+        all-omitted early exit was catching it instead.
+        """
+        delivery, require = _delivery(
+            [pgm("rusty_bucket", provides=("lr_ged_sb",))],
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        with pytest.warns(UserWarning):
+            check(delivery, require, consumer="un_fao")
+
+    def test_one_source_with_no_provides_is_the_shape_every_real_delivery_has(self):
+        delivery, require = _delivery(
+            [pgm("rusty_bucket")],
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        with pytest.warns(UserWarning):
+            check(delivery, require, consumer="un_fao")
+
+    def test_two_sources_with_no_provides_at_all_are_untouched(self):
+        """Omitted means "every target this source contains" (ADR-019 §3), so nothing
+        is claimed exclusively and there is nothing to be inconsistent about. This is
+        the shape every two-source delivery had before #427."""
+        delivery, require = _delivery(
+            [pgm("skinny_love"), cm("pink_ponyclub")],
+            reconciled=True,
+            targets=("lr_ged_sb", "lr_ged_ns", "lr_ged_os"),
+        )
+        check(delivery, require, consumer="un_fao")
+
+    def test_with_no_required_targets_nothing_can_be_missing(self):
+        """`Require.targets` defaults to `()` — and both real deliveries set it, but a
+        delivery need not. With nothing required, the coverage half has no question to
+        ask, and refusing here would make `provides` unusable in such a file."""
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             cm("pink_ponyclub", provides=("lr_ged_os",))],
+            reconciled=True,
+        )
+        check(delivery, require, consumer="un_fao")
+
+    def test_but_a_same_level_duplicate_is_still_refused_with_no_targets(self):
+        """The two halves of this rule are gated differently, and that is deliberate.
+
+        Coverage asks "did anyone answer for what was required?" and needs `targets`.
+        Duplication asks "did two sources answer for the same thing?" and does not —
+        two sources contradicting each other at one level is wrong whether or not
+        anybody asked for that target. Pinned because the tidy-looking simplification
+        is to gate the whole rule on `targets`, which would silently drop this half.
+        """
+        delivery, require = _delivery(
+            [pgm("skinny_love", provides=("lr_ged_sb",)),
+             pgm("white_mustang", provides=("lr_ged_sb",))],
+            reconciled=True,
+        )
+        with pytest.raises(CoherenceError) as exc:
+            check(delivery, require, consumer="un_fao")
+        assert "lr_ged_sb" in str(exc.value)
+
 
 
 class TestCycleGuard:
