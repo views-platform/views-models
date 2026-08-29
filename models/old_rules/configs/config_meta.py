@@ -9,7 +9,7 @@ def get_meta_config():
     
     meta_config = {
         "name": "old_rules",
-        "algorithm": "NBeatsModel",
+        "algorithm": "NBEATSModel",
         # Uncomment and modify the following lines as needed for additional metadata:
         "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm",

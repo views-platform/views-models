@@ -4,7 +4,7 @@
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | NBeatsModel                  |
+| **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
 | **Features**       |  old_rules   |
