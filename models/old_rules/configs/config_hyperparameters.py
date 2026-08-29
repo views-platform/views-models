@@ -28,7 +28,7 @@ def get_hp_config():
         "output_chunk_shift": 0,
 
         # --- Training ---
-        "batch_size": 128,
+        "batch_size": 4096,
         "n_epochs": 300,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,

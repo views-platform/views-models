@@ -12,18 +12,18 @@ def get_hp_config():
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
-        "hidden_size": 64,
-        "decoder_output_dim": 16,
+        "hidden_size": 128,
+        "decoder_output_dim": 32,
         "temporal_decoder_hidden": 32,
-        "temporal_width_past": 0,
-        "temporal_width_future": 0,
-        "temporal_hidden_size_past": 16,
-        "temporal_hidden_size_future": 4,
+        "temporal_width_past": 16,
+        "temporal_width_future": 16,
+        "temporal_hidden_size_past": 64,
+        "temporal_hidden_size_future": 16,
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.5,
+        "dropout": 0.15,
         "use_static_covariates": True,
 
         # Training
@@ -34,12 +34,12 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0001,
-        "weight_decay": 0.01,
+        "lr": 3e-4,
+        "weight_decay": 1e-4,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999),
-            "lr": 0.0001,
-            "weight_decay": 0.01,
+            "lr": 3e-4,
+            "weight_decay": 1e-4,
         },
 
 # LR Scheduler

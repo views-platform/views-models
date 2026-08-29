@@ -17,13 +17,13 @@ def get_hp_config():
         "temporal_decoder_hidden": 32,
         "temporal_width_past": 16,
         "temporal_width_future": 16,
-        "temporal_hidden_size_past": 32,
+        "temporal_hidden_size_past": 64,
         "temporal_hidden_size_future": 16,
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
         "use_reversible_instance_norm": True,
-        "dropout": 0.25,
+        "dropout": 0.15,
         "use_static_covariates": True,
 
         # Training
