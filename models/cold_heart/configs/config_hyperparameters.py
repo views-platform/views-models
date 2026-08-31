@@ -1,71 +1,68 @@
+
 def get_hp_config():
     """
-    N-BEATS hyperparameters
+    TSMixer hyperparameters
+    Ported from tuning_202606 post-r8 ("fix elastic heart", 2026-06):
+    lr=3e-4, clip=20, dropout=0.4, hidden=128, es_patience=25, RevIN=True
     """
-    # r9
+    # r8
     hyperparameters = {
-        # --- Forecast horizon ---
-        "steps": list(range(1, 37)),
-
-        # --- Architecture ---
-        "generic_architecture": True,
-        "num_stacks": 1,
-        "num_blocks": 1,
-        "num_layers": 2,
-        "layer_widths": 32,
-        "expansion_coefficient_dim": 32,
-        "trend_polynomial_degree": 2,
-        "activation": "ReLU",
-        "dropout": 0.3,
-        "batch_norm": False,
-        "use_reversible_instance_norm": True,
-        "use_static_covariates": True,
-        "use_cyclic_encoders": False,
-
-        # --- Input / output structure ---
+        # Temporal
+        "steps": [*range(1, 36 + 1, 1)],
         "input_chunk_length": 36,
         "output_chunk_length": 36,
         "output_chunk_shift": 0,
+        "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
 
-        # --- Training ---
+        # Inference
+        "num_samples": 500,
+        "mc_dropout": True,
+        "n_jobs": -1,
+
+        # Training
         "batch_size": 128,
         "n_epochs": 300,
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
         "force_reset": True,
 
-        # --- Optimizer ---
+        # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 2e-4,
-        "gradient_clip_val": 50.0,
-        "optimizer_kwargs": {
-            "betas": (0.9, 0.999), 
-            "lr": 1e-4,
-            "weight_decay": 2e-4,
-        },
+        "weight_decay": 3e-4,
+        "gradient_clip_val": 1.0,
 
-        # --- LR Scheduler ---
+        # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
+        
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 8,
+        "lr_scheduler_patience": 5,
         "lr_scheduler_min_lr": 3e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 8,
+            "patience": 5,
             "min_lr": 3e-6,
             "cooldown": 0,
             "threshold": 0.002,
             "threshold_mode": "rel",
         },
-        "early_stopping_monitor": "val_metrics/MSLE",
-        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "optimizer_kwargs": {
+            "betas": (0.9, 0.999), 
+            "lr": 1e-4,
+            "weight_decay": 3e-4,
+        },
+        "checkpoint_mode": "best",
+        "loss_function": "SpotlightLossLogcosh",
+        "non_zero_threshold": 0.88,
 
-        # --- Scaling ---
-        "target_scaler": "AsinhTransform",
+        # Scaling
         "feature_scaler": None,
         "force_target_only": True,
+        "target_scaler": "AsinhTransform",
         # "feature_scaler_map": {
         #     "AsinhTransform": [
         #             # Conflict counts + deltas + spatial lags
@@ -117,22 +114,23 @@ def get_hp_config():
         #     # ]
         # },
 
-        # --- Loss: SpotlightLoss v36 ---
-        "loss_function": "SpotlightLossLogcosh",
-        "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
-        "delta": 0.07139486580318413,
+        # TSMixer Architecture
+        "num_blocks": 3,
+        "hidden_size": 128,
+        "ff_size": 256,
+        "activation": "ReLU",
+        "norm_type": "LayerNorm",
+        "normalize_before": False,
+        "dropout": 0.25,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
 
-        # --- Prediction ---
-        "likelihood": None,
-        "num_samples": 500,
-        "mc_dropout": True,
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform",
+        #     "inject": True,
+        #     # "stats": ["trend", "sparsity"],
+        # },
 
-        # --- Other ---
-        "random_state": 67,
-        "time_steps": 36,  # Checksum: Must match len(steps)
-
-        # --- other ---
-        "n_jobs": -1
+        "use_cyclic_encoders": False,
     }
-
     return hyperparameters
