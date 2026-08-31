@@ -32,7 +32,7 @@ def get_hp_config():
         # Optimizer
         "optimizer_cls": "AdamW",
         "lr": 3e-4,
-        "weight_decay": 5e-5,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 20.0,
 
         # LR Scheduler
@@ -118,7 +118,7 @@ def get_hp_config():
         "num_blocks": 3,
         "hidden_size": 128,
         "ff_size": 256,
-        "activation": "GELU",
+        "activation": "ReLU",
         "norm_type": "LayerNorm",
         "normalize_before": False,
         "dropout": 0.25,
