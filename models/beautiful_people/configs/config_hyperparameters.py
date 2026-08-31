@@ -119,7 +119,7 @@ def get_hp_config():
 
         # N-HiTS Architecture
         "num_stacks": 1,
-        "num_blocks": 1,
+        "num_blocks": 2,
         "num_layers": 2,
         "layer_widths": 32,
         "pooling_kernel_sizes": [[2]],
