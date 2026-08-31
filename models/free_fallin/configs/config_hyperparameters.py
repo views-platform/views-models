@@ -31,9 +31,9 @@ def get_hp_config():
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 3e-4,
-        "weight_decay": 5e-5,
-        "gradient_clip_val": 20.0,
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 50.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
@@ -52,7 +52,7 @@ def get_hp_config():
         },
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
-            "lr": 3e-4,
+            "lr": 1e-4,
             "weight_decay": 1e-4,
         },
         "checkpoint_mode": "best",
