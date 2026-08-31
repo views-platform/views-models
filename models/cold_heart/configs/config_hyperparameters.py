@@ -10,10 +10,10 @@ def get_hp_config():
         # --- Architecture ---
         "generic_architecture": True,
         "num_stacks": 1,
-        "num_blocks": 1,
+        "num_blocks": 2,
         "num_layers": 2,
-        "layer_widths": 32,
-        "expansion_coefficient_dim": 64,
+        "layer_widths": 64,
+        "expansion_coefficient_dim": 32,
         "trend_polynomial_degree": 2,
         "activation": "ReLU",
         "dropout": 0.3,
@@ -37,12 +37,12 @@ def get_hp_config():
         # --- Optimizer ---
         "optimizer_cls": "AdamW",
         "lr": 1e-4,
-        "weight_decay": 3e-4,
+        "weight_decay": 1e-4,
         "gradient_clip_val": 10.0,
         "optimizer_kwargs": {
             "betas": (0.9, 0.999), 
             "lr": 1e-4,
-            "weight_decay": 3e-4,
+            "weight_decay": 1e-4,
         },
 
         # --- LR Scheduler ---
