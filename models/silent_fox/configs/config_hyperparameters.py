@@ -1,0 +1,151 @@
+
+def get_hp_config():
+    """
+    TSMixer hyperparameters
+    Ported from tuning_202606 post-r8 ("fix elastic heart", 2026-06):
+    lr=3e-4, clip=20, dropout=0.4, hidden=128, es_patience=25, RevIN=True
+    """
+    # r8
+    hyperparameters = {
+        # Temporal
+        "steps": [*range(1, 36 + 1, 1)],
+        "input_chunk_length": 36,
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+
+        # Inference
+        "num_samples": 1,
+        "mc_dropout": False,
+        "n_jobs": -1,
+
+        # Training
+        "batch_size": 4096,
+        "n_epochs": 300,
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "early_stopping_patience": 8,
+        "early_stopping_min_delta": 0.0003,
+        "force_reset": True,
+
+        # Optimizer
+        "optimizer_cls": "AdamW",
+        "lr": 0.0001,
+        "weight_decay": 0.01,
+        "gradient_clip_val": 1.0,
+        # LR Scheduler
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 5,
+        "lr_scheduler_min_lr": 3e-6,
+        "lr_scheduler_kwargs": {
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 5,
+            "min_lr": 3e-6,
+            "cooldown": 0,
+            "threshold": 0.0003,
+            "threshold_mode": "rel",
+        },
+        "optimizer_kwargs": {
+            "betas": (0.9, 0.999), 
+            "lr": 0.0001,
+            "weight_decay": 0.01,
+        },
+        "checkpoint_mode": "best",
+        "loss_function": "MSE",
+        "non_zero_threshold": 0.88,
+
+        # Scaling
+        "feature_scaler": None,
+        "force_target_only": True,
+        "target_scaler": "AsinhTransform",
+        # "feature_scaler_map": {
+        #     "AsinhTransform": [
+        #         # Primary joint target variables
+        #         # "lr_ged_sb",
+        #         # "lr_ged_os",
+        #         # "lr_ged_ns",
+
+        #         # Natural and Social Geography features
+        #         # "lr_imr_mean",
+        #         # "lr_mountains_mean",
+        #         # "lr_dist_diamsec",
+        #         # "lr_dist_petroleum",
+        #         # "lr_agri_ih",
+        #         # "lr_barren_ih",
+        #         # "lr_forest_ih",
+        #         # "lr_pasture_ih",
+        #         # "lr_savanna_ih",
+        #         # "lr_shrub_ih",
+        #         # "lr_urban_ih",
+        #         # "ln_pop_gpw_sum",
+        #         # "ln_ttime_mean",
+        #         # "ln_gcp_mer",
+        #         # "ln_bdist3",
+        #         # "ln_capdist",
+        #         # "lr_greq_1_excluded",
+
+        #         # Conflict decay memory features (mix of decay 12 and 24)
+        #         # "lr_decay_ged_sb_1",
+        #         # "lr_decay_ged_sb_5",
+        #         # "lr_decay_ged_sb_25",
+        #         # "lr_decay_ged_sb_100",
+        #         # "lr_decay_ged_sb_500",
+        #         # "lr_decay_ged_os_1",
+        #         # "lr_decay_ged_os_5",
+        #         # "lr_decay_ged_os_25",
+        #         # "lr_decay_ged_os_100",
+        #         # "lr_decay_ged_os_500",
+        #         # "lr_decay_ged_ns_5",
+        #         # "lr_decay_ged_ns_1",
+        #         # "lr_decay_ged_ns_25",
+        #         # "lr_decay_ged_ns_100",
+        #         # "lr_decay_ged_ns_500",
+        #         # Spatial-temporal lag features
+        #         "lr_splag_1_1_sb_1",
+        #         # "lr_splag_1_decay_ged_sb_1",
+        #         # "lr_splag_1_decay_ged_os_1",
+        #         # "lr_splag_1_decay_ged_ns_1",
+
+        #         # Graph/tree and space-time spillover features
+        #         "lr_treelag_1_sb",
+        #         "lr_treelag_2_sb",
+        #         "lr_treelag_1_os",
+        #         "lr_treelag_2_os",
+        #         "lr_treelag_1_ns",
+        #         "lr_treelag_2_ns",
+        #         "lr_sptime_dist_k1_ged_sb",
+        #         "lr_sptime_dist_k10_ged_sb",
+        #         "lr_sptime_dist_k001_ged_sb",
+        #         "lr_sptime_dist_k1_ged_os",
+        #         "lr_sptime_dist_k10_ged_os",
+        #         "lr_sptime_dist_k001_ged_os",
+        #         "lr_sptime_dist_k1_ged_ns",
+        #         "lr_sptime_dist_k10_ged_ns",
+        #         "lr_sptime_dist_k001_ged_ns",
+        #     ],
+        # },
+
+        # TSMixer Architecture
+        "num_blocks": 2,
+        "hidden_size": 64,
+        "ff_size": 128,
+        "activation": "ReLU",
+        "norm_type": "LayerNorm",
+        "normalize_before": False,
+        "dropout": 0.5,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
+
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform",
+        #     "inject": True,
+        #     # "stats": ["trend", "sparsity"],
+        # },
+
+        "use_cyclic_encoders": False,
+    }
+    return hyperparameters

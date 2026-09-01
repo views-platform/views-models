@@ -6,7 +6,7 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TSMixerModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_ged_sb |
+| **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
 | **Features**       |  elastic_heart   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
@@ -54,5 +54,4 @@ or
 
 ./run.sh -r calibration -t -e
 ```
-
 
