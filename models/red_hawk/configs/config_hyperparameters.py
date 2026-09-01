@@ -64,8 +64,8 @@ def get_hp_config():
         "early_stopping_min_delta": 0.002,
 
         # Loss
-        # "loss_function": "MSE",
-        "loss_function": "MSE",
+        # "loss_function": "MSELoss",
+        "loss_function": "MSELoss",
         #"delta": 0.06276537091497503,
         "non_zero_threshold": 0.88,
 

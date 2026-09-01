@@ -56,7 +56,7 @@ def get_hp_config():
             "weight_decay": 5e-5,
         },
         "checkpoint_mode": "best",
-        "loss_function": "MSE",
+        "loss_function": "MSELoss",
         "non_zero_threshold": 0.88,
 
         # Scaling

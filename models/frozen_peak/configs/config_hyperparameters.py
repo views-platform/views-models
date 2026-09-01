@@ -59,7 +59,7 @@ def get_hp_config():
         # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
         # Safe for basis-expansion architectures — bounded gradients prevent
         # learned interpolation coefficients from growing unbounded.
-        "loss_function": "MSE",
+        "loss_function": "MSELoss",
         "non_zero_threshold": 0.88,
 
         # Scaling
