@@ -68,7 +68,7 @@ def get_hp_config():
         "force_target_only": True,
     
         # --- Loss: SpotlightLoss v36 ---
-        "loss_function": "MSE",
+        "loss_function": "MSELoss",
         "non_zero_threshold": 0.88,  # asinh(1) ≈ 0.88 in asinh space (1 battle death)
         "delta": 0.07139486580318413,
 
