@@ -1,9 +1,13 @@
+<<<<<<< HEAD
+#!/bin/zsh
+=======
 #!/usr/bin/env bash
 # GENERATED — do not edit by hand.
 # Source: views_pipeline_core.templates.model.template_run_sh, applied by
 # tools/scaffold/build_model_scaffold.py. A fix made here reaches one model out of
 # 129; fix the template instead (views-models#310, views-pipeline-core#384).
 # The only intended per-model variable is `env_path`.
+>>>>>>> origin/development
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   # libomp sits in Homebrew's prefix on macOS and is not on the default search paths.

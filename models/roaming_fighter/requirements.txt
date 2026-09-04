@@ -1,2 +1,2 @@
-views-r2darts2==0.1.0
+views-r2darts2>=0.2.0
 views-datafactory>=1.9.0,<2.0.0

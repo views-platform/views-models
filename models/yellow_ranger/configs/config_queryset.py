@@ -12,8 +12,13 @@ def generate():
 
     queryset_base = (Queryset("yellow_ranger", "country_month")
 
-        .with_column(Column("lr_os_best", from_loa="country_month", from_column="ged_os_best_sum_nokgi")
+        .with_column(Column("lr_ged_sb", from_loa="country_month", from_column="ged_sb_best_sum_nokgi")
             .transform.missing.replace_na())
+        .with_column(Column("lr_ged_ns", from_loa="country_month", from_column="ged_ns_best_sum_nokgi")
+                    .transform.missing.replace_na())
+        .with_column(Column("lr_ged_os", from_loa="country_month", from_column="ged_os_best_sum_nokgi")
+                    .transform.missing.replace_na())
+        
 
         .with_column(Column("month", from_loa="month", from_column="month"))
         .with_column(Column("year_id", from_loa="country_year", from_column="year_id"))

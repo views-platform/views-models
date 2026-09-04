@@ -1,0 +1,144 @@
+def get_hp_config():
+    """
+    N-HiTS hyperparameters from SpotlightLossLogcosh sweep best run.
+    https://wandb.ai/views_pipeline/revolving_door_nhits_spotlight_v11_3_sweep/runs/p89rxmzk
+    Returns:
+    - hyperparameters (dict): Training configuration dictionary.
+    """
+    # r7
+    hyperparameters = {
+        # Temporal
+        "steps": [*range(1, 36 + 1)],
+        "input_chunk_length": 36,
+        "output_chunk_length": 36,
+        "output_chunk_shift": 0,
+        "random_state": 67,
+        "time_steps": 36,  # Checksum: Must match len(steps)
+
+        # Inference
+        "num_samples": 500,
+        "mc_dropout": True,
+        "n_jobs": -1,
+
+        # Training
+        "batch_size": 128,
+        "n_epochs": 300,
+        "early_stopping_patience": 8,
+        "early_stopping_min_delta": 0.002,
+        "force_reset": True,
+
+        # Optimizer
+        "optimizer_cls": "AdamW",
+        "lr": 1e-4,
+        "weight_decay": 1e-4,
+        "gradient_clip_val": 10.0,
+
+        # LR Scheduler
+        "lr_scheduler_cls": "ReduceLROnPlateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 6,
+        "lr_scheduler_min_lr": 3e-6,
+        "lr_scheduler_kwargs": {
+            "mode": "min",
+            "factor": 0.5,
+            "patience": 6,
+            "min_lr": 3e-6,
+            "cooldown": 0,
+            "threshold": 0.002,
+            "threshold_mode": "rel",
+        },
+        "early_stopping_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
+
+        "optimizer_kwargs": {
+            "betas": (0.9, 0.999), 
+            "lr": 1e-4,
+            "weight_decay": 1e-4,
+        },
+
+        # SpotlightLossLogcosh: logcosh base shape (gradient saturates at ±1)
+        # Safe for basis-expansion architectures — bounded gradients prevent
+        # learned interpolation coefficients from growing unbounded.
+        "loss_function": "SpotlightLossLogcosh",
+        "non_zero_threshold": 0.88,
+
+        # Scaling
+        "feature_scaler": None,
+        "force_target_only": True,
+        "target_scaler": "AsinhTransform",
+        # "feature_scaler_map": {
+        #     "AsinhTransform": [
+        #             # Conflict counts + deltas + spatial lags
+        #             # "lr_ged_ns", "lr_ged_os", "lr_ged_sb",
+        #             # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+        #             # "lr_acled_sb", 
+        #             # "lr_acled_sb_count", 
+        #             # "lr_acled_os", "lr_acled_ns",
+        #             "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
+
+        #             # Decay features — conflict regime memory ∈ [0,1]
+        #             # "lr_decay_ged_sb_1", "lr_decay_ged_sb_5", "lr_decay_ged_sb_25", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
+        #             # "lr_decay_ged_os_1", "lr_decay_ged_os_5", "lr_decay_ged_os_25", "lr_decay_ged_os_100", "lr_decay_ged_os_500",
+        #             # "lr_decay_ged_ns_1", "lr_decay_ged_ns_5", "lr_decay_ged_ns_25", "lr_decay_ged_ns_100", "lr_decay_ged_ns_500",
+        #             # "lr_decay_acled_sb_5", "lr_decay_acled_os_5", "lr_decay_acled_ns_5",
+        #             # "lr_splag_1_decay_ged_sb_5", "lr_splag_1_decay_ged_os_5", "lr_splag_1_decay_ged_ns_5",
+        #             # lr_ged temporal lags — explicit trajectory for TiDE (no recurrence)
+        #             # "lr_ged_sb_tlag_1", "lr_ged_sb_tlag_2", "lr_ged_sb_tlag_3",
+        #             # "lr_ged_sb_tlag_4", "lr_ged_sb_tlag_5", "lr_ged_sb_tlag_6",
+        #             # "lr_ged_ns_tlag_1", "lr_ged_ns_tlag_2", "lr_ged_ns_tlag_3",
+        #             # "lr_ged_ns_tlag_4", "lr_ged_ns_tlag_5", "lr_ged_ns_tlag_6",
+        #             # "lr_ged_os_tlag_1", "lr_ged_os_tlag_2", "lr_ged_os_tlag_3",
+        #             # "lr_ged_os_tlag_4", "lr_ged_os_tlag_5", "lr_ged_os_tlag_6",
+        #             # "lr_ged_sb_tsum_24", "lr_ged_ns_tsum_24", "lr_ged_os_tsum_24",
+
+        #             # Topic/NLP features — monthly leading indicators
+        #             # "lr_topic_tokens_t1", "lr_topic_tokens_t2",
+        #             # "lr_topic_ste_theta4_stock_t1", "lr_topic_ste_theta4_stock_t2", "lr_topic_ste_theta4_stock_t13",
+        #             # "lr_topic_ste_theta2_stock_t1", "lr_topic_ste_theta2_stock_t2", "lr_topic_ste_theta2_stock_t13",
+        #             # "lr_topic_ste_theta4_stock_t1_splag", "lr_topic_ste_theta2_stock_t1_splag",
+
+        #             # WDI (8 with static covs)
+        #             # "lr_wdi_sm_pop_refg_or", "lr_wdi_sm_pop_netm",
+        #             # "lr_wdi_dt_oda_odat_pc_zs", "lr_wdi_ms_mil_xpnd_gd_zs",
+        #             # "lr_wdi_sp_pop_grow",
+        #             # "lr_wdi_sp_urb_totl_in_zs",
+        #             # "lr_wdi_sp_dyn_imrt_fe_in",
+        #             # "lr_wdi_sh_sta_maln_zs",
+
+        #         ],
+        #     # "PassThrough": [
+        #     #     # V-Dem (12 — pruned of redundant accountability/exclusion)
+        #     #     "lr_vdem_v2x_horacc", "lr_vdem_v2x_veracc",
+        #     #     "lr_vdem_v2xnp_client", "lr_vdem_v2xnp_regcorr",
+        #     #     "lr_vdem_v2xpe_exlgeo", "lr_vdem_v2xpe_exlsocgr",
+        #     #     "lr_vdem_v2x_ex_party", "lr_vdem_v2x_ex_military",
+        #     #     "lr_vdem_v2xeg_eqdr",
+        #     #     "lr_vdem_v2xcl_prpty", "lr_vdem_v2xcl_dmove", "lr_vdem_v2x_clphy",
+        #     # ]
+        # },
+
+        # N-HiTS Architecture
+        "num_stacks": 1,
+        "num_blocks": 1,
+        "num_layers": 2,
+        "layer_widths": 32,
+        "pooling_kernel_sizes": [[2]],
+        "n_freq_downsample": [[1]],
+        "activation": "ReLU",
+        "dropout": 0.3,
+        "use_static_covariates": True,
+        "use_reversible_instance_norm": True,
+        "max_pool_1d": True,
+        "checkpoint_mode": "best",
+        # "static_covariate_stats": {
+        #     "transform": "AsinhTransform",
+        #     "inject": False,
+        # },
+        # Temporal Encodings
+        # ModelCatalog reads this flag and injects the appropriate cyclic
+        # encoder functions for the dataset temporal resolution, inferred
+        # from config["level"] (e.g. cm→monthly, cd→daily, cw→weekly).
+        "use_cyclic_encoders": False,
+    }
+
+    return hyperparameters

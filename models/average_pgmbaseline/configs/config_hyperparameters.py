@@ -12,7 +12,8 @@ def get_hp_config():
         'steps': [*range(1, 36 + 1, 1)],
         'time_steps': 36,
         'skip_predictions_delivery': True,
-        'regression_targets': ['lr_ged_sb'],
+        'regression_targets': ['lr_ged_sb', 'lr_ged_ns', 'lr_ged_os'],
         'window_months': 18,
+        'aggregate_method': 'arithmetic_mean',
     }
     return hyperparameters

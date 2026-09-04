@@ -10,14 +10,15 @@ def get_meta_config():
     meta_config = {
         "name": "new_rules", 
         "algorithm": "NBEATSModel",
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm",
         "creator": "Dylan",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
+        "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         # "regression_sample_metrics": ["CRPS", "y_hat_bar"],
         # "regression_sample_baselines": ["red_ranger"],
         "rolling_origin_stride": 1,
-        "prediction_format": "dataframe",
+        "prediction_format": "prediction_frame",
+        "skip_predictions_delivery": True,
     }
     return meta_config
