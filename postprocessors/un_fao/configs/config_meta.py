@@ -18,11 +18,33 @@ applied literally: a thing that is never typed cannot lie.
 There is deliberately no fallback. If the declaration is missing or malformed this fails
 loudly (ADR-003): a silent default would deliver the *wrong forecast to a UN agency* and
 say nothing, which is worse than any error this file could raise.
+
+**The three accessors are `deliveries.status`'s, not this file's (#430).** They were
+hand-copied here — a fourth copy of logic that already had a home, in the one file whose
+job is to have no copies. The CRAF'd config has called the shared ones since it was
+written; this file now matches it.
+
+They had **diverged**, and not only in the exception type. The copies did
+`from deliveries.un_fao import DELIVERY`, so they read whatever was in `sys.modules`. The
+shared accessors re-execute the declaration **from disk** on every call. In a normal run
+these are the same answer; they differ when something has already imported the module.
+The values `get_meta_config()` emits are byte-identical either way — checked — but two
+tests had been simulating a broken declaration by patching `sys.modules`, which no longer
+simulates anything. They now edit or delete the file in a repo copy, which is what they
+were always describing.
+
+Two pieces of history those copies carried, kept because nothing else records them:
+
+- **`wire_upload_enabled` used to compare the delivery's coverage against a `REGION`
+  literal in `config_queryset.py`** — parsed out with `ast`, because importing that module
+  pulls in pipeline-core — and disarmed when the two disagreed. Both are now derived from
+  `declared_coverage()`, so they cannot disagree, and the check was **deleted rather than
+  extended to a third copy**: reconciling a duplication keeps the duplication (ADR-021).
+- **`region` was a literal until 2026-08-11**, and was the one of its three copies that
+  nothing checked — the copy the manager actually reads (register C-110, C-133).
 """
 
-import ast
 import sys
-import warnings
 from pathlib import Path
 
 # The delivery declaration lives at the repository root. run.sh is immutable, so
@@ -32,111 +54,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from deliveries.status import (  # noqa: E402  (after the path bootstrap)
+    declared_coverage,
+    declared_source,
+    upload_armed,
+)
 
-def _declared_source() -> str:
-    """The single source this consumer is declared to receive.
-
-    Raises rather than guessing. Every failure names the file to open (ADR-020).
-    """
-    try:
-        from deliveries.un_fao import DELIVERY
-    except Exception as exc:
-        raise RuntimeError(
-            f"cannot read the FAO delivery declaration: {exc}.\n"
-            f"  Open deliveries/un_fao.py — it declares which forecast goes to the UN.\n"
-            f"  This config derives its source from that file and will not guess one."
-        ) from exc
-
-    sources = list(DELIVERY.send)
-    if len(sources) != 1:
-        raise RuntimeError(
-            f"deliveries/un_fao.py declares {len(sources)} sources, and this "
-            f"postprocessor can carry exactly one.\n"
-            f"  Open deliveries/un_fao.py and check `send`.\n"
-            f"  Delivering several sources to one consumer needs the reconciliation "
-            f"rules in ADR-019 §4, which the postprocessor does not yet implement."
-        )
-    return sources[0].name
-
-
-def _declared_region() -> str:
-    """The coverage this consumer is declared to receive."""
-    from deliveries.un_fao import REQUIRE
-
-    if not REQUIRE.coverage:
-        raise RuntimeError(
-            "deliveries/un_fao.py declares no coverage, so this postprocessor cannot "
-            "confirm which region it would ship.\n"
-            "  Open deliveries/un_fao.py and add coverage=... to REQUIRE."
-        )
-    return REQUIRE.coverage
-
-
-def _queryset_region() -> str:
-    """`REGION` from config_queryset.py, read *statically*.
-
-    Parsed rather than imported: config_queryset imports pipeline-core and the
-    datafactory client, and this file must stay cheap enough to load anywhere. The
-    question here is one string.
-    """
-    source = (Path(__file__).parent / "config_queryset.py").read_text(encoding="utf-8")
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "REGION":
-                    if isinstance(node.value, ast.Constant):
-                        return node.value.value
-    raise RuntimeError(
-        "could not find REGION in postprocessors/un_fao/configs/config_queryset.py.\n"
-        "  Open that file — this config reads REGION to confirm the repository agrees "
-        "with itself about which region ships."
-    )
-
-
-def _upload_armed() -> bool:
-    """Whether this delivery is armed — derived from `intent`, never typed.
-
-    views-postprocessing ADR-013 §11.4 sets ``UPLOAD_ENABLED = False`` and makes the
-    launcher key ``wire_upload_enabled`` its only override
-    (``unfao/managers/unfao.py:317``). That contract is unchanged; what changed is who
-    computes the key. `intent` and a hand-written boolean were the same fact in two
-    places, which ADR-019 §8 rejects by name (register C-129).
-
-    **Arming is withheld when the repository disagrees with itself.** The delivery
-    declares a `coverage`; `config_queryset.py` declares a `REGION`. If they differ,
-    a run would upload a region nobody declared — and a clean checkout is exactly that
-    case today, because `REGION` is committed as ``africa_me_legacy`` while the
-    delivery declares ``land_gaul`` (register C-110).
-
-    It **disarms and warns** rather than raising. Raising would make the config
-    unloadable from a clean checkout, breaking runs that never intended to upload —
-    a new failure mode invented to guard an old one. Disarming is exactly what the
-    interlock already does when the key is absent (vpp ADR-013 §11.4: artifacts are
-    staged locally), so this refuses the dangerous half and leaves the rest working.
-
-    That is what makes a derived arming state safe to commit: a fresh clone cannot
-    silently ship the wrong region to a UN agency, and it does not break either.
-    """
-    from deliveries.un_fao import DELIVERY
-
-    declared, actual = _declared_region(), _queryset_region()
-    if declared != actual:
-        warnings.warn(
-            f"NOT ARMING the FAO upload: this repository disagrees with itself about "
-            f"which region ships.\n"
-            f"  deliveries/un_fao.py declares coverage={declared!r}\n"
-            f"  postprocessors/un_fao/configs/config_queryset.py declares "
-            f"REGION={actual!r}\n"
-            f"  Open config_queryset.py and set REGION to {declared!r}, or change the "
-            f"delivery's coverage — they must agree before anything uploads.\n"
-            f"  The run will still produce artifacts locally, as it does whenever the "
-            f"upload interlock is closed (vpp ADR-013 §11.4). Nothing else in this "
-            f"config is wrong; this is the only thing holding the upload.",
-            UserWarning,
-            stacklevel=2,
-        )
-        return False
-    return DELIVERY.intent.state == "live"
+CONSUMER = "un_fao"
 
 
 def get_meta_config():
@@ -156,10 +80,29 @@ def get_meta_config():
         "targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm",
         # Both derived, never typed. Edit deliveries/un_fao.py to change them.
-        "ensemble": _declared_source(),
-        "wire_upload_enabled": _upload_armed(),
+        "ensemble": declared_source(CONSUMER),
+        "wire_upload_enabled": upload_armed(CONSUMER),
         # run-0 contract-leg delivery — views-postprocessing instruction 2026-07-27:
         # read/deliver the ADR-013 wire dialect and un-freeze the upload interlock,
         # with the declared land_gaul region curation applied at the delivery boundary.
+        # NOT COMMITTED (register C-110): wire_contract and region are still
+        # working-tree only. wire_upload_enabled is no longer here — it is derived
+        # from DELIVERY.intent above (#348).
+        "wire_contract": True,
+        # Derived, never typed (ADR-021). This is the copy the manager actually reads
+        # — views-postprocessing unfao/managers/unfao.py:236,312,419 — and the one
+        # written into the delivered provenance record (delivery/provenance.py:47).
+        # It was a literal until 2026-08-11, and the only one of the three copies of
+        # this string that nothing checked (register C-133).
+        "region": declared_coverage(CONSUMER),
     }
+    # Belt-and-braces, not a reconciliation (ADR-021). Derived values cannot disagree,
+    # so this can only fire if someone reintroduces a literal. One line, and what it
+    # guards is the region written into the provenance record shipped to the UN FAO.
+    assert meta_config["region"] == declared_coverage(CONSUMER), (
+        f"config_meta emits region={meta_config['region']!r} but "
+        f"deliveries/un_fao.py declares {declared_coverage(CONSUMER)!r}.\n"
+        f"  Do not fix this by editing the literal — there should not be one.\n"
+        f"  See docs/ADRs/021_coverage_is_declared_once.md."
+    )
     return meta_config

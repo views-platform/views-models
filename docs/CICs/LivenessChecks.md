@@ -3,7 +3,7 @@
 **Status:** Active
 **Owner:** Project maintainers
 **Last reviewed:** 2026-07-21
-**Related ADRs:** ADR-006 (Intent Contracts), ADR-005 (the `Live` test category), ADR-003 (fail-loud), ADR-017 (the observability instrument behind derived `deployed`)
+**Related ADRs:** ADR-006 (Intent Contracts), ADR-005 (the `Live` test category), ADR-003 (fail-loud), vmo_017 (the observability instrument behind derived `deployed`)
 
 ---
 
@@ -41,12 +41,13 @@ string — never narration.
   *first* (so an unregistered verdict raises loud before a half-block prints — C-101/P7), then prints
   one fact per line, then returns the exit code. Guarded by `if __name__ == "__main__"`.
 
-**The six surfaces** (epic #238; verdict catalogue in `tools/liveness/README.md`):
+**The seven surfaces** (epic #238, plus `crafd_delivery` from #413; verdict catalogue in `tools/liveness/README.md`):
 
 - `old_api.OldApiCheck` — the public API `api.viewsforecasting.org`: newest fatalities run fresh, and serving rows at **both** `cm` and `pgm` levels.
 - `datafactory_input.*` — the datafactory zarr input store: observed coverage vs the requirement **derived from `meta/partitions.json`** (re-arms on every partition bump — automates the C-96 tripwire).
 - `appwrite_store.*` — the internal Appwrite `production_forecasts` shelf: is anything landing, and does the real metadata collection exist (server-side `orderDesc($createdAt)`, never the 25-per-page default — the #241/#242 false-idle fix).
-- `unfao_delivery.*` — the FAO partner `unfao_bucket`: per-stream freshness of `forecast_dataset_*` and `historical_dataset_*`, judged independently.
+- `unfao_delivery.*` — the FAO partner `unfao_bucket`: per-stream freshness of the ADR-013 `__manifest.json` commit marker and `historical_dataset_*`, judged independently. (Judged the legacy `forecast_dataset_*` name until #411; see C-102.)
+- `crafd_delivery.*` — the CRAF'd partner `crafd_bucket`: same two streams. Added #413, after the delivery was armed in #399 — before that it would have reported `NEVER_DELIVERED` against a bucket the declaration forbade filling.
 - `wandb_execution.*` — did the team actually compute this cycle (execution recency)?
 - `vpn_store.*` — the `gjoll` store behind the VPN: truthful `VPN_REQUIRED` when off-network.
 
@@ -93,7 +94,7 @@ string — never narration.
 
 - **Depends on** `tools.partitions.domain` (month math) and, at run time, the real surfaces (API, datafactory, Appwrite, wandb, VPN store) via the injected `fetch`.
 - **DIP seam** mirrors `reconciliation/` — the fetch is the port; the default stdlib fetch is the concrete; tests inject a stub. No new cross-repo coupling, no new dependency.
-- **Consumed by** ADR-017's observability decision: a delivery surface counts as `deployed` only when its liveness surface is green (ADR-017 §7). The `live` test category (ADR-005) is the CI-side companion — one skip-truthful probe per surface.
+- **Consumed by** vmo_017's observability decision: a delivery surface counts as `deployed` only when its liveness surface is green (vmo_017 §7). The `live` test category (ADR-005) is the CI-side companion — one skip-truthful probe per surface.
 - Import-time purity (C-93) keeps `python -m tools.liveness.<surface>` cheap and side-effect-free.
 
 ## 8. Examples of Correct Usage
@@ -127,7 +128,7 @@ assert exit_code_for(report.verdict) == 0
 
 ## 10. Test Alignment
 
-- Per-surface: `tests/test_liveness_old_api.py`, `..._datafactory_input.py`, `..._appwrite_store.py`, `..._unfao_delivery.py`, `..._wandb_execution.py`, `..._vpn_store.py`.
+- Per-surface: `tests/test_liveness_old_api.py`, `..._datafactory_input.py`, `..._appwrite_store.py`, `..._unfao_delivery.py`, `..._crafd_delivery.py`, `..._wandb_execution.py`, `..._vpn_store.py`.
 - Runner: `tests/test_liveness_runner.py` (crash-containment + `worst_exit`).
 - Adversarial: `tests/test_liveness_falsifications.py` (the falsify-audit fixes, C-101/C-102).
 - Taxonomy: `tests/test_liveness_taxonomy.py` (the ADR-005 `live` marker, C-103).

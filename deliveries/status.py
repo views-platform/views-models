@@ -19,7 +19,13 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from deliveries.coherence import CoherenceError, maturity_of, require_source, source_config
+from deliveries.coherence import (
+    CoherenceError,
+    locked_door,
+    maturity_of,
+    require_source,
+    source_config,
+)
 
 DELIVERIES_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DELIVERIES_DIR.parent
@@ -107,6 +113,119 @@ def declared_max_age_days(consumer: str = "un_fao") -> int:
     # answer "has a monthly delivery been missed?", where 30-day months are exact
     # enough and, unlike calendar arithmetic, do not vary by when you ask.
     return require.max_age.count * 30
+
+
+
+def declared_coverage(consumer: str = "un_fao") -> str:
+    """The coverage region this consumer's delivery declares.
+
+    The *only* declaration of which cells a consumer receives. Everything that needs
+    the region derives it from here: the postprocessor's actuals fetch region
+    (`config_queryset.REGION`) and the region it reports to the manager
+    (`config_meta["region"]`). Three typed copies of one string is what ADR-019 §8
+    rejects, and it is what this repository did until ADR-021 — with the copy the
+    manager actually reads being the one nothing checked (register C-110, C-133).
+
+    **This is the delivered coverage, not the producer's extent.** `rusty_bucket`
+    forecasts `land` (64,818 cells); the delivery boundary curates that to `land_gaul`
+    (64,742) by removing 76 sub-Antarctic cells outside FAO GAUL 2024. That reduction
+    is owned by `views_postprocessing/delivery/coverage.py`, not by this function.
+
+    Raises rather than defaulting, for the same reason as `declared_max_age_days`:
+    a fallback region would re-create the defect with one of the copies invisible.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  The coverage region is declared there; this will not invent one."
+        )
+    require = load_delivery(path).REQUIRE
+    if not require.coverage:
+        raise ValueError(
+            f"deliveries/{consumer}.py declares no coverage, so there is no region to "
+            f"fetch or deliver.\n"
+            f"  Add coverage=\"<region>\" to REQUIRE.\n"
+            f"  Every consumer must declare one (ADR-019 §3, ADR-021)."
+        )
+    return require.coverage
+
+
+def declared_source(consumer: str) -> str:
+    """The single source this consumer's delivery declares.
+
+    The postprocessor that serves a consumer derives its `ensemble` from here rather than
+    typing it — #347 for FAO, and every consumer since. Raises rather than guessing, and
+    every failure names the file to open (ADR-020).
+
+    **One source only, and the reason is not the one this used to give (#430).** It said
+    several sources "needs ADR-019 §4's reconciliation rules, which the postprocessor does
+    not implement". §4 no longer says that — since #429 it permits one reconciliation group
+    plus any source present solely to provide targets no other source provides. The limit
+    that remains is in a different repository: `views_postprocessing` reads
+    `configs["ensemble"]` as a single string (`unfao/managers/unfao.py:140`, `:195`;
+    `crafd/managers/crafd.py:240` — a subscript, so absence is a `KeyError`), and there is
+    no key for a list.
+
+    So the refusal stands and its message became a locked door (ADR-020 §5): the reader
+    cannot fix this here, and the honest thing is to say where it is fixed rather than
+    point them at a rule that no longer forbids anything.
+
+    Refusing is still right. Picking the first would be a silent choice about which
+    forecast reaches an external partner.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  The source is declared there; this will not guess one."
+        )
+    sources = list(load_delivery(path).DELIVERY.send)
+    if len(sources) != 1:
+        listed = ", ".join(f"{s.level}({s.name})" for s in sources) or "none"
+        raise ValueError(
+            locked_door(
+                what=(
+                    f"deliveries/{consumer}.py declares {len(sources)} sources "
+                    f"({listed}), and a postprocessor config carries exactly one"
+                ),
+                why=(
+                    "this is not a rule about deliveries — ADR-019 §4 permits several "
+                    "sources since #429. views_postprocessing reads configs[\"ensemble\"] "
+                    "as a single string, one repository away, and has no key for a list.\n"
+                    f"  To send one source instead, open deliveries/{consumer}.py "
+                    "and edit `send`"
+                ),
+                request=(
+                    "let a postprocessor carry several sources for one consumer "
+                    "(views-postprocessing)"
+                ),
+            )
+        )
+    return sources[0].name
+
+
+def upload_armed(consumer: str) -> bool:
+    """Whether this consumer's delivery is armed — derived from `intent`, never typed.
+
+    `intent` and a hand-written boolean were the same fact in two places, which ADR-019 §8
+    rejects by name (register C-129). views-postprocessing ADR-013 §11.4 keeps
+    `UPLOAD_ENABLED = False` and treats the launcher's `wire_upload_enabled` as its only
+    override; what changed in #348 is who computes that key.
+
+    `paused` disarms. That is the whole mechanism: a delivery that should not ship says so
+    in its declaration, with a reason and a date, and the launcher follows.
+    """
+    path = DELIVERIES_DIR / f"{consumer}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"no delivery declaration for '{consumer}'.\n"
+            f"  Expected: deliveries/{consumer}.py\n"
+            f"  Arming is derived from its `intent`; this will not default to armed."
+        )
+    return load_delivery(path).DELIVERY.intent.state == "live"
 
 
 def consumers_for(source: str) -> list[str]:

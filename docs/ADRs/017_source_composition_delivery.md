@@ -1,6 +1,12 @@
-# ADR-017: Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
+# vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
 **Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**
+
+> **Cite this as `vmo_017` outside this repository.** views-postprocessing and
+> views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
+> cannot read*, and *Reference Data in Repository*), so a bare "ADR-017" resolves to
+> the wrong document for a reader sitting in either of them (#393). The number is
+> unchanged and every existing citation stays valid — the prefix is additive.
 **Date:** 2026-07-27 (revised 2026-08-04)
 **Deciders:** Simon (maintainer)
 **Consulted:** platform contributors
@@ -354,7 +360,7 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
 - **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
 
-**Day-one state (known, temporary).** On adoption, the platform inherits exactly one coherence violation: the placeholder `rusty_bucket` (`candidate`) delivers to the production-tier `fao` consumer — a pre-production shakedown. During the transition, the tier-rule check **warns, not blocks**, on this edge, until the real production ensemble is graduated. The migration is *not* gated on a hasty graduation.
+**Day-one state (known, temporary).** On adoption, the platform inherited exactly one coherence violation: the placeholder `rusty_bucket` (`candidate`) delivers to the production-tier `fao` consumer — a pre-production shakedown. **As of 2026-08-11 there are two of the same kind**: `un_crafd` (#333) delivers the same `candidate` ensemble to the production-tier CRAF'd consumer. One source, two edges — the count changed, the situation did not, and it resolves the same way, by graduating `rusty_bucket`. During the transition, the tier-rule check **warns, not blocks**, on this edge, until the real production ensemble is graduated. The migration is *not* gated on a hasty graduation.
 
 ## 12. Decided vs Deferred/Open
 

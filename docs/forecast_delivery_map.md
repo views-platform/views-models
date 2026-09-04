@@ -5,15 +5,18 @@
 > is a **shrinking list, by design**.
 >
 > That is exactly why it is not an ADR: ADR-000 says decisions are *"never deleted… superseded, not
-> erased"*, and a page designed to shrink cannot live under that rule. ADR-017 and ADR-019 cite this
+> erased"*, and a page designed to shrink cannot live under that rule. vmo_017 and ADR-019 cite this
 > page instead of containing it.
 >
 > **The names here are not examples — they are the current state.** `rusty_bucket`, `un_fao`,
-> `pink_ponyclub` and the rest are what exists on 2026-08-04. That is the point of this page, and it
+> `un_crafd`, `pink_ponyclub` and the rest are what exists. That is the point of this page, and it
 > is also why it is not an ADR: when the source feeding a consumer changes, this page changes with it.
 > The ADRs describe the shape; this page records what currently occupies it.
 >
 > **Last re-traced against the code and the live buckets: 2026-08-05.**
+> *Partially amended 2026-08-11 for the second consumer (#333): the delivery-layer entries below
+> were re-checked against the code. The **buckets** were not re-observed, so the date above stands
+> rather than being bumped on a half re-trace.*
 > Every claim below names the file or the bucket it came from, so it can be re-checked rather than
 > believed.
 
@@ -157,14 +160,21 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 - **A source's maturity-ish label:** `models/<m>/configs/config_deployment.py` → `deployment_status`.
   *(Measured 2026-08-04: **117 `shadow`, 6 `baseline`, 4 `deprecated`, 1 `deployed`** across 128 files —
   132 source directories exist, so four carry no maturity at all. Both quote styles must be counted;
-  see ADR-017 §2 and register C-127.
+  see vmo_017 §2 and register C-127.
   The single `deployed` source is `ensembles/white_mustang` — whose two members, `lavender_haze` and
   `blank_space`, are both `shadow`.)*
 - **An ensemble's members:** `ensembles/<e>/configs/config_modelset.py`.
 - **Which ensembles reconcile, and against what:** `ensembles/<e>/configs/config_meta.py` —
   `"reconciliation"` (the method) and `"reconcile_with"` (the partner). Two ensembles declare it:
   `skinny_love → pink_ponyclub`, `white_mustang → cruel_summer`.
-- **The FAO "which source feeds us" declaration:** `deliveries/un_fao.py` — the `send` line.
+- **Which source feeds a consumer:** `deliveries/<consumer>.py` — the `send` line. There are two:
+  `deliveries/un_fao.py` and `deliveries/un_crafd.py`, both currently sending `rusty_bucket`. Each
+  consumer's `postprocessors/<consumer>/configs/config_meta.py` **derives** its `"ensemble"`,
+  `"region"` and `"wire_upload_enabled"` from that file and names none of them (#347, #348, ADR-021).
+- **Whether a delivery is armed:** the `intent` line in the same file. `un_fao` is `live`;
+  `un_crafd` is `paused` until views-crafdapi's first delivery (their D5, #45), so its launcher
+  stages artifacts locally and makes zero store calls.
+- **The FAO declaration, in detail:** `deliveries/un_fao.py` — the `send` line.
   `postprocessors/un_fao/configs/config_meta.py` **derives** its `"ensemble"` key from it and no longer
   names a source (#347). The key survives because views-postprocessing reads `configs["ensemble"]` at
   `unfao/managers/unfao.py:195`; the decision moved, the interface did not.
@@ -189,7 +199,7 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 
 ## References
 
-- **ADR-017** — sources, composition and delivery (the three axes). Cites this page for today's state.
+- **vmo_017** — sources, composition and delivery (the three axes). Cites this page for today's state.
 - **ADR-019** — the delivery declaration (the file format that replaces the buried `"ensemble"` line).
 - **ADR-020** — errors must descend.
 - **views-postprocessing ADR-013** — the wire contract; owns *how* bytes travel.

@@ -31,7 +31,7 @@ jobs:
           # catalogs with VIEWS_MODELS_ACCESS_TOKEN), so an unpinned install means the
           # committed content can change because a dependency released, with no commit
           # here to explain it. Same pin as run_tests.yml -- move them together (#336).
-          pip install "views_pipeline_core==3.0.0"
+          pip install "views_pipeline_core==3.0.1"
 
 
       - name: Generate catalog if models directory has changed

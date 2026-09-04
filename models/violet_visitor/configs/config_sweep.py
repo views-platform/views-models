@@ -1,6 +1,12 @@
 def get_sweep_config():
 
     """
+    PARKED / STALE (2026-08-14): this sweep targets the RETIRED hurdle_nb / coordinate-grounding
+    direction (epic #105) and predates violet_visitor's gated_NB + datafactory (priogrid_id)
+    migration. It is NOT aligned with the current config_hyperparameters.py (nb / soft_gate /
+    loss_reg=mse, priogrid_id, n_posterior_samples=4). Do NOT launch it without first re-pointing
+    the fixed params to the current config. Dormant: nothing reads it in a normal train/eval run.
+
     Contains the configuration for hyperparameter sweeps using WandB.
     This configuration is "operational" so modifying it will change the search strategy, parameter ranges, and other settings for hyperparameter tuning aimed at optimizing model performance.
 
@@ -81,10 +87,9 @@ def get_sweep_config():
         'time_steps': {'value': 36},
 
         # ============================================================
-        # Loss Functions — HURDLE-NB (#99): truncated-NB body (learnable per-target theta)
-        # + class-weighted BCE gate. ALIGNED with config_hyperparameters.py (the canonical run
-        # config for the hurdle-NB / coordinate-grounding direction, epic #105); the abandoned
-        # tobit/focal stack was removed so a sweep cannot silently benchmark against it (C-155).
+        # Loss Functions — STALE (see the PARKED banner above). These pin the RETIRED hurdle_nb /
+        # coordinate-grounding direction (epic #105). The live config_hyperparameters.py is now
+        # nb / soft_gate / loss_reg=mse; this sweep was NOT updated to follow. Re-point before use.
         # ============================================================
         'output_distribution': {'value': 'hurdle_nb'},
         'loss_reg': {'value': 'hurdle_nb'},

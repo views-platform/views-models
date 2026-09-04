@@ -7,6 +7,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.live_deadline import (
+    VIEWSER_DEADLINE_SECONDS,
+    DeadlineExceeded,
+    deadline,
+)
+
 # reconciliation/__init__.py imports composition, which needs pipeline-core's Reconciler
 # port (3.0.0+, unreleased). Guard BEFORE any reconciliation import: placed after one,
 # collection ERRORS instead of skipping, which is what turned CI red (ADR-005 §skip).
@@ -54,13 +60,19 @@ def test_satisfies_provider_port():
 
 
 @pytest.mark.red
+@pytest.mark.live
 def test_viewser_fetch_integration():
     try:
         import viewser  # noqa: F401
     except ImportError as e:
         pytest.skip(f"viewser unavailable: {e}")
     try:
-        cm = ViewserCountryMappingProvider(480, 481).build()
+        # Bounded: viewser retries a persistent failure sys.maxsize times at 5s, so
+        # without this the call never returns and takes the whole suite with it (#409).
+        with deadline(VIEWSER_DEADLINE_SECONDS, "viewser fetch"):
+            cm = ViewserCountryMappingProvider(480, 481).build()
+    except DeadlineExceeded as e:  # before the bare Exception — it is one
+        pytest.skip(str(e))
     except Exception as e:  # network/credentials/schema
         pytest.skip(f"viewser fetch failed: {type(e).__name__}: {e}")
     assert len(cm) > 0

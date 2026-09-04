@@ -115,7 +115,7 @@ Placing the full lifecycle in the modeling library keeps the contract simple: da
 ## Validation & Monitoring
 
 - `tools/audit/queryset_transforms.py` — programmatically verifies no queryset-level log transforms are applied to target columns. Run periodically or before release.
-- Existing tests (`test_config_completeness.py`) can be extended to assert that all `regression_targets` use the `lr_` prefix and all `classification_targets` use the `by_` prefix.
+- `tests/test_target_prefix_convention.py` asserts that all `regression_targets` use the `lr_` prefix and all `classification_targets` use the `by_` prefix. **Implemented 2026-08-11**, ~3 months after this ADR proposed it; until then nothing checked either prefix. Fixture entities are excluded via `meta/fixtures.json` (nine declare a deliberate `synth_target`), and that exclusion is itself pinned, so a *real* model adopting `synth_` still fails. It lives in its own file rather than inside `test_config_completeness.py`: that file asks whether required keys are present, this one asks whether the values are well-formed.
 - Any model producing predictions on a non-measurement scale is a bug in the modeling library, not in this repo. Such bugs would manifest as anomalous evaluation metrics (e.g., CRPS or MSE orders of magnitude off expected ranges).
 
 ---

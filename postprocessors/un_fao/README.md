@@ -35,10 +35,17 @@ Three UCDP fatality targets at PRIO-GRID month level:
 | `ged_os_best` | `lr_ged_os` | one-sided |
 
 Data source is the **data factory** (not viewser) — see `configs/config_queryset.py`.
-Current coverage region: **`africa_me_legacy`** (~13,110 cells). Going global to
-`land_gaul` (64,736 cells) is tracked in #127 — and it also clears the handful of
-GAUL-uncovered cells (remote islands) that fail completeness validation under
-`africa_me_legacy` (see the postmortems).
+Current coverage region: **`land_gaul`** (64,742 cells = global land ∩ FAO-GAUL
+coverage). This matches the `rusty_bucket` forecast scope cell-for-cell and excludes
+the handful of GAUL-uncovered cells (remote islands) that fail completeness validation
+under the old `africa_me_legacy` (~13,110 Africa+ME cells; see the postmortems).
+
+The historical actuals are fetched **pandas-free** as a `views_frames.FeatureFrame`
+(`data_format: feature_frame` in `config_queryset.py`), not a pandas DataFrame. At the
+global-land scale (64,742 cells × ~438 months = 28.4M rows) the pandas path OOM-kills
+(~24 GB); the frame path is the numpy-native fix. This makes the FAO delivery the
+platform's first real consumer of the pandas-free fetch path (`get_feature_frame`).
+The manager-side migration that reads this key lives in **views-postprocessing**.
 
 ## Credential topology
 
@@ -70,7 +77,7 @@ before any work. These are guarded by
 
 1. **`views-datafactory` installed** (the `datafactory_query` module):
    ```
-   pip install 'views-datafactory @ git+https://github.com/views-platform/views-datafactory.git@development'
+   pip install 'views-datafactory>=1.9.0,<2.0.0'
    ```
    If missing, `configs/config_queryset.py` fails loud at config load (not an opaque
    `ModuleNotFoundError`).
