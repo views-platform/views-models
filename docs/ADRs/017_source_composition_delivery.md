@@ -1,6 +1,6 @@
 # vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.)
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 corrects the `deployed` migration: a leaf becomes `graduate` outright, the R2 conditional governs composites only — the implementation made `graduate` unreachable for every source — #452); **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.)
 
 > **Cite this as `vmo_017` outside this repository.** views-postprocessing and
 > views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
@@ -217,7 +217,7 @@ that only `deprecated` does anything.
 | `shadow` | `candidate` | the bulk of the fleet |
 | `deprecated` | `retired` | the only value with behaviour today |
 | `baseline` | `candidate` | the **role** leaves this file; the source still needs a maturity |
-| `deployed` | `graduate` **only if R2 holds**, else `candidate` | see below |
+| `deployed` | `graduate` — **a leaf outright; a composite only if R2 holds**, else `candidate` | see below |
 
 **Two groups the table alone does not cover.** The six `baseline` sources keep their *role* — it already
 lives in the algorithm plus `regression_point_baselines`, which is why it leaves this file — and take
@@ -236,6 +236,19 @@ Nothing is lost by that. `graduate` does not mean *is delivered* — it means *e
 whether it is delivered is the third file's business. Today's single `deployed` source has no delivery
 edge at all, so demoting it to `candidate` changes no behaviour; it only stops the label asserting a
 readiness the members do not have.
+
+**The conditional is about members, and a leaf has none (corrected 2026-09-07, #452).** R2 says *a
+graduate ensemble's members must all be graduate*. A model is a leaf source: it has no
+`config_modelset.py`, so R2 has nothing to hold or fail, and **the author's declaration is the whole
+answer** — which is exactly what maturity asks. So a leaf declaring `deployed` becomes `graduate`
+outright; only a composite is subject to the conditional.
+
+This needs stating because the implementation had it wrong, and wrong in a way nothing revealed.
+`deliveries/coherence.py` read `if members and all(...)`, so a leaf fell through to `candidate` —
+which meant **no source in this repository could ever be `graduate`**. `in_production()` (§4e)
+returned `False` for everything; the shelf write-gate (§4b) and ADR-019's tier rule were both aimed at
+a state nothing could enter; and R2's positive case had never once been exercised, because no member
+could reach `graduate` to satisfy it. The rule read correctly and the base case was missing.
 
 **`level` has exactly two values** across all 128 configs that declare it. This is what ADR-019's
 `pgm(...)` / `cm(...)` wrappers check against, and why there is no third wrapper.
