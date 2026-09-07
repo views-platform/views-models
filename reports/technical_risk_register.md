@@ -1,10 +1,10 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-08-26  
+**Last updated:** 2026-09-07  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 153 (144 concerns + 9 disagreements)  
-**Concerns:** Open 69 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 46 | T3 59 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 154 (145 concerns + 9 disagreements)  
+**Concerns:** Open 70 | Mitigated 22 | Resolved 43 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 47 | T3 59 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1821,6 +1821,19 @@
 | **Status** | Open |
 | **Location** | `deliveries/coherence.py:_check_reconciliation` (the `require.reconciled is not True` gate); `docs/ADRs/019_delivery_declaration.md` §4 |
 | **Notes** | #429 split the reconciliation requirement from the coverage requirement — every source must now either join the reconciliation group **or** carry targets no other source provides. **The split governs what happens after the `reconciled is not True` gate, not the gate**, which #429 asked to be verified rather than assumed. Verified, with a test (`TestTheSplitDidNotMoveTheGate`): two sources with fully disjoint `provides` and `reconciled=None` still raise the original hard error, and they raise it for the original reason. **The residue is that `reconciled=True` becomes a required incantation for a delivery containing no reconciliation at all.** ADR-019 §4 says the key means the sources are reconciled; a pure-coverage delivery would set it while nothing in the file reconciles with anything, and no rule would object — the split's own exemption is what lets every source through. It is not currently reachable: no delivery in the platform has two sources, and `un_crafd`'s intended three-source shape *does* contain a reconciling pair, so `True` is honest there. **Deliberately not fixed in S5.** Moving the gate is a behaviour change to the `None`/`False` semantics that S2 (#426) documented and pinned four days earlier, and is precisely what #419 proposed and this epic corrected as being a behaviour change rather than a documentation fix. **Two exits, and the choice is the maintainer's:** (a) let `reconciled` mean "reconciled *where the sources overlap*", which makes `True` vacuously honest for disjoint sources and needs only ADR wording; or (b) admit a third state — sources combined for coverage — and let the gate accept it, which needs a new key and a test change. Cross-refs: **#419**, **#424**, **#426**, **#429**, **#430**, **#422**, C-143 (the ADR/code drift these rules are exposed to), C-144 (all of this is edit-time only). |
+
+---
+
+### C-146 — A conformance test that reads config values but never constructs the object is green against exactly the failures that matter
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | **Adding a cross-field constraint to `HydraNetConfig` in views-hydranet without adding a views-models test that CONSTRUCTS each roster config.** The value-comparison suites here cannot see such a constraint by design, so the new rule lands unenforced on this side and the models it rejects go quiet rather than red. |
+| **Source** | views-hydranet session (2026-09-07), reported cross-session; deduplicated against C-51 by this register's maintainer |
+| **Status** | Open |
+| **Location** | `tests/test_roster_conformance.py`; `models/bold_comet/configs/config_hyperparameters.py`, `models/heavy_freighter/configs/config_hyperparameters.py`; fixed by `tests/test_roster_configs_load.py` |
+| **Notes** | `bold_comet` and `heavy_freighter` had scheduled sampling active (`ss_schedule='linear'`, `ss_epsilon_max=0.5`) with `ss_feedback` unset. It defaults to `'mean'`, contradicting their own `rollout_feedback='sample'`, so `HydraNetConfig` refused to construct and **neither model could be run at all — from 2026-08-13, through every green CI run.** The ensemble was eight-strong on paper and six in practice. **The validation was never missing.** `HydraNetConfig` raised correctly; views-pipeline-core's `CoreConfigSniffer` is the wrong layer and has no knowledge of `ss_feedback`. What was missing is that **nothing ran that validation over the roster in CI**: `test_roster_conformance.py` compares 184 config values against a reference dict and never constructs a config, so a model can satisfy every pinned value and still be unloadable. **This is the second occurrence of one shape, and that is why it is registered rather than closed with the fix.** C-51 (Resolved 2026-06-01) was the same two-of-four models made unloadable by a missing config key, and its own Notes say why the guard of the day missed it — the parity test *"strips loss keys and compares models pairwise — since all three are equally missing the field, they match each other."* A comparison cannot see a defect its comparands share. The fix then was `test_hydranet_has_sampling_strategy`, a **presence** check for one named key — value inspection again, so it could never have caught this. Three months and two incidents say the class is not closed by adding another value assertion. **The general form: a conformance test that reads values but never constructs the object is green-by-construction against exactly the failures that matter.** It is the same shape as views-hydranet's C-303 (prose asserting a check the code does not implement) one layer out, and the same shape as C-143 here (ADR-019 specifying rules nothing checks against `coherence.py`). **Fixed** by `tests/test_roster_configs_load.py`, which loads all eight and is mutation-verified — reverting either config fix turns it red. **One open question this register cannot answer, and it is the tier:** if a downstream ensemble run proceeded with six members while declaring eight and said nothing, this is silent output incorrectness and belongs at Tier 1. Registered Tier 2 on what is evidenced — two production members unrunnable for 25 days with CI green — and the T1 question is for the views-hydranet side. **An observation, not a defect:** `violet_visitor` has `ss_epsilon_max=0.0` — scheduled sampling configured but off, while its siblings have 0.5. Treated as intentional by the new test. Declaring it explicitly would be a views-models change, and `violet_visitor` is owned by parallel sessions whose content this repo's convention says not to edit. Cross-refs: **views-hydranet#295**, **C-259** (views-hydranet's own entry), **C-51** (the first occurrence), **C-143**, **C-05**, **C-52**. |
 
 ---
 
