@@ -66,6 +66,61 @@ class TestMaturityMapping:
             maturity_of("no_such_source_anywhere")
         assert "models/" in str(exc.value) or "ensembles/" in str(exc.value)
 
+    def test_a_leaf_declaring_deployed_is_graduate(self, tmp_path, monkeypatch):
+        """#452. R2 is a rule about members; a leaf has none, so there is nothing for it
+        to hold or fail, and the author's declaration is the whole answer.
+
+        **This was unreachable.** The guard read `if members and all(...)`, so a leaf fell
+        through to `candidate` — meaning NO source in the repository could ever be
+        `graduate`, `in_production()` was False for everything, and both the shelf
+        write-gate and the ADR-019 tier rule were aimed at a state nothing could enter.
+
+        Built by monkeypatch rather than from a real source because **no model in the repo
+        declares `deployed`** — exactly one source does, and it is a composite
+        (`white_mustang`). The case cannot be constructed from the fleet as it stands.
+        """
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "source_config",
+            lambda src, which: {"deployment_status": "deployed"} if which == "deployment"
+            else {},  # no config_modelset.py -> no members -> a leaf
+        )
+        assert coh.maturity_of("a_leaf_model") == "graduate"
+
+    def test_a_composite_whose_members_are_all_graduate_is_graduate(self, tmp_path, monkeypatch):
+        """R2's positive case, which had never been exercised — it could not be, because
+        no member could reach `graduate` to satisfy it."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "source_config",
+            lambda src, which: {"deployment_status": "deployed"} if which == "deployment"
+            else {"models": ["member_a", "member_b"]} if (which == "modelset" and src == "top")
+            else {},
+        )
+        assert coh.maturity_of("top") == "graduate"
+
+    def test_a_composite_with_one_candidate_member_is_still_candidate(self, tmp_path, monkeypatch):
+        """R2 unchanged: a `deployed` composite is downgraded when a member is not
+        graduate. This is what keeps `white_mustang` honest, and #452's fix must not
+        weaken it — the leaf exemption applies only where there are no members at all."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "source_config",
+            lambda src, which: (
+                {"deployment_status": "deployed" if src == "top" else "shadow"}
+                if which == "deployment"
+                else {"models": ["member_a"]} if (which == "modelset" and src == "top")
+                else {}
+            ),
+        )
+        assert coh.maturity_of("top") == "candidate"
+
 
 # ── Resolution ─────────────────────────────────────────────────────────────
 

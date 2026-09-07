@@ -146,12 +146,24 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
     if status in _MATURITY:
         return _MATURITY[status]
     if status == "deployed":
-        # ADR-017 §3: `graduate` only where R2 already holds, else `candidate`. A
-        # straight rename would make the repo's one `deployed` ensemble a graduate
-        # with candidate members — a violation of ADR-017's own rule on day one.
         members = source_config(source, "modelset").get("models", [])
+        if not members:
+            # A LEAF. R2 is a rule about members, and a leaf has none, so there is
+            # nothing for it to hold or fail. Its author's declaration is the whole
+            # answer — which is what maturity asks (ADR-017 §3, amended 2026-09-07).
+            #
+            # This branch used to be unreachable: the guard read `if members and
+            # all(...)`, so a leaf fell through to `candidate` and NO source in the
+            # repository could ever be `graduate`. `in_production()` was therefore
+            # False for everything, and the shelf write-gate and the ADR-019 tier
+            # rule were both aimed at a state nothing could enter (#452).
+            return "graduate"
+        # A COMPOSITE. R2 applies: ADR-017 §3 grants `graduate` only where it already
+        # holds, else `candidate`. Without this, the migration would make the repo's
+        # one `deployed` ensemble a graduate with candidate members — a violation of
+        # ADR-017's own rule on the day it lands.
         deeper = _seen | {source}
-        if members and all(maturity_of(m, deeper) == "graduate" for m in members):
+        if all(maturity_of(m, deeper) == "graduate" for m in members):
             return "graduate"
         return "candidate"
     raise CoherenceError(
