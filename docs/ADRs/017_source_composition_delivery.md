@@ -1,6 +1,6 @@
 # vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — #445.)
 
 > **Cite this as `vmo_017` outside this repository.** views-postprocessing and
 > views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
@@ -122,6 +122,27 @@ The three axes, and where each one lives:
 - **Maturity** — `candidate → graduate → retired`.
   *Where:* on the source, in `config_maturity.py` (renamed from `config_deployment.py`; same file for models and ensembles). Replaces `deployment_status`.
   *(`baseline` is not a maturity — it's a role, already captured by the algorithm + `regression_point_baselines`. It leaves this file entirely.)*
+
+  **What maturity asks (stated 2026-09-07, #445).** *Has the author signed off that this source is
+  done and works as expected?* That is the whole question. It is **not** a judgement of whether the
+  model is good, whether it beats a baseline, or whether it adds value to any particular ensemble —
+  and it is **not** a decision to ship.
+
+  This needed saying because the axis was being read as an eligibility grant. It is not one.
+  `graduate` is *necessary* to reach the shelf (§4b) and never *sufficient* to reach a partner:
+  §4c splits *write → shelf* from *shelf → consumer*, and §4d says it plainly — *"A
+  graduate-but-undelivered forecast sitting there is fine: it is finished, just not routed anywhere
+  yet."* Nothing reaches a consumer without a `deliveries/<consumer>.py` naming it.
+
+  **Ensemble membership cannot be encoded here, and that is the point of three axes.** A model may
+  be worth including in one ensemble and not another, so the question *"could I put this in an
+  ensemble we ship?"* is answered per ensemble (composition) and per consumer (delivery) — never by
+  a field on the source. What the source can answer is the prior question: *is it finished?*
+
+  **So a baseline can be `graduate`.** `zero_pgmbaseline` is complete and works exactly as
+  expected; it is finished by any reading. It reaches no partner because no delivery names it. The
+  earlier reading — that `graduate` implies shippable, so a baseline could carry no true value —
+  was a misreading of §4b, and is recorded here so it is not made twice.
 - **Composition** — an ensemble's members.
   *Where:* `ensembles/<e>/configs/config_modelset.py` — **already exists, unchanged.**
 - **Delivery** — a `sources → consumer` edge.
