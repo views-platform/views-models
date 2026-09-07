@@ -9,9 +9,16 @@ def get_meta_config():
     meta_config = {
         "name": "small_chungus",
         "models": [
+            "blue_ocean",
+            "brave_heart",
+            "dancing_monkey",
             "dark_necessities",
-            "dancing_monkey"
-            ],
+            "dark_river",
+            "golden_eagle",
+            "old_rules",
+            "red_hawk",
+            "silent_fox",
+        ],
         "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm", 
         "aggregation": "mean",

@@ -7,8 +7,15 @@ def get_modelset_config():
     """
     modelset_config = {
         "models": [
-            "little_talks",
-            "dancing_monkey"
+            "blue_ocean",
+            "brave_heart",
+            "dancing_monkey",
+            "dark_necessities",
+            "dark_river",
+            "golden_eagle",
+            "old_rules",
+            "red_hawk",
+            "silent_fox",
         ],
     }
     return modelset_config
