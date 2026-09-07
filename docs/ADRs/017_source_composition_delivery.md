@@ -1,6 +1,6 @@
 # vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — #445.)
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.)
 
 > **Cite this as `vmo_017` outside this repository.** views-postprocessing and
 > views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
@@ -123,7 +123,7 @@ The three axes, and where each one lives:
   *Where:* on the source, in `config_maturity.py` (renamed from `config_deployment.py`; same file for models and ensembles). Replaces `deployment_status`.
   *(`baseline` is not a maturity — it's a role, already captured by the algorithm + `regression_point_baselines`. It leaves this file entirely.)*
 
-  **What maturity asks (stated 2026-09-07, #445).** *Has the author signed off that this source is
+  **What maturity asks (stated 2026-09-07, PR #446).** *Has the author signed off that this source is
   done and works as expected?* That is the whole question. It is **not** a judgement of whether the
   model is good, whether it beats a baseline, or whether it adds value to any particular ensemble —
   and it is **not** a decision to ship.
