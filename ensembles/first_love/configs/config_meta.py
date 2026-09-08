@@ -8,14 +8,21 @@ def get_meta_config():
     """
     meta_config = {
         "name": "first_love",
-        "regression_targets": ["lr_ged_sb"],
+        "models": ["bad_romance", 
+                   "free_fallin", 
+                   "cold_heart", 
+                   "beautiful_people",
+                   "lovely_creature",
+                #    "holy_grail"
+                   ],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "cm", 
         "aggregation": "concat",
-        "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
-        "regression_sample_metrics": ["y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
         # "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_sample_baselines": ["red_ranger"],
+        # "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
+        # "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
+        "regression_sample_baselines": ["red_ranger", "maroon_ranger", "green_ranger", "yellow_ranger"],
         "creator": "Dylan" 
     }
     return meta_config

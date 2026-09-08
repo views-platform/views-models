@@ -59,7 +59,7 @@ def get_sweep_config():
                     # Heavy-tailed: conflict counts, GDP, refugees, ODA
                     "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                     "lr_ged_ns", "lr_ged_os",
-                    "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                    # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                     "lr_wdi_ny_gdp_mktp_kd", "lr_wdi_nv_agr_totl_kn",
                     "lr_wdi_sm_pop_refg_or", "lr_wdi_dt_oda_odat_pc_zs",
                     "lr_wdi_sp_pop_grow", "lr_wdi_sp_urb_totl_in_zs",

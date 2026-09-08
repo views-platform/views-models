@@ -14,7 +14,7 @@ def get_meta_config():
         "level": "pgm",
         "prediction_format": "prediction_frame",
         "regression_sample_metrics": ["CRPS", "QS_sample", "MCR_sample", "Brier_rgs_sample"],
-        "evaluation_profile": "hydranet_ucdp",
+        # "evaluation_profile": "hydranet_ucdp",
         "rolling_origin_stride": 1,
     }
     return meta_config

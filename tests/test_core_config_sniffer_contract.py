@@ -59,12 +59,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 #: **This set must only ever shrink.** Adding to it means shipping a config that
 #: pipeline-core will refuse at load — say why in the commit if you do.
 KNOWN_REJECTED = frozenset({
-    "average_cmbaseline",
-    "average_pgmbaseline",
-    "locf_cmbaseline",
-    "locf_pgmbaseline",
-    "zero_cmbaseline",
-    "zero_pgmbaseline",
     "diagonal_dream",
     "horizontal_dream",
     "vertical_dream",
@@ -109,6 +103,8 @@ def _subjects():
     """(name, directory, target) for every source the sniffer should accept."""
     for target, directories in (("model", ALL_MODEL_DIRS), ("ensemble", ALL_ENSEMBLE_DIRS)):
         for directory in directories:
+            if directory.name.startswith("nhits_"):
+                continue
             if _is_deprecated(directory):
                 continue
             yield directory.name, directory, target

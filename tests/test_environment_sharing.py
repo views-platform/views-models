@@ -43,7 +43,7 @@ _ENV_PATH = re.compile(
 # These two directory names differ by ONE character, and that character is
 # load-bearing. Their tenants declare mutually unsatisfiable versions:
 #
-#   envs/views_r2darts2  (22 tenants)  views-r2darts2==0.1.0  x12
+#   envs/views_r2darts2  (22 tenants)  views-r2darts2>=0.2.0  x12
 #                                      views-r2darts2>=0.1.0  x10
 #   envs/views-r2darts2  ( 9 tenants)  views-r2darts2>=1.0.0,<2.0.0
 #
@@ -190,12 +190,12 @@ def test_environment_sharing_is_recorded_not_discovered():
         counts[env] = counts.get(env, 0) + 1
 
     expected = {
-        "views-baseline": 37,
-        "views_stepshifter": 32,
-        "views_r2darts2": 22,
-        "views_ensemble": 13,
+        "views-baseline": 39,
+        "views_stepshifter": 37,
+        "views_r2darts2": 24,
+        "views_ensemble": 15,
         "views-r2darts2": 9,
-        "views-hydranet": 8,
+        "views-hydranet": 27,
         "views-stepshifter": 7,
         "views-seldon": 1,
         # 1 -> 2: un_crafd joined un_fao in this prefix (#333). Both install the same
@@ -203,6 +203,10 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views-postprocessing": 2,
         "views-graphdb": 1,
         "views-faoapi": 1,
+        # New environments: markov and tempdisagg models were added to the roster,
+        # each with its own prefix.
+        "views-markov": 4,
+        "views-tempdisagg": 4,
     }
     assert counts == expected, (
         "the environment -> tenant mapping changed.\n"

@@ -10,7 +10,7 @@ def get_meta_config():
     meta_config = {
         "name": "zero_pgmbaseline",
         "algorithm": "ZeroModel",
-        "regression_targets": ["lr_ged_sb"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "level": "pgm",
         "creator": "Sonja",
         "prediction_format": "prediction_frame",

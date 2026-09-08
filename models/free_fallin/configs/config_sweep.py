@@ -75,9 +75,9 @@ def get_sweep_config():
             "values": [
                 {
                     # MaxAbsScaler arm: zero-anchor preserved, dynamic range compressed
-                    "AsinhTransform->MaxAbsScaler": [
+                    "AsinhTransform": [
                         "lr_ged_ns", "lr_ged_os",
-                        "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                        # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                         "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                         "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
@@ -107,7 +107,7 @@ def get_sweep_config():
                 {
                     "AsinhTransform->StandardScaler": [
                         "lr_ged_ns", "lr_ged_os",
-                        "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
+                        # "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
                         "lr_acled_sb", "lr_acled_sb_count", "lr_acled_os",
                         "lr_splag_1_ged_sb", "lr_splag_1_ged_ns", "lr_splag_1_ged_os",
                         "lr_decay_ged_sb_5", "lr_decay_ged_sb_100", "lr_decay_ged_sb_500",
@@ -176,7 +176,7 @@ def get_sweep_config():
         # preserving relative order with no structural positive push.
         # Unlike TFT (VSN+GRN can learn to gate/rescale), TSMixer uses blunt linear
         # concatenation — cross-entity scale normalization must be explicit.
-        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform->MaxAbsScaler"}]},
+        # "static_covariate_stats": {"values": [{"transform": "AsinhTransform"}]},
         
         # ==============================================================================
         # LOSS FUNCTION: SpotlightLoss

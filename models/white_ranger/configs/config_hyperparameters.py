@@ -8,7 +8,7 @@ def get_hp_config():
     """
 
     hyperparameters = {
-        "regression_targets": ["lr_sb_best", "lr_ns_best", "lr_os_best"],
+        "regression_targets": ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
         "steps": list(range(1, 37)),
         "time_steps": 36,
         "window_months": 36,
