@@ -46,6 +46,8 @@ ALGORITHM_TO_PACKAGE = {
     "ParametricHurdleConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
+    # views_markov algorithms
+    "MarkovModel": "views_markov",
 }
 
 

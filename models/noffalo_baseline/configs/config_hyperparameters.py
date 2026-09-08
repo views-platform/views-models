@@ -10,6 +10,8 @@ def get_hp_config():
     
     hyperparameters = {
         'steps': [*range(1, 36 + 1, 1)],
+        "time_steps": 36,
+        "skip_predictions_delivery": True,
         "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
