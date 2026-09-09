@@ -123,7 +123,13 @@ def _run(meta: dict, hp: dict, targets: list):
     which reads config['n_samples'] etc.) and run train+forecast on the fixture."""
     level = meta.get("level", "pgm")
     df = _tiny_df(targets, level)
-    config = {**hp, "targets": targets}
+    # The catalog reads ``regression_targets`` off the config itself (views-baseline
+    # >=1.0.2, which retired the synthesised ``targets`` key along with pipeline-core
+    # 507ae11). Production hands it the merged config, of which the hyperparameters are
+    # part, so hp alone is the faithful stand-in and nothing is injected here. A model
+    # declaring its targets only in config_meta.py would now fail loud rather than run
+    # against a fixture whose columns the model cannot see.
+    config = dict(hp)
     catalog = BaselineModelCatalog(
         config=config, partition_dict={"test": (495, 500)}, loa=level
     )
