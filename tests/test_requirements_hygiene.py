@@ -38,24 +38,41 @@ pytestmark = pytest.mark.green
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-# ── the one deferred decision, named, with its reason ─────────────────
-# views-r2darts2 is declared three mutually different ways across 31 models:
-#   ==0.1.0          (12)  the CM datafactory label models, verified end-to-end
-#                          at that exact version in PR #232
-#   >=0.1.0          (10)  unbounded
-#   >=1.0.0,<2.0.0    (9)
-# Collapsing these is NOT hygiene: they are three true statements about an
-# upstream whose versioning is unsettled (the cached_path fix is still
-# uncommitted, r2darts#22). Forcing one spec would simplify the files by lying
-# about the world. Registered as part of C-115; revisit when r2darts 1.x is
-# published AND r2darts#22 is committed — that is the named trigger, not "later".
-DEFERRED_PACKAGES = {
-    "views-r2darts2": (
-        "three specs across 31 models (==0.1.0 x12, >=0.1.0 x10, >=1.0.0,<2.0.0 x9); "
-        "upstream versioning unsettled (r2darts#22 uncommitted). Named trigger for "
-        "revisiting: views-r2darts2 1.x published AND r2darts#22 committed. See C-115."
-    ),
-}
+# ── no deferred packages ──────────────────────────────────────────────
+# This held one entry — views-r2darts2, declared three mutually different ways
+# across 31 models — deferred on the grounds that the three specs were "three true
+# statements about an upstream whose versioning is unsettled".
+#
+# Measured 2026-09-09 (#317), and the premise did not survive:
+#   - `==0.1.0` was NEVER on PyPI. The tag exists; the publish workflow fires on
+#     GitHub Release and 0.1.0 never got one. The pin was written from `pip list`
+#     against a local editable install, three months before the tag existed.
+#   - `>=1.0.0,<2.0.0` has never been satisfiable either. No 1.x tag, branch,
+#     milestone or issue exists.
+#   - All 31 models import the same `DartsForecastingModelManager` with the same
+#     constructor. The three specs encoded drift, not three statements about
+#     anything. Two of the three named a version that does not exist.
+#
+# The named trigger — "views-r2darts2 1.x published AND r2darts#22 committed" —
+# could not fire: upstream went 0.2.x, so the first condition was unreachable by
+# construction. A deferral whose trigger cannot fire is a permanent exemption.
+#
+# All 31 now declare `views-r2darts2>=0.1.1,<0.2.0` — one spec, and the first in this
+# repo's history that resolves for all of them. 0.1.1 is the only released version in
+# that range and it installs cleanly on a bare machine (verified 2026-09-10 in an empty
+# venv: pip exit 0, and all three of main.py's imports execute).
+#
+# 0.2.x is NOT adoptable, and the reason is not ours to fix. `views-r2darts2[manager]`
+# cannot resolve against ANY published views-pipeline-core — four independent conflicts,
+# of which wandb is only the first pip reports. The blocking one is pandas: r2darts2
+# 0.2.x requires darts==0.46.1 (pandas>=2.2) while pipeline-core's own dependencies cap
+# pandas<2.0. That is the platform-wide pandas lock (pipeline-core #308 / C-112).
+# Reported upstream as views-r2darts2#34, #35, #36.
+#
+# The cost of 0.1.1, stated plainly: it pins views-pipeline-core<3.0.0, so these 31 are
+# the only models in the fleet still on pipeline-core 2.x. That split stands until the
+# pandas migration lands. It is deliberate, and it beats 31 models that cannot install.
+DEFERRED_PACKAGES: dict[str, str] = {}
 
 # pip accepts a bare VCS URL as a requirements.txt line; PEP 508 does not, because
 # such a line names no package. `apis/un_fao/requirements.txt` uses that form. It is
