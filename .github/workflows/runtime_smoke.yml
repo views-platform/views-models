@@ -14,12 +14,16 @@ name: Runtime Smoke
 #     pinned for reproducibility so a red smoke means a views-models regression,
 #     not sibling drift. Bump the pins deliberately.
 #
-# Both are now installed from PyPI at a released version rather than from a git
-# ref, which is what the earlier note here asked for once views-baseline started
-# publishing releases. That also closes a real gap: the git pin was b53fc41, from
-# before 1.0.2, so this job kept asserting against the `targets` key that
-# pipeline-core retired on 2026-08-02 (#445) — it went green on code no model
-# could actually run, and stayed green while every baseline model was broken.
+# views-baseline now installs from PyPI at a released version rather than a git ref,
+# which is what the earlier note here asked for once it started publishing releases.
+# views-frames moves with it only because 1.0.2 requires >=1.10.2,<2 and the old
+# v1.8.1 pin no longer satisfies that.
+#
+# This also closes a real gap. The git pin was b53fc41 (2026-07-20), 35 commits
+# behind v1.0.2, and its catalog.py still read the `targets` key at 7 sites — the key
+# views-pipeline-core retired in 507ae11 on 2026-08-02. So this job asserted against
+# code no model could run: it went green for the five weeks in which every baseline
+# model was broken by that retirement (the breakage is views-models#445).
 on:
   push:
     branches: [main, development]

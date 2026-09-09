@@ -125,11 +125,13 @@ def _run(meta: dict, hp: dict, targets: list):
     df = _tiny_df(targets, level)
     # The catalog reads ``regression_targets`` off the config itself (views-baseline
     # >=1.0.2, which retired the synthesised ``targets`` key along with pipeline-core
-    # 507ae11). Production hands it the merged config, of which the hyperparameters are
-    # part, so hp alone is the faithful stand-in and nothing is injected here. A model
-    # declaring its targets only in config_meta.py would now fail loud rather than run
-    # against a fixture whose columns the model cannot see.
-    config = dict(hp)
+    # 507ae11). Keep the explicit assignment rather than passing ``hp`` alone: `targets`
+    # is resolved above hp-first with a ``config_meta.py`` fallback, and dropping the key
+    # would silently lose coverage for a model that declares its targets only in meta
+    # (#459). Every model exercised today declares them in hp, so this is a no-op now and
+    # a guard later. The catalog is built directly here and never calls audit_manifest,
+    # so `level` is not needed despite joining CORE_GENOME in 1.0.2.
+    config = {**hp, "regression_targets": targets}
     catalog = BaselineModelCatalog(
         config=config, partition_dict={"test": (495, 500)}, loa=level
     )
