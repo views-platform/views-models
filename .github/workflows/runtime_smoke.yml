@@ -12,8 +12,18 @@ name: Runtime Smoke
 #     layer + catalog import zero pipeline-core (verified 2026-07-20).
 #   * views_baseline / views_frames are installed --no-deps (numpy/pandas only),
 #     pinned for reproducibility so a red smoke means a views-models regression,
-#     not sibling drift. Bump the refs deliberately (or switch views-baseline to
-#     a release tag once it publishes one).
+#     not sibling drift. Bump the pins deliberately.
+#
+# views-baseline now installs from PyPI at a released version rather than a git ref,
+# which is what the earlier note here asked for once it started publishing releases.
+# views-frames moves with it only because 1.0.2 requires >=1.10.2,<2 and the old
+# v1.8.1 pin no longer satisfies that.
+#
+# This also closes a real gap. The git pin was b53fc41 (2026-07-20), 35 commits
+# behind v1.0.2, and its catalog.py still read the `targets` key at 7 sites — the key
+# views-pipeline-core retired in 507ae11 on 2026-08-02. So this job asserted against
+# code no model could run: it went green for the five weeks in which every baseline
+# model was broken by that retirement (the breakage is views-models#445).
 on:
   push:
     branches: [main, development]
@@ -33,8 +43,7 @@ jobs:
       - name: Install runtime deps (no pipeline-core — dodges the published-core skew)
         run: |
           pip install pytest numpy pandas
-          pip install --no-deps "git+https://github.com/views-platform/views-frames@v1.8.1"
-          pip install --no-deps "git+https://github.com/views-platform/views-baseline@b53fc41"
+          pip install --no-deps "views-frames==1.11.0" "views-baseline==1.0.2"
 
       - name: Runtime smoke — execute a model train+forecast, assert output honors config
         run: pytest tests/test_runtime_smoke.py -v
