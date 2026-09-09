@@ -1,7 +1,9 @@
 """Tests that every model has complete and consistent config files."""
 import pytest
 
-from tests.conftest import load_config_module
+from tests.conftest import get_regression_targets, load_config_module
+
+pytestmark = pytest.mark.beige
 
 
 # ── Required keys ──────────────────────────────────────────────────────
@@ -71,6 +73,24 @@ class TestConfigMeta:
             f"rename to 'regression_point_metrics'"
         )
 
+    def test_regression_targets_present_if_metrics(self, model_dir, meta_config):
+        """A model that declares regression evaluation must resolve at least one
+        regression target (so the metric has something to score).
+
+        Name-agnostic (EPIC #154): derives targets via the single accessor
+        (``conftest.get_regression_targets``) and asserts nothing about what they
+        are *called*. Replaces the former hardcoded-canonical guard. Cross-location
+        agreement is enforced in ``tests/test_regression_targets.py``.
+        """
+        if not meta_config.get("regression_point_metrics"):
+            pytest.skip(f"{model_dir.name} declares no regression_point_metrics")
+        targets = get_regression_targets(model_dir)
+        assert targets, (
+            f"{model_dir.name} declares regression_point_metrics but no resolvable "
+            f"regression_targets in config_meta or config_hyperparameters — the metric "
+            f"has nothing to score"
+        )
+
 
 # ── config_deployment.py ───────────────────────────────────────────────
 
@@ -97,6 +117,13 @@ class TestConfigHyperparameters:
     def test_hp_config_has_required_keys(self, model_dir, hp_config):
         missing = REQUIRED_HP_KEYS - set(hp_config.keys())
         assert not missing, f"{model_dir.name} config_hp missing keys: {missing}"
+
+    def test_hydranet_has_sampling_strategy(self, model_dir, hp_config, meta_config):
+        if meta_config.get("algorithm") != "HydraNet":
+            pytest.skip("not a HydraNet model")
+        assert "sampling_strategy" in hp_config, (
+            f"{model_dir.name} is HydraNet but missing 'sampling_strategy' (ADR-049)"
+        )
 
     def test_time_steps_matches_steps_length(self, model_dir, hp_config):
         steps = hp_config.get("steps")

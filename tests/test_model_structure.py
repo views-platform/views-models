@@ -7,6 +7,8 @@ import pytest
 
 from tests.conftest import MODEL_NAMES, REPO_ROOT
 
+pytestmark = pytest.mark.beige
+
 MODEL_NAME_PATTERN = re.compile(r'^[a-z]+_[a-z]+$')
 
 REQUIRED_CONFIG_FILES = [
@@ -29,6 +31,18 @@ REQUIRED_SUBDIRS = [
     "data/processed",
     "logs",
     "notebooks",
+    "reports",
+]
+
+# Ensembles run through EnsemblePathManager, which validates a SMALLER set — they
+# have no data/raw (they consume model output, not raw features) and no notebooks.
+# Listed separately rather than reusing REQUIRED_SUBDIRS, because asserting dirs an
+# ensemble is not supposed to have would be a test inventing a contract.
+ENSEMBLE_REQUIRED_SUBDIRS = [
+    "artifacts",
+    "data/generated",
+    "data/processed",
+    "logs",
     "reports",
 ]
 
@@ -104,4 +118,47 @@ class TestModelDirectoryStructure:
             f"{model_dir.name} has no tracked files under {subdir}/ — "
             f"the directory will be absent on fresh clone and crash "
             f"ModelPathManager validation. Add a .gitkeep file."
+        )
+
+
+class TestEnsembleDirectoryStructure:
+    """Ensembles run through EnsemblePathManager, which validates the same way.
+
+    This contract covered models and postprocessors but never ensembles, and two of
+    the thirteen were missing directories as a result: `cruel_summer` and
+    `white_mustang` had no tracked `artifacts/` or `logs/`. It surfaced only when the
+    catalog workflow was repaired (#336) and got far enough to reach the ensembles,
+    where it died on `FileNotFoundError: Expected model path .../white_mustang/artifacts`.
+
+    `cruel_summer` lost its `artifacts/` when a stray committed run artifact was
+    deleted in `97bc54a6` — removing the last tracked file removed the directory. A
+    correct cleanup with an invisible side effect, which is exactly what a git-index
+    check catches and a filesystem check does not.
+    """
+
+    @pytest.mark.parametrize("subdir", ENSEMBLE_REQUIRED_SUBDIRS)
+    def test_required_subdirectory_tracked(self, ensemble_dir, subdir):
+        rel_path = (ensemble_dir / subdir).relative_to(REPO_ROOT)
+        assert _git_tracks_path(rel_path), (
+            f"{ensemble_dir.name} (ensemble) has no tracked files under {subdir}/ — "
+            f"absent on fresh clone, crashes EnsemblePathManager validation. "
+            f"Add a .gitkeep file."
+        )
+
+
+class TestPostprocessorDirectoryStructure:
+    """Postprocessors run through PostprocessorPathManager, which validates the
+    SAME standard subdirectories as models — a missing one crashes on fresh clone.
+    The model contract above never covered ``postprocessors/``, which let un_fao
+    ship with 7 missing dirs and crash at runtime (C-32/C-33 recurrence, found via
+    the vpp#24 smoke test). Git-index check, not filesystem.
+    """
+
+    @pytest.mark.parametrize("subdir", REQUIRED_SUBDIRS)
+    def test_required_subdirectory_tracked(self, postprocessor_dir, subdir):
+        rel_path = (postprocessor_dir / subdir).relative_to(REPO_ROOT)
+        assert _git_tracks_path(rel_path), (
+            f"{postprocessor_dir.name} (postprocessor) has no tracked files under "
+            f"{subdir}/ — absent on fresh clone, crashes PostprocessorPathManager "
+            f"validation. Add a .gitkeep file."
         )

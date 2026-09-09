@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Owner:** Project maintainers
-**Last reviewed:** 2026-03-15
+**Last reviewed:** 2026-06-08
 **Related ADRs:** ADR-001, ADR-002, ADR-009
 
 ---
@@ -11,7 +11,7 @@
 
 > `ModelScaffoldBuilder` creates and validates the directory structure and configuration scripts for a new forecasting model. It ensures that new models conform to the repository's structural conventions.
 
-Located in: `build_model_scaffold.py`
+Located in: `tools/scaffold/build_model_scaffold.py`
 
 ---
 

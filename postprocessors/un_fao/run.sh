@@ -1,51 +1,44 @@
 #!/usr/bin/env bash
+# The UN FAO delivery launcher.
+#
+# The delivery protocol lives in tools/launcher/postprocessor.sh (ADR-022) — registry
+# first, then conda, then the #294 capability assertion, then the environment. This file
+# carries only what is genuinely FAO's: which conda environment, and which
+# views-postprocessing build.
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
-    echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
-    echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
-    echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
-  fi
-  source ~/.zshrc
-fi
+# Shared with un_crafd: both install the same package into the same prefix.
+POSTPROCESSOR_ENV_NAME="views-postprocessing"
 
-script_path=$(dirname "$(realpath $0)")
-project_path="$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )"
-env_path="$project_path/envs/views-postprocessing"
+# An immutable tag, not a branch (#364). Two reasons, both about the FAO delivery:
+#
+#   1. `main` moved on 2026-08-13 at 06:33, hours before a live delivery. A pin that can
+#      change between reading it and running it is not a pin.
+#   2. Tag 1.1.0 is the first merged build carrying views-postprocessing#222 — the C-79
+#      fix, `if success is not True:` replacing `if success is False:`. The old form is
+#      fail-OPEN: a None result passes as success, leaving an orphan in the partner bucket
+#      with no metadata document, invisible to both consumer APIs, while the run exits 0.
+#      That is not hypothetical — it happened here at 19:41 on 2026-07-27 (see
+#      logs/views_pipeline_ERROR.log, and register C-135).
+#   3. Moved to 1.1.1 on 2026-08-24 (#403). 1.1.0 carries views-postprocessing#268: the
+#      store port's `download` chains `.get()` onto an unvalidated result, so a result
+#      whose `data` is present-and-null raises AttributeError three frames away, naming
+#      neither the file_id nor the fact that a download failed. It killed the first
+#      un_crafd delivery on 2026-08-13 and is byte-identical here — it has simply not
+#      fired on this leg yet. 1.1.1 refuses and names what it got. Both launchers moved
+#      together: they share one prefix, so moving one alone is not a fix (C-139).
+#
+# `tools/launcher/postprocessor.sh` does NOT check that the install succeeded (no set -e,
+# no `|| return 1` on the pip line). A failed install silently leaves the previously
+# installed build in place, and the #294 capability assertion still passes because that
+# build also has contract/wire. So verify the installed build, do not infer it:
+#
+#   python -c "import views_postprocessing, pathlib; \
+#     print(pathlib.Path(views_postprocessing.__file__).parent / 'unfao/managers/unfao.py')"
+#   grep -n 'success is not True' <that path>
+VIEWS_POSTPROCESSING_PIN="1.1.1"
 
-if [ -f "$project_path/.env" ]; then
-  source "$project_path/.env"
-  export GITHUB_TOKEN
-fi
+script_path=$(dirname "$(realpath "$0")")
+# shellcheck source=../../tools/launcher/postprocessor.sh
+. "$( cd "$script_path/../../" >/dev/null 2>&1 && pwd )/tools/launcher/postprocessor.sh"
 
-eval "$(conda shell.bash hook)"
-
-if [ -d "$env_path" ]; then
-  echo "Conda environment already exists at $env_path. Checking dependencies..."
-  conda activate "$env_path"
-  echo "$env_path is activated"
-
-  missing_packages=$(pip install --dry-run -r $script_path/requirements.txt 2>&1 | grep -v "Requirement already satisfied" | wc -l)
-  if [ "$missing_packages" -gt 0 ]; then
-    echo "Installing missing or outdated packages..."
-    pip install -r $script_path/requirements.txt
-  else
-    echo "All packages are up-to-date."
-  fi
-  echo "Installing views-postprocessing from GitHub..."
-  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
-else
-  echo "Creating new Conda environment at $env_path..."
-  conda create --prefix "$env_path" python=3.11 -y
-  conda activate "$env_path"
-  pip install -r $script_path/requirements.txt
-  echo "Installing views-postprocessing from GitHub..."
-  pip install git+https://${GITHUB_TOKEN}@github.com/views-platform/views-postprocessing.git@main
-fi
-
-echo "Running $script_path/main.py "
-python $script_path/main.py "$@"
+postprocessor_launch "$@"

@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Owner:** Project maintainers
-**Last reviewed:** 2026-03-15
+**Last reviewed:** 2026-06-08
 **Related ADRs:** ADR-001, ADR-002
 
 ---
@@ -11,7 +11,7 @@
 
 > `EnsembleScaffoldBuilder` creates and validates the directory structure and scripts for a new ensemble model. It inherits from `ModelScaffoldBuilder` and overrides script generation to use ensemble-specific templates.
 
-Located in: `build_ensemble_scaffold.py`
+Located in: `tools/scaffold/build_ensemble_scaffold.py`
 
 ---
 

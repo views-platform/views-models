@@ -3,12 +3,14 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-04-11  
+**Last reviewed:** 2026-06-08  
 **Related ADRs:** ADR-004, ADR-005, ADR-008, ADR-009  
 
 ---
 
 ## 1. Purpose
+
+> Located in: `run_integration_tests.sh`
 
 `run_integration_tests.sh` is the only mechanism that tests actual model training and evaluation in views-models. It trains and evaluates each selected model on calibration and/or validation partitions using a shared conda environment, logs results per model, and produces a pass/fail summary. It never aborts on individual model failure — every model gets its turn.
 

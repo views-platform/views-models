@@ -13,6 +13,10 @@ current line range — line numbers in section headers are approximate.
 import re
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.beige
+
 # ---------------------------------------------------------------------------
 # Characterization: create_catalogs.py :: replace_table_in_section (lines 156-177)
 # ---------------------------------------------------------------------------
@@ -72,38 +76,77 @@ class TestReplaceTableInSection:
 
 
 # ---------------------------------------------------------------------------
-# Characterization: create_catalogs.py :: generate_markdown_table (lines 87-123)
+# Characterization: create_catalogs.py :: table generators (split functions)
 # ---------------------------------------------------------------------------
 
-def _generate_markdown_table(models_list):
-    """Exact copy of create_catalogs.py::generate_markdown_table."""
-    headers = [
-        'Model Name', 'Algorithm', 'Targets', 'Input Features',
-        'Non-default Hyperparameters', 'Forecasting Type',
-        'Implementation Status', 'Implementation Date', 'Author',
-    ]
+def _build_markdown_table(headers, rows):
+    """Exact copy of create_catalogs.py::_build_markdown_table."""
     markdown_table = '| ' + ' '.join([f"{header} |" for header in headers]) + '\n'
     markdown_table += '| ' + ' '.join(['-' * len(header) + ' |' for header in headers]) + '\n'
-    for model in models_list:
-        targets = model.get('targets', '')
-        if isinstance(targets, list):
-            targets = ', '.join(targets)
-        row = [
-            model.get('name', ''),
-            str(model.get('algorithm', '')).split('(')[0],
-            targets,
-            model.get('queryset', ''),
-            model.get('hyperparameters', ''),
-            'None',
-            model.get('deployment_status', ''),
-            'NA',
-            model.get('creator', ''),
-        ]
+    for row in rows:
         markdown_table += '| ' + ' | '.join(row) + ' |\n'
     return markdown_table
 
 
-class TestGenerateMarkdownTable:
+def _format_name_cell(model):
+    """Simplified approximation of create_catalogs.py::_format_name_cell.
+
+    The real function calls create_link() which computes a relative path
+    and prepends GITHUB_URL. This copy uses the raw model_dir_path value
+    since create_link() requires views_pipeline_core.
+    """
+    name = model.get('name', '')
+    model_dir = model.get('model_dir_path')
+    return f"[{name}]({model_dir})" if model_dir else name
+
+
+def _format_targets(model):
+    """Exact copy of create_catalogs.py::_format_targets."""
+    targets = model.get('targets', '') or model.get('regression_targets', '')
+    if isinstance(targets, list):
+        targets = ', '.join(targets)
+    return targets
+
+
+def _generate_model_table(models_list):
+    """Exact copy of create_catalogs.py::generate_model_table."""
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features',
+               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
+    for model in models_list:
+        rows.append([
+            _format_name_cell(model),
+            str(model.get('algorithm', '')).split('(')[0],
+            _format_targets(model),
+            model.get('queryset', ''),
+            model.get('hyperparameters', ''),
+            model.get('deployment_status', ''),
+            model.get('implementation_date', ''),
+            model.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
+
+
+def _generate_ensemble_table(ensembles_list):
+    """Exact copy of create_catalogs.py::generate_ensemble_table."""
+    headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models',
+               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    rows = []
+    for ensemble in ensembles_list:
+        rows.append([
+            _format_name_cell(ensemble),
+            ensemble.get('aggregation', ''),
+            _format_targets(ensemble),
+            ensemble.get('modelset_link', ''),
+            ensemble.get('hyperparameters', ''),
+            ensemble.get('deployment_status', ''),
+            ensemble.get('implementation_date', ''),
+            ensemble.get('creator', ''),
+        ])
+    return _build_markdown_table(headers, rows)
+
+
+class TestGenerateModelTable:
     def test_basic_table(self):
         models = [
             {
@@ -116,30 +159,69 @@ class TestGenerateMarkdownTable:
                 'creator': 'alice',
             }
         ]
-        result = _generate_markdown_table(models)
+        result = _generate_model_table(models)
         lines = result.strip().split('\n')
-        assert len(lines) == 3  # header + separator + 1 row
+        assert len(lines) == 3
         assert 'Model Name' in lines[0]
+        assert 'Input Features' in lines[0]
         assert 'test_model' in lines[2]
         assert 'RandomForest' in lines[2]
-        # Algorithm should strip parenthesized part
         assert 'n=100' not in lines[2]
-        # Targets list should be joined
         assert 'fatalities, ged_sb' in lines[2]
 
     def test_empty_list(self):
-        result = _generate_markdown_table([])
+        result = _generate_model_table([])
         lines = result.strip().split('\n')
-        assert len(lines) == 2  # header + separator only
+        assert len(lines) == 2
 
     def test_missing_keys_use_empty_string(self):
         models = [{}]
-        result = _generate_markdown_table(models)
+        result = _generate_model_table(models)
         lines = result.strip().split('\n')
         assert len(lines) == 3
-        # Row should have 9 pipe-separated cells (all empty except 'None' and 'NA')
-        assert 'None' in lines[2]
-        assert 'NA' in lines[2]
+        cells = lines[2].split('|')
+        assert len(cells) == 10  # 8 data cells + 2 empty boundary cells
+
+    def test_name_link_when_model_dir_present(self):
+        models = [{'name': 'linked', 'model_dir_path': '/repo/models/linked'}]
+        result = _generate_model_table(models)
+        assert '[linked](/repo/models/linked)' in result
+
+    def test_regression_targets_fallback(self):
+        models = [{'regression_targets': ['a', 'b']}]
+        result = _generate_model_table(models)
+        assert 'a, b' in result
+
+
+class TestGenerateEnsembleTable:
+    def test_basic_table(self):
+        ensembles = [
+            {
+                'name': 'test_ens',
+                'aggregation': 'mean',
+                'regression_targets': ['ged_sb'],
+                'modelset_link': '- [models](url)',
+                'deployment_status': 'deployed',
+                'creator': 'bob',
+            }
+        ]
+        result = _generate_ensemble_table(ensembles)
+        lines = result.strip().split('\n')
+        assert len(lines) == 3
+        assert 'Ensemble Name' in lines[0]
+        assert 'Constituent Models' in lines[0]
+        assert 'Input Features' not in lines[0]
+        assert 'mean' in lines[2]
+
+    def test_empty_list(self):
+        result = _generate_ensemble_table([])
+        lines = result.strip().split('\n')
+        assert len(lines) == 2
+
+    def test_shows_aggregation_as_algorithm(self):
+        ensembles = [{'aggregation': 'median'}]
+        result = _generate_ensemble_table(ensembles)
+        assert 'median' in result
 
 
 # ---------------------------------------------------------------------------
@@ -279,24 +361,31 @@ qs_test = (Queryset("test_queryset", "priogrid_month")
 
 
 # ---------------------------------------------------------------------------
-# Characterization: scripts/update_partitions.py :: update_file
+# Characterization: tools/partitions/fileops — extract, rewrite, override
 # ---------------------------------------------------------------------------
 
-import sys  # noqa: E402
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from update_partitions import update_file, OVERRIDE_MARKER  # noqa: E402
-
+from tools.partitions.fileops import (  # noqa: E402
+    extract_values,
+    rewrite_values,
+    write_atomic,
+)
 
 SAMPLE_PARTITION_FILE = '''\
-from ingester3.ViewsMonth import ViewsMonth
+from datetime import date
+
+
+def _current_month_id() -> int:
+    """VIEWS month_id for the current calendar month. Epoch: January 1980."""
+    today = date.today()
+    return (today.year - 1980) * 12 + today.month
+
 
 def generate(steps: int = 36) -> dict:
     def forecasting_train_range():
-        month_last = ViewsMonth.now().id - 1
-        return (121, month_last)
+        return (121, _current_month_id() - 1)
 
     def forecasting_test_range(steps):
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (month_last + 1, month_last + 1 + steps)
 
     return {
@@ -315,51 +404,247 @@ def generate(steps: int = 36) -> dict:
     }
 '''
 
-CANONICAL = {
-    "calibration": {"train": [121, 444], "test": [445, 492]},
-    "validation": {"train": [121, 492], "test": [493, 540]},
-    "forecasting_offset": -1,
+CANONICAL_FLAT = {
+    "calibration_train": (121, 444),
+    "calibration_test": (445, 492),
+    "validation_train": (121, 492),
+    "validation_test": (493, 540),
 }
 
 
-class TestUpdatePartitionsUpdateFile:
-    def test_already_current(self, tmp_path):
-        f = tmp_path / "config_partitions.py"
-        f.write_text(SAMPLE_PARTITION_FILE)
-        assert update_file(f, CANONICAL, dry_run=False) == "already_current"
+class TestPartitionFileops:
+    def test_extract_current_values(self):
+        result = extract_values(SAMPLE_PARTITION_FILE)
+        assert result == CANONICAL_FLAT
 
-    def test_updates_stale_values(self, tmp_path):
+    def test_rewrite_stale_values(self):
         stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
         stale = stale.replace("(445, 492)", "(397, 444)")
-        f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=False) == "updated"
-        result = f.read_text()
-        assert "(121, 444)" in result
-        assert "(445, 492)" in result
-        assert "(121, 396)" not in result
+        rewritten = rewrite_values(stale, CANONICAL_FLAT)
+        assert "(121, 444)" in rewritten
+        assert "(445, 492)" in rewritten
+        assert "(121, 396)" not in rewritten
 
-    def test_dry_run_does_not_write(self, tmp_path):
-        stale = SAMPLE_PARTITION_FILE.replace("(121, 444)", "(121, 396)")
-        f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=True) == "updated"
-        assert "(121, 396)" in f.read_text()  # unchanged on disk
+    def test_rewrite_preserves_forecasting(self):
+        rewritten = rewrite_values(SAMPLE_PARTITION_FILE, CANONICAL_FLAT)
+        assert "forecasting_train_range()" in rewritten
+        assert "forecasting_test_range(steps=steps)" in rewritten
 
-    def test_skips_override(self, tmp_path):
-        overridden = f"{OVERRIDE_MARKER} special model\n" + SAMPLE_PARTITION_FILE
+    def test_atomic_write(self, tmp_path):
         f = tmp_path / "config_partitions.py"
-        f.write_text(overridden)
-        assert update_file(f, CANONICAL, dry_run=False) == "skipped_override"
+        write_atomic(f, SAMPLE_PARTITION_FILE)
+        assert f.read_text() == SAMPLE_PARTITION_FILE
 
-    def test_updates_forecasting_offset(self, tmp_path):
-        stale = SAMPLE_PARTITION_FILE.replace("ViewsMonth.now().id - 1",
-                                              "ViewsMonth.now().id - 2")
-        f = tmp_path / "config_partitions.py"
-        f.write_text(stale)
-        assert update_file(f, CANONICAL, dry_run=False) == "updated"
-        assert "ViewsMonth.now().id - 1" in f.read_text()
+    def test_extract_returns_none_for_unparseable(self):
+        assert extract_values("not a partition file") is None
 
-    def test_error_on_missing_file(self, tmp_path):
-        f = tmp_path / "nonexistent.py"
-        assert update_file(f, CANONICAL, dry_run=False) == "error"
+
+# ---------------------------------------------------------------------------
+# Red tests: adversarial inputs for catalog and readme tools
+# ---------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.red
+class TestCatalogAdversarialInputs:
+    """Adversarial inputs for create_catalogs.py pure functions."""
+
+    def test_replace_table_missing_both_markers(self):
+        result = _replace_table_in_section("no markers", "MISSING", "table")
+        assert "table" in result
+
+    def test_replace_table_empty_content(self):
+        result = _replace_table_in_section("", "X", "table")
+        assert "<!-- X_START -->" in result
+        assert "table" in result
+
+    def test_replace_table_markers_adjacent(self):
+        content = "<!-- A_START --><!-- A_END -->"
+        result = _replace_table_in_section(content, "A", "new")
+        assert "new" in result
+        assert "<!-- A_START -->" in result
+        assert "<!-- A_END -->" in result
+
+    def test_generate_model_table_empty_list(self):
+        table = _generate_model_table([])
+        lines = table.strip().split("\n")
+        assert len(lines) == 2
+
+    def test_generate_model_table_all_missing_keys(self):
+        table = _generate_model_table([{}])
+        lines = table.strip().split("\n")
+        assert len(lines) == 3
+
+    def test_generate_model_table_targets_not_list_crashes(self):
+        """Non-string, non-list targets cause TypeError in _build_markdown_table.
+        This is a known gap — _format_targets returns the raw value."""
+        with pytest.raises(TypeError):
+            _generate_model_table([{"targets": 42}])
+
+    def test_generate_ensemble_table_empty_list(self):
+        table = _generate_ensemble_table([])
+        lines = table.strip().split("\n")
+        assert len(lines) == 2
+
+
+@pytest.mark.red
+class TestRepoStructureAdversarialInputs:
+    """Adversarial inputs for update_readme.py::generate_repo_structure."""
+
+    def test_empty_folders_dict(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        result = _generate_repo_structure({"model_dir": model_dir}, {}, "m")
+        assert result == "m"
+
+    def test_script_outside_any_folder(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        scripts = {"orphan.py": str(tmp_path / "elsewhere" / "orphan.py")}
+        result = _generate_repo_structure({"model_dir": model_dir}, scripts, "m")
+        assert "m" in result
+
+    def test_deeply_nested_folders(self, tmp_path):
+        model_dir = str(tmp_path / "m")
+        deep = str(tmp_path / "m" / "a" / "b" / "c")
+        folders = {"model_dir": model_dir, "deep": deep}
+        result = _generate_repo_structure(folders, {}, "m")
+        assert "m" in result
+
+
+@pytest.mark.red
+class TestFeaturesCatalogAdversarialInputs:
+    """Adversarial inputs for generate_features_catalog.py regex patterns."""
+
+    def test_column_pattern_nested_parens(self):
+        source = 'Column("col((nested))")'
+        matches = COLUMN_PATTERN.findall(source)
+        assert len(matches) >= 1
+
+    def test_column_pattern_empty_string(self):
+        matches = COLUMN_PATTERN.findall("")
+        assert matches == []
+
+    def test_column_name_pattern_no_quotes(self):
+        matches = COLUMN_NAME_PATTERN.findall("no_quotes_here")
+        assert matches == []
+
+    def test_loa_pattern_missing_from_loa(self):
+        match = LOA_PATTERN.search('"col_name"')
+        assert match is None
+
+
+# ---------------------------------------------------------------------------
+# Functional tests: generate_features_catalog.py core functions
+# ---------------------------------------------------------------------------
+
+from tools.catalogs.generate_features_catalog import (  # noqa: E402
+    extract_columns_from_querysets,
+    generate_markdown_table,
+)
+import pandas as pd  # noqa: E402
+
+
+@pytest.mark.green
+class TestExtractColumnsFromQuerysets:
+    """Functional tests for extract_columns_from_querysets()."""
+
+    def test_extracts_columns_from_single_file(self, tmp_path):
+        qs_file = tmp_path / "test_queryset.py"
+        qs_file.write_text('''
+qs = (Queryset("test_qs", "priogrid_month")
+    .with_column(Column("ged_sb_dep", from_loa="priogrid_month", from_column="ged_sb_best"))
+    .with_column(Column("acled_count", from_loa="country_month", from_column="acled_count_pr"))
+)
+''')
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 2
+        assert set(df["column_name"]) == {"ged_sb_dep", "acled_count"}
+        assert "test_queryset" in df["queryset"].values[0]
+
+    def test_deduplicates_across_files(self, tmp_path):
+        for name in ("qs_a", "qs_b"):
+            (tmp_path / f"{name}.py").write_text(
+                'Column("shared_col", from_loa="priogrid_month")'
+            )
+        df = extract_columns_from_querysets(tmp_path)
+        shared = df[df["column_name"] == "shared_col"]
+        assert len(shared) == 1
+        assert "qs_a" in shared.iloc[0]["queryset"]
+        assert "qs_b" in shared.iloc[0]["queryset"]
+
+    def test_columns_with_loa_extracted(self, tmp_path):
+        (tmp_path / "qs.py").write_text(
+            'Column("with_loa", from_loa="pgm")\n'
+        )
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 1
+        assert df.iloc[0]["column_name"] == "with_loa"
+        assert df.iloc[0]["loa"] == "pgm"
+
+    @pytest.mark.red
+    def test_empty_directory_crashes(self, tmp_path):
+        """Known bug: empty directory causes KeyError in groupby on empty DataFrame."""
+        with pytest.raises(KeyError):
+            extract_columns_from_querysets(tmp_path)
+
+    def test_ignores_non_python_files(self, tmp_path):
+        (tmp_path / "readme.md").write_text('Column("not_python")')
+        (tmp_path / "real.py").write_text('Column("real_col", from_loa="pgm")')
+        df = extract_columns_from_querysets(tmp_path)
+        assert len(df) == 1
+        assert df.iloc[0]["column_name"] == "real_col"
+
+
+@pytest.mark.green
+class TestGenerateMarkdownTable:
+    """Functional tests for generate_markdown_table()."""
+
+    def test_produces_valid_markdown(self, tmp_path):
+        df = pd.DataFrame({
+            "column_name": ["col_a", "col_b"],
+            "queryset": ["qs1", "qs2"],
+            "loa": ["pgm", "cm"],
+        })
+        table = generate_markdown_table(df)
+        assert "Name in viewser" in table
+        assert "col_a" in table
+        assert "col_b" in table
+        assert "|" in table
+
+    def test_has_correct_headers(self):
+        df = pd.DataFrame({"column_name": ["x"], "queryset": ["q"], "loa": ["l"]})
+        table = generate_markdown_table(df)
+        assert "Name in viewser" in table
+        assert "Human-readable name" in table
+        assert "Associated querysets/models" in table
+
+    def test_includes_placeholder_values(self):
+        df = pd.DataFrame({"column_name": ["x"], "queryset": ["q"], "loa": ["l"]})
+        table = generate_markdown_table(df)
+        assert "needs manual update" in table
+
+    def test_row_count_matches_input(self):
+        df = pd.DataFrame({
+            "column_name": ["a", "b", "c"],
+            "queryset": ["q1", "q2", "q3"],
+            "loa": ["pgm", "cm", "pgm"],
+        })
+        table = generate_markdown_table(df)
+        lines = [ln for ln in table.strip().split("\n") if ln.strip()]
+        assert len(lines) == 5  # header + separator + 3 data rows
+
+    @pytest.mark.red
+    def test_empty_dataframe_crashes_tabulate(self):
+        """Known bug: empty DataFrame with colalign causes IndexError in tabulate."""
+        df = pd.DataFrame({"column_name": [], "queryset": [], "loa": []})
+        with pytest.raises(IndexError):
+            generate_markdown_table(df)
+
+    def test_queryset_value_preserved(self):
+        df = pd.DataFrame({
+            "column_name": ["my_col"],
+            "queryset": ["fatalities003_conflict_history"],
+            "loa": ["pgm"],
+        })
+        table = generate_markdown_table(df)
+        assert "fatalities003_conflict_history" in table

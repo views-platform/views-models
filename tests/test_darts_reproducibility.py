@@ -29,10 +29,13 @@ except ImportError:
 # These are set at runtime by the framework, not in config files
 RUNTIME_PARAMS = {"run_type", "name", "algorithm"}
 
-pytestmark = pytest.mark.skipif(
-    not _HAS_R2DARTS2,
-    reason="views_r2darts2 not installed — ReproducibilityGate params unavailable",
-)
+pytestmark = [
+    pytest.mark.green,
+    pytest.mark.skipif(
+        not _HAS_R2DARTS2,
+        reason="views_r2darts2 not installed — ReproducibilityGate params unavailable",
+    ),
+]
 
 
 def _is_darts_model(model_dir):

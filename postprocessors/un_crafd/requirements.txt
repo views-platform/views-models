@@ -1,0 +1,5 @@
+views-datafactory>=1.9.0,<2.0.0
+# numpy stays on 1.x — see the note in un_fao/requirements.txt. Both postprocessors
+# install into the same envs/views-postprocessing prefix (C-116), so this pin has to be
+# declared identically in both or whichever runs last decides numpy for both.
+numpy>=1.26.4,<2.0.0

@@ -7,9 +7,9 @@
 | **Model Algorithm** | LocfModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  locf_pgmbaseline   |
-| **Feature Description**       |  No description provided    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
