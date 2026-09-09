@@ -9,7 +9,7 @@ contents depend on which tenant ran last. Measured consequences, both directions
                           model completed a run in that state (2026-07-22, wandb
                           atomic-jazz-101). The declaration was removed in PR #325.
     present, undeclared   27 models receive views-datafactory because a co-tenant
-                          declares it; in `envs/views-baseline` only 10 of 37 do.
+                          declares it; in `envs/views-baseline` only 10 of 29 do.
 
 The tests here guard the one case where that sharing is not merely misleading but
 **silently wrong**, and they exist because the trap is invisible: it looks like a typo.
@@ -39,21 +39,35 @@ _ENV_PATH = re.compile(
     re.M,
 )
 
-# ── the trap ──────────────────────────────────────────────────────────
-# These two directory names differ by ONE character, and that character is
-# load-bearing. Their tenants declare mutually unsatisfiable versions:
+# ── the trap, and why it is currently defused ─────────────────────────
+# These two directory names differ by ONE character, and that character used to be
+# load-bearing. Their tenants declared mutually unsatisfiable versions:
 #
 #   envs/views_r2darts2  (22 tenants)  views-r2darts2==0.1.0  x12
 #                                      views-r2darts2>=0.1.0  x10
 #   envs/views-r2darts2  ( 9 tenants)  views-r2darts2>=1.0.0,<2.0.0
 #
-# `==0.1.0` and `>=1.0.0,<2.0.0` cannot both be satisfied. They do not collide
-# today ONLY because they resolve to separately-named directories. Merging the
-# names — the obvious tidy-up, and what a regenerated run.sh would do — puts both
-# in one prefix, where run.sh installs each tenant's file with no uninstall and
-# the resolved version becomes whatever ran last. There is no error: pip reports
+# Merging the names — the obvious tidy-up, and what a regenerated run.sh would do —
+# put both in one prefix, where run.sh installs each tenant's file with no uninstall
+# and the resolved version becomes whatever ran last. There is no error: pip reports
 # success, the models train, and half of them forecast with the wrong algorithm
 # version. Registered as **C-115, Tier 1**.
+#
+# **Since #317 all 31 declare one spec**, `views-r2darts2>=0.1.1,<0.2.0`, so there is
+# nothing left for a merge to resolve differently and the Tier-1 hazard above cannot
+# currently fire. The two directories still exist; the reason they had to has gone.
+#
+# One spec is what defuses this — not which spec. If any future change reintroduces a
+# second r2darts2 spec across these two prefixes, C-115 is armed again.
+#
+# The measurement that forced it is worth keeping, because the old comment asserted a
+# falsehood for a month: **`==0.1.0` was never on PyPI**. The tag exists, the publish
+# workflow fires on GitHub Release, and 0.1.0 never got one. `>=1.0.0,<2.0.0` was never
+# satisfiable either. So 21 of the 31 could not install at all, while this comment, the
+# register and two issues all described `==0.1.0` as the safe, pinned one.
+#
+# The invariant below is kept and still earns its place: it is about ANY package whose
+# specs cannot co-resolve in one prefix, and one spec today does not stop two tomorrow.
 #
 # This is enforced by test_no_environment_holds_mutually_unsatisfiable_specs below,
 # which asserts the invariant rather than the directory names — a single model moved
@@ -190,13 +204,16 @@ def test_environment_sharing_is_recorded_not_discovered():
         counts[env] = counts.get(env, 0) + 1
 
     expected = {
-        "views-baseline": 37,
+        # 37 -> 29: the eight temporary_* scaffold models (views-baseline clones, retired by
+        # rusty_bucket's own modelset config) were deleted 2026-09-06 in the roster cleanup.
+        "views-baseline": 29,
         "views_stepshifter": 32,
         "views_r2darts2": 22,
         "views_ensemble": 13,
         "views-r2darts2": 9,
         "views-hydranet": 8,
-        "views-stepshifter": 7,
+        # 7 -> 6: test_model deleted in the same cleanup.
+        "views-stepshifter": 6,
         "views-seldon": 1,
         # 1 -> 2: un_crafd joined un_fao in this prefix (#333). Both install the same
         # views-postprocessing package, so sharing one environment is deliberate.

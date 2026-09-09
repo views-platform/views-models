@@ -3,9 +3,7 @@ from pathlib import Path
 
 from views_pipeline_core.cli import ForecastingModelArgs
 from views_pipeline_core.managers import ModelPathManager
-from views_r2darts2 import DartsForecastingModelManager, apply_nbeats_patch
-
-apply_nbeats_patch()
+from views_r2darts2 import DartsForecastingModelManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,6 @@ except PermissionError as perm_error:
     )
 except Exception as e:
     raise RuntimeError(f"Unexpected error: {e}. Check the logs for details.")
-
 
 if __name__ == "__main__":
     args = ForecastingModelArgs.parse_args()
