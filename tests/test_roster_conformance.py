@@ -46,15 +46,32 @@ pytestmark = [pytest.mark.green]
 
 # --- The roster: model -> (output_distribution, forecast_composition,
 #     gate_threshold, seed). gate_threshold is None for soft_gate. ---
+# REVISED 2026-09-07 for the pre-deployment validation run (views-hydranet #324,
+# reports/2026-09-06_ensemble_roster_dossier/04_run_plan.md). Chosen from a 20-arm emit over the
+# previous roster: 8 models x 2 compositions with the cell clamp, scored on 3 targets x 6 horizons.
+#
+# What the measurement supported:
+#   * mixture_nb + soft_gate + scheduled sampling OFF was best on BOTH axes (ranking AND mass
+#     landing on real event cells) -- the old `purple_alien` configuration, now replicated.
+#   * threshold_gate ranks slightly better and predicts measurably LESS on every model. A real
+#     trade, so both compositions are carried rather than one being picked.
+#   * `heavy_freighter` keeps scheduled sampling ON deliberately: it was the only configuration
+#     predicting fatalities at a realistic scale, and that is the configuration that produced it.
+#     With `bright_starship` (same family, same composition, ss OFF) it is the closest thing to
+#     a controlled contrast in the design -- but NOT a one-variable pair: the seeds differ too
+#     (47 vs 43), so any difference between the two runs is confounded with seed.
+#
+# What is NOT evidenced and is assumed: the 5/3 family split, the specific seeds, and that eight
+# distinct trainings beat fewer models carrying more compositions.
 ROSTER = {
-    "violet_visitor":  ("nb", "soft_gate", None, 42),
-    "bright_starship": ("nb", "soft_gate", None, 43),
-    "bold_comet":      ("nb", "soft_gate", None, 44),
-    "blazing_meteor":  ("nb", "threshold_gate", 0.5, 45),
-    "heavy_freighter": ("nb", "threshold_gate", 0.5, 46),
+    "purple_alien":    ("mixture_nb", "soft_gate", None, 44),
     "pink_pirate":     ("mixture_nb", "soft_gate", None, 42),
     "blue_stranger":   ("mixture_nb", "soft_gate", None, 43),
-    "purple_alien":    ("mixture_nb", "soft_gate", None, 44),
+    "bold_comet":      ("mixture_nb", "threshold_gate", 0.5, 45),
+    "blazing_meteor":  ("mixture_nb", "threshold_gate", 0.5, 46),
+    "heavy_freighter": ("nb", "soft_gate", None, 47),
+    "bright_starship": ("nb", "soft_gate", None, 43),
+    "violet_visitor":  ("nb", "threshold_gate", 0.5, 42),
 }
 ROSTER_MODELS = list(ROSTER)
 
@@ -81,8 +98,8 @@ PINNED_MODELS = [m for m in ROSTER_MODELS if m not in EXPERIMENTS_IN_PROGRESS]
 
 # --- The shared v2 gated_NB foundation every pinned member holds fixed. Values that
 #     differ per member (family, composition, seed) live in ROSTER, not here.
-#     total_lessons is a RUN-TIME budget (amended 300->160, window-constrained) and is
-#     deliberately NOT pinned. ---
+#     total_lessons is a RUN-TIME budget (160 during the window-constrained smoke runs, now
+#     300 -- 160 was not converged) and is deliberately NOT pinned. ---
 FOUNDATION = {
     "loss_reg": "mse",
     "reg_activation": "softplus",

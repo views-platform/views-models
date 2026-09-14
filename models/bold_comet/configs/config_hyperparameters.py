@@ -1,5 +1,4 @@
 def get_hp_config():
-    # SMOKE (transient): gated_nb D×K=4×4 40L seed=44
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
     'spatial_cols': ['row', 'col'],
@@ -24,8 +23,8 @@ def get_hp_config():
     'scheduler': 'WarmupDecay',
     'warmup_steps': 100,
     'clip_grad_norm': True,
-    'torch_seed': 44,
-    'np_seed': 44,
+    'torch_seed': 45,
+    'np_seed': 45,
     'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
     'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
     'transformations': {   'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
@@ -78,8 +77,8 @@ def get_hp_config():
     'onset_bias_init': -7.0,
     'ss_schedule': 'linear',
     'ss_warmup_lessons': 10,
-    'ss_epsilon_max': 0.5,
-    'total_lessons': 160,
+    'ss_epsilon_max': 0.0,
+    'total_lessons': 300,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
@@ -90,11 +89,21 @@ def get_hp_config():
     'evaluation_mode': 'stochastic',
     'aggregate_method': 'arithmetic_mean',
     'skip_predictions_delivery': True,
-    'output_distribution': 'nb',
-    'forecast_composition': 'soft_gate',
+    'output_distribution': 'mixture_nb',
+    'forecast_composition': 'threshold_gate',
+    'gate_threshold': 0.5,
+    'freeze_multitask_balancer': True,
+    'freeze_recurrent': 'cell',
     'n_head_samples': 4,
     'reg_activation': 'softplus',
     'body_supervision': 'all',
+    # C-259 / #295: ss_feedback must equal rollout_feedback ('sample') whenever scheduled
+    # sampling is active, or training feeds back a different object than inference rolls out
+    # on. Scheduled sampling is OFF here now (ss_epsilon_max=0.0), but it was ON at 0.5 when
+    # this config was first written, with ss_feedback unset — it defaulted to 'mean' and the
+    # config was UNLOADABLE (found 2026-09-07 when the roster emit run could not run this
+    # model). The key stays declared so that re-enabling ss can never re-arm C-259.
+    'ss_feedback': 'sample',
     'rollout_feedback': 'sample',
     'bn_recalibrate': True,
     'loss_class_pos_weight': 2.0}

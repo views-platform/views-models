@@ -1,5 +1,4 @@
 def get_hp_config():
-    # SMOKE (transient): th_gated D×K=4×4 40L seed=46
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
     'spatial_cols': ['row', 'col'],
@@ -24,8 +23,8 @@ def get_hp_config():
     'scheduler': 'WarmupDecay',
     'warmup_steps': 100,
     'clip_grad_norm': True,
-    'torch_seed': 46,
-    'np_seed': 46,
+    'torch_seed': 47,
+    'np_seed': 47,
     'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
     'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
     'transformations': {   'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
@@ -79,7 +78,7 @@ def get_hp_config():
     'ss_schedule': 'linear',
     'ss_warmup_lessons': 10,
     'ss_epsilon_max': 0.5,
-    'total_lessons': 160,
+    'total_lessons': 300,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
@@ -91,11 +90,19 @@ def get_hp_config():
     'aggregate_method': 'arithmetic_mean',
     'skip_predictions_delivery': True,
     'output_distribution': 'nb',
-    'forecast_composition': 'threshold_gate',
+    'forecast_composition': 'soft_gate',
+    'freeze_multitask_balancer': True,
+    'freeze_recurrent': 'cell',
     'n_head_samples': 4,
     'reg_activation': 'softplus',
     'body_supervision': 'all',
+    # C-259 / #295: scheduled sampling is ACTIVE here (ss_schedule='linear',
+    # ss_epsilon_max=0.5), and ss_feedback defaults to 'mean' — which contradicts
+    # rollout_feedback='sample' and makes this config UNLOADABLE. Training would feed back a
+    # different object than inference rolls out on. Declared explicitly 2026-09-07 after the
+    # roster emit run found this model could not be run at all.
+    'ss_feedback': 'sample',
     'rollout_feedback': 'sample',
     'bn_recalibrate': True,
     'loss_class_pos_weight': 2.0,
-    'gate_threshold': 0.5}
+  }

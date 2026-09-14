@@ -1,5 +1,4 @@
 def get_hp_config():
-    # SMOKE (transient): mixture D×K=4×4 40L seed=42
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
     'spatial_cols': ['row', 'col'],
@@ -78,12 +77,14 @@ def get_hp_config():
     'onset_bias_init': -7.0,
     'ss_schedule': 'linear',
     'ss_warmup_lessons': 10,
-    'ss_epsilon_max': 0.5,
+    'ss_epsilon_max': 0.0,
     # C-259: must equal the resolved rollout_feedback ('sample') whenever ss_epsilon_max > 0,
     # or training feeds back a different object than inference rolls out on. Absent here, it
     # defaulted to 'mean' and the config FAILED validation — see views-models#404.
+    # Scheduled sampling is OFF here now (ss_epsilon_max=0.0); the key stays declared so
+    # that re-enabling it can never re-arm C-259.
     'ss_feedback': 'sample',
-    'total_lessons': 160,
+    'total_lessons': 300,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
@@ -96,6 +97,8 @@ def get_hp_config():
     'skip_predictions_delivery': True,
     'output_distribution': 'mixture_nb',
     'forecast_composition': 'soft_gate',
+    'freeze_multitask_balancer': True,
+    'freeze_recurrent': 'cell',
     'n_head_samples': 4,
     'reg_activation': 'softplus',
     'body_supervision': 'all',

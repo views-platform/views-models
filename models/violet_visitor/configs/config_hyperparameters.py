@@ -38,7 +38,9 @@ def get_hp_config():
         'h_init': 'abs_rand_exp-100',
         # gated forecast (gate x body); all-cell body
         'output_distribution': 'nb',
-        'forecast_composition': 'soft_gate',
+        'forecast_composition': 'threshold_gate',
+        'gate_threshold': 0.5,
+        'freeze_recurrent': 'cell',
         'reg_activation': 'softplus',
         'body_supervision': 'all',  # all-cell body supervision (ADR-065; supersedes the retired point-mask knob)
 
@@ -74,7 +76,7 @@ def get_hp_config():
         'ss_warmup_lessons': 15,
         'ss_epsilon_max': 0.0,
 
-        'total_lessons': 160,
+        'total_lessons': 300,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,

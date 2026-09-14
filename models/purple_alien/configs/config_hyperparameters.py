@@ -1,5 +1,4 @@
 def get_hp_config():
-    # SMOKE (transient): mixture D×K=4×4 40L seed=44
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
     'spatial_cols': ['row', 'col'],
@@ -78,7 +77,7 @@ def get_hp_config():
     'loss_class_alpha': 0.75,
     'loss_class_gamma': 1.5,
     'onset_bias_init': -7.0,
-    'total_lessons': 160,
+    'total_lessons': 300,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
@@ -91,6 +90,8 @@ def get_hp_config():
     'skip_predictions_delivery': True,
     'output_distribution': 'mixture_nb',
     'forecast_composition': 'soft_gate',
+    'freeze_multitask_balancer': True,
+    'freeze_recurrent': 'cell',
     'n_head_samples': 4,
     'reg_activation': 'softplus',
     'body_supervision': 'all',

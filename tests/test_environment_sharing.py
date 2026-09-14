@@ -204,13 +204,16 @@ def test_environment_sharing_is_recorded_not_discovered():
         counts[env] = counts.get(env, 0) + 1
 
     expected = {
-        "views-baseline": 37,
+        # 37 -> 29: the eight temporary_* scaffold models (views-baseline clones, retired by
+        # rusty_bucket's own modelset config) were deleted in the 2026-09 roster cleanup.
+        "views-baseline": 29,
         "views_stepshifter": 32,
         "views_r2darts2": 22,
         "views_ensemble": 13,
         "views-r2darts2": 9,
         "views-hydranet": 8,
-        "views-stepshifter": 7,
+        # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
+        "views-stepshifter": 6,
         "views-seldon": 1,
         # 1 -> 2: un_crafd joined un_fao in this prefix (#333). Both install the same
         # views-postprocessing package, so sharing one environment is deliberate.
