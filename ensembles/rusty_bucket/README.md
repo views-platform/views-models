@@ -6,7 +6,7 @@ This folder contains code for the Rusty Bucket model, an ensemble machine learni
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | violet_visitor, bright_starship, bold_comet, blazing_meteor, heavy_freighter, pink_pirate, blue_stranger, purple_alien                  |
+| **Models** | purple_alien, pink_pirate, blue_stranger, bold_comet, blazing_meteor, heavy_freighter, bright_starship, violet_visitor                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Aggregation**       |  concat   |
