@@ -23,15 +23,20 @@ def get_modelset_config():
     the config-time contract correctly refused the mismatch rather than pooling unequally.
     """
     modelset_config = {
+        # Order revised 2026-09-07 with the roster (views-hydranet #324). Membership is unchanged
+        # -- the same eight models -- but the order now matches ROSTER in
+        # tests/test_roster_conformance.py, which compares the two as ordered lists. Concat pooling
+        # is order-independent, so this changes no forecast; it keeps the two declarations of the
+        # roster from drifting apart, which is the whole point of that test.
         "models": [
-            "violet_visitor",
-            "bright_starship",
+            "purple_alien",
+            "pink_pirate",
+            "blue_stranger",
             "bold_comet",
             "blazing_meteor",
             "heavy_freighter",
-            "pink_pirate",
-            "blue_stranger",
-            "purple_alien",
+            "bright_starship",
+            "violet_visitor",
         ],
     }
     return modelset_config
