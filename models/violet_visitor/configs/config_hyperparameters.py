@@ -39,7 +39,10 @@ def get_hp_config():
         # gated forecast (gate x body); all-cell body
         'output_distribution': 'nb',
         'forecast_composition': 'threshold_gate',
-        'gate_threshold': 0.5,
+        # #465: 0.5 fired on 3-6x too few cells (views-hydranet M75). Measured calibrated τ for
+        # this model was 0.26; set BELOW it on purpose — the platform undershoots fatalities
+        # even at τ=0, so lean toward firing more. A prior, not a measurement: to be swept.
+        'gate_threshold': 0.20,
         'freeze_recurrent': 'cell',
         'reg_activation': 'softplus',
         'body_supervision': 'all',  # all-cell body supervision (ADR-065; supersedes the retired point-mask knob)

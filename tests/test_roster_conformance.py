@@ -67,11 +67,11 @@ ROSTER = {
     "purple_alien":    ("mixture_nb", "soft_gate", None, 44),
     "pink_pirate":     ("mixture_nb", "soft_gate", None, 42),
     "blue_stranger":   ("mixture_nb", "soft_gate", None, 43),
-    "bold_comet":      ("mixture_nb", "threshold_gate", 0.5, 45),
-    "blazing_meteor":  ("mixture_nb", "threshold_gate", 0.5, 46),
+    "bold_comet":      ("mixture_nb", "threshold_gate", 0.14, 45),
+    "blazing_meteor":  ("mixture_nb", "threshold_gate", 0.16, 46),
     "heavy_freighter": ("nb", "soft_gate", None, 47),
     "bright_starship": ("nb", "soft_gate", None, 43),
-    "violet_visitor":  ("nb", "threshold_gate", 0.5, 42),
+    "violet_visitor":  ("nb", "threshold_gate", 0.20, 42),
 }
 ROSTER_MODELS = list(ROSTER)
 
