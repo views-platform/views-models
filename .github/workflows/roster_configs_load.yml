@@ -1,0 +1,53 @@
+name: Roster Configs Load
+
+# C-259 exit: tests/test_roster_configs_load.py constructs each of the 8 HydraNet
+# roster configs through HydraNetConfig for real. test_roster_conformance.py compares
+# 184 config values against a reference dict and never builds the object — which is
+# how two production ensemble members sat unloadable from August to September while
+# every test passed (#404, #458 §1b). The load test is the guard for that, and it
+# `importorskip("views_hydranet")`, so in run_tests.yml — which installs only
+# pipeline-core — it has always SKIPPED. This job is where it runs.
+#
+# Why a separate job, like runtime_smoke.yml:
+#   * run_tests.yml's install is pinned on purpose (its header says why). Adding a
+#     package there is a change to what "the suite is green" means for every PR.
+#   * The dependency set here is tiny and different, and a red here means one thing:
+#     a roster config does not load.
+#
+# What it installs, and why: views-hydranet --no-deps, plus torch from the CPU-only
+# index. Importing config_initializer is torch-free, but CONSTRUCTING a config is not —
+# get_config -> validate_loss_reg -> views_hydranet/utils/utils.py:7 imports torch
+# (found 2026-09-15 by running this job locally: all 8 configs failed with
+# ModuleNotFoundError before torch was added). The CPU wheel is what a validator
+# needs; the CUDA build views-hydranet's metadata would resolve to is several times
+# larger and buys nothing here. pipeline-core and views-frames are not needed on this
+# path and are not installed.
+#
+# Why a RELEASED pin and not a git ref: runtime_smoke.yml was pinned to a pre-fix
+# commit for five weeks and stayed green while every baseline model was broken (C-106,
+# #460). A released version tracks what the models actually install. Keep ==0.1.0 in
+# step with the 8 models' `views-hydranet~=0.1.0` (#462) when either moves.
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  roster-configs-load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install the config layer (CPU-only torch — a validator imports it; see header)
+        run: |
+          pip install pytest "numpy<3" "pydantic>=2,<3"
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --no-deps "views-hydranet==0.1.0"
+
+      - name: Roster configs load — every member constructs through HydraNetConfig
+        run: pytest tests/test_roster_configs_load.py -v
