@@ -12,6 +12,10 @@ def get_modelset_config():
         th_gated_NB  (nb,         threshold_gate 0.5)  blazing_meteor / heavy_freighter
         mixture_NB   (mixture_nb, soft_gate)           pink_pirate / blue_stranger / purple_alien
 
+    That table is the pre-registration as locked, kept as the record. It is SUPERSEDED by
+    the 2026-09 reconfiguration (#463) and the gate-threshold priors (#466); the live
+    per-member values are ``ROSTER`` in `tests/test_roster_conformance.py`.
+
     These replace the eight `temporary_*` stand-ins — clones of the `heavy_strider`
     global-land baseline, a degenerate mixture that existed to exercise the pooled-draw
     machinery at the right shape while the real models were built (#146). They have done
