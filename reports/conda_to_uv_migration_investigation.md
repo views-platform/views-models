@@ -3,7 +3,8 @@
 **Date:** 2026-05-23  
 **Author:** Simon / Claude  
 **Status:** Investigation complete — awaiting decisions  
-**Scope:** views-models repository, with upstream implications for views-pipeline-core
+**Scope:** views-models repository, with upstream implications for views-pipeline-core  
+**Note (2026-09-15):** views-baseline (1.0.2), views-hydranet (0.1.0) and views-postprocessing (1.2.0) are now on PyPI. §4.3 and the `git+` dependency proposals below predate that and are kept as written.
 
 ---
 
