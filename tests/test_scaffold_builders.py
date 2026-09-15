@@ -11,6 +11,7 @@ at the source level.
 """
 import ast
 import re
+from pathlib import Path
 
 import pytest
 
@@ -21,8 +22,8 @@ from tests.conftest import REPO_ROOT
 def _nothing_in_this_file_writes_into_the_repo():
     """The builders under test write real files. Every test here must point them at
     tmp_path — and an incomplete redirect is silent: the suite stays green while
-    ``models/fake_model/configs/`` accumulates in the working tree (#464, twice now:
-    the directory tests patch ``_subdirs`` by hand for the same reason). This fires
+    ``models/fake_model/configs/`` accumulates in the working tree (#464; the directory
+    tests used to patch ``_subdirs`` by hand for the same reason). This fires
     if any test in this module leaves the scaffold's fixture model behind. Narrow on
     purpose: a repo-wide "models/ must be clean" check would fire on legitimately
     untracked experiment directories, which are normal here."""
@@ -250,56 +251,52 @@ class TestModelScaffoldBuilderDirectoryCreation:
         pytest.importorskip("views_pipeline_core")
         pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
+    # Every test here redirects ModelPathManager._root to tmp_path BEFORE constructing
+    # the builder (the #464 pattern). The builder then derives model_dir and _subdirs
+    # from the redirected root itself, so nothing is patched by hand and the tests
+    # exercise the real declaration — "create what the path manager says exists" —
+    # rather than a list the test invented.
+
     def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("test_model")
-        target = tmp_path / "models" / "test_model"
-        builder._model.model_dir = target
-        builder._subdirs = [
-            target / "configs",
-            target / "data" / "raw",
-            target / "data" / "generated",
-            target / "data" / "processed",
-            target / "reports",
-            target / "logs",
-        ]
         result = builder.build_model_directory()
         assert result.exists()
-        assert result == target
+        assert result == builder._model.model_dir
+        assert result.is_relative_to(tmp_path)
 
-    def test_build_model_directory_creates_readme(self, tmp_path):
+    def test_build_model_directory_creates_readme(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("test_model")
-        target = tmp_path / "models" / "test_model"
-        builder._model.model_dir = target
-        builder._subdirs = [target / "configs"]
         builder.build_model_directory()
-        readme = target / "README.md"
+        readme = builder._model.model_dir / "README.md"
         assert readme.exists()
-        content = readme.read_text()
-        assert "test_model" in content
+        assert "test_model" in readme.read_text()
 
-    def test_build_model_directory_creates_subdirs(self, tmp_path):
+    def test_build_model_directory_creates_subdirs(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("test_model")
-        target = tmp_path / "models" / "test_model"
-        builder._model.model_dir = target
-        sub1 = target / "configs"
-        sub2 = target / "data" / "raw"
-        builder._subdirs = [sub1, sub2]
+        declared = [Path(d) for d in builder._subdirs]
+        assert declared, "the path manager declares no subdirectories — nothing to test"
         builder.build_model_directory()
-        assert sub1.is_dir()
-        assert sub2.is_dir()
+        for sub in declared:
+            assert sub.is_dir(), sub
+            assert sub.is_relative_to(tmp_path), sub
 
-    def test_build_model_directory_creates_gitkeep(self, tmp_path):
+    def test_build_model_directory_creates_gitkeep(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("test_model")
-        target = tmp_path / "models" / "test_model"
-        builder._model.model_dir = target
-        sub = target / "data" / "raw"
-        builder._subdirs = [sub]
         builder.build_model_directory()
-        assert (sub / ".gitkeep").exists()
+        for sub in builder._subdirs:
+            assert (Path(sub) / ".gitkeep").exists(), sub
 
     @pytest.mark.red
     def test_build_model_scripts_without_directory_raises(self, tmp_path):
@@ -329,21 +326,25 @@ class TestEnsembleScaffoldBuilderDirectoryCreation:
         assert issubclass(EnsembleScaffoldBuilder, ModelScaffoldBuilder)
 
     @pytest.mark.red
-    def test_build_model_scripts_without_directory_raises(self, tmp_path):
+    def test_build_model_scripts_without_directory_raises(self, tmp_path, monkeypatch):
         from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        # EnsemblePathManager inherits _root; under tmp_path the directory does not exist.
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = EnsembleScaffoldBuilder("nonexistent_ensemble")
-        builder._model.model_dir = tmp_path / "does_not_exist"
+        assert not builder._model.model_dir.exists()
         with pytest.raises(FileNotFoundError):
             builder.build_model_scripts()
 
-    def test_build_model_directory_creates_dir(self, tmp_path):
+    def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
         from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = EnsembleScaffoldBuilder("test_ensemble")
-        target = tmp_path / "ensembles" / "test_ensemble"
-        builder._model.model_dir = target
-        builder._subdirs = [target / "configs"]
         result = builder.build_model_directory()
         assert result.exists()
+        assert result == builder._model.model_dir
+        assert result.is_relative_to(tmp_path / "ensembles")
 
 
 # ---------------------------------------------------------------------------
