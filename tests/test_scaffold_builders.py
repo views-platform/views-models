@@ -17,6 +17,25 @@ import pytest
 from tests.conftest import REPO_ROOT
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _nothing_in_this_file_writes_into_the_repo():
+    """The builders under test write real files. Every test here must point them at
+    tmp_path — and an incomplete redirect is silent: the suite stays green while
+    ``models/fake_model/configs/`` accumulates in the working tree (#464, twice now:
+    the directory tests patch ``_subdirs`` by hand for the same reason). This fires
+    if any test in this module leaves the scaffold's fixture model behind. Narrow on
+    purpose: a repo-wide "models/ must be clean" check would fire on legitimately
+    untracked experiment directories, which are normal here."""
+    leak = REPO_ROOT / "models" / "fake_model"
+    assert not leak.exists(), f"{leak} exists before this module ran — remove it first"
+    yield
+    assert not leak.exists(), (
+        f"a test in this module wrote {leak} into the repository. Redirect the path "
+        "manager's _root to tmp_path BEFORE constructing the builder (see "
+        "test_build_model_scripts_uses_injected_input)."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tests that work WITHOUT views_pipeline_core (AST-based verification)
 # ---------------------------------------------------------------------------
@@ -164,14 +183,19 @@ class TestModelScaffoldBuilderFunctional:
         pytest.importorskip("views_pipeline_core")
         pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
-    def test_build_model_scripts_uses_injected_input(self, tmp_path):
+    def test_build_model_scripts_uses_injected_input(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
 
+        # Redirect at the ROOT, before construction (#464). ModelPathManager derives every
+        # path — model_dir, configs, queryset_path, ... — from a class-level cached _root,
+        # as plain attributes set once. Overriding model_dir afterwards moved nothing else,
+        # and build_model_scripts writes to configs and queryset_path: six files landed in
+        # the real repo on every run. monkeypatch restores _root after the test.
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("fake_model")
-        # Override the model directory to tmp_path
-        builder._model.model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
-        (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        builder._model.configs.mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
         builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
@@ -190,13 +214,14 @@ class TestModelScaffoldBuilderFunctional:
         assert builder.package_name == "views-stepshifter"
 
     @pytest.mark.red
-    def test_build_model_scripts_github_failure_graceful(self, tmp_path):
+    def test_build_model_scripts_github_failure_graceful(self, tmp_path, monkeypatch):
         from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
 
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)   # see the test above (#464)
         builder = ModelScaffoldBuilder("fake_model")
-        builder._model.model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
-        (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        builder._model.configs.mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
         builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
