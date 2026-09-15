@@ -105,4 +105,7 @@ def get_hp_config():
     'rollout_feedback': 'sample',
     'bn_recalibrate': True,
     'loss_class_pos_weight': 2.0,
-    'gate_threshold': 0.5}
+    # #465: 0.5 fired on 3-6x too few cells (views-hydranet M75). Measured calibrated τ for
+    # this model was 0.19; set BELOW it on purpose — the platform undershoots fatalities
+    # even at τ=0, so lean toward firing more. A prior, not a measurement: to be swept.
+    'gate_threshold': 0.16}

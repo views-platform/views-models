@@ -14,6 +14,10 @@ Roster (pre-registration 05, LOCKED 2026-08-08):
   th_gated_NB  (nb,         threshold_gate 0.5)  blazing_meteor 45 / heavy_freighter 46
   mixture_NB   (mixture_nb, soft_gate)           pink_pirate 42 / blue_stranger 43 / purple_alien 44
 
+That table is the pre-registration as locked, kept as the record. It is SUPERSEDED: the
+2026-09 reconfiguration (#463) moved families, compositions and seeds, and #466 replaced
+the 0.5 gate threshold with per-member priors. ``ROSTER`` below is the live declaration.
+
 Cross-repo references are qualified because a bare ``#`` number resolves against THIS
 repository and would point at something unrelated: the roster is
 **views-hydranet#246**, the family head is **views-hydranet ADR-067** (still *Proposed*
@@ -67,11 +71,11 @@ ROSTER = {
     "purple_alien":    ("mixture_nb", "soft_gate", None, 44),
     "pink_pirate":     ("mixture_nb", "soft_gate", None, 42),
     "blue_stranger":   ("mixture_nb", "soft_gate", None, 43),
-    "bold_comet":      ("mixture_nb", "threshold_gate", 0.5, 45),
-    "blazing_meteor":  ("mixture_nb", "threshold_gate", 0.5, 46),
+    "bold_comet":      ("mixture_nb", "threshold_gate", 0.14, 45),
+    "blazing_meteor":  ("mixture_nb", "threshold_gate", 0.16, 46),
     "heavy_freighter": ("nb", "soft_gate", None, 47),
     "bright_starship": ("nb", "soft_gate", None, 43),
-    "violet_visitor":  ("nb", "threshold_gate", 0.5, 42),
+    "violet_visitor":  ("nb", "threshold_gate", 0.20, 42),
 }
 ROSTER_MODELS = list(ROSTER)
 
