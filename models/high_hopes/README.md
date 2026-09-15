@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  high_hopes   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and first set of conflict history features    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

@@ -1,8 +1,9 @@
 """Tests for scaffold builder injection seams and I/O decoupling.
 
-The scaffold builders (build_model_scaffold.py, build_ensemble_scaffold.py)
-require views_pipeline_core at import time. Tests that instantiate the builders
-are skipped when the package is unavailable.
+The scaffold builders (build_model_scaffold.py, build_ensemble_scaffold.py,
+build_package_scaffold.py) require views_pipeline_core at import time.
+Tests that instantiate the builders are skipped when the package is
+unavailable.
 
 Tests that verify the injection seam contract (callback signatures, default
 behavior) work regardless of package availability by testing the pattern
@@ -10,10 +11,30 @@ at the source level.
 """
 import ast
 import re
+from pathlib import Path
 
 import pytest
 
 from tests.conftest import REPO_ROOT
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _nothing_in_this_file_writes_into_the_repo():
+    """The builders under test write real files. Every test here must point them at
+    tmp_path — and an incomplete redirect is silent: the suite stays green while
+    ``models/fake_model/configs/`` accumulates in the working tree (#464; the directory
+    tests used to patch ``_subdirs`` by hand for the same reason). This fires
+    if any test in this module leaves the scaffold's fixture model behind. Narrow on
+    purpose: a repo-wide "models/ must be clean" check would fire on legitimately
+    untracked experiment directories, which are normal here."""
+    leak = REPO_ROOT / "models" / "fake_model"
+    assert not leak.exists(), f"{leak} exists before this module ran — remove it first"
+    yield
+    assert not leak.exists(), (
+        f"a test in this module wrote {leak} into the repository. Redirect the path "
+        "manager's _root to tmp_path BEFORE constructing the builder (see "
+        "test_build_model_scripts_uses_injected_input)."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -21,12 +42,13 @@ from tests.conftest import REPO_ROOT
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.beige
 class TestModelScaffoldInjectionSeams:
     """Verify build_model_scaffold.py has the expected injection seams."""
 
     @pytest.fixture(autouse=True)
     def _load_source(self):
-        self.source = (REPO_ROOT / "build_model_scaffold.py").read_text()
+        self.source = (REPO_ROOT / "tools" / "scaffold" / "build_model_scaffold.py").read_text()
         self.tree = ast.parse(self.source)
 
     def test_build_model_scripts_accepts_input_fn(self):
@@ -98,12 +120,13 @@ class TestModelScaffoldInjectionSeams:
         )
 
 
+@pytest.mark.beige
 class TestEnsembleScaffoldInjectionSeams:
     """Verify build_ensemble_scaffold.py has the expected injection seam."""
 
     @pytest.fixture(autouse=True)
     def _load_source(self):
-        self.source = (REPO_ROOT / "build_ensemble_scaffold.py").read_text()
+        self.source = (REPO_ROOT / "tools" / "scaffold" / "build_ensemble_scaffold.py").read_text()
         self.tree = ast.parse(self.source)
 
     def test_build_model_scripts_accepts_pipeline_config(self):
@@ -143,26 +166,37 @@ class TestEnsembleScaffoldInjectionSeams:
 # Tests that REQUIRE views_pipeline_core (functional tests with mocked I/O)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.green
 class TestModelScaffoldBuilderFunctional:
     """Functional tests using the injection seams. Skipped without views_pipeline_core.
 
-    NOTE: These tests access private attributes (_model._model_dir, _model_algorithm)
+    NOTE: These tests access internal attributes (_model.model_dir, _model_algorithm)
     because ModelScaffoldBuilder has no public API for overriding the model directory.
     Changes to ModelPathManager internals in views_pipeline_core could break these tests.
     """
 
     @pytest.fixture(autouse=True)
     def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
         pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
 
-    def test_build_model_scripts_uses_injected_input(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+    def test_build_model_scripts_uses_injected_input(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
 
+        # Redirect at the ROOT, before construction (#464). ModelPathManager derives every
+        # path — model_dir, configs, queryset_path, ... — from a class-level cached _root,
+        # as plain attributes set once. Overriding model_dir afterwards moved nothing else,
+        # and build_model_scripts writes to configs and queryset_path: six files landed in
+        # the real repo on every run. monkeypatch restores _root after the test.
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
         builder = ModelScaffoldBuilder("fake_model")
-        # Override the model directory to tmp_path
-        builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
-        (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        builder._model.configs.mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
         builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
@@ -180,13 +214,15 @@ class TestModelScaffoldBuilderFunctional:
         assert builder._model_algorithm == "XGBModel"
         assert builder.package_name == "views-stepshifter"
 
-    def test_build_model_scripts_github_failure_graceful(self, tmp_path):
-        from build_model_scaffold import ModelScaffoldBuilder
+    @pytest.mark.red
+    def test_build_model_scripts_github_failure_graceful(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
 
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)   # see the test above (#464)
         builder = ModelScaffoldBuilder("fake_model")
-        builder._model._model_dir = tmp_path / "models" / "fake_model"
         builder._model.model_dir.mkdir(parents=True, exist_ok=True)
-        (builder._model.model_dir / "configs").mkdir(exist_ok=True)
+        builder._model.configs.mkdir(exist_ok=True)
         # requirements_path is normally set by build_model_directory()
         builder.requirements_path = builder._model.model_dir / "requirements.txt"
 
@@ -200,3 +236,201 @@ class TestModelScaffoldBuilderFunctional:
             get_version_fn=mock_version,
         )
         # Should not raise — the existing try/except handles this gracefully
+
+
+@pytest.mark.green
+class TestModelScaffoldBuilderDirectoryCreation:
+    """CIC: ModelScaffoldBuilder must create directories and README."""
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
+        pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
+
+    # Every test here redirects ModelPathManager._root to tmp_path BEFORE constructing
+    # the builder (the #464 pattern). The builder then derives model_dir and _subdirs
+    # from the redirected root itself, so nothing is patched by hand and the tests
+    # exercise the real declaration — "create what the path manager says exists" —
+    # rather than a list the test invented.
+
+    def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = ModelScaffoldBuilder("test_model")
+        result = builder.build_model_directory()
+        assert result.exists()
+        assert result == builder._model.model_dir
+        assert result.is_relative_to(tmp_path)
+
+    def test_build_model_directory_creates_readme(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = ModelScaffoldBuilder("test_model")
+        builder.build_model_directory()
+        readme = builder._model.model_dir / "README.md"
+        assert readme.exists()
+        assert "test_model" in readme.read_text()
+
+    def test_build_model_directory_creates_subdirs(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = ModelScaffoldBuilder("test_model")
+        declared = [Path(d) for d in builder._subdirs]
+        assert declared, "the path manager declares no subdirectories — nothing to test"
+        builder.build_model_directory()
+        for sub in declared:
+            assert sub.is_dir(), sub
+            assert sub.is_relative_to(tmp_path), sub
+
+    def test_build_model_directory_creates_gitkeep(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = ModelScaffoldBuilder("test_model")
+        builder.build_model_directory()
+        for sub in builder._subdirs:
+            assert (Path(sub) / ".gitkeep").exists(), sub
+
+    @pytest.mark.red
+    def test_build_model_scripts_without_directory_raises(self, tmp_path):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        builder = ModelScaffoldBuilder("nonexistent_model")
+        builder._model.model_dir = tmp_path / "does_not_exist"
+        with pytest.raises(FileNotFoundError):
+            builder.build_model_scripts()
+
+
+@pytest.mark.green
+class TestEnsembleScaffoldBuilderDirectoryCreation:
+    """CIC: EnsembleScaffoldBuilder must create directories and configs."""
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_vpc(self):
+        # The PACKAGE always imports; the ensemble builder needs a SUBMODULE that
+        # published pipeline-core (2.3.0) does not have. Guarding the package passed
+        # and then the builder import raised ImportError -- a check asked one level
+        # above the thing that is actually missing (register C-112).
+        pytest.importorskip("views_pipeline_core")
+        pytest.importorskip("views_pipeline_core.templates.ensemble.template_config_modelset")
+
+    def test_ensemble_inherits_from_model_scaffold(self):
+        from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
+        assert issubclass(EnsembleScaffoldBuilder, ModelScaffoldBuilder)
+
+    @pytest.mark.red
+    def test_build_model_scripts_without_directory_raises(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        # EnsemblePathManager inherits _root; under tmp_path the directory does not exist.
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = EnsembleScaffoldBuilder("nonexistent_ensemble")
+        assert not builder._model.model_dir.exists()
+        with pytest.raises(FileNotFoundError):
+            builder.build_model_scripts()
+
+    def test_build_model_directory_creates_dir(self, tmp_path, monkeypatch):
+        from tools.scaffold.build_ensemble_scaffold import EnsembleScaffoldBuilder
+        from views_pipeline_core.managers.model import ModelPathManager
+        monkeypatch.setattr(ModelPathManager, "_root", tmp_path)
+        builder = EnsembleScaffoldBuilder("test_ensemble")
+        result = builder.build_model_directory()
+        assert result.exists()
+        assert result == builder._model.model_dir
+        assert result.is_relative_to(tmp_path / "ensembles")
+
+
+# ---------------------------------------------------------------------------
+# PackageScaffoldBuilder tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.beige
+class TestPackageScaffoldBuilderStructure:
+    """AST-based tests for build_package_scaffold.py — no VPC needed."""
+
+    @pytest.fixture(autouse=True)
+    def _load_source(self):
+        self.source_path = REPO_ROOT / "tools" / "scaffold" / "build_package_scaffold.py"
+        self.source = self.source_path.read_text()
+        self.tree = ast.parse(self.source)
+
+    def test_has_package_scaffold_builder_class(self):
+        classes = [
+            n.name for n in ast.walk(self.tree)
+            if isinstance(n, ast.ClassDef)
+        ]
+        assert "PackageScaffoldBuilder" in classes
+
+    def test_has_build_package_scaffold_method(self):
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef) and node.name == "PackageScaffoldBuilder":
+                methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+                assert "build_package_scaffold" in methods
+                return
+        pytest.fail("PackageScaffoldBuilder class not found")
+
+    def test_has_add_gitignore_method(self):
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef) and node.name == "PackageScaffoldBuilder":
+                methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+                assert "add_gitignore" in methods
+                return
+        pytest.fail("PackageScaffoldBuilder class not found")
+
+    def test_has_build_package_directories_method(self):
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef) and node.name == "PackageScaffoldBuilder":
+                methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+                assert "build_package_directories" in methods
+                return
+        pytest.fail("PackageScaffoldBuilder class not found")
+
+    def test_has_build_package_scripts_method(self):
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ClassDef) and node.name == "PackageScaffoldBuilder":
+                methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
+                assert "build_package_scripts" in methods
+                return
+        pytest.fail("PackageScaffoldBuilder class not found")
+
+    def test_build_package_scaffold_calls_create_and_validate(self):
+        """build_package_scaffold must call create_views_package and validate_views_package."""
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "build_package_scaffold":
+                calls = [
+                    n.attr for n in ast.walk(node)
+                    if isinstance(n, ast.Attribute)
+                ]
+                assert "create_views_package" in calls, (
+                    "build_package_scaffold must call create_views_package"
+                )
+                assert "validate_views_package" in calls, (
+                    "build_package_scaffold must call validate_views_package"
+                )
+                return
+        pytest.fail("build_package_scaffold method not found")
+
+    def test_build_package_scaffold_propagates_exceptions(self):
+        """build_package_scaffold must re-raise exceptions after logging."""
+        source = self.source
+        method_match = re.search(
+            r'def build_package_scaffold\(self\).*?\n(.*?)(?=\n    def |\nclass |\nif |\Z)',
+            source, re.DOTALL
+        )
+        assert method_match is not None
+        body = method_match.group(1)
+        assert "raise" in body, (
+            "build_package_scaffold must re-raise exceptions, not swallow them"
+        )
+
+    def test_main_block_validates_package_name(self):
+        """The __main__ block must validate package names before proceeding."""
+        assert "validate_package_name" in self.source

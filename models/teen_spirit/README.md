@@ -9,7 +9,7 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  teen_spirit   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and faoprices features    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure

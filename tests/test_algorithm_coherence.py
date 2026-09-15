@@ -13,6 +13,8 @@ import pytest
 
 from tests.conftest import load_config_module
 
+pytestmark = pytest.mark.green
+
 # Verified empirically from all 66 active models on 2026-04-04.
 # Update this mapping when a new algorithm is added to a package.
 ALGORITHM_TO_PACKAGE = {
@@ -38,6 +40,10 @@ ALGORITHM_TO_PACKAGE = {
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
     "ConflictologyModel": "views_baseline",
+    # parametric climatology (ADR-022) — real, exported views_baseline classes
+    # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
+    "ParametricConflictology": "views_baseline",
+    "ParametricHurdleConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }

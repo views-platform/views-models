@@ -33,13 +33,13 @@ The repository recognizes the following ontological categories:
 | Category | Location | Description |
 |----------|----------|-------------|
 | **CI/CD** | `.github/workflows/` | Automated catalog generation |
-| **APIs** | `apis/` | External API integrations (e.g., UN FAO) |
+| **APIs** | `apis/*/` | **API-service launchers** (`un_fao`, `seldon_api`). Like a model, each is a thin `main.py` + configs — but it `pip install`s and runs an external `views-*` API package (`un_fao` → `views-faoapi`; `seldon_api` → `views-seldon`). The service code **and the secrets** live in that external package, not here. See `apis/README.md`. |
 
 ### Data Processing Entities
 | Category | Location | Description |
 |----------|----------|-------------|
 | **Extractors** | `extractors/` | Data extraction modules (e.g., UCDP) |
-| **Postprocessors** | `postprocessors/` | Output transformation modules |
+| **Postprocessors** | `postprocessors/*/` | **Delivery producers** (`un_fao`). A thin `main.py` + configs that delegate to an external manager (`views_postprocessing`) to fetch, transform, and deliver outputs to a partner (`un_fao` → UN FAO, via Appwrite). Run through `PostprocessorPathManager` (same directory scaffold as models). See `postprocessors/un_fao/README.md`. |
 
 ### Tooling Entities
 | Category | Location | Description |

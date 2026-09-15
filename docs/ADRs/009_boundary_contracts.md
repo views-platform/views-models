@@ -39,6 +39,7 @@ Every config file boundary must enforce:
 | Model naming | `^[a-z]+_[a-z]+$` | `tests/test_model_structure.py` |
 | Required files | `main.py`, `run.sh`, `configs/` with 6 config files | `tests/test_model_structure.py` |
 | CLI pattern | Import from `views_pipeline_core.cli`, no `wandb.login()` | `tests/test_cli_pattern.py` |
+| Targets ↔ metrics | Declaring `classification_targets` obliges a classification metric key (`classification_point_metrics` or `classification_sample_metrics`); likewise for regression. The rule is **owned upstream** by views-pipeline-core's `CoreConfigSniffer` and is not restated here, so the two cannot drift. | `tests/test_core_config_sniffer_contract.py`, which loads every config through the installed sniffer |
 
 ### Ensemble Boundaries
 

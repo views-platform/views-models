@@ -3,12 +3,14 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-04-05  
+**Last reviewed:** 2026-06-08  
 **Related ADRs:** ADR-001, ADR-002, ADR-006, ADR-008  
 
 ---
 
 ## 1. Purpose
+
+> Located in: `tools/scaffold/build_package_scaffold.py`
 
 `PackageScaffoldBuilder` creates the directory structure and initial files for a new model architecture package (e.g., `views-stepshifter`). It delegates package creation and validation to `views_pipeline_core.managers.package.PackageManager` and adds supplementary files (`.gitignore`, example manager script).
 

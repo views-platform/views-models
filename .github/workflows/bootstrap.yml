@@ -1,0 +1,145 @@
+name: Bootstrap
+
+# `./bootstrap.sh` runs in CI against a fixture registry and a fake secret (#311).
+#
+# Why this job exists, and it is the point rather than a nicety. Prose describing setup
+# rots silently: nothing fails when it stops being true, and the person who discovers that
+# is the one least equipped to fix it — a new starter, on day one. A setup path verified
+# once, on one laptop, rots exactly the same way.
+#
+# This job is the only thing standing between "the setup script works" and "the setup
+# script worked in July". It uses a FIXTURE registry and a FAKE secret, so it needs no
+# credentials and no network, which is what lets it run on every push instead of never.
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: bootstrap.sh against a fixture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # tomllib; bootstrap.sh checks this itself and says so
+
+      - name: Build a fixture registry and a fake secret
+        run: |
+          set -euo pipefail
+          mkdir -p fixture
+          cat > fixture/coordinate_registry.toml <<'TOML'
+          [connection.APPWRITE_ENDPOINT]
+          class = "connection"
+          value = "https://fixture.invalid/v1"
+
+          [connection.APPWRITE_DATASTORE_PROJECT_ID]
+          class = "connection"
+          value = "fixture-project"
+
+          [target.APPWRITE_UNFAO_BUCKET_ID]
+          class = "target"
+          value = "unfao_bucket"
+
+          [target.APPWRITE_CRAFD_BUCKET_ID]
+          class = "target"
+          status = "planned — a reserved name with no value (a FIXTURE shape; the real registry has none since v1.4.0)"
+          TOML
+          # The fake secret. Never a real one: this repo is public and so are its logs.
+          echo 'APPWRITE_DATASTORE_API_KEY=FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL' > .env
+
+      - name: Run bootstrap.sh — no arguments
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+        run: ./bootstrap.sh
+
+      - name: Run it again — idempotence is what makes it testable
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+        run: |
+          set -euo pipefail
+          before="$(sha256sum .env)"
+          ./bootstrap.sh
+          after="$(sha256sum .env)"
+          [ "$before" = "$after" ] || {
+            echo "::error::bootstrap.sh modified .env on a re-run — it must be idempotent"; exit 1; }
+          echo "second run left .env byte-identical"
+
+      - name: A missing registry must fail, and name the cause
+        env:
+          APPWRITE_REGISTRY: /nonexistent/coordinate_registry.toml
+        run: |
+          set -uo pipefail
+          # `status=$?` after a plain assignment never runs here. GitHub invokes every
+          # step as `bash -e`, and `set -uo pipefail` does NOT clear `-e`, so a failing
+          # command substitution aborts the step before the status is read. Every
+          # scenario below asserts a NON-ZERO exit, so all four were unreachable: this
+          # workflow has been red since the day it landed and never tested anything.
+          # `|| status=$?` keeps the failure local while leaving `-e` on for genuinely
+          # unexpected failures elsewhere in the step.
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
+          echo "$out"
+          [ "$status" -ne 0 ] || { echo "::error::a missing registry must be fatal (#308)"; exit 1; }
+          echo "$out" | grep -q "APPWRITE_REGISTRY=" || {
+            echo "::error::the failure must name the override variable"; exit 1; }
+          echo "failed correctly, naming the cause"
+
+      - name: A .env declaring a registry-owned coordinate must fail
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+        run: |
+          set -uo pipefail
+          echo 'APPWRITE_ENDPOINT=https://wrong.invalid' >> .env
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
+          echo "$out"
+          [ "$status" -ne 0 ] || { echo "::error::two writers to one name must be fatal (#309)"; exit 1; }
+          echo "$out" | grep -q "APPWRITE_ENDPOINT" || {
+            echo "::error::the failure must name the conflicting variable"; exit 1; }
+          echo "failed correctly, naming the variable"
+
+      - name: A missing secret must fail rather than hang
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+        run: |
+          set -uo pipefail
+          rm -f .env
+          # stdin is not a terminal here, which is the case that would hang if bootstrap
+          # prompted unconditionally. A hung CI job is a worse failure than a red one.
+          status=0
+          out="$(timeout 30 ./bootstrap.sh < /dev/null 2>&1)" || status=$?
+          echo "$out"
+          [ "$status" -ne 124 ] || { echo "::error::bootstrap.sh HUNG waiting for input"; exit 1; }
+          [ "$status" -ne 0 ]   || { echo "::error::a missing secret must be fatal"; exit 1; }
+          echo "failed correctly without hanging"
+
+      - name: The secret must never reach the log
+        env:
+          APPWRITE_REGISTRY: ${{ github.workspace }}/fixture/coordinate_registry.toml
+        run: |
+          set -uo pipefail
+          # RESTORE the secret first. The previous step deletes .env, and without this the
+          # run would exit at the stdin check having never handled a secret at all — the
+          # grep below would then pass because the string was never in scope, not because
+          # redaction works. A check that cannot fail is worse than no check.
+          echo 'APPWRITE_DATASTORE_API_KEY=FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL' > .env
+          status=0
+          out="$(./bootstrap.sh 2>&1)" || status=$?
+          [ "$status" -eq 0 ] || {
+            echo "$out"
+            echo "::error::this step must exercise the secret-present path; bootstrap failed instead"
+            exit 1; }
+          if grep -q "FAKE-CI-SECRET-NOT-A-REAL-CREDENTIAL" <<< "$out"; then
+            echo "::error::bootstrap.sh rendered the secret value — it must report presence only"
+            exit 1
+          fi
+          echo "secret handled and never rendered"

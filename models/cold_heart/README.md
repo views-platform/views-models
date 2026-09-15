@@ -6,10 +6,10 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  new_rules   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  cold_heart   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
 | **Deployment Status**       |  shadow    |
 
 ## Repository Structure
