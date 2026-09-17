@@ -1,6 +1,6 @@
 # vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 corrects the `deployed` migration: a leaf becomes `graduate` outright, the R2 conditional governs composites only — the implementation made `graduate` unreachable for every source — #452); **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.)
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 corrects the `deployed` migration: a leaf becomes `graduate` outright, the R2 conditional governs composites only — the implementation made `graduate` unreachable for every source — #452); **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.) **amended 2026-09-17** (§11 Phase 2: the post-3.0 blocker expired; the rename is per source, gated on the engine's pipeline-core floor ≥3.2.0 — PR #476.)
 
 > **Cite this as `vmo_017` outside this repository.** views-postprocessing and
 > views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
@@ -391,6 +391,17 @@ Also: making the main line an explicit delivery unit adds new structure on the m
 - **Phase 1 — cheap, local, breaks nothing published:** revive the dead guard (R2); create `deliveries/` (ADR-019) with **`un_fao.py` written first as a description of what already runs** — a characterisation, not a change — then lift FAO's `"ensemble"` line out of `config_meta.py`; derive `is_in_production`. *(Sequencing: do this **before** views-models#333 clones `postprocessors/un_fao/` into a second consumer directory, so consumer number two arrives as a declaration rather than as a second copy of an invisible edge.)*
 - **Phase 2 — cross-repo, deliberate:** the `deployment_status → maturity` rename + value remap + the pipeline-core contract + ADR-003; rename the file `config_deployment.py → config_maturity.py`; delete the silent log-stamp default.
   Do this with a **dual-vocabulary transition window** — the sniffer accepts both old and new values, warns on the old, and flips to new-only in a later major (the gid→id playbook). It **cannot** ride the pipeline-core 3.0 release, so it lands as a post-3.0 major or its own coordinated bump.
+
+  **Status 2026-09-17 (views-models#476):** the blocker above expired. pipeline-core shipped the
+  dual-vocabulary window in 3.0.1 (2026-08-11, its ADR-057), and **3.2.0 (2026-09-08) is the first
+  release a `config_maturity.py` source actually runs on** (#495 dropped `deployment_status` from the
+  mandatory keys; #497 made every read site accept either file). The window closes when views-models
+  reports no source on the legacy vocabulary — not at a pipeline-core major. The rename is therefore
+  **per source, gated on the source's engine declaring pipeline-core ≥3.2.0**: views-models#476 lands
+  the readers (both vocabularies, one file per source, `deployed` refused in the new file) and the
+  guard #444 lacked; the follow-up PR renames the 50 sources whose engine is on 3.x; the 69 stepshifter
+  and r2darts2 sources stay on `config_deployment.py`, translated by the §3 map, until
+  views-stepshifter#103 / views-r2darts2#24 publish on ≥3.2.0 (context: views-models#473).
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
 - **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
 

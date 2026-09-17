@@ -5,14 +5,13 @@ import re
 from views_pipeline_core.managers.model import ModelManager, ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathManager
 
-#: ADR-017 §3's migration table for sources still on config_deployment.py. A deliberate
-#: copy of deliveries/coherence.py's `_MATURITY` (WET before DRY — see create_catalogs.py).
-_LEGACY_TO_MATURITY = {
-    "shadow": "candidate",
-    "baseline": "candidate",
-    "deprecated": "retired",
-    "deployed": "graduate",
-}
+# Maturity comes from deliveries/coherence.py::maturity_of — one rule, R2 included. See
+# create_catalogs.py for why importing it here couples nothing.
+import sys as _sys
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
+from deliveries.coherence import maturity_of  # noqa: E402
 
 # Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
 try:
@@ -155,11 +154,8 @@ for subfolder in target_dir.iterdir():
         if isinstance(metrics, list):
             metrics = ", ".join(metrics)
 
-        ## Maturity (ADR-017 §3): the new key as declared, the legacy key translated.
-        ## pipeline-core >= 3.2.0 loads config_maturity.py when present, else the legacy file.
-        deployment = model_manager.configs.get('maturity') or _LEGACY_TO_MATURITY.get(
-            model_manager.configs.get('deployment_status', ''), ''
-        )
+        ## Maturity (ADR-017 §3), from the one rule the delivery checks use.
+        deployment = maturity_of(subfolder.name)
 
         ## Get queryset description
         if subfolder.name.endswith('baseline'):
@@ -284,11 +280,8 @@ for subfolder in target_ens_dir.iterdir():
         
         aggregation = ens_manager.configs['aggregation']
 
-        ## Maturity (ADR-017 §3): the new key as declared, the legacy key translated.
-        ## pipeline-core >= 3.2.0 loads config_maturity.py when present, else the legacy file.
-        deployment = ens_manager.configs.get('maturity') or _LEGACY_TO_MATURITY.get(
-            ens_manager.configs.get('deployment_status', ''), ''
-        )
+        ## Maturity (ADR-017 §3), from the one rule the delivery checks use.
+        deployment = maturity_of(subfolder.name)
 
         ## Update old README file - For Bitter Symphony Model 
         scaffold_path = target_ens_dir / "README_ensemble_scaffold.md"

@@ -9,17 +9,17 @@ from pathlib import Path
 from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
 
-#: ADR-017 §3's migration table, for sources still on config_deployment.py. `deployed`
-#: is a leaf-vs-composite question (R2) that a catalog row does not answer; shown as
-#: `graduate` here — deliveries/coherence.py holds the real rule. A deliberate copy of
-#: that module's `_MATURITY` (WET before DRY): this tool runs under pipeline-core in CI,
-#: deliveries/ runs standalone, and sharing an import would couple them.
-_LEGACY_TO_MATURITY = {
-    "shadow": "candidate",
-    "baseline": "candidate",
-    "deprecated": "retired",
-    "deployed": "graduate",
-}
+# Maturity comes from ONE place: deliveries/coherence.py::maturity_of. It reads whichever
+# maturity file a source carries (ADR-017 Phase 2), translates the legacy vocabulary, and
+# applies R2 for a `deployed` composite — the part a per-file lookup gets wrong (a
+# `deployed` ensemble with `shadow` members is `candidate`, not `graduate`). That module is
+# stdlib-only, so importing it here couples nothing. Run as a script (sys.path[0] = this
+# dir) the repo root must be on the path; as tools.catalogs.* it already is.
+import sys as _sys
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
+from deliveries.coherence import maturity_of  # noqa: E402
 
 logging.basicConfig(
     level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
@@ -107,23 +107,12 @@ def extract_models(model_class):
             f"{model_class.model_name}_constituent_models", Path(config_modelset)
         )
 
-    # ADR-017 Phase 2: one maturity file per source. The new file is read as declared;
-    # the legacy file's deployment_status is translated so the catalog shows ONE
-    # vocabulary. Sources on pipeline-core 2.x keep the legacy file (views-models#473).
-    if os.path.exists(config_maturity):
-        logging.info(f"Found maturity config: {config_maturity}")
-        spec = importlib.util.spec_from_file_location(f"config_maturity_{Path(config_maturity).parent.parent.name}", config_maturity)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        model_dict['maturity'] = module.get_maturity_config().get('maturity', '')
-    elif os.path.exists(config_deployment):
-        logging.info(f"Found legacy deployment config: {config_deployment}")
-        spec = importlib.util.spec_from_file_location(f"config_deployment_{Path(config_deployment).parent.parent.name}", config_deployment)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        model_dict['maturity'] = _LEGACY_TO_MATURITY.get(
-            module.get_deployment_config().get('deployment_status', ''), ''
-        )
+    # ADR-017 Phase 2: one maturity file per source, either vocabulary. The catalog shows
+    # ONE vocabulary, computed by the same function the delivery rules use — including R2
+    # for a legacy `deployed` composite. Sources on pipeline-core 2.x keep the legacy file
+    # (views-models#473).
+    if os.path.exists(config_maturity) or os.path.exists(config_deployment):
+        model_dict['maturity'] = maturity_of(model_class.model_name)
 
     if os.path.exists(config_hyperparameters):
         logging.info(f"Found hyperparameters config: {config_hyperparameters}") 

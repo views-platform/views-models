@@ -111,8 +111,9 @@ class TestMaturityConfig:
     def test_exactly_one_maturity_file(self, any_model_dir):
         """The #455 guard. ADR-017 Phase 2 is a RENAME: a source carries config_maturity.py
         OR config_deployment.py, never both. Two files is the state PR #444 left 14 models in
-        — pipeline-core >= 3.0.1 reads the new one and silently ignores the legacy one, so
-        the two can disagree with nothing noticing. Runs over fixture models too, on purpose:
+        — pipeline-core >= 3.0.1 reads the new one and ignores the legacy one (it logs a
+        warning, nothing fails), so the two can disagree and still run. Runs over fixture
+        models too, on purpose:
         the scaffold must not produce a two-file model either."""
         configs = any_model_dir / "configs"
         new, legacy = configs / "config_maturity.py", configs / "config_deployment.py"

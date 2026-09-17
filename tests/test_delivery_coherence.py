@@ -116,9 +116,9 @@ class TestMaturityMapping:
             coh.maturity_of("migrated_wrong")
 
     def test_a_source_carrying_both_files_is_refused(self, tmp_path, monkeypatch):
-        """The #444 state: both files present, pipeline-core reads one and ignores the
-        other, and they can disagree with nothing noticing. Refused here, and guarded at
-        the file level by tests/test_config_completeness.py (#455)."""
+        """The #444 state: both files present, pipeline-core reads the new one and ignores
+        the legacy one with only a log warning, so they can disagree and still run. Refused
+        here, and guarded at the file level by tests/test_config_completeness.py (#455)."""
         import deliveries.coherence as coh
 
         monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
