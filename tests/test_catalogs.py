@@ -102,7 +102,7 @@ class TestGenerateModelTable:
                 "targets": "target_a",  # arbitrary fixture label — table rendering is name-agnostic
                 "queryset": "test_qs",
                 "hyperparameters": "test_hp",
-                "deployment_status": "shadow",
+                "maturity": "candidate",
                 "creator": "Test",
             }
         ]

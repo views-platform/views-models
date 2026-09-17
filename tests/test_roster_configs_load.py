@@ -35,8 +35,12 @@ MODELS_DIR = REPO_ROOT / "models"
 def _assemble(model: str) -> dict:
     """Merge the config parts the pipeline merges, plus the `run_type` it supplies at launch."""
     parts: dict = {"run_type": "calibration"}
-    for stem in ("config_hyperparameters", "config_meta", "config_deployment"):
-        path = MODELS_DIR / model / "configs" / f"{stem}.py"
+    configs = MODELS_DIR / model / "configs"
+    # ADR-017 Phase 2: a source carries config_maturity.py OR config_deployment.py. The
+    # new file wins, as in pipeline-core's load_maturity_config (3.2.0). Read whichever exists.
+    maturity_stem = "config_maturity" if (configs / "config_maturity.py").exists() else "config_deployment"
+    for stem in ("config_hyperparameters", "config_meta", maturity_stem):
+        path = configs / f"{stem}.py"
         if not path.exists():
             continue
         spec = importlib.util.spec_from_file_location(stem, path)

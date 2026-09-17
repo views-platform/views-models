@@ -15,6 +15,12 @@ REQUIRED_META_KEYS = {
 
 REQUIRED_HP_KEYS = {"steps", "time_steps"}
 
+#: The two vocabularies of ADR-017 Phase 2. A source carries exactly ONE of the two files.
+#: `config_maturity.py` is the destination; `config_deployment.py` is the legacy file a
+#: source keeps until its engine runs on pipeline-core >= 3.2.0 (the 38 stepshifter and 31
+#: r2darts2 models are on 2.3.0, which requires the legacy file and knows nothing of
+#: maturity — views-models#473, ADR-017 §11). Readers translate; files do not coexist.
+VALID_MATURITIES = {"candidate", "graduate", "retired"}
 VALID_DEPLOYMENT_STATUSES = {"shadow", "deployed", "baseline", "deprecated"}
 
 
@@ -27,9 +33,14 @@ def meta_config(model_dir):
 
 
 @pytest.fixture
-def deployment_config(model_dir):
-    module = load_config_module(model_dir / "configs" / "config_deployment.py")
-    return module.get_deployment_config()
+def maturity_file(model_dir):
+    """(path, getter, key, valid_values) for whichever maturity file this source carries."""
+    configs = model_dir / "configs"
+    new = configs / "config_maturity.py"
+    legacy = configs / "config_deployment.py"
+    if new.exists():
+        return new, "get_maturity_config", "maturity", VALID_MATURITIES
+    return legacy, "get_deployment_config", "deployment_status", VALID_DEPLOYMENT_STATUSES
 
 
 @pytest.fixture
@@ -92,19 +103,38 @@ class TestConfigMeta:
         )
 
 
-# ── config_deployment.py ───────────────────────────────────────────────
+# ── config_maturity.py / config_deployment.py ─────────────────────────
 
-class TestConfigDeployment:
-    def test_deployment_config_exists(self, model_dir):
-        assert (model_dir / "configs" / "config_deployment.py").exists()
+class TestMaturityConfig:
+    """Exactly one maturity file per source, in one of the two vocabularies."""
 
-    def test_deployment_has_status(self, model_dir, deployment_config):
-        assert "deployment_status" in deployment_config
+    def test_exactly_one_maturity_file(self, any_model_dir):
+        """The #455 guard. ADR-017 Phase 2 is a RENAME: a source carries config_maturity.py
+        OR config_deployment.py, never both. Two files is the state PR #444 left 14 models in
+        — pipeline-core >= 3.0.1 reads the new one and ignores the legacy one (it logs a
+        warning, nothing fails), so the two can disagree and still run. Runs over fixture
+        models too, on purpose:
+        the scaffold must not produce a two-file model either."""
+        configs = any_model_dir / "configs"
+        new, legacy = configs / "config_maturity.py", configs / "config_deployment.py"
+        assert not (new.exists() and legacy.exists()), (
+            f"{any_model_dir.name} carries BOTH config_maturity.py and config_deployment.py. "
+            f"ADR-017 Phase 2 is a rename; delete the legacy file. (#455)"
+        )
+        assert new.exists() or legacy.exists(), (
+            f"{any_model_dir.name} has neither config_maturity.py nor config_deployment.py"
+        )
 
-    def test_deployment_status_is_valid(self, model_dir, deployment_config):
-        status = deployment_config["deployment_status"]
-        assert status in VALID_DEPLOYMENT_STATUSES, (
-            f"{model_dir.name} has invalid deployment_status: '{status}'"
+    def test_maturity_file_has_its_key(self, model_dir, maturity_file):
+        path, getter, key, _ = maturity_file
+        config = getattr(load_config_module(path), getter)()
+        assert key in config, f"{model_dir.name}: {path.name} does not declare '{key}'"
+
+    def test_maturity_value_is_valid(self, model_dir, maturity_file):
+        path, getter, key, valid = maturity_file
+        value = getattr(load_config_module(path), getter)()[key]
+        assert value in valid, (
+            f"{model_dir.name}: {path.name} has invalid {key}: '{value}' (valid: {sorted(valid)})"
         )
 
 

@@ -9,6 +9,18 @@ from pathlib import Path
 from views_pipeline_core.managers.model import ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsemblePathManager
 
+# Maturity comes from ONE place: deliveries/coherence.py::maturity_of. It reads whichever
+# maturity file a source carries (ADR-017 Phase 2), translates the legacy vocabulary, and
+# applies R2 for a `deployed` composite — the part a per-file lookup gets wrong (a
+# `deployed` ensemble with `shadow` members is `candidate`, not `graduate`). That module is
+# stdlib-only, so importing it here couples nothing. Run as a script (sys.path[0] = this
+# dir) the repo root must be on the path; as tools.catalogs.* it already is.
+import sys as _sys
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
+from deliveries.coherence import maturity_of  # noqa: E402
+
 logging.basicConfig(
     level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
 )
@@ -55,7 +67,8 @@ def extract_models(model_class):
         -queryset: markdown link with marker 'queryset' from config_meta.py pointing to the queryset in common_querysets
         -level: 'priogrid_month' or 'country_month' from queryset
         -creator: creator from config_meta.py
-        -deployment_status: deployment_status from config_deployment.py
+        -maturity: from config_maturity.py, or config_deployment.py's deployment_status
+                   translated (ADR-017 §3) while a source is still on the legacy file
         -hyperparameters: markdown link with marker 'hyperparameters model_name' config_meta.py pointing to the model specific config_hyperparameters.py
     """
     
@@ -63,6 +76,7 @@ def extract_models(model_class):
     model_dict['model_dir_path'] = Path(model_class.model_dir)
     config_meta = os.path.join(model_class.configs, 'config_meta.py')
     config_modelset = os.path.join(model_class.configs, 'config_modelset.py')
+    config_maturity = os.path.join(model_class.configs, 'config_maturity.py')
     config_deployment = os.path.join(model_class.configs, 'config_deployment.py')
     config_hyperparameters = os.path.join(model_class.configs, 'config_hyperparameters.py')
 
@@ -93,12 +107,12 @@ def extract_models(model_class):
             f"{model_class.model_name}_constituent_models", Path(config_modelset)
         )
 
-    if os.path.exists(config_deployment):
-        logging.info(f"Found deployment config: {config_deployment}")
-        spec = importlib.util.spec_from_file_location(f"config_deployment_{Path(config_deployment).parent.parent.name}", config_deployment)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        model_dict.update(module.get_deployment_config())
+    # ADR-017 Phase 2: one maturity file per source, either vocabulary. The catalog shows
+    # ONE vocabulary, computed by the same function the delivery rules use — including R2
+    # for a legacy `deployed` composite. Sources on pipeline-core 2.x keep the legacy file
+    # (views-models#473).
+    if os.path.exists(config_maturity) or os.path.exists(config_deployment):
+        model_dict['maturity'] = maturity_of(model_class.model_name)
 
     if os.path.exists(config_hyperparameters):
         logging.info(f"Found hyperparameters config: {config_hyperparameters}") 
@@ -152,7 +166,7 @@ def _format_targets(model):
 
 def generate_model_table(models_list):
     """Generate a markdown catalog table for individual models."""
-    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for model in models_list:
         rows.append([
@@ -161,7 +175,7 @@ def generate_model_table(models_list):
             _format_targets(model),
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
-            model.get('deployment_status', ''),
+            model.get('maturity', ''),
             model.get('implementation_date', ''),
             model.get('creator', ''),
         ])
@@ -170,7 +184,7 @@ def generate_model_table(models_list):
 
 def generate_ensemble_table(ensembles_list):
     """Generate a markdown catalog table for ensembles."""
-    headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models', 'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+    headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models', 'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for ensemble in ensembles_list:
         rows.append([
@@ -179,7 +193,7 @@ def generate_ensemble_table(ensembles_list):
             _format_targets(ensemble),
             ensemble.get('modelset_link', ''),
             ensemble.get('hyperparameters', ''),
-            ensemble.get('deployment_status', ''),
+            ensemble.get('maturity', ''),
             ensemble.get('implementation_date', ''),
             ensemble.get('creator', ''),
         ])

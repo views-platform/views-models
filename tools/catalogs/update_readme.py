@@ -5,6 +5,14 @@ import re
 from views_pipeline_core.managers.model import ModelManager, ModelPathManager
 from views_pipeline_core.managers.ensemble import EnsembleManager, EnsemblePathManager
 
+# Maturity comes from deliveries/coherence.py::maturity_of — one rule, R2 included. See
+# create_catalogs.py for why importing it here couples nothing.
+import sys as _sys
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
+from deliveries.coherence import maturity_of  # noqa: E402
+
 # Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
 try:
     from readme_preserve import (
@@ -146,8 +154,8 @@ for subfolder in target_dir.iterdir():
         if isinstance(metrics, list):
             metrics = ", ".join(metrics)
 
-        ## Get deployment mode 
-        deployment = model_manager.configs['deployment_status']
+        ## Maturity (ADR-017 §3), from the one rule the delivery checks use.
+        deployment = maturity_of(subfolder.name)
 
         ## Get queryset description
         if subfolder.name.endswith('baseline'):
@@ -272,8 +280,8 @@ for subfolder in target_ens_dir.iterdir():
         
         aggregation = ens_manager.configs['aggregation']
 
-        ## Get deployment mode 
-        deployment = ens_manager.configs['deployment_status']
+        ## Maturity (ADR-017 §3), from the one rule the delivery checks use.
+        deployment = maturity_of(subfolder.name)
 
         ## Update old README file - For Bitter Symphony Model 
         scaffold_path = target_ens_dir / "README_ensemble_scaffold.md"

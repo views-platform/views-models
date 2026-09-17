@@ -28,7 +28,7 @@ Located in: `tools/catalogs/create_catalogs.py:extract_models()`
 
 - Loads `config_meta.py` via `importlib.util` and calls `get_meta_config()`
 - Loads `config_modelset.py` via `importlib.util` and calls `get_modelset_config()` (ensembles)
-- Loads `config_deployment.py` via `importlib.util` and calls `get_deployment_config()`
+- Loads the source's maturity file via `importlib.util`: `config_maturity.py` (`get_maturity_config()`, key `maturity`) when present, else the legacy `config_deployment.py` (`get_deployment_config()`, key `deployment_status`, translated by ADR-017 §3's table). A source carries exactly one of the two (ADR-017 Phase 2)
 - Creates GitHub markdown links for querysets, hyperparameters, and model sets
 - Extracts implementation date from git history via `subprocess`
 - Returns a merged dictionary containing all catalog-relevant fields
@@ -45,7 +45,7 @@ Located in: `tools/catalogs/create_catalogs.py:extract_models()`
 
 ## 5. Outputs and Side Effects
 
-Returns a dict with keys from merged meta and deployment configs, plus:
+Returns a dict with keys from the meta config, a `maturity` key in ADR-017's vocabulary (`candidate` / `graduate` / `retired`, translated from the legacy file where needed), plus:
 - `model_dir_path`: `Path` to the model/ensemble directory (used for name links in catalog tables)
 - `queryset`: markdown link to config_queryset.py, `'N/A'` for baselines, or `'None'` if no queryset exists
 - `hyperparameters`: markdown link to config_hyperparameters.py
@@ -59,7 +59,7 @@ No side effects beyond logging and subprocess calls to `git log`.
 ## 6. Failure Modes and Loudness
 
 - If a config file has a syntax error, `importlib` raises `SyntaxError` — currently crashes the entire catalog run
-- If `get_meta_config()` or `get_deployment_config()` is missing, `AttributeError` is raised
+- If `get_meta_config()`, `get_maturity_config()` or `get_deployment_config()` is missing from a file that exists, `AttributeError` is raised
 - No per-model error isolation (known deviation — see ADR-008)
 
 ---
@@ -89,7 +89,7 @@ model_dict = extract_models(model_class)
 model_dict = extract_models("models/counting_stars")  # TypeError
 
 # Wrong: expecting runtime validation of config values
-# extract_models does not check if deployment_status is valid
+# extract_models does not check if the maturity value is valid; an unknown legacy value translates to ''
 ```
 
 ---

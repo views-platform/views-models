@@ -47,6 +47,18 @@ ConfigurationManager = pytest.importorskip(
     "views_pipeline_core.managers.configuration.configuration",
     reason="views_pipeline_core is not installed",
 ).ConfigurationManager
+# The maturity file is resolved by pipeline-core's OWN rule, not a copy of it. This
+# helper exists from 3.2.0 and encodes the loader's preference (config_maturity.py wins
+# over config_deployment.py, ADR-057). PR #444 broke 14 models while this test stayed
+# green because the test hardcoded the legacy filename: it fed the sniffer the dict the
+# real loader would have ignored. Reimplementing file selection here is that drift.
+_script_config = pytest.importorskip(
+    "views_pipeline_core.managers.configuration.script_config",
+    reason="views_pipeline_core >= 3.2.0 is required — load_maturity_config",
+)
+load_maturity_config = _script_config.load_maturity_config
+MATURITY_FILE = _script_config.MATURITY_CONFIG_FILENAME          # config_maturity.py
+LEGACY_MATURITY_FILE = _script_config.LEGACY_MATURITY_CONFIG_FILENAME  # config_deployment.py
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -83,39 +95,61 @@ def _config(directory, filename, getter):
     return fn() if fn is not None else None
 
 
+def _maturity(directory):
+    """The maturity dict the managers would load — via pipeline-core's selection rule.
+
+    Hands ``load_maturity_config`` the same two things a manager hands it: which of the
+    two filenames exist, and a loader. It picks the file; this test does not.
+    """
+    configs = directory / "configs"
+    script_paths = {
+        name: (configs / name if (configs / name).exists() else None)
+        for name in (MATURITY_FILE, LEGACY_MATURITY_FILE)
+    }
+    return load_maturity_config(
+        script_paths, directory.name, load=lambda name, getter: _config(directory, name, getter)
+    ) or {}
+
+
 def _combined(directory):
     """Build the config the managers build, using pipeline-core's own merge.
 
     Reimplementing the precedence (partition_dict < hyperparameters < deployment < meta)
     here would be a second copy of a rule owned upstream, free to drift from it. The
     managers reach this through ``ConfigurationManager.get_combined_config``; so does this.
+    The ``config_deployment`` keyword is the merge SLOT, not the filename: it receives
+    whichever file ``load_maturity_config`` chose, carrying ``maturity`` or the legacy
+    ``deployment_status``, and the sniffer accepts either (ADR-057).
     """
     partitions = _config(directory, "config_partitions.py", "generate") or {}
     manager = ConfigurationManager(
         config_hyperparameters=_config(directory, "config_hyperparameters.py", "get_hp_config") or {},
-        config_deployment=_config(directory, "config_deployment.py", "get_deployment_config") or {},
+        config_deployment=_maturity(directory),
         config_meta=_config(directory, "config_meta.py", "get_meta_config") or {},
         partition_dict=partitions,
     )
     return manager.get_combined_config(), partitions
 
 
-def _is_deprecated(directory):
-    deployment = _config(directory, "config_deployment.py", "get_deployment_config") or {}
-    return deployment.get("deployment_status") == "deprecated"
+def _is_retired(directory):
+    """A retired source is refused by the sniffer by design (3.2.0 ``_check_maturity_value``),
+    so it is not a subject. Both vocabularies count: ``retired`` in the new file, ``deprecated``
+    in the legacy one — the same fact during the transition window."""
+    m = _maturity(directory)
+    return m.get("maturity") == "retired" or m.get("deployment_status") == "deprecated"
 
 
 def _subjects():
     """(name, directory, target) for every source the sniffer should accept."""
     for target, directories in (("model", ALL_MODEL_DIRS), ("ensemble", ALL_ENSEMBLE_DIRS)):
         for directory in directories:
-            if _is_deprecated(directory):
+            if _is_retired(directory):
                 continue
             yield directory.name, directory, target
 
 
 def _rejections(run_type):
-    """{name: error} for every non-deprecated source the sniffer refuses."""
+    """{name: error} for every non-retired source the sniffer refuses."""
     refused = {}
     for name, directory, target in _subjects():
         combined, partitions = _combined(directory)

@@ -89,6 +89,50 @@ class TestMaturityMapping:
         )
         assert coh.maturity_of("a_leaf_model") == "graduate"
 
+    def test_a_declared_maturity_is_returned_as_declared(self, tmp_path, monkeypatch):
+        """ADR-017 Phase 2: a source on config_maturity.py declares its maturity outright.
+        No translation, no member rule — the author's word is the answer."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        for declared in ("candidate", "graduate", "retired"):
+            monkeypatch.setattr(
+                coh, "source_config",
+                lambda src, which, d=declared: {"maturity": d} if which == "maturity" else {},
+            )
+            assert coh.maturity_of("migrated") == declared
+
+    def test_a_declared_maturity_outside_the_closed_set_is_refused(self, tmp_path, monkeypatch):
+        """The three values are a closed set (ADR-017 §3). `deployed` in the NEW file is the
+        likeliest mistake — it is a legacy word — and must not be silently accepted."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "source_config",
+            lambda src, which: {"maturity": "deployed"} if which == "maturity" else {},
+        )
+        with pytest.raises(coh.CoherenceError, match="unknown maturity 'deployed'"):
+            coh.maturity_of("migrated_wrong")
+
+    def test_a_source_carrying_both_files_is_refused(self, tmp_path, monkeypatch):
+        """The #444 state: both files present, pipeline-core reads the new one and ignores
+        the legacy one with only a log warning, so they can disagree and still run. Refused
+        here, and guarded at the file level by tests/test_config_completeness.py (#455)."""
+        import deliveries.coherence as coh
+
+        monkeypatch.setattr(coh, "require_source", lambda name: tmp_path / name)
+        monkeypatch.setattr(
+            coh, "source_config",
+            lambda src, which: (
+                {"maturity": "graduate"} if which == "maturity"
+                else {"deployment_status": "shadow"} if which == "deployment"
+                else {}
+            ),
+        )
+        with pytest.raises(coh.CoherenceError, match="BOTH config_maturity.py and config_deployment.py"):
+            coh.maturity_of("two_files")
+
     def test_a_composite_whose_members_are_all_graduate_is_graduate(self, tmp_path, monkeypatch):
         """R2's positive case, which had never been exercised — it could not be, because
         no member could reach `graduate` to satisfy it."""

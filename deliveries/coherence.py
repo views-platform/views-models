@@ -19,10 +19,13 @@ ADR-020 §4:
 - **`coverage`** — the cell counts defining a region live in views-postprocessing,
   beside the GAUL asset. They belong there.
 
-**On maturity.** `maturity` does not exist yet: the `deployment_status` rename is
-ADR-017 §11 Phase 2 and is cross-repo (views-pipeline-core#398). So the rules run
-against today's field with ADR-017 §3's mapping applied in memory. Phase 2 then changes
-what the values are *called*, not what the rules *say*.
+**On maturity.** ADR-017 §11 Phase 2 renames `config_deployment.py` →
+`config_maturity.py`, one source at a time, gated on the source's engine running
+pipeline-core >= 3.2.0. During that window a source carries exactly ONE of the two files,
+and `maturity_of()` reads whichever it has: the new file's `maturity` is returned as
+declared; the legacy file's `deployment_status` is translated by §3's mapping in memory.
+The rules never see the old vocabulary. When no source carries the legacy file, the
+translation branch is deleted and nothing else changes.
 """
 
 from __future__ import annotations
@@ -91,6 +94,14 @@ def _source_dir(name: str) -> Path | None:
     return None
 
 
+def _rel(directory: Path) -> Path:
+    """A path for an error message: relative to the repo when it is inside it."""
+    try:
+        return directory.relative_to(REPO_ROOT)
+    except ValueError:
+        return directory
+
+
 def source_config(source: str, which: str) -> dict:
     """Load one of a source's config dicts, or {} if that config does not exist."""
     directory = _source_dir(source)
@@ -124,13 +135,24 @@ def _did_you_mean(name: str) -> str:
     return f" — did you mean '{close[0]}'?" if close else ""
 
 
-# ── Maturity (ADR-017 §3's migration mapping, applied in memory) ───────────
+# ── Maturity (ADR-017 §3) — the new file as declared, the legacy file translated ──
 
+MATURITIES = frozenset({"candidate", "graduate", "retired"})
+
+#: ADR-017 §3's migration table for the legacy vocabulary. `deployed` is handled below:
+#: it depends on whether the source is a leaf or a composite (R2).
 _MATURITY = {"shadow": "candidate", "baseline": "candidate", "deprecated": "retired"}
 
 
 def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
-    """Today's `deployment_status`, expressed in ADR-017's maturity vocabulary."""
+    """A source's maturity in ADR-017's vocabulary, from whichever file it carries.
+
+    `config_maturity.py` (the destination) is returned as declared, after checking the
+    value is one of the three. `config_deployment.py` (the legacy file, kept by sources
+    whose engine is still on pipeline-core 2.x) is translated. A source with neither is
+    `candidate`. A source with BOTH is refused: that is the two-file state PR #444 left
+    14 models in, and `tests/test_config_completeness.py` guards against it (#455).
+    """
     if source in _seen:
         raise CoherenceError(
             f"'{source}' is a member of itself, directly or through "
@@ -138,10 +160,25 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
             f"  Open ensembles/{source}/configs/config_modelset.py and break the cycle.\n"
             f"  An ensemble cannot contain itself; its maturity would have no answer."
         )
-    require_source(source)
-    status = source_config(source, "deployment").get("deployment_status")
+    directory = require_source(source)
+    declared = source_config(source, "maturity").get("maturity")
+    legacy = source_config(source, "deployment").get("deployment_status")
+    if declared is not None and legacy is not None:
+        raise CoherenceError(
+            f"'{source}' carries BOTH config_maturity.py and config_deployment.py.\n"
+            f"  ADR-017 Phase 2 is a rename; delete configs/config_deployment.py. (#455)"
+        )
+    if declared is not None:
+        if declared not in MATURITIES:
+            raise CoherenceError(
+                f"'{source}' declares an unknown maturity '{declared}'.\n"
+                f"  Open {_rel(directory)}/configs/config_maturity.py\n"
+                f"  Valid: {', '.join(sorted(MATURITIES))}."
+            )
+        return declared
+    status = legacy
     if status is None:
-        # Four source directories carry no config_deployment.py at all (ADR-017 §3).
+        # No maturity file at all. ADR-017 §3: such a source is a candidate.
         return "candidate"
     if status in _MATURITY:
         return _MATURITY[status]
@@ -168,7 +205,7 @@ def maturity_of(source: str, _seen: frozenset[str] = frozenset()) -> str:
         return "candidate"
     raise CoherenceError(
         f"'{source}' declares an unknown deployment_status '{status}'.\n"
-        f"  Open {_source_dir(source).relative_to(REPO_ROOT)}/configs/config_deployment.py\n"
+        f"  Open {_rel(directory)}/configs/config_deployment.py\n"
         f"  Valid today: shadow, deployed, baseline, deprecated."
     )
 
