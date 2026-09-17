@@ -1,7 +1,7 @@
 
 # ADR-004: Rules for Evolution and Stability
 
-**Status:** Accepted — amended 2026-09-17 (`maturity` replaces `deployment_status` in the required keys, ADR-017 Phase 2, #449)  
+**Status:** Accepted — amended 2026-09-17 (`maturity` replaces `deployment_status` in the required keys and in the vocabulary row — whose "production gating depends on it" was false, #453; ADR-017 Phase 2, #449)  
 **Date:** 2026-04-05  
 **Deciders:** Project maintainers  
 **Informed:** All contributors  
@@ -48,7 +48,7 @@ The repository adopts a three-tier stability classification for its components:
 | Required config keys | `name`, `algorithm`, `level`, `steps`, `time_steps`, `maturity` (legacy `deployment_status` on pipeline-core 2.x sources, ADR-017 §11) | Enforced by `test_config_completeness.py`; adding/removing breaks all models |
 | Config file set | The 6 config files per model | Enforced by `test_model_structure.py`; scaffold builder generates this set |
 | CLI argument contract | `-r`, `-t`, `-e`, `-f`, `--sweep` | All `run.sh` and integration tests depend on this interface |
-| Deployment status vocabulary | `shadow`, `deployed`, `baseline`, `deprecated` | Enforced by test; production gating depends on it |
+| Maturity vocabulary | `candidate`, `graduate`, `retired` (ADR-017 §3, closed set, `tests/test_config_completeness.py` and `tests/test_ensemble_maturity_rules.py`); the legacy `shadow`, `deployed`, `baseline`, `deprecated` on pipeline-core 2.x sources, translated by ADR-017 §3 until no source carries it | Adding a fourth value is a breaking change to every reader, the catalog and the delivery coherence rules |
 
 ### Tier 2 — Conventional (change requires updating all models + tests)
 
