@@ -10,7 +10,7 @@
 | **Features**       |  electric_relaxation   |
 | **Feature Description**       |  Views-escwa conflict history, cm level    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  deprecated    |
+| **Deployment Status**       |  retired    |
 
 ## Repository Structure
 

@@ -11,7 +11,7 @@ This folder contains code for the Rusty Bucket model, an ensemble machine learni
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Aggregation**       |  concat   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -24,8 +24,8 @@ Rusty Bucket
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_modelset.py
 │   ├── config_partitions.py

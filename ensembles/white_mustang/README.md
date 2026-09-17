@@ -11,7 +11,7 @@ This folder contains code for the White Mustang model, an ensemble machine learn
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  deployed    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -24,8 +24,8 @@ White Mustang
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_modelset.py
 │   ├── config_partitions.py

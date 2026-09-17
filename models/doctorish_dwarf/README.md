@@ -10,7 +10,7 @@
 | **Features**       |  doctorish_dwarf   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  baseline    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -23,8 +23,8 @@ Doctorish Dwarf
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

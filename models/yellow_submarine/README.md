@@ -10,7 +10,7 @@
 | **Features**       |  yellow_submarine   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and imfweo features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

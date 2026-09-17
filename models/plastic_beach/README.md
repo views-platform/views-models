@@ -10,7 +10,7 @@
 | **Features**       |  plastic_beach   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and aquastat features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

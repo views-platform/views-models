@@ -10,7 +10,7 @@
 | **Features**       |  little_lies   |
 | **Feature Description**       |  Predicting lr_ged_sb, cm level Queryset with features from various sources, 'joint narrow'    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

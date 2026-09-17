@@ -10,7 +10,7 @@
 | **Features**       |  dark_paradise   |
 | **Feature Description**       |  fatalities longer conflict history, pgm level Predicting lr_ged_sb using conflict predictors, longer version    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

@@ -10,7 +10,7 @@
 | **Features**       |  uncertainty_conflict_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and conflict indicators from GED and ACLED only    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

@@ -10,7 +10,7 @@
 | **Features**       |  uncertainty_broad_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and broad list of features from all sources    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

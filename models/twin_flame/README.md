@@ -10,7 +10,7 @@
 | **Features**       |  twin_flame   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and Mueller & Rauh topic model features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

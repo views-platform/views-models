@@ -10,7 +10,7 @@
 | **Features**       |  bad_blood   |
 | **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting fatalities using natural and social geography features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 

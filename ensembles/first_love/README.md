@@ -11,7 +11,7 @@ This folder contains code for the First Love model, an ensemble machine learning
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  concat   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -24,8 +24,8 @@ First Love
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_modelset.py
 │   ├── config_partitions.py
