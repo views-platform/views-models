@@ -80,24 +80,29 @@ class TestOfflineClaims:
         files and reported the rest as absent, which is how the map carried a wrong
         figure for a week (register C-127). This test exists so that is unrepeatable.
         """
-        pattern = re.compile(r"""deployment_status['"]?\s*[:=]\s*['"]([a-z_]+)""")
-        counts: dict[str, int] = {}
-        files = list((REPO_ROOT / "models").rglob("config_deployment.py")) + \
-                list((REPO_ROOT / "ensembles").rglob("config_deployment.py"))
-        for path in files:
-            for value in pattern.findall(path.read_text(encoding="utf-8")):
-                counts[value] = counts.get(value, 0) + 1
-
+        # Both vocabularies, each counted from its own file (ADR-017 §11 status 2026-09-17):
+        # `maturity` in config_maturity.py, `deployment_status` in config_deployment.py.
+        pattern = re.compile(r"""(?:maturity|deployment_status)['"]?\s*[:=]\s*['"]([a-z_]+)""")
         text = _map_text()
-        for value, count in counts.items():
-            assert f"{count} `{value}`" in text, (
-                f"the map does not say there are {count} `{value}` sources "
-                f"(found {sorted(counts.items())} across {len(files)} files).\n"
-                f"  Open docs/forecast_delivery_map.md and correct the figure."
+        total = 0
+        for filename in ("config_maturity.py", "config_deployment.py"):
+            counts: dict[str, int] = {}
+            files = list((REPO_ROOT / "models").rglob(filename)) + \
+                    list((REPO_ROOT / "ensembles").rglob(filename))
+            total += len(files)
+            for path in files:
+                for value in pattern.findall(path.read_text(encoding="utf-8")):
+                    counts[value] = counts.get(value, 0) + 1
+            for value, count in counts.items():
+                assert f"{count} `{value}`" in text, (
+                    f"the map does not say there are {count} `{value}` sources "
+                    f"(found {sorted(counts.items())} across {len(files)} {filename} files).\n"
+                    f"  Open docs/forecast_delivery_map.md and correct the figure."
+                )
+            assert f"{len(files)} `{filename}`" in text, (
+                f"the map does not say {len(files)} `{filename}` files."
             )
-        assert f"{len(files)} files" in text, (
-            f"the map does not say {len(files)} files."
-        )
+        assert f"{total} files in all" in text, f"the map does not say {total} files in all."
 
     def test_the_reconciling_ensembles_are_what_the_map_says(self):
         declared = sorted(

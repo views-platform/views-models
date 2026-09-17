@@ -1,7 +1,7 @@
 
 # ADR-004: Rules for Evolution and Stability
 
-**Status:** Accepted  
+**Status:** Accepted — amended 2026-09-17 (`maturity` replaces `deployment_status` in the required keys, ADR-017 Phase 2, #449)  
 **Date:** 2026-04-05  
 **Deciders:** Project maintainers  
 **Informed:** All contributors  
@@ -45,7 +45,7 @@ The repository adopts a three-tier stability classification for its components:
 | Component | Examples | Rationale |
 |---|---|---|
 | Partition boundaries | `(121, 444)`, `(445, 492)`, `(493, 540)` | Cross-model comparability depends on identical splits |
-| Required config keys | `name`, `algorithm`, `level`, `steps`, `time_steps`, `deployment_status` | Enforced by `test_config_completeness.py`; adding/removing breaks all models |
+| Required config keys | `name`, `algorithm`, `level`, `steps`, `time_steps`, `maturity` (legacy `deployment_status` on pipeline-core 2.x sources, ADR-017 §11) | Enforced by `test_config_completeness.py`; adding/removing breaks all models |
 | Config file set | The 6 config files per model | Enforced by `test_model_structure.py`; scaffold builder generates this set |
 | CLI argument contract | `-r`, `-t`, `-e`, `-f`, `--sweep` | All `run.sh` and integration tests depend on this interface |
 | Deployment status vocabulary | `shadow`, `deployed`, `baseline`, `deprecated` | Enforced by test; production gating depends on it |
