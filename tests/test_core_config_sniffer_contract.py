@@ -62,25 +62,14 @@ LEGACY_MATURITY_FILE = _script_config.LEGACY_MATURITY_CONFIG_FILENAME  # config_
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-#: Configs the installed pipeline-core refuses today, for reasons that predate this
-#: guard. Every one of these raises
-#: ``evaluation_mode='point' requires aggregate_method to be set``. Six are real
-#: baselines; three (``*_dream``) are fixtures listed in ``meta/fixtures.json``.
-#: Verified present in the 3.0.0 tag, so this is not an artefact of a newer release.
+#: Configs the installed pipeline-core refuses today. Empty since #477: the nine point
+#: baselines were refused from 2026-06-27 (#220 set ``evaluation_mode='point'`` without
+#: ``aggregate_method``) until 2026-09-17. Verified under both runtimes then — 3.2.0 here,
+#: 2.3.0 for the 68 stepshifter/r2darts2 sources — refusing nothing else.
 #:
 #: **This set must only ever shrink.** Adding to it means shipping a config that
 #: pipeline-core will refuse at load — say why in the commit if you do.
-KNOWN_REJECTED = frozenset({
-    "average_cmbaseline",
-    "average_pgmbaseline",
-    "locf_cmbaseline",
-    "locf_pgmbaseline",
-    "zero_cmbaseline",
-    "zero_pgmbaseline",
-    "diagonal_dream",
-    "horizontal_dream",
-    "vertical_dream",
-})
+KNOWN_REJECTED = frozenset()
 
 #: Run types worth checking. `_check_evaluation_contract` only runs for non-forecasting,
 #: so one of each side of that branch is the minimum honest coverage.
