@@ -2,7 +2,7 @@ from pathlib import Path
 import datetime
 import logging
 from views_pipeline_core.templates.model import (
-    template_config_deployment,
+    template_config_maturity,
     template_config_hyperparameters,
     template_config_queryset,
     template_config_meta,
@@ -148,7 +148,7 @@ class ModelScaffoldBuilder:
         This method performs the following steps:
         1. Checks if the model directory exists. If not, raises a FileNotFoundError.
         2. Prompts the user to input the algorithm of the model.
-        3. Generates the `config_deployment.py` script.
+        3. Generates the `config_maturity.py` script (maturity: candidate).
         4. Generates the `config_hyperparameters.py` script.
         5. Generates the queryset configuration script.
         6. Generates the `config_meta.py` script with model name and algorithm.
@@ -172,8 +172,11 @@ class ModelScaffoldBuilder:
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first. Aborting script generation."
             )
-        template_config_deployment.generate(
-            script_path=self._model.configs / "config_deployment.py"
+        # ADR-017 Phase 2: new sources are born in the maturity vocabulary. The template
+        # (pipeline-core >= 3.2.0) writes `maturity: candidate`; the legacy
+        # template_config_deployment refuses the new filename and is not used here.
+        template_config_maturity.generate(
+            script_path=self._model.configs / "config_maturity.py"
         )
         self._model_algorithm = str(
             input_fn(

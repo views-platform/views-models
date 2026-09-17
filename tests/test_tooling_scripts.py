@@ -111,7 +111,7 @@ def _format_targets(model):
 def _generate_model_table(models_list):
     """Exact copy of create_catalogs.py::generate_model_table."""
     headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features',
-               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+               'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for model in models_list:
         rows.append([
@@ -120,7 +120,7 @@ def _generate_model_table(models_list):
             _format_targets(model),
             model.get('queryset', ''),
             model.get('hyperparameters', ''),
-            model.get('deployment_status', ''),
+            model.get('maturity', ''),
             model.get('implementation_date', ''),
             model.get('creator', ''),
         ])
@@ -130,7 +130,7 @@ def _generate_model_table(models_list):
 def _generate_ensemble_table(ensembles_list):
     """Exact copy of create_catalogs.py::generate_ensemble_table."""
     headers = ['Ensemble Name', 'Algorithm', 'Targets', 'Constituent Models',
-               'Hyperparameters', 'Implementation Status', 'Implementation Date', 'Author']
+               'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for ensemble in ensembles_list:
         rows.append([
@@ -139,7 +139,7 @@ def _generate_ensemble_table(ensembles_list):
             _format_targets(ensemble),
             ensemble.get('modelset_link', ''),
             ensemble.get('hyperparameters', ''),
-            ensemble.get('deployment_status', ''),
+            ensemble.get('maturity', ''),
             ensemble.get('implementation_date', ''),
             ensemble.get('creator', ''),
         ])
@@ -155,7 +155,7 @@ class TestGenerateModelTable:
                 'targets': ['fatalities', 'ged_sb'],
                 'queryset': 'link_to_qs',
                 'hyperparameters': 'hp_link',
-                'deployment_status': 'shadow',
+                'maturity': 'candidate',
                 'creator': 'alice',
             }
         ]
@@ -201,7 +201,7 @@ class TestGenerateEnsembleTable:
                 'aggregation': 'mean',
                 'regression_targets': ['ged_sb'],
                 'modelset_link': '- [models](url)',
-                'deployment_status': 'deployed',
+                'maturity': 'graduate',
                 'creator': 'bob',
             }
         ]

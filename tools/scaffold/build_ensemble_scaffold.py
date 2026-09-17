@@ -2,7 +2,7 @@ from tools.scaffold.build_model_scaffold import ModelScaffoldBuilder
 import logging
 from views_pipeline_core.configs.pipeline import PipelineConfig
 from views_pipeline_core.templates.ensemble import (
-    template_config_deployment,
+    template_config_maturity,
     template_config_hyperparameters,
     template_config_meta,
     template_config_modelset,
@@ -52,11 +52,11 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
 
     def build_model_scripts(self, *, pipeline_config=None):
         """
-        Generates the necessary model scripts for deployment, hyperparameters, and metadata configurations.
+        Generates the necessary ensemble scripts for maturity, hyperparameters, and metadata configurations.
 
         This method checks if the model directory exists. If it does not, it raises a FileNotFoundError.
         It then generates the following scripts using predefined templates:
-        - config_deployment.py
+        - config_maturity.py
         - config_hyperparameters.py
         - config_meta.py
         - config_modelset.py
@@ -75,8 +75,11 @@ class EnsembleScaffoldBuilder(ModelScaffoldBuilder):
             raise FileNotFoundError(
                 f"Model directory {self._model.model_dir} does not exist. Please call build_model_directory() first. Aborting script generation."
             )
-        template_config_deployment.generate(
-            script_path=self._model.configs / "config_deployment.py"
+        # ADR-017 Phase 2: new sources are born in the maturity vocabulary. The template
+        # (pipeline-core >= 3.2.0) writes `maturity: candidate`; the legacy
+        # template_config_deployment refuses the new filename and is not used here.
+        template_config_maturity.generate(
+            script_path=self._model.configs / "config_maturity.py"
         )
         template_config_hyperparameters.generate(
             script_path=self._model.configs / "config_hyperparameters.py",
