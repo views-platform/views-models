@@ -1,6 +1,6 @@
 # ADR-001: Ontology of the Repository
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-09-17 (config file set: `config_maturity.py` replaces `config_deployment.py`, ADR-017 Phase 2, #449)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -26,7 +26,7 @@ The repository recognizes the following ontological categories:
 ### Configuration Entities
 | Category | Location | Description |
 |----------|----------|-------------|
-| **Model Configs** | `models/*/configs/` | Six config files per model: `config_meta.py`, `config_deployment.py`, `config_hyperparameters.py`, `config_sweep.py`, `config_queryset.py`, `config_partitions.py` |
+| **Model Configs** | `models/*/configs/` | Six config files per model: `config_meta.py`, `config_maturity.py` (ADR-017; the legacy `config_deployment.py` on sources whose engine is still on pipeline-core 2.x), `config_hyperparameters.py`, `config_sweep.py`, `config_queryset.py`, `config_partitions.py` |
 | **Ensemble Configs** | `ensembles/*/configs/` | Subset of config files per ensemble |
 
 ### Infrastructure Entities

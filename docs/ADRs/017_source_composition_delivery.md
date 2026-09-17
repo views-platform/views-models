@@ -399,7 +399,7 @@ Also: making the main line an explicit delivery unit adds new structure on the m
   reports no source on the legacy vocabulary — not at a pipeline-core major. The rename is therefore
   **per source, gated on the source's engine declaring pipeline-core ≥3.2.0**: views-models#476 lands
   the readers (both vocabularies, one file per source, `deployed` refused in the new file) and the
-  guard #444 lacked; the follow-up PR renames the 50 sources whose engine is on 3.x; the 69 stepshifter
+  guard #444 lacked; views-models#479 renames the 50 sources whose engine is on 3.x (nothing graduates — a script is not an author); the 69 stepshifter
   and r2darts2 sources stay on `config_deployment.py`, translated by the §3 map, until
   views-stepshifter#103 / views-r2darts2#24 publish on ≥3.2.0 (context: views-models#473).
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
