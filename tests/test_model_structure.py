@@ -11,9 +11,11 @@ pytestmark = pytest.mark.beige
 
 MODEL_NAME_PATTERN = re.compile(r'^[a-z]+_[a-z]+$')
 
+#: The maturity file is NOT listed here: a source carries config_maturity.py OR the
+#: legacy config_deployment.py (ADR-017 Phase 2), and "exactly one of the two" is asserted
+#: by tests/test_config_completeness.py::TestMaturityConfig, not by a fixed filename.
 REQUIRED_CONFIG_FILES = [
     "config_meta.py",
-    "config_deployment.py",
     "config_hyperparameters.py",
     "config_partitions.py",
     "config_sweep.py",

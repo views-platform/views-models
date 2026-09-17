@@ -3,7 +3,7 @@
 Ensembles have different required config keys than individual models:
 - config_meta.py: name, regression_targets, level, aggregation
 - config_modelset.py: models (list of constituent model names)
-- config_deployment.py: deployment_status
+- config_maturity.py: maturity  (or the legacy config_deployment.py: deployment_status)
 - config_hyperparameters.py: steps
 - config_partitions.py: generate() function
 
@@ -27,11 +27,11 @@ REQUIRED_ENSEMBLE_META_KEYS = {"name", "regression_targets", "level", "aggregati
 REQUIRED_ENSEMBLE_CONFIG_FILES = [
     "config_meta.py",
     "config_modelset.py",
-    "config_deployment.py",
     "config_hyperparameters.py",
     "config_partitions.py",
 ]
 
+VALID_MATURITIES = {"candidate", "graduate", "retired"}
 VALID_DEPLOYMENT_STATUSES = {"shadow", "deployed", "baseline", "deprecated"}
 
 
@@ -98,14 +98,30 @@ class TestEnsembleConfigMeta:
         )
 
 
-class TestEnsembleConfigDeployment:
-    def test_deployment_has_valid_status(self, ensemble_dir):
-        cfg_path = ensemble_dir / "configs" / "config_deployment.py"
-        module = load_config_module(cfg_path)
-        dep = module.get_deployment_config()
-        assert dep.get("deployment_status") in VALID_DEPLOYMENT_STATUSES, (
-            f"{ensemble_dir.name} has invalid deployment_status"
+class TestEnsembleMaturityConfig:
+    """Exactly one maturity file per ensemble, in one of the two vocabularies (ADR-017
+    Phase 2; the #455 guard). Mirrors tests/test_config_completeness.py::TestMaturityConfig
+    for models — a deliberate second copy, because the two fixtures differ."""
+
+    def test_exactly_one_maturity_file(self, ensemble_dir):
+        configs = ensemble_dir / "configs"
+        new, legacy = configs / "config_maturity.py", configs / "config_deployment.py"
+        assert not (new.exists() and legacy.exists()), (
+            f"{ensemble_dir.name} carries BOTH config_maturity.py and config_deployment.py. "
+            f"ADR-017 Phase 2 is a rename; delete the legacy file. (#455)"
         )
+        assert new.exists() or legacy.exists(), (
+            f"{ensemble_dir.name} has neither config_maturity.py nor config_deployment.py"
+        )
+
+    def test_maturity_value_is_valid(self, ensemble_dir):
+        configs = ensemble_dir / "configs"
+        if (configs / "config_maturity.py").exists():
+            value = load_config_module(configs / "config_maturity.py").get_maturity_config().get("maturity")
+            assert value in VALID_MATURITIES, f"{ensemble_dir.name} has invalid maturity: '{value}'"
+        else:
+            value = load_config_module(configs / "config_deployment.py").get_deployment_config().get("deployment_status")
+            assert value in VALID_DEPLOYMENT_STATUSES, f"{ensemble_dir.name} has invalid deployment_status: '{value}'"
 
 
 class TestEnsembleConfigHyperparameters:
