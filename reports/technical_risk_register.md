@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-15  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 157 (148 concerns + 9 disagreements)  
-**Concerns:** Open 69 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 47 | T3 62 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 158 (149 concerns + 9 disagreements)  
+**Concerns:** Open 70 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 47 | T3 63 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1865,6 +1865,17 @@
 | **Status** | Open |
 | **Location** | `tools/scaffold/build_model_scaffold.py:206-211`; pipeline-core `templates/model/template_run_sh.py:53` |
 | **Notes** | On `staging_202608`, commit `4be8f66a` ("tests", 2026-09-08) regenerated `run.sh` for **19 r2darts2 models** and every one came out with `env_path=.../envs/views-hydranet` — the HydraNet prefix — while their `requirements.txt` said `views-r2darts2`. Each was created correctly; the regeneration overwrote them with one wrong prompt answer. Eleven of the 19 reached `development` in #491 with the line corrected; the other eight (`beautiful_people crimson_tide frozen_peak iron_will shadow_wolf swift_current teenage_dirtbag wild_storm`) still carry it on the branch (named on #402). On `development` this cannot land silently: `tests/test_environment_sharing.py` pins the tenant count per prefix and goes red (mutation-verified in #491). On a branch where that suite is not run — staging's case — it does. Tier 3, not 2, because the guard exists here; the exposure is any branch that skips it, and the fix is the builder refusing an answer that contradicts `requirements.txt` (or deriving it from there and not asking). Cross-refs: **C-115** (what a wrong prefix does to 31 models), **C-116**, **#491**, **#402**. |
+
+### C-150 — A fresh env resolves PyPI's current torch, whose CUDA build an older driver cannot run; every engine then either crawls on CPU or refuses
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **Building a model env from `requirements.txt` on a machine whose NVIDIA driver predates the CUDA build of PyPI's current torch** (2026-09-19: torch 2.14 / CUDA 13 against a 535-series driver). `views-hydranet` (`torch>=2.2.1,<3`) and `views-r2darts2` (`darts[torch]`, no bound) both resolve to it. |
+| **Source** | views-hydranet#377 (2026-09-16, the 6 h 46 m CPU run); measured again on the laptop for r2darts2 in #485's verification and for HydraNet in #493's; filed as #494 |
+| **Status** | Open — made loud, not fixed |
+| **Location** | `models/<hydranet>/requirements.txt` (8), `models/<r2darts2>/requirements.txt` (42); `run.sh` via pipeline-core's `template_run_sh.py` |
+| **Notes** | Before #493 a HydraNet on such a machine fell back to CPU under a banner and trained at ~2× the GPU time (#377: 6 h 46 m vs 3 h 15 m); r2darts2 hardcodes `accelerator: gpu` and fails at model init. After #493 (`require_cuda: True`, views-hydranet 0.1.1) the HydraNet case is a `RuntimeError` at the top of training — 17 s, zero epochs, measured. Nothing silent remains; what remains is that a fresh env on an older-driver machine is blocked until an operator installs a driver-matching torch by hand (`torch==2.10.0` from the `cu128` index worked here). fimbulthul's driver is newer and unaffected this week. Whose fix it is — an engine ceiling, a `run.sh` index step, or an operator runbook line — is #494's question. Cross-refs: **#494**, **#493**, **#485**, **views-hydranet#377**, **C-116**. |
 
 ---
 
