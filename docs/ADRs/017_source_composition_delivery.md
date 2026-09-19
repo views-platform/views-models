@@ -402,8 +402,11 @@ Also: making the main line an explicit delivery unit adds new structure on the m
   guard #444 lacked; views-models#479 renames the 50 sources whose engine is on 3.x (nothing graduates — a script is not an author); the 69 stepshifter
   and r2darts2 sources stay on `config_deployment.py`, translated by the §3 map, until
   views-stepshifter#103 / views-r2darts2#24 publish on ≥3.2.0 (context: views-models#473).
-  **2026-09-19 (#490):** views-r2darts2 0.2.3 published on pipeline-core ≥3.0 (#485), and the 42
-  r2darts2 sources carry `config_maturity.py` (#490, #491). **38 remain on the legacy vocabulary —
+  **2026-09-19 (#490):** views-r2darts2 0.2.3 declares pipeline-core ≥3.0 (#485) — a floor below
+  3.2.0 — and *resolves* to 3.3.0 in every env built from a model's `requirements.txt`, which
+  was verified end-to-end before the rename. The gate above means the **resolved** version, not
+  the declared floor: a floor of ≥3.0 admits 3.0.1, on which a migrated config crashes (#444).
+  The 42 r2darts2 sources carry `config_maturity.py` (#490, #491). **38 remain on the legacy vocabulary —
   the stepshifter family, views-stepshifter#103.** The window closes when they move.
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
 - **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
