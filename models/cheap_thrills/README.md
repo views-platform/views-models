@@ -10,7 +10,8 @@
 | **Features**       |  structural_brief_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with a small number of structural features, no conflict history    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

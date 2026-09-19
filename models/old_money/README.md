@@ -10,7 +10,8 @@
 | **Features**       |  old_money   |
 | **Feature Description**       |  Fatalities, escwa drought and vulnerability, pgm level Predicting number of fatalities with features from the escwa drought and vulnerability themes    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

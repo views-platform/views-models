@@ -10,7 +10,8 @@
 | **Features**       |  invisible_string   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

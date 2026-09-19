@@ -11,7 +11,7 @@ This folder contains code for the Chunky Bunny model, an ensemble machine learni
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 

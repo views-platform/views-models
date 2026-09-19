@@ -10,7 +10,8 @@
 | **Features**       |  little_talks_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  datafactory    |
 
 ## Repository Structure
 

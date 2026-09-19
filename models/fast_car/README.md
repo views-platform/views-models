@@ -10,7 +10,8 @@
 | **Features**       |  fast_car   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and short list of vdem features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

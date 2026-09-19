@@ -10,7 +10,8 @@
 | **Features**       |  lavender_haze   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting lr_ged_sb_dep, broad model    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

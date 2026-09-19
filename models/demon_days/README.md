@@ -10,7 +10,8 @@
 | **Features**       |  demon_days   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and faostat features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

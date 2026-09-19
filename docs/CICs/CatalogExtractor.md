@@ -48,6 +48,7 @@ Located in: `tools/catalogs/create_catalogs.py:extract_models()`
 Returns a dict with keys from the meta config, a `maturity` key in ADR-017's vocabulary (`candidate` / `graduate` / `retired`, translated from the legacy file where needed), plus:
 - `model_dir_path`: `Path` to the model/ensemble directory (used for name links in catalog tables)
 - `queryset`: markdown link to config_queryset.py, `'N/A'` for baselines, or `'None'` if no queryset exists
+- `data_source`: `viewser` / `datafactory` / `synthetic` / `none` / `unknown`, read from `config_queryset.py` by AST via `tools/catalogs/data_source.py` — the one reader the per-model README uses too (#474). `unknown` is reported, never guessed, when a file imports both clients or neither
 - `hyperparameters`: markdown link to config_hyperparameters.py
 - `implementation_date`: `YYYY-MM-DD` string from git history (falls back to `2026-01-01`)
 - `modelset_link`: markdown link to config_modelset.py (ensembles only, when config_modelset.py exists)
@@ -99,6 +100,7 @@ model_dict = extract_models("models/counting_stars")  # TypeError
 - `tests/test_catalogs.py::TestNoExecUsage` — validates this function uses importlib, not exec()
 - `tests/test_catalogs.py::TestReplaceTableInSection` — validates downstream markdown generation (requires views_pipeline_core)
 - `tests/test_catalogs.py::TestGenerateModelTable` — validates model table generation with correct headers and formatting
+- `tests/test_data_source_catalog.py` — every branch of the `data_source` classifier on synthetic files; no model in the fleet is `unknown`; the fleet split pinned (77 viewser / 34 datafactory / 6 synthetic, changed on purpose when a model migrates)
 - `tests/test_catalogs.py::TestGenerateEnsembleTable` — validates ensemble table has "Constituent Models" column and shows aggregation
 - `tests/test_tooling_scripts.py::TestGenerateModelTable` — characterization tests for model table generator
 - `tests/test_tooling_scripts.py::TestGenerateEnsembleTable` — characterization tests for ensemble table generator

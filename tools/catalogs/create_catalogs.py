@@ -20,6 +20,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_REPO_ROOT))
 from deliveries.coherence import maturity_of  # noqa: E402
+# Data source — the same one-reader shape, for the viewser | datafactory | synthetic split (#474).
+from tools.catalogs.data_source import data_source_of  # noqa: E402
 
 logging.basicConfig(
     level=logging.ERROR, format="%(asctime)s %(name)s - %(levelname)s - %(message)s"
@@ -69,6 +71,8 @@ def extract_models(model_class):
         -creator: creator from config_meta.py
         -maturity: from config_maturity.py, or config_deployment.py's deployment_status
                    translated (ADR-017 §3) while a source is still on the legacy file
+        -data_source: viewser | datafactory | synthetic | none | unknown, read from
+                      config_queryset.py by tools/catalogs/data_source.py (#474)
         -hyperparameters: markdown link with marker 'hyperparameters model_name' config_meta.py pointing to the model specific config_hyperparameters.py
     """
     
@@ -89,6 +93,7 @@ def extract_models(model_class):
         model_dict.update(module.get_meta_config())
         model_dict['implementation_date'] = get_implementation_date(config_meta)
         config_queryset = os.path.join(model_class.configs, 'config_queryset.py')
+        model_dict['data_source'] = data_source_of(Path(config_queryset))
         if model_class.model_name.endswith('baseline'):
             model_dict['queryset'] = 'N/A'
         elif os.path.exists(config_queryset):
@@ -166,7 +171,7 @@ def _format_targets(model):
 
 def generate_model_table(models_list):
     """Generate a markdown catalog table for individual models."""
-    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Data Source', 'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for model in models_list:
         rows.append([
@@ -174,6 +179,7 @@ def generate_model_table(models_list):
             str(model.get('algorithm', '')).split('(')[0],
             _format_targets(model),
             model.get('queryset', ''),
+            model.get('data_source', ''),
             model.get('hyperparameters', ''),
             model.get('maturity', ''),
             model.get('implementation_date', ''),

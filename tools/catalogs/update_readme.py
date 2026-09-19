@@ -12,6 +12,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_REPO_ROOT))
 from deliveries.coherence import maturity_of  # noqa: E402
+from tools.catalogs.data_source import data_source_of  # noqa: E402  (#474, same one-reader shape)
 
 # Run as a script (sys.path[0] = this dir) or imported as tools.catalogs.*
 try:
@@ -156,6 +157,7 @@ for subfolder in target_dir.iterdir():
 
         ## Maturity (ADR-017 §3), from the one rule the delivery checks use.
         deployment = maturity_of(subfolder.name)
+        data_source = data_source_of(configs_dir / "config_queryset.py")
 
         ## Get queryset description
         if subfolder.name.endswith('baseline'):
@@ -225,6 +227,7 @@ for subfolder in target_dir.iterdir():
             "{{FEATURES}}": name, 
             "{{DESCRIPTION}}": description,
             "{{DEPLOYMENT}}": deployment,
+            "{{DATA_SOURCE}}": data_source,
             "{{METRICS}}": metrics,
             "{{CREATED_SECTION}}": new_string,
         }

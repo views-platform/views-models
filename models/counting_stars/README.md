@@ -10,7 +10,8 @@
 | **Features**       |  counting_stars   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline, first set and extended set of conflict history features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

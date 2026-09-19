@@ -10,7 +10,8 @@
 | **Features**       |  blank_space   |
 | **Feature Description**       |  Fatalities natural and social geography, pgm level Predicting fatalities using natural and social geography features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

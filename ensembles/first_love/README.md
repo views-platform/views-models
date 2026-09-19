@@ -11,7 +11,7 @@ This folder contains code for the First Love model, an ensemble machine learning
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  concat   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 
