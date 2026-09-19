@@ -209,7 +209,8 @@ def test_environment_sharing_is_recorded_not_discovered():
         # rusty_bucket's own modelset config) were deleted in the 2026-09 roster cleanup.
         "views-baseline": 29,
         "views_stepshifter": 32,
-        "views_r2darts2": 22,
+        # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
+        "views_r2darts2": 33,
         "views_ensemble": 13,
         "views-r2darts2": 9,
         "views-hydranet": 8,
