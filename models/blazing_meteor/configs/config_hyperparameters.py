@@ -99,6 +99,10 @@ def get_hp_config():
     'forecast_composition': 'threshold_gate',
     'freeze_multitask_balancer': True,
     'freeze_recurrent': 'cell',
+    # #484 (views-hydranet 0.1.1): a CPU device is a hard stop, not a banner. A fresh install
+    # once resolved a torch this machine's driver could not run and a roster model trained
+    # for 6 h 46 m on CPU (views-hydranet#377). CPU training is never intended here.
+    'require_cuda': True,
     'n_head_samples': 4,
     'reg_activation': 'softplus',
     'body_supervision': 'all',
