@@ -77,7 +77,10 @@ def get_hp_config():
     'loss_class_alpha': 0.75,
     'loss_class_gamma': 1.5,
     'onset_bias_init': -7.0,
-    'total_lessons': 300,
+    # #499: 40 for the eleven-model calibration pass at global land recorded on views-models#499
+    # (2026-09-19 revision) — a run-time budget, not a model choice. Production is 300 (#463);
+        # the PR that restores it is owed by whoever ticks that pass on #499.
+    'total_lessons': 40,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,

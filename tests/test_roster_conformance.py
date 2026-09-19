@@ -38,6 +38,8 @@ import ast
 import importlib.util
 from pathlib import Path
 
+import re
+
 import pytest
 
 from tests.conftest import get_regression_targets
@@ -315,7 +317,7 @@ class TestGridAndTargets:
 
 
 class TestDatafactorySource:
-    """Every pinned member reads views-datafactory / africa_me_legacy.
+    """Every pinned member reads views-datafactory at global land (``REGION = "land"``).
 
     The source migration is exempt for in-flight models, for the same reason the value
     pins are: violet_visitor was not migrated by S2 (#365), which covered the other
@@ -336,10 +338,17 @@ class TestDatafactorySource:
         ), f"{model_name} does not declare a views-datafactory source"
 
     @pytest.mark.parametrize("model_name", PINNED_MODELS)
-    def test_africa_region(self, model_name):
-        assert "africa_me_legacy" in _queryset_text(model_name), (
-            f"{model_name} missing africa_me_legacy region"
-        )
+    def test_global_land_region(self, model_name):
+        """The ``REGION`` assignment itself, not a substring anywhere in the file.
+
+        #499 Step 1 (2026-09-19): the roster moved from ``africa_me_legacy`` (13,110 cells)
+        to ``land`` (64,818 — what the FAO delivery cuts ``land_gaul`` from). The old
+        assertion was ``"africa_me_legacy" in text``, which a comment recording the history
+        satisfies; this one reads the line that decides.
+        """
+        m = re.search(r'^REGION\s*=\s*"([a-z_]+)"', _queryset_text(model_name), re.MULTILINE)
+        assert m, f"{model_name} has no REGION assignment"
+        assert m.group(1) == "land", f"{model_name} REGION is {m.group(1)!r}, not 'land'"
 
     @pytest.mark.parametrize("model_name", PINNED_MODELS)
     def test_no_viewser_import(self, model_name):

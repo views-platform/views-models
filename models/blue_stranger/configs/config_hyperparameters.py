@@ -84,7 +84,10 @@ def get_hp_config():
     # Scheduled sampling is OFF here now (ss_epsilon_max=0.0); the key stays declared so
     # that re-enabling it can never re-arm C-259.
     'ss_feedback': 'sample',
-    'total_lessons': 300,
+    # #499: 40 for the eleven-model calibration pass at global land recorded on views-models#499
+    # (2026-09-19 revision) — a run-time budget, not a model choice. Production is 300 (#463);
+        # the PR that restores it is owed by whoever ticks that pass on #499.
+    'total_lessons': 40,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
