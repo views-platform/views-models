@@ -115,6 +115,9 @@ FOUNDATION = {
     "n_head_samples": 4,
     "n_posterior_samples": 4,
     "model": "HydraBNUNet06_LSTM4",
+    # #484: a CPU device is a hard stop (views-hydranet 0.1.1). On 0.1.0 the key is accepted and
+    # ignored (extra="allow"), which is why the floor moved with it.
+    "require_cuda": True,
 }
 
 REGRESSION_TARGETS = ["lr_sb_best", "lr_ns_best", "lr_os_best"]

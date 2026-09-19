@@ -25,8 +25,9 @@ name: Roster Configs Load
 #
 # Why a RELEASED pin and not a git ref: runtime_smoke.yml was pinned to a pre-fix
 # commit for five weeks and stayed green while every baseline model was broken (C-106,
-# #460). A released version tracks what the models actually install. Keep ==0.1.0 in
-# step with the 8 models' `views-hydranet~=0.1.0` (#462) when either moves.
+# #460). A released version tracks what the models actually install. Keep the ==pin
+# below in step with the 8 models' `views-hydranet~=` floor when either moves: 0.1.0 at
+# #462 (2026-09-15), 0.1.1 at #484 (2026-09-19, require_cuda).
 on:
   push:
     branches: [main, development]
@@ -47,7 +48,7 @@ jobs:
         run: |
           pip install pytest "numpy<3" "pydantic>=2,<3"
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install --no-deps "views-hydranet==0.1.0"
+          pip install --no-deps "views-hydranet==0.1.1"
 
       - name: Roster configs load — every member constructs through HydraNetConfig
         run: pytest tests/test_roster_configs_load.py -v
