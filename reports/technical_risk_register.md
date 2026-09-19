@@ -1873,7 +1873,7 @@
 | **Tier** | 3 |
 | **Trigger** | **Building a model env from `requirements.txt` on a machine whose NVIDIA driver predates the CUDA build of PyPI's current torch** (2026-09-19: torch 2.14 / CUDA 13 against a 535-series driver). `views-hydranet` (`torch>=2.2.1,<3`) and `views-r2darts2` (`darts[torch]`, no bound) both resolve to it. |
 | **Source** | views-hydranet#377 (2026-09-16, the 6 h 46 m CPU run); measured again on the laptop for r2darts2 in #485's verification and for HydraNet in #493's; filed as #494 |
-| **Status** | Open — made loud, not fixed |
+| **Status** | Open |
 | **Location** | `models/<hydranet>/requirements.txt` (8), `models/<r2darts2>/requirements.txt` (42); `run.sh` via pipeline-core's `template_run_sh.py` |
 | **Notes** | Before #493 a HydraNet on such a machine fell back to CPU under a banner and trained at ~2× the GPU time (#377: 6 h 46 m vs 3 h 15 m); r2darts2 hardcodes `accelerator: gpu` and fails at model init. After #493 (`require_cuda: True`, views-hydranet 0.1.1) the HydraNet case is a `RuntimeError` at the top of training — 17 s, zero epochs, measured. Nothing silent remains; what remains is that a fresh env on an older-driver machine is blocked until an operator installs a driver-matching torch by hand (`torch==2.10.0` from the `cu128` index worked here). fimbulthul's driver is newer and unaffected this week. Whose fix it is — an engine ceiling, a `run.sh` index step, or an operator runbook line — is #494's question. Cross-refs: **#494**, **#493**, **#485**, **views-hydranet#377**, **C-116**. |
 
