@@ -121,7 +121,6 @@ def get_sweep_config():
         "num_stacks": {"values": [1]},
         "num_blocks": {"values": [3, 4, 6]},       # more blocks per stack
         "layer_widths": {"values": [256, 512]},     # wider
-        "expansion_coefficient_dim": {"values": [64, 128]}, 
         # expansion_coefficient_dim: rank of the forecast basis projection.
         # Generic block: Linear(layer_width, ecd) → Linear(ecd, ocl=36).
         # ecd < ocl means the model can only express rank-ecd forecasts over

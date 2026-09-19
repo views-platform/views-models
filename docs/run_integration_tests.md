@@ -79,7 +79,7 @@ When `--library` is set, the script checks each model's `requirements.txt` for a
 
 ### 4. Execution
 
-Before the run loop, the script classifies each model by `deployment_status` (loaded from `configs/config_deployment.py`). Models with `deployment_status == "deprecated"` are skipped — they are expected to fail by design, and running them would clutter the `FAIL` column. They appear in the summary as `DEPRECATED` instead. If `config_deployment.py` fails to load for any model, the script fails fast with exit code 2 before running anything (same behavior as a broken `config_meta.py` under `--level` filtering).
+Before the run loop, the script classifies each model by maturity. A model carries either `configs/config_maturity.py` (`maturity`) or the legacy `configs/config_deployment.py` (`deployment_status`), never both; the new file wins, as in pipeline-core's loader, and the legacy value `deprecated` means `retired`. Models whose maturity is `retired` are skipped — they are expected to fail by design, and running them would clutter the `FAIL` column. They appear in the summary as `RETIRED` instead. If the maturity file fails to load for any model, the script fails fast with exit code 2 before running anything (same behavior as a broken `config_meta.py` under `--level` filtering).
 
 For each runnable model, for each partition, the script runs:
 
@@ -105,7 +105,7 @@ Key points:
 | `0` | `PASS` | Model trained and evaluated successfully. |
 | `124` | `TIMEOUT` | Model exceeded the per-run timeout and was killed. |
 | `130` | `ABORTED` | User pressed `Ctrl-C`; the current run was killed and remaining runs skipped. |
-| n/a | `DEPRECATED` | Model's `deployment_status` is `deprecated`; no run attempted. |
+| n/a | `RETIRED` | Model's maturity is `retired` (or legacy `deployment_status` is `deprecated`); no run attempted. |
 | anything else | `FAIL(code)` | Model crashed. The exit code is recorded. |
 
 ### 5a. Cancelling a run
@@ -130,11 +130,11 @@ Model                         calibration    validation
 bad_blood                     PASS           PASS
 bouncy_organ                  FAIL(1)        PASS
 counting_stars                PASS           TIMEOUT
-electric_relaxation           DEPRECATED     DEPRECATED
+electric_relaxation           RETIRED        RETIRED
 invisible_string              ABORTED        SKIPPED
 ```
 
-`PASS` is green. `FAIL(code)` and `TIMEOUT` are red. `DEPRECATED`, `ABORTED`, and `SKIPPED` are yellow so a glance distinguishes "something broke" from "skipped by design or by user". The same table (without colors) is written to `summary.log`.
+`PASS` is green. `FAIL(code)` and `TIMEOUT` are red. `RETIRED`, `ABORTED`, and `SKIPPED` are yellow so a glance distinguishes "something broke" from "skipped by design or by user". The same table (without colors) is written to `summary.log`.
 
 
 ## Logs

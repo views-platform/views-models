@@ -9,8 +9,9 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  electric_relaxation   |
 | **Feature Description**       |  Views-escwa conflict history, cm level    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  deprecated    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  retired    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
@@ -34,6 +35,7 @@ Electric Relaxation
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

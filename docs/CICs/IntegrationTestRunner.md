@@ -3,12 +3,14 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-04-11  
+**Last reviewed:** 2026-06-08  
 **Related ADRs:** ADR-004, ADR-005, ADR-008, ADR-009  
 
 ---
 
 ## 1. Purpose
+
+> Located in: `run_integration_tests.sh`
 
 `run_integration_tests.sh` is the only mechanism that tests actual model training and evaluation in views-models. It trains and evaluates each selected model on calibration and/or validation partitions using a shared conda environment, logs results per model, and produces a pass/fail summary. It never aborts on individual model failure — every model gets its turn.
 
@@ -27,15 +29,15 @@
 
 ## 3. Responsibilities and Guarantees
 
-- Guarantees that every matched, runnable model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase from model failures*; classification errors during `--level` or `deployment_status` filtering are surfaced before the run phase begins, see exit code 2 below; user `Ctrl-C` aborts the run phase and is reported distinctly, see exit code 130 below)
+- Guarantees that every matched, runnable model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase from model failures*; classification errors during `--level` or maturity filtering are surfaced before the run phase begins, see exit code 2 below; user `Ctrl-C` aborts the run phase and is reported distinctly, see exit code 130 below)
 - Guarantees crash isolation: each model runs in its own subshell (`bash -c "..."`)
 - Guarantees per-model timeout enforcement via `timeout --foreground` command (default: 1800 seconds). The `--foreground` flag keeps the child process tree in the script's process group so terminal signals (`Ctrl-C`) propagate to the running model; the trade-off is that grandchildren spawned by the model are not timed out when the timer fires (acceptable because `main.py` is a single-process entry point)
-- Guarantees that models with `deployment_status == "deprecated"` are skipped before any subshell is spawned, classified as `DEPRECATED`, and do not count toward `FAIL`/`TIMEOUT` totals
-- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`, `DEPRECATED`, `ABORTED`, or `SKIPPED` (the latter when a `Ctrl-C` abort prevents a run from being attempted at all)
+- Guarantees that retired models — `maturity == "retired"` in `config_maturity.py`, or the legacy `deployment_status == "deprecated"` in `config_deployment.py` (ADR-017 §3: the same fact) — are skipped before any subshell is spawned, classified as `RETIRED`, and do not count toward `FAIL`/`TIMEOUT` totals. pipeline-core ≥ 3.2.0 refuses to run a retired source by design
+- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`, `RETIRED`, `ABORTED`, or `SKIPPED` (the latter when a `Ctrl-C` abort prevents a run from being attempted at all)
 - Guarantees that `SIGINT` (terminal `Ctrl-C`) is handled: the currently-running model is killed immediately via process-group signal, its slot is labeled `ABORTED`, remaining runs are skipped, a partial summary is printed, and the script exits 130. A single `Ctrl-C` is sufficient — the user does not need to press it repeatedly.
 - Guarantees that per-model stdout/stderr is captured to `$LOG_DIR/$partition/$model.log`
 - Guarantees a structured summary log at `$LOG_DIR/summary.log`
-- Guarantees exit codes: `0` (all runs passed); `1` (at least one `FAIL` or `TIMEOUT`); `2` (at least one model in the candidate set failed classification by `--level` filter *or* `deployment_status` pre-flight — fail-fast before any model runs); `130` (user interrupted with `Ctrl-C`)
+- Guarantees exit codes: `0` (all runs passed); `1` (at least one `FAIL` or `TIMEOUT`); `2` (at least one model in the candidate set failed classification by `--level` filter *or* maturity pre-flight — fail-fast before any model runs); `130` (user interrupted with `Ctrl-C`)
 
 ---
 
@@ -80,12 +82,12 @@
 |---|---|
 | Model training crashes | Captured in log; classified as `FAIL(exit_code)`; script continues |
 | Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues |
-| Model `deployment_status` is `deprecated` | Skipped before any subshell is spawned; classified as `DEPRECATED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
+| Model is retired (`maturity: retired`, or legacy `deployment_status: deprecated`) | Skipped before any subshell is spawned; classified as `RETIRED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
 | User presses `Ctrl-C` (`SIGINT`) | Trap fires; currently-running model killed via shared process group (`timeout --foreground`); slot labeled `ABORTED` (yellow); remaining runs labeled `SKIPPED`; partial summary printed; script exits 130. A single `Ctrl-C` is sufficient. |
 | No models match filters | Prints "No models found to test"; exits 1 |
 | Conda environment doesn't exist | Activation fails inside subshell; model classified as `FAIL` |
 | `config_meta.py` unloadable (during `--level` filter) | Python stderr captured; error printed to stderr with model name + last traceback line; model collected in `CLASSIFICATION_ERRORS`; script exits 2 before running any models |
-| `config_deployment.py` unloadable (during deployment_status pre-flight) | Same fail-fast pattern as `config_meta.py`: stderr captured, error printed, model collected, script exits 2 before running any models |
+| Maturity file unloadable (during pre-flight; `config_maturity.py` if present, else `config_deployment.py`) | Same fail-fast pattern as `config_meta.py`: stderr captured, error printed, model collected, script exits 2 before running any models |
 | Unknown CLI flag | Prints error; exits 1 |
 
 The runner itself never fails silently. Individual model failures are captured and reported, not swallowed. User interruption is clearly distinguished from model failure via the `ABORTED` result class and exit code 130.
@@ -98,7 +100,7 @@ The runner itself never fails silently. Individual model failures are captured a
 |---|---|---|
 | `models/*/main.py` | Invokes | Subprocess via `python main.py -r $partition -t -e` |
 | `models/*/configs/config_meta.py` | Reads (for `--level` filter) | `importlib.util` from Python |
-| `models/*/configs/config_deployment.py` | Reads (for `deployment_status` pre-flight) | `importlib.util` from Python |
+| `models/*/configs/config_maturity.py`, else `config_deployment.py` | Reads (for maturity pre-flight; new file wins, as in pipeline-core's loader) | `importlib.util` from Python |
 | `models/*/requirements.txt` | Reads (for `--library` filter) | `grep` for package name |
 | Conda | Activates | `conda activate $ENV` in subshell |
 | `logs/` | Writes | Timestamped log directories |

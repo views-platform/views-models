@@ -41,6 +41,38 @@ These ADRs define system philosophy and governance:
 
 - **[ADR-010](010_technical_risk_register.md)** — Technical Risk Register as a Governance Artifact
 - **[ADR-011](011_partition_semantics.md)** — Partition Boundary Semantics
+- **[ADR-012](012_target_scale_and_prefix_convention.md)** — Target Scale and Prefix Convention
+- **[ADR-013](013_regression_target_name_agnosticism.md)** — Regression-Target Name Agnosticism (config is the single source of truth)
+- **[ADR-014](014_reconciliation_composition_root.md)** — Reconciliation Composition Root (the sanctioned DIP wiring layer for the reconciler port)
+- **[ADR-015](015_posterior_sample_count_standard.md)** — Posterior Sample-Count Standard and the Ensemble Constituent Contract
+- **[ADR-016](016_point_stochastic_readiness.md)** — Point/Stochastic Discriminator for PredictionFrame Readiness
+- **[vmo_017](017_source_composition_delivery.md)** — Forecast Sources, Composition, and Delivery (the three axes)
+- **[ADR-018](018_environment_single_writer.md)** — One writer for the Appwrite environment; setup lives in `bootstrap.sh`
+- **[ADR-019](019_delivery_declaration.md)** — The delivery declaration — one file per consumer
+- **[ADR-020](020_errors_must_descend.md)** — Errors must descend, and must say where the stairs end
+- **[ADR-021](021_coverage_is_declared_once.md)** — Coverage is declared once, in the delivery
+- **[ADR-022](022_the_launcher_body_has_one_home.md)** — The delivery-protocol body has one home; a partner launcher is a wrapper
+
+### Why one of these carries a `vmo_` prefix
+
+**`vmo_017` is disambiguated because the number collides across three repositories** (#393):
+
+| repo | prefix | its ADR-017 |
+|---|---|---|
+| views-models | `vmo_` | *Forecast Sources, Composition, and Delivery* |
+| views-postprocessing | `vpp_` | *Facts shared with a repository we cannot read* |
+| views-crafdapi | `vcr_` | *Reference Data in Repository* |
+
+A bare "ADR-017" in a cross-repo sentence resolves to the **wrong document** for a reader
+sitting in a repo that has its own 017 — and that is not hypothetical: views-crafdapi's
+ADR-033 qualifies the citation once and then drops the qualifier four times in the same
+passage, where every occurrence means *this* repo's 017.
+
+**The number does not change and no existing citation breaks** — the prefix is additive.
+Intra-repo prose may stay bare; write `vmo_017` wherever the sentence is read from, or
+could be read from, another repository. The convention is not yet platform-wide; it is
+being applied where a live collision forced it (views-postprocessing#264,
+views-crafdapi#58).
 
 Candidates for future ADRs:
 

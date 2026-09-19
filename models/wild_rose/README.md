@@ -6,11 +6,12 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | ShurfModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | lr_sb_best |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  uncertainty_conflict_nolog   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and conflict indicators from GED and ACLED only    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
