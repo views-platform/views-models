@@ -27,8 +27,10 @@ def get_hp_config():
         # #499 Step 1: the whole PRIO-GRID raster (360 x 720 at 0.5 deg), because REGION is "land"
         # (rows span 278, cols 719 — the 180 x 180 Africa+ME crop at (87, 310) refuses it). Leading
         # rows/cols with no land are zero; views-hydranet's DataSniffer documents this as expected.
-        'row_offset': 0,
-        'col_offset': 0,
+        # Offsets are 1, not 0: pipeline-core numbers row/col from 1 (row = (pgid-1)//720 + 1), and the
+        # volume indexes row - row_offset, so 1 maps row 1..360 onto 0..359 (9540a7bc, 2026-04-28).
+        'row_offset': 1,
+        'col_offset': 1,
         'height': 360,
         'width': 720,
 
