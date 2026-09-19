@@ -78,8 +78,9 @@ def get_hp_config():
     'ss_schedule': 'linear',
     'ss_warmup_lessons': 10,
     'ss_epsilon_max': 0.0,
-    # #499: 40 for the first integration pass at global land — a run-time budget, not a
-    # model choice. The production value is 300 (#463); restore it once the pass has run.
+    # #499: 40 for the eleven-model calibration pass at global land recorded on views-models#499
+    # (2026-09-19 revision) — a run-time budget, not a model choice. Production is 300 (#463);
+        # the PR that restores it is owed by whoever ticks that pass on #499.
     'total_lessons': 40,
     'max_ratio': 0.95,
     'min_ratio': 0.05,

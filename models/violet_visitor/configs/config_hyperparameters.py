@@ -7,7 +7,7 @@
 
 def get_hp_config():
     """
-    violet_visitor — the HydraNet R&D reference model (pgm, africa_me_legacy datafactory).
+    violet_visitor — the HydraNet R&D reference model (pgm, datafactory; `land` since #499, `africa_me_legacy` before).
 
     STATUS: roster member (Epic #242 S3). Gated forecast
     (gate x body) via a hurdle_shrinkage-composed output, all-cell MSE body, weighted-BCE
@@ -83,8 +83,9 @@ def get_hp_config():
         'ss_warmup_lessons': 15,
         'ss_epsilon_max': 0.0,
 
-        # #499: 40 for the first integration pass at global land — a run-time budget, not a
-        # model choice. The production value is 300 (#463); restore it once the pass has run.
+        # #499: 40 for the eleven-model calibration pass at global land recorded on views-models#499
+        # (2026-09-19 revision) — a run-time budget, not a model choice. Production is 300 (#463);
+        # the PR that restores it is owed by whoever ticks that pass on #499.
         'total_lessons': 40,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
