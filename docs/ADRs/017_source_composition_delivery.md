@@ -1,6 +1,6 @@
 # vmo_017 (ADR-017): Forecast Sources, Composition, and Delivery — separating what a model *is*, what it's *built from*, and *where it goes*
 
-**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 corrects the `deployed` migration: a leaf becomes `graduate` outright, the R2 conditional governs composites only — the implementation made `graduate` unreachable for every source — #452); **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.) **amended 2026-09-17** (§11 Phase 2: the post-3.0 blocker expired; the rename is per source, gated on the engine's pipeline-core floor ≥3.2.0 — PR #476.)
+**Status:** **Accepted** (2026-07-27) — **revised 2026-08-04**; **amended 2026-09-07** (§3 corrects the `deployed` migration: a leaf becomes `graduate` outright, the R2 conditional governs composites only — the implementation made `graduate` unreachable for every source — #452); **amended 2026-09-07** (§3 states what maturity asks — the author's sign-off that a source is finished — and that it is neither a shipping decision nor a statement about ensemble membership; a baseline may therefore be `graduate`. No rule changed — PR #446.) **amended 2026-09-17** (§11 Phase 2: the post-3.0 blocker expired; the rename is per source, gated on the engine's pipeline-core floor ≥3.2.0 — PR #476.) **amended 2026-09-19** (§11 Phase 2 status: 92 sources on `config_maturity.py` after #479/#490/#491; the 38 stepshifter sources are the whole remainder — views-stepshifter#103.)
 
 > **Cite this as `vmo_017` outside this repository.** views-postprocessing and
 > views-crafdapi each have their own ADR-017 (*Facts shared with a repository we
@@ -402,6 +402,12 @@ Also: making the main line an explicit delivery unit adds new structure on the m
   guard #444 lacked; views-models#479 renames the 50 sources whose engine is on 3.x (nothing graduates — a script is not an author); the 69 stepshifter
   and r2darts2 sources stay on `config_deployment.py`, translated by the §3 map, until
   views-stepshifter#103 / views-r2darts2#24 publish on ≥3.2.0 (context: views-models#473).
+  **2026-09-19 (#490):** views-r2darts2 0.2.3 declares pipeline-core ≥3.0 (#485) — a floor below
+  3.2.0 — and *resolves* to 3.3.0 in every env built from a model's `requirements.txt`, which
+  was verified end-to-end before the rename. The gate above means the **resolved** version, not
+  the declared floor: a floor of ≥3.0 admits 3.0.1, on which a migrated config crashes (#444).
+  The 42 r2darts2 sources carry `config_maturity.py` (#490, #491). **38 remain on the legacy vocabulary —
+  the stepshifter family, views-stepshifter#103.** The window closes when they move.
 - **Phase 3 — structural:** make the main public line an explicit delivery unit; add the **shelf write-gate** (only `graduate` writes).
 - **Phase 4:** re-home the ensemble guard — **by moving its function, not deleting it.** Its live `deprecated`-member check is the *only* ensemble-time member-status check (the sniffer never sees member configs), so deleting it outright would remove real coverage.
 
