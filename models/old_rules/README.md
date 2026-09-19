@@ -1,4 +1,4 @@
-# Old Rules
+# Old Rules 
 ## Overview
 
 
@@ -7,10 +7,10 @@
 | **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
-| **Features**       |  old_rules   |
+| **Features**       |  old_rules_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -23,8 +23,8 @@ Old Rules
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

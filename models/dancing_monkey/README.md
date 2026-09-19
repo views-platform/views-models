@@ -1,4 +1,4 @@
-# Dancing Monkey
+# Dancing Monkey 
 ## Overview
 
 
@@ -6,11 +6,11 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TSMixerModel                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | lr_ged_sb |
-| **Features**       |  dancing_monkey   |
+| **Targets**         | lr_ged_sb, lr_ged_ns, lr_ged_os |
+| **Features**       |  dancing_monkey_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Deployment Status**       |  candidate    |
 
 ## Repository Structure
 
@@ -23,8 +23,8 @@ Dancing Monkey
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py
