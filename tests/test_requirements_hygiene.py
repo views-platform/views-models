@@ -57,21 +57,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # could not fire: upstream went 0.2.x, so the first condition was unreachable by
 # construction. A deferral whose trigger cannot fire is a permanent exemption.
 #
-# All 31 now declare `views-r2darts2>=0.1.1,<0.2.0` — one spec, and the first in this
-# repo's history that resolves for all of them. 0.1.1 is the only released version in
-# that range and it installs cleanly on a bare machine (verified 2026-09-10 in an empty
-# venv: pip exit 0, and all three of main.py's imports execute).
+# 2026-09-10 (#317): all 31 declared `views-r2darts2>=0.1.1,<0.2.0` — one spec, the first in
+# this repo's history that resolved for all of them. 0.2.x was NOT adoptable then:
+# `views-r2darts2[manager]` could not resolve against any published views-pipeline-core —
+# wandb (pipeline-core capped <0.19, r2darts2 floored >=0.28.2) and pandas (r2darts2 0.2.x
+# required darts 0.46 = pandas>=2.2; viewser holds pandas<2). Reported as views-r2darts2#34,
+# #35, #36; the cost was that these 31 sat on pipeline-core 2.x while the fleet moved to 3.x.
 #
-# 0.2.x is NOT adoptable, and the reason is not ours to fix. `views-r2darts2[manager]`
-# cannot resolve against ANY published views-pipeline-core — four independent conflicts,
-# of which wandb is only the first pip reports. The blocking one is pandas: r2darts2
-# 0.2.x requires darts==0.46.1 (pandas>=2.2) while pipeline-core's own dependencies cap
-# pandas<2.0. That is the platform-wide pandas lock (pipeline-core #308 / C-112).
-# Reported upstream as views-r2darts2#34, #35, #36.
-#
-# The cost of 0.1.1, stated plainly: it pins views-pipeline-core<3.0.0, so these 31 are
-# the only models in the fleet still on pipeline-core 2.x. That split stands until the
-# pandas migration lands. It is deliberate, and it beats 31 models that cannot install.
+# 2026-09-19 (#485): both walls fell on the same morning, from both sides. pipeline-core 3.3.0
+# widened wandb to <1.0 (their ADR-067); views-r2darts2 0.2.3 pins darts==0.40.0 and
+# pandas<2. All 31 now declare `views-r2darts2[manager]>=0.2.3,<0.3.0` — the `[manager]`
+# extra is what brings views-pipeline-core (>=3.0,<4) on 0.2.x, where it is optional — and
+# it resolves from PyPI beside pipeline-core 3.3.0 and viewser 6.6.4 (measured in a clean
+# venv; one model run end-to-end on the published wheel). The 2.x split is over.
 DEFERRED_PACKAGES: dict[str, str] = {}
 
 # pip accepts a bare VCS URL as a requirements.txt line; PEP 508 does not, because

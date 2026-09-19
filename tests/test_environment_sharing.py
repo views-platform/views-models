@@ -53,7 +53,8 @@ _ENV_PATH = re.compile(
 # success, the models train, and half of them forecast with the wrong algorithm
 # version. Registered as **C-115, Tier 1**.
 #
-# **Since #317 all 31 declare one spec**, `views-r2darts2>=0.1.1,<0.2.0`, so there is
+# **Since #317 all 31 declare one spec** — `views-r2darts2[manager]>=0.2.3,<0.3.0` since
+# #485 (2026-09-19); `>=0.1.1,<0.2.0` before — so there is
 # nothing left for a merge to resolve differently and the Tier-1 hazard above cannot
 # currently fire. The two directories still exist; the reason they had to has gone.
 #
