@@ -10,7 +10,8 @@
 | **Features**       |  caring_fish   |
 | **Feature Description**       |  Fatalities conflict history Predicting fatalities using conflict predictors    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

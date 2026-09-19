@@ -10,7 +10,8 @@
 | **Features**       |  brown_cheese   |
 | **Feature Description**       |  Fatalities conflict history, cm level Predicting fatalities using conflict predictors, ultrashort    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

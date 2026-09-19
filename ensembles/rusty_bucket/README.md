@@ -11,7 +11,7 @@ This folder contains code for the Rusty Bucket model, an ensemble machine learni
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Aggregation**       |  concat   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 

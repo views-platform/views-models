@@ -11,7 +11,7 @@ This folder contains code for the Stellar Horizon model, an ensemble machine lea
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Aggregation**       |  concat   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 

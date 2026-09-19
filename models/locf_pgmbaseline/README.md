@@ -10,7 +10,8 @@
 | **Features**       |  N/A   |
 | **Feature Description**       |  N/A    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

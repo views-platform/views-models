@@ -10,7 +10,8 @@
 | **Features**       |  teen_spirit   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and faoprices features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

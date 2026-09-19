@@ -10,7 +10,8 @@
 | **Features**       |  warring_thief_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  datafactory    |
 
 ## Repository Structure
 
@@ -23,8 +24,8 @@ Warring Thief
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

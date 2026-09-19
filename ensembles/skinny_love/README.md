@@ -11,7 +11,7 @@ This folder contains code for the Skinny Love model, an ensemble machine learnin
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 

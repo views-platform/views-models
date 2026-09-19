@@ -10,7 +10,8 @@
 | **Features**       |  popular_monster   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and Mueller & Rauh topic model features    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

@@ -110,7 +110,7 @@ def _format_targets(model):
 
 def _generate_model_table(models_list):
     """Exact copy of create_catalogs.py::generate_model_table."""
-    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features',
+    headers = ['Model Name', 'Algorithm', 'Targets', 'Input Features', 'Data Source',
                'Hyperparameters', 'Maturity', 'Implementation Date', 'Author']
     rows = []
     for model in models_list:
@@ -119,6 +119,7 @@ def _generate_model_table(models_list):
             str(model.get('algorithm', '')).split('(')[0],
             _format_targets(model),
             model.get('queryset', ''),
+            model.get('data_source', ''),
             model.get('hyperparameters', ''),
             model.get('maturity', ''),
             model.get('implementation_date', ''),
@@ -180,7 +181,7 @@ class TestGenerateModelTable:
         lines = result.strip().split('\n')
         assert len(lines) == 3
         cells = lines[2].split('|')
-        assert len(cells) == 10  # 8 data cells + 2 empty boundary cells
+        assert len(cells) == 11  # 9 data cells (Data Source since #474) + 2 empty boundary cells
 
     def test_name_link_when_model_dir_present(self):
         models = [{'name': 'linked', 'model_dir_path': '/repo/models/linked'}]

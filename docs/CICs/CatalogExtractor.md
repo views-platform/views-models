@@ -48,6 +48,7 @@ Located in: `tools/catalogs/create_catalogs.py:extract_models()`
 Returns a dict with keys from the meta config, a `maturity` key in ADR-017's vocabulary (`candidate` / `graduate` / `retired`, translated from the legacy file where needed), plus:
 - `model_dir_path`: `Path` to the model/ensemble directory (used for name links in catalog tables)
 - `queryset`: markdown link to config_queryset.py, `'N/A'` for baselines, or `'None'` if no queryset exists
+- `data_source`: `viewser` / `datafactory` / `synthetic` / `none` / `unknown`, read from `config_queryset.py` by AST via `tools/catalogs/data_source.py` — the one reader the per-model README uses too (#474). `unknown` is reported, never guessed, when a file imports both clients or neither
 - `hyperparameters`: markdown link to config_hyperparameters.py
 - `implementation_date`: `YYYY-MM-DD` string from git history (falls back to `2026-01-01`)
 - `modelset_link`: markdown link to config_modelset.py (ensembles only, when config_modelset.py exists)

@@ -10,7 +10,8 @@
 | **Features**       |  fluorescent_adolescent   |
 | **Feature Description**       |  Predicting lr_ged_sb, cm level Queryset with features from various sources, 'joint narrow'    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  candidate    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 

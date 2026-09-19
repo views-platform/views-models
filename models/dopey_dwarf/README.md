@@ -10,7 +10,8 @@
 | **Features**       |  dopey_dwarf   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  retired    |
+| **Maturity**       |  retired    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
