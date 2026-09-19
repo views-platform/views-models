@@ -9,6 +9,15 @@ repo), against a temporary repo holding one model whose queryset imports a modul
 cannot exist — under both loader behaviours the script must finish and write the README.
 
 Not mocked: the script is monolithic (register C-81/C-93), so the honest test is the script.
+
+The fixture's client is a module name pipeline-core's install-hint table has never heard of,
+on purpose: ``datafactory_query`` or ``viewser`` would import fine on a developer machine
+and the test would prove nothing there. Both of the loader's paths — the hint-carrying
+``ImportError`` for a known client and the bare re-raise for an unknown one — are
+``ImportError``s, and the script's ``except`` catches the class. What this test does NOT
+cover is C-81 itself: ``ModelPathManager(configs_dir)`` at construction (``validate=True``)
+still aborts the job on a model directory missing a standard subfolder, before the
+queryset is ever reached. That defect is registered and open; this guard is narrower.
 """
 
 import shutil
