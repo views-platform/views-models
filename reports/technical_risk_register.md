@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-15  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 156 (147 concerns + 9 disagreements)  
-**Concerns:** Open 68 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 47 | T3 61 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 157 (148 concerns + 9 disagreements)  
+**Concerns:** Open 69 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 47 | T3 62 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1854,6 +1854,17 @@
 | **Status** | Open |
 | **Location** | `tests/test_deployment_status_inert.py` (`_COMPARISON` regex) |
 | **Notes** | The guard's job is to keep the list of code that reads the legacy vocabulary explicit and allowlisted. Its scanner matches `== "shadow"`-style comparisons only. The two `_LEGACY_TO_MATURITY` dicts in the first commit of #476 were new readers of every legacy value, and the guard passed (verified by the reviewing agent: 4 passed with the dicts present). The dicts are gone (C-147), but the blind spot is not: any future value-mapping reader gets the same free pass. This is a guard that cannot fire on one whole shape of the thing it guards — the pattern `reports/measurements/2026-08-23_agent_failure_pattern_prevalence.md` records in 9 of 18 repositories. Not fixed in #476 because the fix is a scanner change with its own mutation test, not a one-liner, and the PR is already carrying the readers. Cross-refs: **C-147**, **C-146** (same "green-by-construction" shape). |
+
+### C-149 — `run.sh`'s env prefix is whatever the operator types at the scaffold prompt; nothing checks it against `requirements.txt`
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **Regenerating `run.sh` for an existing model with `tools/scaffold/build_model_scaffold.py`** — the builder asks "Enter the name of the architecture package" and writes the answer straight into `env_path` (`template_run_sh.py:53`); an answer that does not match the engine in `requirements.txt` builds and activates the wrong prefix without a word. |
+| **Source** | code-review of #491 (git-history agent), 2026-09-19 |
+| **Status** | Open |
+| **Location** | `tools/scaffold/build_model_scaffold.py:206-211`; pipeline-core `templates/model/template_run_sh.py:53` |
+| **Notes** | On `staging_202608`, commit `4be8f66a` ("tests", 2026-09-08) regenerated `run.sh` for **19 r2darts2 models** and every one came out with `env_path=.../envs/views-hydranet` — the HydraNet prefix — while their `requirements.txt` said `views-r2darts2`. Each was created correctly; the regeneration overwrote them with one wrong prompt answer. Eleven of the 19 reached `development` in #491 with the line corrected; the other eight (`beautiful_people crimson_tide frozen_peak iron_will shadow_wolf swift_current teenage_dirtbag wild_storm`) still carry it on the branch (named on #402). On `development` this cannot land silently: `tests/test_environment_sharing.py` pins the tenant count per prefix and goes red (mutation-verified in #491). On a branch where that suite is not run — staging's case — it does. Tier 3, not 2, because the guard exists here; the exposure is any branch that skips it, and the fix is the builder refusing an answer that contradicts `requirements.txt` (or deriving it from there and not asking). Cross-refs: **C-115** (what a wrong prefix does to 31 models), **C-116**, **#491**, **#402**. |
 
 ---
 
