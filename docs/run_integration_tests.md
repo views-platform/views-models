@@ -42,7 +42,7 @@ bash run_integration_tests.sh --library baseline
 | `--models` | `"name1 name2 ..."` | *(all models)* | Run **only** these models. Names are space-separated inside quotes. Each name must match a directory under `models/` that contains a `main.py`. Names not found are skipped with a warning. |
 | `--level` | `cm` or `pgm` | *(no filter)* | Run only models whose `config_meta.py` reports this level of analysis. The script reads each model's config via Python to check. Models whose level cannot be read are silently excluded. |
 | `--library` | `baseline`, `stepshifter`, `r2darts2`, or `hydranet` | *(no filter)* | Run only models that depend on this architecture library. Determined by matching `views-<name>` in each model's `requirements.txt`. Can be combined with `--level`. |
-| `--exclude` | `"name1 name2 ..."` | `"purple_alien"` | Skip these models. **Replaces** the default exclusion list — it does not append to it. To exclude nothing, pass an empty string: `--exclude ""`. |
+| `--exclude` | `"name1 name2 ..."` | *(none)* | Skip these models. **Replaces** the default exclusion list (which is empty since 2026-09-19 — it was `purple_alien` while the HydraNets were not runnable). |
 | `--partitions` | `"p1 p2 ..."` | `"calibration validation"` | Which partitions to test. Valid values are `calibration`, `validation`, and `forecasting`. Space-separated inside quotes. |
 | `--timeout` | seconds | `1800` (30 min) | Maximum wall-clock time per individual model run (one model x one partition). If exceeded, the run is killed and recorded as `TIMEOUT`. |
 | `--env` | name | `views_pipeline` | Conda environment to activate before each model run. Can be an environment name or a path to a prefix. |
@@ -195,10 +195,7 @@ bash run_integration_tests.sh --models "counting_stars" --partitions "calibratio
 bash run_integration_tests.sh --level pgm --timeout 3600
 
 # All models except two, validation only
-bash run_integration_tests.sh --exclude "purple_alien novel_heuristics" --partitions "validation"
-
-# Exclude nothing (override the default purple_alien exclusion)
-bash run_integration_tests.sh --exclude ""
+bash run_integration_tests.sh --exclude "novel_heuristics" --partitions "validation"
 
 # Use a different conda environment
 bash run_integration_tests.sh --env views_r2darts2
@@ -217,7 +214,7 @@ bash run_integration_tests.sh --models "bad_blood counting_stars" --partitions "
 ## Important Details
 
 - **Single shared environment**: Unlike each model's own `run.sh` (which creates/activates a per-model conda env), this script uses one environment for all models. All models must be installable into that environment. If a model needs packages that conflict with the shared env, it will fail.
-- **`--exclude` replaces, not appends**: Passing `--exclude "foo"` means *only* `foo` is excluded — `purple_alien` is no longer excluded unless you include it: `--exclude "purple_alien foo"`.
+- **`--exclude` replaces, not appends**: the default list is empty (since 2026-09-19), so `--exclude "foo"` excludes exactly `foo`.
 - **Models run sequentially**: There is no parallelism. A full run of all models across 2 partitions can take many hours depending on model complexity and data fetch times.
 - **Data is fetched live**: Each model's queryset pulls data from the VIEWS API at runtime. Network issues or API downtime will cause failures unrelated to model code.
 - **Forecasting partition uses live time**: If you pass `--partitions "forecasting"`, the train/test ranges are computed from `ViewsMonth.now()`, so results depend on when you run.
