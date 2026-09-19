@@ -51,7 +51,7 @@
 | `--models` | (all) | Space-separated model names to include |
 | `--level` | (all) | Filter by level: `cm` or `pgm` |
 | `--library` | (all) | Filter by algorithm library: `baseline`, `stepshifter`, `r2darts2`, `hydranet` |
-| `--exclude` | *(none)* | Space-separated model names to skip. Until 2026-09-19 the default was `purple_alien`, from the months when the HydraNets were not runnable; they are (#488), so nothing is excluded by default (#499) |
+| `--exclude` | *(none)* | Space-separated model names to skip. Until 2026-09-19 the default was `purple_alien`: when the runner moved to one shared conda env (`5a2fd2e6`, 2026-03-15) it was the only model needing `views-hydranet`, which that env lacked. The env used for the roster carries views-hydranet now, so nothing is excluded by default (#499); a model whose packages the chosen env lacks fails in its own row instead |
 | `--partitions` | `calibration validation` | Space-separated partition names |
 | `--timeout` | `1800` | Seconds per model per partition |
 

@@ -42,7 +42,7 @@ bash run_integration_tests.sh --library baseline
 | `--models` | `"name1 name2 ..."` | *(all models)* | Run **only** these models. Names are space-separated inside quotes. Each name must match a directory under `models/` that contains a `main.py`. Names not found are skipped with a warning. |
 | `--level` | `cm` or `pgm` | *(no filter)* | Run only models whose `config_meta.py` reports this level of analysis. The script reads each model's config via Python to check. Models whose level cannot be read are silently excluded. |
 | `--library` | `baseline`, `stepshifter`, `r2darts2`, or `hydranet` | *(no filter)* | Run only models that depend on this architecture library. Determined by matching `views-<name>` in each model's `requirements.txt`. Can be combined with `--level`. |
-| `--exclude` | `"name1 name2 ..."` | *(none)* | Skip these models. **Replaces** the default exclusion list (which is empty since 2026-09-19 — it was `purple_alien` while the HydraNets were not runnable). |
+| `--exclude` | `"name1 name2 ..."` | *(none)* | Skip these models. **Replaces** the default exclusion list (empty since 2026-09-19; it was `purple_alien` from 2026-03-15, when the single shared env lacked `views-hydranet` and purple_alien was the only model needing it). |
 | `--partitions` | `"p1 p2 ..."` | `"calibration validation"` | Which partitions to test. Valid values are `calibration`, `validation`, and `forecasting`. Space-separated inside quotes. |
 | `--timeout` | seconds | `1800` (30 min) | Maximum wall-clock time per individual model run (one model x one partition). If exceeded, the run is killed and recorded as `TIMEOUT`. |
 | `--env` | name | `views_pipeline` | Conda environment to activate before each model run. Can be an environment name or a path to a prefix. |
