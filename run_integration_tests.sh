@@ -14,7 +14,7 @@
 #   bash run_integration_tests.sh --level cm                              # only CM models
 #   bash run_integration_tests.sh --level pgm                             # only PGM models
 #   bash run_integration_tests.sh --library baseline                        # one library
-#   bash run_integration_tests.sh --exclude "purple_alien novel_heuristics"  # skip models
+#   bash run_integration_tests.sh --exclude "novel_heuristics"               # skip models
 #   bash run_integration_tests.sh --env my_conda_env                     # different env
 #   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
 #
@@ -29,7 +29,7 @@ PARTITIONS="calibration validation"
 FILTER_MODELS=""
 FILTER_LEVEL=""
 FILTER_LIBRARY=""
-EXCLUDE_MODELS="purple_alien"
+EXCLUDE_MODELS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_DIR="$SCRIPT_DIR/models"
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
@@ -78,7 +78,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --models \"m1 m2\"            Run only these models"
             echo "  --level cm|pgm              Run only models at this level of analysis"
             echo "  --library NAME              Run only models using this library (baseline|stepshifter|r2darts2|hydranet)"
-            echo "  --exclude \"m1 m2\"           Skip these models (default: purple_alien)"
+            echo "  --exclude \"m1 m2\"           Skip these models (default: none)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
             exit 0
@@ -273,7 +273,7 @@ echo "  Models:     $TOTAL_MODELS"
 [ "$RETIRED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Retired:${NC} $RETIRED_COUNT (will be skipped)"
 [ -n "$FILTER_LEVEL" ] && echo "  Level:      $FILTER_LEVEL"
 [ -n "$FILTER_LIBRARY" ] && echo "  Library:    $FILTER_LIBRARY"
-echo "  Excluded:   $EXCLUDE_MODELS"
+echo "  Excluded:   ${EXCLUDE_MODELS:-none}"
 echo "  Partitions: $PARTITIONS"
 echo "  Timeout:    ${TIMEOUT}s per run"
 echo "  Logs:       $LOG_DIR"
@@ -390,7 +390,7 @@ echo ""
 
 {
     echo "Integration Test Summary — $TIMESTAMP"
-    echo "Env: $CONDA_ENV | Models: $TOTAL_MODELS | Excluded: $EXCLUDE_MODELS"
+    echo "Env: $CONDA_ENV | Models: $TOTAL_MODELS | Excluded: ${EXCLUDE_MODELS:-none}"
     echo "Partitions: $PARTITIONS | Timeout: ${TIMEOUT}s"
     echo ""
     printf "%-30s" "Model"

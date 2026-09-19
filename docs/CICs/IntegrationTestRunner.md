@@ -51,7 +51,7 @@
 | `--models` | (all) | Space-separated model names to include |
 | `--level` | (all) | Filter by level: `cm` or `pgm` |
 | `--library` | (all) | Filter by algorithm library: `baseline`, `stepshifter`, `r2darts2`, `hydranet` |
-| `--exclude` | `purple_alien` | Space-separated model names to skip |
+| `--exclude` | *(none)* | Space-separated model names to skip. Until 2026-09-19 the default was `purple_alien`: when the runner moved to one shared conda env (`5a2fd2e6`, 2026-03-15) it was the only model needing `views-hydranet`, which that env lacked. The env used for the roster carries views-hydranet now, so nothing is excluded by default (#499); a model whose packages the chosen env lacks fails in its own row instead |
 | `--partitions` | `calibration validation` | Space-separated partition names |
 | `--timeout` | `1800` | Seconds per model per partition |
 
@@ -138,7 +138,7 @@ bash run_integration_tests.sh --partitions "forecasting"
 
 # Wrong: assuming --exclude appends to defaults
 bash run_integration_tests.sh --exclude "new_model"
-# This REPLACES the default exclusion (purple_alien), not appends to it
+# This REPLACES the default exclusion (none since 2026-09-19), not appends to it
 
 # Wrong: expecting this to run in CI
 # The runner takes hours and requires a GPU-capable environment;
@@ -167,7 +167,7 @@ bash run_integration_tests.sh --exclude "new_model"
 ## 12. Known Deviations
 
 - **Not in CI:** The only behavioral test mechanism is manual (Risk Register C-03). A model can be merged broken.
-- **`--exclude` replaces defaults:** Documented in `--help` but surprising — passing `--exclude "foo"` removes the default `purple_alien` exclusion.
+- **`--exclude` replaces, not appends:** with the default list now empty this no longer surprises anyone; kept so a future default is not re-added without knowing it.
 - **No ensemble coverage:** The runner only discovers models in `models/`; ensembles in `ensembles/` are not tested by this mechanism.
 - **`--library` filter silently excludes models lacking `requirements.txt`:** A model without a `requirements.txt` cannot be classified by the `--library` filter and is silently dropped from the filtered set. Tracked as Risk Register C-34.
 
