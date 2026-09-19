@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-15  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 158 (149 concerns + 9 disagreements)  
-**Concerns:** Open 70 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 47 | T3 63 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 159 (150 concerns + 9 disagreements)  
+**Concerns:** Open 71 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 48 | T3 63 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1876,6 +1876,17 @@
 | **Status** | Open |
 | **Location** | `models/<hydranet>/requirements.txt` (8), `models/<r2darts2>/requirements.txt` (42); `run.sh` via pipeline-core's `template_run_sh.py` |
 | **Notes** | Before #493 a HydraNet on such a machine fell back to CPU under a banner and trained at ~2× the GPU time (#377: 6 h 46 m vs 3 h 15 m); r2darts2 hardcodes `accelerator: gpu` and fails at model init. After #493 (`require_cuda: True`, views-hydranet 0.1.1) the HydraNet case is a `RuntimeError` at the top of training — 17 s, zero epochs, measured. Nothing silent remains; what remains is that a fresh env on an older-driver machine is blocked until an operator installs a driver-matching torch by hand (`torch==2.10.0` from the `cu128` index worked here). fimbulthul's driver is newer and unaffected this week. Whose fix it is — an engine ceiling, a `run.sh` index step, or an operator runbook line — is #494's question. Cross-refs: **#494**, **#493**, **#485**, **views-hydranet#377**, **C-116**. |
+
+### C-151 — viewser's `toolz<0.12` pin resolves to a toolz that cannot import `tlz` submodules on current Python 3.11; any reinstall of viewser into a datafactory env re-breaks every datafactory fetch
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | **Running any model's `run.sh` — or `pip install -r requirements.txt` for any viewser tenant — inside an env that also serves datafactory models** (fimbulthul's `views_pipeline`). `run.sh`'s dry-run check reads a violated pin as "outdated" and reinstalls, and viewser 6.6.4 / views-partitioning 3.0.1 pin `toolz<0.12.0`, so toolz goes back to 0.11.2. |
+| **Source** | fimbulthul, 2026-09-19: the eleven-model calibration pass (#499) failed 4 × in 9 s at data fetch — `AttributeError: 'TlzSpec' object has no attribute '_uninitialized_submodules'`; diagnosed with the views-baseline session |
+| **Status** | Open |
+| **Location** | fimbulthul `views_pipeline` env; `models/*/run.sh` (the dry-run reinstall, pipeline-core's `template_run_sh.py`); viewser 6.6.4 and views-partitioning 3.0.1 metadata (not ours) |
+| **Notes** | `datafactory_query` imports dask, dask imports `tlz` (toolz's lazy shim), and toolz 0.11.2's `TlzSpec` predates the `_uninitialized_submodules` attribute current CPython 3.11.x importlib requires on submodule import — `import tlz` succeeds, `import tlz.curried` dies. toolz ≥0.12.1 fixes it (reproduced by views-baseline on 3.11.13/3.11.14/3.11.15; fixed with 0.12.1 and 1.1.0). But every *correct* resolution of viewser's pin lands on the broken 0.11.2, so the working state is a pin violation kept alive by hand: Simon ran `pip install "toolz>=0.12.1"` at 12:05, something reinstalled viewser's pins in the afternoon (a `run.sh`, most likely), and at 21:29 the pass died again; re-upgraded 21:45. **Rule for that env until fixed:** the integration runner only (it runs `main.py` directly); never a model's `run.sh` in `views_pipeline`. The fix is upstream — viewser and views-partitioning lifting `toolz<0.12` (both orphaned, #473) — or the two worlds in two envs (C-116). Tier 2: it recurs on a routine action and takes every datafactory model with it, loud but at 9 s per model into a multi-hour pass. Cross-refs: **C-116**, **#473**, **#499**, **#494** (the other fresh-env trap). |
 
 ---
 
