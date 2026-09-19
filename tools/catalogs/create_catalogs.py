@@ -71,6 +71,8 @@ def extract_models(model_class):
         -creator: creator from config_meta.py
         -maturity: from config_maturity.py, or config_deployment.py's deployment_status
                    translated (ADR-017 §3) while a source is still on the legacy file
+        -data_source: viewser | datafactory | synthetic | none | unknown, read from
+                      config_queryset.py by tools/catalogs/data_source.py (#474)
         -hyperparameters: markdown link with marker 'hyperparameters model_name' config_meta.py pointing to the model specific config_hyperparameters.py
     """
     

@@ -11,14 +11,10 @@
 """
 
 from collections import Counter
-from pathlib import Path
-
 import pytest
 
+from tests.conftest import ALL_MODEL_DIRS
 from tools.catalogs.data_source import DATAFACTORY, NONE, SYNTHETIC, UNKNOWN, VIEWSER, data_source_of
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
 
 @pytest.mark.parametrize(
     "source,expected",
@@ -30,8 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
         ("from viewser import Queryset\nfrom datafactory_query.defaults import DEFAULT_REMOTE\n", UNKNOWN),
         ("import os\ndef generate():\n    return {'source': 'somewhere_else'}\n", UNKNOWN),
         ("from .viewser import x\n", UNKNOWN),  # relative import is not the client
+        # a stray dict elsewhere in the file is not generate()'s answer
+        ("from datafactory_query.defaults import DEFAULT_REMOTE\nNOTE = {'source': 'synthetic'}\ndef generate():\n    return {'source': 'views-datafactory'}\n", DATAFACTORY),
     ],
-    ids=["viewser-from", "viewser-import", "datafactory", "synthetic", "both-clients", "neither", "relative"],
+    ids=["viewser-from", "viewser-import", "datafactory", "synthetic", "both-clients", "neither", "relative", "stray-dict"],
 )
 def test_each_branch_on_a_synthetic_file(tmp_path, source, expected):
     q = tmp_path / "config_queryset.py"
@@ -44,11 +42,7 @@ def test_no_file_is_none(tmp_path):
 
 
 def _fleet():
-    return {
-        d.name: data_source_of(d / "configs" / "config_queryset.py")
-        for d in sorted((REPO_ROOT / "models").iterdir())
-        if d.is_dir() and (d / "main.py").exists() and d.name != "fake_model"
-    }
+    return {d.name: data_source_of(d / "configs" / "config_queryset.py") for d in ALL_MODEL_DIRS}
 
 
 def test_no_model_is_unknown():

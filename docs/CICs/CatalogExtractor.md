@@ -100,6 +100,7 @@ model_dict = extract_models("models/counting_stars")  # TypeError
 - `tests/test_catalogs.py::TestNoExecUsage` — validates this function uses importlib, not exec()
 - `tests/test_catalogs.py::TestReplaceTableInSection` — validates downstream markdown generation (requires views_pipeline_core)
 - `tests/test_catalogs.py::TestGenerateModelTable` — validates model table generation with correct headers and formatting
+- `tests/test_data_source_catalog.py` — every branch of the `data_source` classifier on synthetic files; no model in the fleet is `unknown`; the fleet split pinned (77 viewser / 34 datafactory / 6 synthetic, changed on purpose when a model migrates)
 - `tests/test_catalogs.py::TestGenerateEnsembleTable` — validates ensemble table has "Constituent Models" column and shows aggregation
 - `tests/test_tooling_scripts.py::TestGenerateModelTable` — characterization tests for model table generator
 - `tests/test_tooling_scripts.py::TestGenerateEnsembleTable` — characterization tests for ensemble table generator

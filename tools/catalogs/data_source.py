@@ -42,15 +42,23 @@ def _imported_roots(tree: ast.AST) -> set[str]:
 
 
 def _declares_synthetic(tree: ast.AST) -> bool:
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Dict):
+    """``generate()`` returns a dict literal carrying ``"source": "synthetic"``.
+
+    Only ``generate``'s own ``return`` statements are read — not every dict in the file — so
+    an unrelated constant elsewhere cannot make a datafactory model look ambiguous.
+    """
+    for fn in ast.walk(tree):
+        if not (isinstance(fn, ast.FunctionDef) and fn.name == "generate"):
             continue
-        for key, value in zip(node.keys, node.values):
-            if (
-                isinstance(key, ast.Constant) and key.value == "source"
-                and isinstance(value, ast.Constant) and value.value == SYNTHETIC
-            ):
-                return True
+        for node in ast.walk(fn):
+            if not (isinstance(node, ast.Return) and isinstance(node.value, ast.Dict)):
+                continue
+            for key, value in zip(node.value.keys, node.value.values):
+                if (
+                    isinstance(key, ast.Constant) and key.value == "source"
+                    and isinstance(value, ast.Constant) and value.value == SYNTHETIC
+                ):
+                    return True
     return False
 
 
