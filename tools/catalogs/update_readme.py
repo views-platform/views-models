@@ -162,7 +162,16 @@ for subfolder in target_dir.iterdir():
             name = "N/A"
             description = "N/A"
         else:
-            queryset_info = mpm.get_queryset()
+            try:
+                queryset_info = mpm.get_queryset()
+            except ImportError as exc:
+                # pipeline-core >= 3.3.0 raises, with an install hint, when config_queryset.py
+                # imports a data client that is not installed (their #514); 3.2.0 returned
+                # None. The catalogs job installs no client, so a datafactory model lands here
+                # and gets the same "No description provided" it always has (#478). Rendering
+                # its features for real means installing views-datafactory in the job — #474.
+                print(f"[update_readme] {subfolder.name}: queryset not loadable here — {exc}")
+                queryset_info = None
             if queryset_info:
                 if isinstance(queryset_info, dict):
                     features = queryset_info.get("features", [])

@@ -19,21 +19,23 @@ jobs:
       # unpinned, so CI silently tested against whatever PyPI served that day: no past green
       # run recorded which version it had actually proved.
       #
-      # 3.2.0 (published 2026-09-08) is the FIRST release on which a config_maturity.py
-      # source runs: the loader prefers it, `deployment_status` is no longer a mandatory
-      # key, and the five read sites accept either name (pipeline-core #495, #497). Every
-      # 3.x before it crashes a migrated config at the sniffer -- which is why PR #444 broke
-      # 14 models while this suite, then on 3.0.1, stayed green. The ensembles declare
-      # >=3.0.0,<4.0.0, so 3.2.0 is inside what production installs.
+      # 3.3.0 (published 2026-09-19). 3.2.0 was the first release a config_maturity.py source
+      # runs on (pipeline-core #495, #497; why PR #444 broke 14 models while this suite, then
+      # on 3.0.1, stayed green). 3.3.0 adds: the queryset loader raises with an install hint
+      # instead of returning None (their #514 -- tools/catalogs/update_readme.py isolates that
+      # call, #478); ADR-064 refuses a DataFrame prediction carrying an entity absent from the
+      # input's last month; wandb <1.0 and views-frames <3, so this venv resolves wandb 0.30
+      # and views-frames 2.0.0 -- the same resolution the ensembles get, since they pin
+      # neither. The ensembles declare >=3.0.0,<4.0.0, so 3.3.0 is inside what production
+      # installs.
       #
       # Bump this deliberately, together with the ensembles' requirements.txt floors, never
       # on its own -- CI testing a version production does not install is the skew this pin
-      # removes. Named trigger for the NEXT bump: from 3.3.0, ModelPathManager.get_queryset
-      # raises on a failed config_queryset.py import instead of returning None, and
-      # tools/catalogs/update_readme.py calls it for every model with no isolation -- the
-      # catalogs job will abort on the first model whose data client is not installed here.
+      # removes. Named trigger for the NEXT bump: at 4.0 viewser becomes an optional extra
+      # (their ADR-063); anything here that reaches viewser through pipeline-core without
+      # installing the extra stops importing.
       - name: Install dependencies
-        run: pip install "views_pipeline_core==3.2.0" pytest packaging
+        run: pip install "views_pipeline_core==3.3.0" pytest packaging
 
       - name: Run tests
         run: pytest
