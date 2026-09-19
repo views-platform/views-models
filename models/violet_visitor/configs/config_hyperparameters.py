@@ -83,7 +83,9 @@ def get_hp_config():
         'ss_warmup_lessons': 15,
         'ss_epsilon_max': 0.0,
 
-        'total_lessons': 300,
+        # #499: 40 for the first integration pass at global land — a run-time budget, not a
+        # model choice. The production value is 300 (#463); restore it once the pass has run.
+        'total_lessons': 40,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,

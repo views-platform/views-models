@@ -77,7 +77,9 @@ def get_hp_config():
     'loss_class_alpha': 0.75,
     'loss_class_gamma': 1.5,
     'onset_bias_init': -7.0,
-    'total_lessons': 300,
+    # #499: 40 for the first integration pass at global land — a run-time budget, not a
+    # model choice. The production value is 300 (#463); restore it once the pass has run.
+    'total_lessons': 40,
     'max_ratio': 0.95,
     'min_ratio': 0.05,
     'slope_ratio': 0.75,
