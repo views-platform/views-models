@@ -10,8 +10,8 @@ This folder contains code for the Pink Ponyclub model, an ensemble machine learn
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 
@@ -24,9 +24,10 @@ Pink Ponyclub
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
+│   ├── config_modelset.py
 │   ├── config_partitions.py
 ├── data
 │   ├── generated

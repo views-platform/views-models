@@ -8,20 +8,6 @@ def get_meta_config():
     """
     meta_config = {
         "name": "skinny_love",
-        "models": [
-            "bad_blood",
-            "blank_space",
-            "caring_fish",
-            "chunky_cat",
-            "dark_paradise",
-            "invisible_string",
-            "lavender_haze",
-            "midnight_rain",
-            "old_money",
-            "orange_pasta",
-            "wildest_dream",
-            "yellow_pikachu",
-        ],
         "regression_targets": ["lr_ged_sb"],
         "level": "pgm",
         "aggregation": "mean",

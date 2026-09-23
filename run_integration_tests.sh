@@ -14,7 +14,7 @@
 #   bash run_integration_tests.sh --level cm                              # only CM models
 #   bash run_integration_tests.sh --level pgm                             # only PGM models
 #   bash run_integration_tests.sh --library baseline                        # one library
-#   bash run_integration_tests.sh --exclude "purple_alien novel_heuristics"  # skip models
+#   bash run_integration_tests.sh --exclude "novel_heuristics"               # skip models
 #   bash run_integration_tests.sh --env my_conda_env                     # different env
 #   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
 #
@@ -29,7 +29,7 @@ PARTITIONS="calibration validation"
 FILTER_MODELS=""
 FILTER_LEVEL=""
 FILTER_LIBRARY=""
-EXCLUDE_MODELS="purple_alien"
+EXCLUDE_MODELS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_DIR="$SCRIPT_DIR/models"
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
@@ -78,7 +78,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --models \"m1 m2\"            Run only these models"
             echo "  --level cm|pgm              Run only models at this level of analysis"
             echo "  --library NAME              Run only models using this library (baseline|stepshifter|r2darts2|hydranet)"
-            echo "  --exclude \"m1 m2\"           Skip these models (default: purple_alien)"
+            echo "  --exclude \"m1 m2\"           Skip these models (default: none)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
             exit 0
@@ -186,63 +186,72 @@ if [ -n "$FILTER_LIBRARY" ]; then
     MODELS=("${FILTERED[@]}")
 fi
 
-# ── Classify by deployment_status (skip deprecated models) ──────────
+# ── Classify by maturity (skip retired models) ──────────────────────
 #
-# Deprecated models' main.py is expected to fail; running them wastes time
-# and clutters the FAIL column. Classify up front and render them as
-# DEPRECATED in the summary instead of running them. Uses the same
-# stderr-capture + fail-fast pattern as the --level filter so a broken
-# config_deployment.py surfaces before any training starts.
+# Retired models' main.py is expected to fail — pipeline-core >= 3.2.0 refuses to run
+# them by design. Running them wastes time and clutters the FAIL column. Classify up
+# front and render them as RETIRED in the summary instead. Uses the same stderr-capture
+# + fail-fast pattern as the --level filter so a broken maturity file surfaces before
+# any training starts.
+#
+# ADR-017 Phase 2: a source carries config_maturity.py (maturity: candidate | graduate |
+# retired) OR the legacy config_deployment.py (deployment_status), never both. The new
+# file wins, as in pipeline-core's loader; the legacy `deprecated` means `retired`.
 
-declare -A DEPRECATED_SET
+declare -A RETIRED_SET
 CLASSIFICATION_ERRORS=()
 for model in "${MODELS[@]}"; do
     cls_stderr_file=$(mktemp)
-    deployment_status=$(python3 -c "
-import importlib.util
-spec = importlib.util.spec_from_file_location('d', '$MODELS_DIR/$model/configs/config_deployment.py')
+    maturity=$(python3 -c "
+import importlib.util, os
+configs = '$MODELS_DIR/$model/configs'
+new, legacy = os.path.join(configs, 'config_maturity.py'), os.path.join(configs, 'config_deployment.py')
+if os.path.exists(new):
+    path, getter, key = new, 'get_maturity_config', 'maturity'
+else:
+    path, getter, key = legacy, 'get_deployment_config', 'deployment_status'
+spec = importlib.util.spec_from_file_location('m', path)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-print(mod.get_deployment_config().get('deployment_status', ''))
+value = getattr(mod, getter)().get(key, '')
+print('retired' if value in ('retired', 'deprecated') else value)
 " 2>"$cls_stderr_file")
     cls_exit=$?
     cls_stderr=$(cat "$cls_stderr_file")
     rm -f "$cls_stderr_file"
 
     if [ "$cls_exit" -ne 0 ]; then
-        echo -e "${RED}ERROR${NC} classifying ${BOLD}${model}${NC}: config_deployment.py failed to load" >&2
+        echo -e "${RED}ERROR${NC} classifying ${BOLD}${model}${NC}: its maturity file failed to load" >&2
         last_err_line=$(echo "$cls_stderr" | grep -v '^$' | tail -1)
         [ -n "$last_err_line" ] && echo "  $last_err_line" >&2
         CLASSIFICATION_ERRORS+=("$model")
         continue
     fi
 
-    if [ "$deployment_status" = "deprecated" ]; then
-        DEPRECATED_SET[$model]=1
+    if [ "$maturity" = "retired" ]; then
+        RETIRED_SET[$model]=1
     fi
 done
 
 if [ "${#CLASSIFICATION_ERRORS[@]}" -gt 0 ]; then
     echo "" >&2
-    echo -e "${RED}${BOLD}Aborting:${NC} ${#CLASSIFICATION_ERRORS[@]} model(s) could not be classified by deployment_status:" >&2
+    echo -e "${RED}${BOLD}Aborting:${NC} ${#CLASSIFICATION_ERRORS[@]} model(s) could not be classified by maturity:" >&2
     for m in "${CLASSIFICATION_ERRORS[@]}"; do
         echo "  - $m" >&2
     done
-    echo "Fix the broken config_deployment.py file(s) and re-run." >&2
+    echo "Fix the broken config_maturity.py / config_deployment.py file(s) and re-run." >&2
     exit 2
 fi
 
-# DEPRECATED_COUNT=${#DEPRECATED_SET[@]}
-
-if declare -p DEPRECATED_SET >/dev/null 2>&1; then
-    DEPRECATED_COUNT=$(printf '%s\n' "${!DEPRECATED_SET[@]}" | sed '/^$/d' | wc -l)
+if declare -p RETIRED_SET >/dev/null 2>&1; then
+    RETIRED_COUNT=$(printf '%s\n' "${!RETIRED_SET[@]}" | sed '/^$/d' | wc -l)
 else
-    DEPRECATED_COUNT=0
+    RETIRED_COUNT=0
 fi
 
 
 TOTAL_MODELS=${#MODELS[@]}
-RUNNABLE_COUNT=$(( TOTAL_MODELS - DEPRECATED_COUNT ))
+RUNNABLE_COUNT=$(( TOTAL_MODELS - RETIRED_COUNT ))
 if [ "$TOTAL_MODELS" -eq 0 ]; then
     echo "No models found to test."
     exit 1
@@ -261,10 +270,10 @@ echo -e "${BOLD}  views-models integration test${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
 echo "  Conda env:  $CONDA_ENV"
 echo "  Models:     $TOTAL_MODELS"
-[ "$DEPRECATED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Deprecated:${NC} $DEPRECATED_COUNT (will be skipped)"
+[ "$RETIRED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Retired:${NC} $RETIRED_COUNT (will be skipped)"
 [ -n "$FILTER_LEVEL" ] && echo "  Level:      $FILTER_LEVEL"
 [ -n "$FILTER_LIBRARY" ] && echo "  Library:    $FILTER_LIBRARY"
-echo "  Excluded:   $EXCLUDE_MODELS"
+echo "  Excluded:   ${EXCLUDE_MODELS:-none}"
 echo "  Partitions: $PARTITIONS"
 echo "  Timeout:    ${TIMEOUT}s per run"
 echo "  Logs:       $LOG_DIR"
@@ -283,10 +292,10 @@ TOTAL_RUNS=$(( RUNNABLE_COUNT * $(echo $PARTITIONS | wc -w) ))
 
 for model in "${MODELS[@]}"; do
     [ "$INTERRUPTED" -eq 1 ] && break
-    if [[ -v "DEPRECATED_SET[$model]" ]]; then
-        echo -e "${YELLOW}SKIP${NC} ${BOLD}${model}${NC} — deployment_status=deprecated"
+    if [[ -v "RETIRED_SET[$model]" ]]; then
+        echo -e "${YELLOW}SKIP${NC} ${BOLD}${model}${NC} — maturity=retired"
         for partition in $PARTITIONS; do
-            RESULTS["${model}__${partition}"]="DEPRECATED"
+            RESULTS["${model}__${partition}"]="RETIRED"
         done
         continue
     fi
@@ -355,7 +364,7 @@ for model in "${MODELS[@]}"; do
         result="${RESULTS[$result_key]:-SKIPPED}"
         if [ "$result" = "PASS" ]; then
             printf "${GREEN}%-15s${NC}" "$result"
-        elif [ "$result" = "DEPRECATED" ] || [ "$result" = "ABORTED" ] || [ "$result" = "SKIPPED" ]; then
+        elif [ "$result" = "RETIRED" ] || [ "$result" = "ABORTED" ] || [ "$result" = "SKIPPED" ]; then
             printf "${YELLOW}%-15s${NC}" "$result"
         else
             printf "${RED}%-15s${NC}" "$result"
@@ -369,7 +378,7 @@ echo -e "  ${GREEN}Passed:${NC}     $PASS_COUNT"
 echo -e "  ${RED}Failed:${NC}     $FAIL_COUNT"
 [ "$TIMEOUT_COUNT" -gt 0 ] && echo -e "  ${RED}Timeout:${NC}    $TIMEOUT_COUNT"
 [ "$ABORTED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Aborted:${NC}    $ABORTED_COUNT (Ctrl-C)"
-[ "$DEPRECATED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Deprecated:${NC} $DEPRECATED_COUNT (skipped by design)"
+[ "$RETIRED_COUNT" -gt 0 ] && echo -e "  ${YELLOW}Retired:${NC} $RETIRED_COUNT (skipped by design)"
 echo "  Total:      $TOTAL_RUNS"
 if [ "$INTERRUPTED" -eq 1 ]; then
     echo ""
@@ -381,7 +390,7 @@ echo ""
 
 {
     echo "Integration Test Summary — $TIMESTAMP"
-    echo "Env: $CONDA_ENV | Models: $TOTAL_MODELS | Excluded: $EXCLUDE_MODELS"
+    echo "Env: $CONDA_ENV | Models: $TOTAL_MODELS | Excluded: ${EXCLUDE_MODELS:-none}"
     echo "Partitions: $PARTITIONS | Timeout: ${TIMEOUT}s"
     echo ""
     printf "%-30s" "Model"

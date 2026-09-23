@@ -1,6 +1,6 @@
 # ADR-001: Ontology of the Repository
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-09-17 (config file set: `config_maturity.py` replaces `config_deployment.py`, ADR-017 Phase 2, #449)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -26,20 +26,20 @@ The repository recognizes the following ontological categories:
 ### Configuration Entities
 | Category | Location | Description |
 |----------|----------|-------------|
-| **Model Configs** | `models/*/configs/` | Six config files per model: `config_meta.py`, `config_deployment.py`, `config_hyperparameters.py`, `config_sweep.py`, `config_queryset.py`, `config_partitions.py` |
+| **Model Configs** | `models/*/configs/` | Six config files per model: `config_meta.py`, `config_maturity.py` (ADR-017; the legacy `config_deployment.py` on sources whose engine is still on pipeline-core 2.x), `config_hyperparameters.py`, `config_sweep.py`, `config_queryset.py`, `config_partitions.py` |
 | **Ensemble Configs** | `ensembles/*/configs/` | Subset of config files per ensemble |
 
 ### Infrastructure Entities
 | Category | Location | Description |
 |----------|----------|-------------|
 | **CI/CD** | `.github/workflows/` | Automated catalog generation |
-| **APIs** | `apis/` | External API integrations (e.g., UN FAO) |
+| **APIs** | `apis/*/` | **API-service launchers** (`un_fao`, `seldon_api`). Like a model, each is a thin `main.py` + configs — but it `pip install`s and runs an external `views-*` API package (`un_fao` → `views-faoapi`; `seldon_api` → `views-seldon`). The service code **and the secrets** live in that external package, not here. See `apis/README.md`. |
 
 ### Data Processing Entities
 | Category | Location | Description |
 |----------|----------|-------------|
 | **Extractors** | `extractors/` | Data extraction modules (e.g., UCDP) |
-| **Postprocessors** | `postprocessors/` | Output transformation modules |
+| **Postprocessors** | `postprocessors/*/` | **Delivery producers** (`un_fao`). A thin `main.py` + configs that delegate to an external manager (`views_postprocessing`) to fetch, transform, and deliver outputs to a partner (`un_fao` → UN FAO, via Appwrite). Run through `PostprocessorPathManager` (same directory scaffold as models). See `postprocessors/un_fao/README.md`. |
 
 ### Tooling Entities
 | Category | Location | Description |
