@@ -42,6 +42,8 @@ import re
 
 import pytest
 
+from tools.collapse.collapse_predictions import DEFAULT_AGGREGATE_METHOD
+
 from tests.conftest import get_regression_targets
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -295,6 +297,31 @@ class TestGridAndTargets:
         for name, hp in hps.items():
             got = {k: hp[k] for k in ("row_offset", "col_offset", "height", "width")}
             assert got == ref, f"{name} grid {got} != {ref_name} {ref}"
+
+    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
+    def test_collapse_declaration_matches_the_converter(self, model_name):
+        """The roster declares how its draws collapse; `tools.collapse` must obey that, not guess.
+
+        The pipeline itself would apply this at `inference_orchestrator.py:179`
+        (views-hydranet `vhy_021` / `vhy_039` stage 5), but stage 5 is gated on
+        `evaluation_mode == "point"` and all eight run `stochastic` — so the draws reach
+        disk uncollapsed and views-models collapses them instead (ADR-023, #505).
+
+        Two places therefore state one fact. This test is what stops them disagreeing: if a
+        model moves to `median`, the converter must be invoked with `--aggregate-method
+        median`, and this failure is where you find that out.
+        """
+        hp = _load_hp(model_name)
+        assert hp["evaluation_mode"] == "stochastic", (
+            f"{model_name}: evaluation_mode={hp['evaluation_mode']!r} — the pipeline now "
+            "collapses in-run, so tools.collapse would be averaging an already-point volume"
+        )
+        assert hp["aggregate_method"] == DEFAULT_AGGREGATE_METHOD, (
+            f"{model_name}: declares aggregate_method={hp['aggregate_method']!r} but "
+            f"tools.collapse defaults to {DEFAULT_AGGREGATE_METHOD!r} — pass "
+            f"--aggregate-method {hp['aggregate_method']} or the delivered parquet will "
+            "not be the estimator the model declares"
+        )
 
     @pytest.mark.parametrize("model_name", ROSTER_MODELS)
     def test_regression_targets(self, model_name):

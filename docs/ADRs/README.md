@@ -52,6 +52,7 @@ These ADRs define system philosophy and governance:
 - **[ADR-020](020_errors_must_descend.md)** — Errors must descend, and must say where the stairs end
 - **[ADR-021](021_coverage_is_declared_once.md)** — Coverage is declared once, in the delivery
 - **[ADR-022](022_the_launcher_body_has_one_home.md)** — The delivery-protocol body has one home; a partner launcher is a wrapper
+- **[ADR-023](023_collapsing_posterior_draws.md)** — Posterior draws collapse by the method the model declares, in count space, outside the run
 
 ### Why one of these carries a `vmo_` prefix
 
@@ -62,6 +63,11 @@ These ADRs define system philosophy and governance:
 | views-models | `vmo_` | *Forecast Sources, Composition, and Delivery* |
 | views-postprocessing | `vpp_` | *Facts shared with a repository we cannot read* |
 | views-crafdapi | `vcr_` | *Reference Data in Repository* |
+
+**A second live collision, on 021** (ADR-023, 2026-09-28): this repo's *Coverage is declared
+once* and views-hydranet's *Volume Dimension Reduction* are both "ADR-021", and ADR-023 has
+to cite both in the same paragraphs. It writes `vmo_021` and `vhy_021`; views-hydranet's
+sequence ADR is `vhy_039`.
 
 A bare "ADR-017" in a cross-repo sentence resolves to the **wrong document** for a reader
 sitting in a repo that has its own 017 — and that is not hypothetical: views-crafdapi's
