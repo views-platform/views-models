@@ -19,9 +19,9 @@
 #   bash run_integration_tests.sh --timeout 3600                         # 60-min timeout
 #
 # The 1800 s default was sized when the eight HydraNets trained 40 lessons. They train 300
-# again since #507 (the production value, #463). One lesson is ~84 s at global land, so a
-# HydraNet now needs ~7 h and WILL report TIMEOUT on the default. That is the budget, not
-# a regression:
+# again since #507 (the production value, #463). Measured n=3 on rented hardware, a full run
+# is 202-272 min end to end — 300 lessons plus the 13-origin evaluation, ~4 h — and WILL
+# report TIMEOUT on the 1800 s default. That is the budget, not a regression:
 #
 #   bash run_integration_tests.sh --library hydranet --timeout 30000
 #
@@ -88,7 +88,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --exclude \"m1 m2\"           Skip these models (default: none)"
             echo "  --partitions \"cal val\"      Partitions to test (default: calibration validation)"
             echo "  --timeout SECONDS           Timeout per run (default: 1800)"
-            echo "                              NB: a HydraNet trains 300 lessons (~7 h) since #507 —"
+            echo "                              NB: a HydraNet trains 300 lessons (~4 h) since #507 —"
             echo "                              pass --timeout 30000 for --library hydranet, or it TIMEOUTs"
             exit 0
             ;;

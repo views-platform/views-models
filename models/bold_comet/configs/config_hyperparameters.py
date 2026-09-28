@@ -86,9 +86,12 @@ def get_hp_config():
     # A run-time budget, not a model choice. 300 is production (#463). It was dropped to
     # 40 for the #499 integration pass at global land (2026-09-19) and restored here for
     # the #505 calibration run — this is the PR that #499 said was owed.
-    # Measured on a rented RTX PRO 4500 SE: one lesson is 84 s at global land, so 300
-    # lessons is ~7 h of training per model. config_sweep.py keeps its own, smaller
-    # budget on purpose — a sweep explores, it does not produce a deliverable.
+    # Measured on rented RTX PRO 4500 SE class hardware, n=3: a full run is 202-272 min
+    # end to end — 300 lessons plus the 13-origin evaluation — i.e. ~4 h, or 40-54 s per
+    # lesson. An earlier version of this comment said 84 s and ~7 h; that was taken from
+    # the FIRST lesson of a cold two-lesson smoke run, which carries warm-up and is not
+    # representative of the other 299. config_sweep.py keeps its own, smaller budget on
+    # purpose — a sweep explores, it does not produce a deliverable.
     'total_lessons': 300,
     'max_ratio': 0.95,
     'min_ratio': 0.05,

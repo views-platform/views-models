@@ -13,9 +13,14 @@
 The `1800` second default was sized when the eight HydraNet models trained **40 lessons** — a
 run-time budget set by #501 so the first global-land integration pass would be cheap.
 
-Since **#507** they train **300 lessons** again, the production value (#463). One lesson is
-**~84 seconds** at global land (measured on a rented RTX PRO 4500 SE, 2026-09-28), so a single
-HydraNet needs roughly **7 hours of training plus ~1 hour of evaluation**.
+Since **#507** they train **300 lessons** again, the production value (#463). Measured n=3 on
+rented RTX PRO 4500 SE class hardware (2026-09-28), a full run takes **202-272 minutes end to
+end** — 300 lessons plus the 13-origin evaluation, so roughly **4 hours**, or 40-54 s per
+lesson.
+
+*An earlier version of this section said ~84 s per lesson and ~7 h per model. That figure came
+from the first lesson of a cold two-lesson smoke run and was not representative. The
+recommended timeout below was over-provisioned against it and remains safe.*
 
 On the default they will therefore report `TIMEOUT`, for all eight, every time. **That is the
 training budget, not a regression**, and it is recorded here because a wall of `TIMEOUT` rows is
