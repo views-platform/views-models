@@ -28,9 +28,12 @@
    *Why: keys are injected at container start. Adding one to a running pod does nothing, and
    restarting does not re-inject it — the environment was fixed at creation.*
 
-4. **Smoke-test new hardware at throwaway length before committing a budget.**
-   *Why: this is the single practice that saved the first campaign. Forty minutes and under a
-   dollar caught a machine that would have consumed the entire budget.*
+4. **Smoke-test new hardware at throwaway length, and judge it on EVALUATION, not training.**
+   *Why: training and evaluation are bound by different resources. Training survives on few cores;
+   posterior sampling does not. A machine that trains at 1.4x baseline can then take 2 h 16 min
+   for a single origin — 29 hours for thirteen. That happened on 2026-09-28, on a pod certified as
+   healthy from its training progress alone. Forty minutes and under a dollar is what this costs;
+   the alternative cost most of a night.*
 
 5. **Publish credentials never go on rented hardware.**
    *Why: a read credential and a write credential are different decisions. The datafactory key
@@ -92,8 +95,18 @@
 Machines that satisfied it in practice: `RTX PRO 4500 SE`, `RTX PRO 4500`, `RTX A6000`,
 `RTX 4090`, `RTX 6000 Ada`, `RTX 5090`, `L40`, `L40S`.
 
-**Do not take `PRO 6000 MIG 24GB`** (31 GB RAM, 6.8 effective CPUs). It is the cheapest listing
-and it was 25× slower — 0.11 posterior-sampling steps/s against 2.8 on a machine that fits.
+**The vCPU floor is the one that bites, and RAM does not compensate for it.** Measured
+2026-09-28 on three machines:
+
+| RAM | effective CPUs | training | evaluation |
+|---|---|---|---|
+| 31 GB | 6.8 | — | 0.11 steps/s |
+| **57 GB** | **6.8** | 1.4x baseline | **0.03 steps/s** — 2 h 16 min for ONE origin |
+| 87 GB | 13.6 | baseline | 2.8 steps/s |
+
+Doubling the RAM did not rescue 6.8 cores. **Do not take `PRO 6000 MIG 24GB`** (31 GB, 6.8 cores)
+or anything else below the floor, however cheap — a machine at 6.8 cores needs ~29 hours for the
+13 origins, so it is the most expensive listing on the page, not the cheapest.
 
 Availability churns on a scale of seconds; listings vanish mid-form. Hold to the *rule* rather
 than a favourite model, or the hunt becomes the bottleneck.
@@ -236,7 +249,10 @@ export WANDB_MODE=offline WANDB_SILENT=true
 
 Watch the posterior-sampling rate during evaluation.
 
-| observed rate | verdict |
+Watch the rate reported by **Drawing Posterior Samples**, during evaluation. Training progress
+(`month/s`) is **not** the test and will look fine on a machine that cannot evaluate.
+
+| observed rate, evaluation | verdict |
 |---|---|
 | **≥ 2 steps/s** | healthy — proceed |
 | **< 0.5 steps/s sustained** | terminate the pod and take another |
@@ -357,7 +373,7 @@ it. A stopped pod still bills for its volume, at double the running rate.
 | `.netrc` missing or wrong login | Refuses in preflight, seconds in | Step 2.3; check the login is *yours* |
 | `total_lessons` still a throwaway value | Refuses in preflight | Restore to 300, or re-clone |
 | `REGION` is not `"land"` | Refuses in preflight | Wrong branch or an edited config |
-| Sampling collapses to ~0.1 steps/s | Runs, produces correct output, takes ~8× as long | Terminate; the machine is undersized (Ground rule 1) |
+| Sampling collapses below ~0.5 steps/s | Runs and would produce correct output, but 13 origins take **20-30 hours** instead of one | Terminate and restart the model elsewhere. Training progress looking normal does not contradict this — the phases have different bottlenecks |
 | Pod dies mid-run | Everything on `/workspace` survives; the run does not | Restart the model; the volume persists |
 | Fewer than 13 parquets | `STATUS` is `FAILED:collapse` | `run.log` names the origin and the reason |
 | SSH refused after a restart | Port changed | Re-read the Connect tab |
