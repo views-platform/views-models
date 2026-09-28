@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-28  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 160 (151 concerns + 9 disagreements)  
-**Concerns:** Open 72 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 48 | T3 64 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 161 (152 concerns + 9 disagreements)  
+**Concerns:** Open 72 | Mitigated 23 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 48 | T3 65 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1898,6 +1898,17 @@
 | **Status** | Open |
 | **Location** | `tools/collapse/collapse_predictions.py` (`_load_target`, `convert_model`); the producer is `views-hydranet@32bc509` `views_hydranet/utils/prediction_frame_assembler.py` and the pipeline-core writer |
 | **Notes** | views-hydranet writes the layout, pipeline-core reads it back, and views-models now parses it too — but no ADR or schema in any of the three repos states it, so a rename in the producing repo is not visibly a breaking change to anyone. **The mitigation is loudness, not prevention:** every structural assumption in the converter raises `CollapseError` naming the offending path, and `tests/test_collapse_on_real_predictions.py` runs over whatever real output the machine holds, so a layout change fails on the operator's next run rather than producing a short or mislabelled parquet. Tier 3 and not 2 because the failure is immediate and legible, and the converter is invoked by hand under supervision rather than inside an automated delivery. It becomes Tier 2 the moment anything schedules it. The right long-term fix is for the layout to be declared once in views-hydranet and imported, not re-described — the same shape as **C-133** / `vmo_021` (a derivation, not three readers agreeing by luck). Cross-refs: **C-47** (why the pipeline's own parquet is off and this converter exists), **#505**, ADR-023. |
+
+### C-153 — the datafactory credential crosses the public internet readable, and we have now put it on hardware we do not own
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **Running any model on rented, third-party, or otherwise untrusted hardware** — a cloud GPU, a collaborator's machine, a CI runner outside our control. Also: leaving a stopped pod, a snapshot, or a detached volume in existence after a campaign ends. |
+| **Source** | First RunPod deployment, 2026-09-28 (#499, #508); raised by the views-datafactory session reviewing `reports/postmortem_runpod_first_deployment_2026-09.md` |
+| **Status** | Accepted |
+| **Location** | `~/.netrc` on any rented machine; `datafactory_query.defaults.RemoteConfig(server="…", scheme="http")`; views-datafactory register **C-318** is the same fact from the producing side |
+| **Notes** | The datafactory speaks **plain HTTP**. HTTP Basic sends the credential base64-encoded on every chunk request — base64 is encoding, not encryption — so the password is readable by anything on the path. views-datafactory accepted this (**their C-318**) when the audience was a trusted circle on trusted networks, and on fimbulthul that was reasonable. **We changed the audience without changing the mechanism:** on 2026-09-28 the credential was placed on five rented machines in datacentres we do not control, and the operator chose knowingly to use his personal login rather than provision a throwaway. That choice is recorded, not second-guessed — the work was owed and the server was gone. Two properties make the residual risk outlive the run: the credential has **no expiry** and **no per-host registration**, so it stays valid until a person rotates it by hand, and it authenticates from anywhere. A pod image, a snapshot or a volume that outlives a campaign therefore carries a live, permanent credential. **Tier 3 and not 2** because the exposure is a real but unquantified interception risk rather than a demonstrated compromise, and because the mitigations are cheap and known. **Mitigations, in order of preference:** a throwaway login for the campaign, retired after (about three commands for whoever administers the data server); TLS on the data server, which removes the class; or, failing both, deleting rented volumes and images at campaign end and rotating afterwards. `docs/runpod_run_guide.md` states the throwaway option and tells the operator it is cheaper than it looks. Cross-refs: **C-151** (the other thing that bites a fresh datafactory environment), views-datafactory **C-318**, views-models **#509** (the client floor still permits a version that leaked the credential across redirects). |
 
 ---
 
