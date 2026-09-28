@@ -269,3 +269,53 @@ def test_mutation_unknown_aggregate_method_is_refused(origin):
     """A typo must not fall back to the mean and ship an estimator nobody chose."""
     with pytest.raises(CollapseError, match="unknown aggregate_method"):
         collapse_origin(origin, aggregate_method="geometric_mean")
+
+
+def test_mutation_log_space_in_ONE_target_only_is_refused(tmp_path):
+    """The failure the flattened check could not see.
+
+    `test_mutation_log_space_values_are_refused` puts all three targets in log1p space, so a
+    guard on the maximum of the three flattened together passes it just as well as a per-target
+    one — it cannot tell the two designs apart. An upstream scaler mismatch does not have to hit
+    all three targets. When it hits one, a healthy sibling carries the combined maximum over the
+    threshold and the corrupted target ships as log1p(count).
+    """
+    model = tmp_path / "m"
+    origin = model / "data" / "generated" / "predictions_calibration_20260101_000000" / "origin_0"
+    counts = np.full((ROWS, DRAWS), 900.0)       # honest counts
+    logged = np.full((ROWS, DRAWS), 6.8)         # log1p(900) — the corrupted one
+    _write_target(origin, "lr_sb_best", counts)
+    _write_target(origin, "lr_ns_best", logged)
+    _write_target(origin, "lr_os_best", counts)
+    with pytest.raises(CollapseError, match="pred_lr_ns_best"):
+        convert_model(model, out_dir=tmp_path / "out")
+
+
+def test_the_scale_guard_names_the_offending_target(tmp_path):
+    """Refusing is only useful if it says which target to go and look at."""
+    model = tmp_path / "m"
+    origin = model / "data" / "generated" / "predictions_calibration_20260101_000000" / "origin_0"
+    for target in TARGETS:
+        _write_target(origin, target, np.full((ROWS, DRAWS), 900.0))
+    _write_target(origin, "lr_os_best", np.full((ROWS, DRAWS), 2.0))
+    with pytest.raises(CollapseError) as exc:
+        convert_model(model, out_dir=tmp_path / "out")
+    assert "pred_lr_os_best" in str(exc.value)
+    assert "log1p" in str(exc.value)
+
+
+def test_mutation_duplicate_identifier_rows_are_refused(origin):
+    """All three targets agreeing on a duplicated key is still a duplicate.
+
+    Cross-target row alignment compares the targets to each other, so it is blind to a
+    duplicate they share. `ensemble-updater` joins on (priogrid_id, month_id); a repeated pair
+    silently wins or loses that join.
+    """
+    for target in TARGETS:
+        d = origin / target
+        with np.load(d / "identifiers.npz") as ids:
+            month, unit = ids["time"].copy(), ids["unit"].copy()
+        month[5], unit[5] = month[4], unit[4]      # row 5 now repeats row 4
+        np.savez(d / "identifiers.npz", time=month, unit=unit)
+    with pytest.raises(CollapseError, match="duplicate"):
+        collapse_origin(origin)

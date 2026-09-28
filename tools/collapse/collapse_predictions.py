@@ -14,15 +14,22 @@
 
 - **No scale conversion.** The draws are already counts; hydranet applies `expm1` through its
   scaler registry before the frame is saved (views-models#505). Anything that looks like log
-  space here is a bug upstream, not something to fix by transforming — so `--max-plausible`
-  refuses a suspiciously small maximum instead of silently "correcting" it.
-- **No gate arithmetic.** The draws are composed already (ADR-069 `compose_samples`).
+  space here is a bug upstream, not something to fix by transforming — so
+  `--min-plausible-max` refuses a suspiciously small per-target maximum instead of
+  silently "correcting" it.
+- **No gate arithmetic.** The draws are composed already (views-hydranet `vhy_069`,
+  `compose_samples`).
 - **No reindexing, no fill, no sort.** Rows are emitted in the order the model wrote them.
   Reordering would hide a misalignment between targets rather than surface it.
 
 ## The collapse
 
-Arithmetic mean over the draw axis. This is the estimator the pipeline's own design points at:
+Whatever the model declares in `aggregate_method` — `arithmetic_mean` or `median`, the two
+views-hydranet `vhy_021` defines. Never hard-coded here; an unknown name is refused rather than
+defaulted. All eight of the roster declare `arithmetic_mean`, and
+`tests/test_roster_conformance.py` fails if that stops being true.
+
+The mean is also the estimator the pipeline's own design points at:
 `feature_scaler.py:199` — *"Essential for accurate Arithmetic Mean collapse (ADR 021)"* — INVERT
 before COLLAPSE, so the mean is taken in count space. A better point estimate exists
 (`gate x mu`, ledger M70) but is unobtainable without replacing `main.py`.
@@ -151,18 +158,42 @@ def collapse_origin(
             frame[f"pred_{target}"] = wide.mean(axis=1)
 
     assert frame is not None  # targets is non-empty by construction
+
+    duplicated = frame.duplicated(["month_id", "priogrid_id"])
+    if duplicated.any():
+        first = frame.loc[duplicated, ["month_id", "priogrid_id"]].iloc[0]
+        raise CollapseError(
+            f"{origin_dir}: {int(duplicated.sum())} duplicate (month_id, priogrid_id) row(s), "
+            f"first at month {int(first.month_id)} cell {int(first.priogrid_id)}. "
+            "ensemble-updater joins on that pair, so a repeat silently wins or loses the join. "
+            "Every target agreeing on a duplicated identifier is still a duplicate, which is "
+            "why the row-alignment check above cannot see it."
+        )
     return frame
 
 
 def _check_scale(frame: pd.DataFrame, origin_dir: Path, min_plausible_max: float) -> None:
-    cols = [c for c in frame.columns if c.startswith("pred_")]
-    hi = float(frame[cols].to_numpy().max())
-    if hi < min_plausible_max:
-        raise CollapseError(
-            f"{origin_dir}: largest collapsed prediction is {hi:.4g}, below "
-            f"{min_plausible_max:g}. Counts at global land reach the hundreds; this looks like "
-            f"log1p space. Investigate upstream — do NOT expm1 here (views-models#505)."
-        )
+    """Refuse a target whose magnitude says it never left log1p space.
+
+    Checked PER TARGET, not on the three flattened together. A single target can be left in
+    log1p space while its siblings are correctly inverted — an upstream registry mismatch does
+    not have to hit all three — and a combined maximum is then carried over the threshold by a
+    healthy sibling while the corrupted one ships as log1p(count). That is exactly the
+    "plausible-looking but wrong" parquet this guard exists to stop, and the flattened form
+    could not see it.
+
+    The trade-off is deliberate: a genuinely tiny target trips a false alarm and stops the
+    conversion. That is the safe direction. The message names the column, so the next step is
+    to look upstream — never to expm1 here.
+    """
+    for col in (c for c in frame.columns if c.startswith("pred_")):
+        hi = float(frame[col].max())
+        if hi < min_plausible_max:
+            raise CollapseError(
+                f"{origin_dir}: largest collapsed '{col}' is {hi:.4g}, below "
+                f"{min_plausible_max:g}. Counts at global land reach the hundreds; this looks "
+                f"like log1p space. Investigate upstream — do NOT expm1 here (views-models#505)."
+            )
 
 
 def convert_model(

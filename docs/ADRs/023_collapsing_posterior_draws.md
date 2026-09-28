@@ -105,7 +105,8 @@ Every one of these raises `CollapseError` and writes nothing:
 | any non-finite value | a NaN averaged away becomes a plausible number |
 | any negative value | counts are non-negative; negatives mean this is not the array we think |
 | fewer than 2 draws | already collapsed upstream; averaging again hides that it happened |
-| largest value below `MIN_PLAUSIBLE_MAX` (12.0) | the field looks like `log1p` space — **investigate upstream, do not `expm1` here** |
+| **any one target's** largest value below `MIN_PLAUSIBLE_MAX` (12.0) | that target looks like `log1p` space — **investigate upstream, do not `expm1` here**. Checked per target: one target can be left in log space while its siblings are fine, and a combined maximum is then carried over the threshold by a healthy sibling |
+| a repeated `(month_id, priogrid_id)` pair | `ensemble-updater` joins on that pair, so a duplicate silently wins or loses the join. Every target agreeing on a duplicated identifier is still a duplicate, so the row-alignment check cannot see it |
 
 Only `lr_*` targets are read. `by_*` sits in the same directory and is not the deliverable.
 
@@ -217,12 +218,18 @@ anything is sent.
 
 ## Validation & Monitoring
 
-- 28 tests across `tests/test_collapse_predictions.py` (synthetic, contract + input mutation) and
+- 31 tests across `tests/test_collapse_predictions.py` (synthetic, contract + input mutation) and
   `tests/test_collapse_on_real_predictions.py` (real output; skips on a clean checkout).
-- **21 mutations applied to the converter itself, 21 caught, 0 survived** (2026-09-28). The first
+- **23 mutations applied to the converter itself, 23 caught, 0 survived** (2026-09-28). The first
   pass caught 19 of 21; the two survivors — lexicographic origin ordering, and a dropped
   identifier-length check — were coverage holes, and closing them is why the fixture now carries
   13 origins rather than 3.
+- **Code review found a guard that could not fire**, and it is the one that mattered most. The
+  scale check originally took the maximum of the three targets *flattened together*, so a single
+  target left in `log1p` space was carried over the threshold by a healthy sibling and shipped as
+  `log1p(count)`. Its test could not detect this either: it set all three targets to log-space
+  values at once, so it passed under both the broken and the correct implementation. The check is
+  now per target, and a mutation that restores the flattened form is caught.
 - Cross-checked against a pure-Python per-row recomputation over all 13 origins of all eight
   models' validation output: **zero mismatches**.
 - The converter found two defects in itself under test: a guard that raised `ValueError` while

@@ -50,7 +50,7 @@ These ADRs define system philosophy and governance:
 - **[ADR-018](018_environment_single_writer.md)** — One writer for the Appwrite environment; setup lives in `bootstrap.sh`
 - **[ADR-019](019_delivery_declaration.md)** — The delivery declaration — one file per consumer
 - **[ADR-020](020_errors_must_descend.md)** — Errors must descend, and must say where the stairs end
-- **[ADR-021](021_coverage_is_declared_once.md)** — Coverage is declared once, in the delivery
+- **[vmo_021](021_coverage_is_declared_once.md)** — Coverage is declared once, in the delivery
 - **[ADR-022](022_the_launcher_body_has_one_home.md)** — The delivery-protocol body has one home; a partner launcher is a wrapper
 - **[ADR-023](023_collapsing_posterior_draws.md)** — Posterior draws collapse by the method the model declares, in count space, outside the run
 

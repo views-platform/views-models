@@ -297,6 +297,37 @@ class TestGridAndTargets:
             assert got == ref, f"{name} grid {got} != {ref_name} {ref}"
 
     @pytest.mark.parametrize("model_name", ROSTER_MODELS)
+    def test_regression_targets(self, model_name):
+        hp = _load_hp(model_name)
+        assert hp["regression_targets"] == REGRESSION_TARGETS, (
+            f"{model_name}: regression_targets {hp['regression_targets']} != {REGRESSION_TARGETS}"
+        )
+
+    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
+    def test_classification_targets_gate_channel(self, model_name):
+        # The by_* gate channel is 1:1 with the lr_* magnitudes — this is the occurrence
+        # gate the ensemble must pool (C-132, pooled once views-pipeline-core#422 ships).
+        hp = _load_hp(model_name)
+        assert hp["classification_targets"] == CLASSIFICATION_TARGETS, (
+            f"{model_name}: classification_targets {hp['classification_targets']} != {CLASSIFICATION_TARGETS}"
+        )
+        assert len(hp["classification_targets"]) == len(hp["regression_targets"]), (
+            f"{model_name}: gate channels not 1:1 with magnitudes"
+        )
+
+
+
+
+class TestCollapseDeclaration:
+    """How the roster's posterior draws collapse to a point — declared here, honoured by tools.collapse.
+
+    Its own class rather than a line in TestGridAndTargets: that class is documented as
+    "Region grid and target channels are identical across the whole roster", and how a draw
+    axis is folded to a scalar is neither a grid nor a target channel. Same section, because
+    it applies to all eight regardless of the loss-experiment exemption.
+    """
+
+    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
     def test_collapse_declaration_matches_the_converter(self, model_name):
         """The roster declares how its draws collapse; `tools.collapse` must obey that, not guess.
 
@@ -326,27 +357,6 @@ class TestGridAndTargets:
             f"--aggregate-method {hp['aggregate_method']} or the delivered parquet will "
             "not be the estimator the model declares"
         )
-
-    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
-    def test_regression_targets(self, model_name):
-        hp = _load_hp(model_name)
-        assert hp["regression_targets"] == REGRESSION_TARGETS, (
-            f"{model_name}: regression_targets {hp['regression_targets']} != {REGRESSION_TARGETS}"
-        )
-
-    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
-    def test_classification_targets_gate_channel(self, model_name):
-        # The by_* gate channel is 1:1 with the lr_* magnitudes — this is the occurrence
-        # gate the ensemble must pool (C-132, pooled once views-pipeline-core#422 ships).
-        hp = _load_hp(model_name)
-        assert hp["classification_targets"] == CLASSIFICATION_TARGETS, (
-            f"{model_name}: classification_targets {hp['classification_targets']} != {CLASSIFICATION_TARGETS}"
-        )
-        assert len(hp["classification_targets"]) == len(hp["regression_targets"]), (
-            f"{model_name}: gate channels not 1:1 with magnitudes"
-        )
-
-
 class TestDatafactorySource:
     """Every pinned member reads views-datafactory at global land (``REGION = "land"``).
 
