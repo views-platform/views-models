@@ -88,10 +88,13 @@ def get_hp_config():
         'ss_warmup_lessons': 15,
         'ss_epsilon_max': 0.0,
 
-        # #499: 40 for the eleven-model calibration pass at global land recorded on views-models#499
-        # (2026-09-19 revision) — a run-time budget, not a model choice. Production is 300 (#463);
-        # the PR that restores it is owed by whoever ticks that pass on #499.
-        'total_lessons': 40,
+        # A run-time budget, not a model choice. 300 is production (#463). It was dropped to
+        # 40 for the #499 integration pass at global land (2026-09-19) and restored here for
+        # the #505 calibration run — this is the PR that #499 said was owed.
+        # Measured on a rented RTX PRO 4500 SE: one lesson is 84 s at global land, so 300
+        # lessons is ~7 h of training per model. config_sweep.py keeps its own, smaller
+        # budget on purpose — a sweep explores, it does not produce a deliverable.
+        'total_lessons': 300,
         'max_ratio': 0.95,
         'min_ratio': 0.05,
         'slope_ratio': 0.75,
