@@ -1,10 +1,10 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-09-15  
+**Last updated:** 2026-09-28  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 159 (150 concerns + 9 disagreements)  
-**Concerns:** Open 71 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 48 | T3 63 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 160 (151 concerns + 9 disagreements)  
+**Concerns:** Open 72 | Mitigated 23 | Resolved 46 | Accepted 4 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 48 | T3 64 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1887,6 +1887,17 @@
 | **Status** | Open |
 | **Location** | fimbulthul `views_pipeline` env; `models/*/run.sh` (the dry-run reinstall, pipeline-core's `template_run_sh.py`); viewser 6.6.4 and views-partitioning 3.0.1 metadata (not ours) |
 | **Notes** | `datafactory_query` imports dask, dask imports `tlz` (toolz's lazy shim), and toolz 0.11.2's `TlzSpec` predates the `_uninitialized_submodules` attribute current CPython 3.11.x importlib requires on submodule import — `import tlz` succeeds, `import tlz.curried` dies. toolz ≥0.12.1 fixes it (reproduced by views-baseline on 3.11.13/3.11.14/3.11.15; fixed with 0.12.1 and 1.1.0). But every *correct* resolution of viewser's pin lands on the broken 0.11.2, so the working state is a pin violation kept alive by hand: Simon ran `pip install "toolz>=0.12.1"` at 12:05, something reinstalled viewser's pins in the afternoon (a `run.sh`, most likely), and at 21:29 the pass died again; re-upgraded 21:45. **Rule for that env until fixed:** the integration runner only (it runs `main.py` directly); never a model's `run.sh` in `views_pipeline`. The fix is upstream — viewser and views-partitioning lifting `toolz<0.12` (both orphaned, #473) — or the two worlds in two envs (C-116). Tier 2: it recurs on a routine action and takes every datafactory model with it, loud but at 9 s per model into a multi-hour pass. Cross-refs: **C-116**, **#473**, **#499**, **#494** (the other fresh-env trap). |
+
+### C-152 — `tools/collapse` is a third reader of views-hydranet's on-disk prediction layout, which is not a published contract
+
+| Field | Value |
+|---|---|
+| **Tier** | 3 |
+| **Trigger** | **views-hydranet changing where or how `PredictionFrame` artifacts land on disk** — renaming `predictions_<run_type>_<ts>/origin_i/<target>/`, the `y_pred.npy` / `identifiers.npz` filenames, or the `time` / `unit` keys inside the identifiers archive. Also: adding a target directory alongside `lr_*` / `by_*` that the converter's fixed `TARGETS` would silently not read. |
+| **Source** | ADR-023 §Consequences/Negative, written with the converter (2026-09-28, #505) — declared by the author, not found by an audit |
+| **Status** | Open |
+| **Location** | `tools/collapse/collapse_predictions.py` (`_load_target`, `convert_model`); the producer is `views-hydranet@32bc509` `views_hydranet/utils/prediction_frame_assembler.py` and the pipeline-core writer |
+| **Notes** | views-hydranet writes the layout, pipeline-core reads it back, and views-models now parses it too — but no ADR or schema in any of the three repos states it, so a rename in the producing repo is not visibly a breaking change to anyone. **The mitigation is loudness, not prevention:** every structural assumption in the converter raises `CollapseError` naming the offending path, and `tests/test_collapse_on_real_predictions.py` runs over whatever real output the machine holds, so a layout change fails on the operator's next run rather than producing a short or mislabelled parquet. Tier 3 and not 2 because the failure is immediate and legible, and the converter is invoked by hand under supervision rather than inside an automated delivery. It becomes Tier 2 the moment anything schedules it. The right long-term fix is for the layout to be declared once in views-hydranet and imported, not re-described — the same shape as **C-133** / `vmo_021` (a derivation, not three readers agreeing by luck). Cross-refs: **C-47** (why the pipeline's own parquet is off and this converter exists), **#505**, ADR-023. |
 
 ---
 
