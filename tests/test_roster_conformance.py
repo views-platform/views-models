@@ -316,6 +316,47 @@ class TestGridAndTargets:
         )
 
 
+
+
+class TestCollapseDeclaration:
+    """How the roster's posterior draws collapse to a point — declared here, honoured by tools.collapse.
+
+    Its own class rather than a line in TestGridAndTargets: that class is documented as
+    "Region grid and target channels are identical across the whole roster", and how a draw
+    axis is folded to a scalar is neither a grid nor a target channel. Same section, because
+    it applies to all eight regardless of the loss-experiment exemption.
+    """
+
+    @pytest.mark.parametrize("model_name", ROSTER_MODELS)
+    def test_collapse_declaration_matches_the_converter(self, model_name):
+        """The roster declares how its draws collapse; `tools.collapse` must obey that, not guess.
+
+        The pipeline itself would apply this at `inference_orchestrator.py:179`
+        (views-hydranet `vhy_021` / `vhy_039` stage 5), but stage 5 is gated on
+        `evaluation_mode == "point"` and all eight run `stochastic` — so the draws reach
+        disk uncollapsed and views-models collapses them instead (ADR-023, #505).
+
+        Two places therefore state one fact. This test is what stops them disagreeing: if a
+        model moves to `median`, the converter must be invoked with `--aggregate-method
+        median`, and this failure is where you find that out.
+        """
+        # Imported inside the test, and it must stay that way: `roster-configs-load` imports
+        # this module (via tests/test_roster_configs_load.py) in a minimal env that installs
+        # views-hydranet and nothing else. `tools.collapse` imports pandas at module level, so
+        # a top-level import here breaks collection of a job that never runs this test.
+        from tools.collapse.collapse_predictions import DEFAULT_AGGREGATE_METHOD
+
+        hp = _load_hp(model_name)
+        assert hp["evaluation_mode"] == "stochastic", (
+            f"{model_name}: evaluation_mode={hp['evaluation_mode']!r} — the pipeline now "
+            "collapses in-run, so tools.collapse would be averaging an already-point volume"
+        )
+        assert hp["aggregate_method"] == DEFAULT_AGGREGATE_METHOD, (
+            f"{model_name}: declares aggregate_method={hp['aggregate_method']!r} but "
+            f"tools.collapse defaults to {DEFAULT_AGGREGATE_METHOD!r} — pass "
+            f"--aggregate-method {hp['aggregate_method']} or the delivered parquet will "
+            "not be the estimator the model declares"
+        )
 class TestDatafactorySource:
     """Every pinned member reads views-datafactory at global land (``REGION = "land"``).
 
