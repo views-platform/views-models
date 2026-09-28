@@ -19,6 +19,7 @@
 #   /workspace/deliver/<model>/parquet/    13 point-prediction parquets  (~9 MB)
 #   /workspace/deliver/<model>/draws/      the lr_* posterior, zstd      (~25 MB)
 #   /workspace/deliver/<model>/STATUS      OK or FAILED:<stage>
+#   /workspace/deliver/<model>/FAILURE     the reason, on failure only (written directly)
 #   /workspace/deliver/<model>/run.log     the whole transcript
 #
 # Progress is readable from outside at any time:  cat /workspace/deliver/<model>/STAGE
@@ -33,10 +34,28 @@ OUT=$ROOT/deliver/$MODEL
 LOG=$OUT/run.log
 
 mkdir -p "$OUT"
+# A previous attempt on this pod may have left FAILED here. Clear it before anything else,
+# or `cat STATUS` reports that old failure for the whole of this run -- and the header
+# advertises STATUS/STAGE as the way to watch from outside, so a stale one actively misleads.
+rm -f "$OUT/STATUS"
 exec > >(tee -a "$LOG") 2>&1
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
-die()   { echo "FAILED:$(cat "$OUT/STAGE" 2>/dev/null)" > "$OUT/STATUS"; echo "!!! $1"; exit 1; }
+die()   {
+    echo "FAILED:$(cat "$OUT/STAGE" 2>/dev/null)" > "$OUT/STATUS"
+    # Written directly, not through the tee subshell: on a hard kill (preemption, OOM)
+    # the last buffered log lines can be lost, and that is exactly when the reason matters.
+    printf '%s\n' "$1" > "$OUT/FAILURE"
+    echo "!!! $1"
+    exit 1
+}
+
+if ! mkdir "$OUT/.lock" 2>/dev/null; then
+    echo "!!! $OUT/.lock exists -- another run for $MODEL is in progress on this pod."
+    echo "!!! If you are certain it is dead: rmdir $OUT/.lock"
+    exit 1
+fi
+trap 'rmdir "$OUT/.lock" 2>/dev/null' EXIT
 
 echo "### $MODEL — started $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -79,21 +98,40 @@ if [ ! -d "$REPO/.git" ]; then
   git clone --depth 1 -b development https://github.com/views-platform/views-models.git "$REPO" \
     || die "clone failed"
 fi
+stage check_checkout
 [ -d "$REPO/models/$MODEL" ] || die "no such model: models/$MODEL"
 [ -f "$REPO/tools/collapse/collapse_predictions.py" ] \
   || die "tools/collapse is not in this checkout — copy it to the pod before running (PR #506)"
 
 stage check_config
-"$VENV/bin/python" - "$REPO/models/$MODEL/configs/config_hyperparameters.py" <<'PY' || die "config check failed"
-import re, sys
-src = open(sys.argv[1]).read()
-lessons = int(re.search(r"'total_lessons':\s*(\d+)", src).group(1))
-print("total_lessons:", lessons)
+# Load and CALL the config rather than pattern-matching the file. A text check here would be
+# the same defect this repo has already shipped once (#501, "the guard that was not one"): a
+# substring assertion satisfied by a COMMENT recording the value's history, so the guard passed
+# on the wrong region. A comment cannot satisfy this one.
+"$VENV/bin/python" - "$REPO/models/$MODEL" <<'CFGCHECK' || die "config check failed"
+import importlib.util, sys
+from pathlib import Path
+
+model = Path(sys.argv[1])
+
+def load(name):
+    path = model / "configs" / (name + ".py")
+    spec = importlib.util.spec_from_file_location("_podrun_" + name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+hp = load("config_hyperparameters").get_hp_config()
+lessons = hp["total_lessons"]
+print("total_lessons:", lessons, "(read from the config, not the file text)")
 if lessons < 300:
-    sys.exit(f"total_lessons is {lessons}, expected >= 300 — this pod would train a throwaway model")
-PY
-grep -q 'REGION = "land"' "$REPO/models/$MODEL/configs/config_queryset.py" \
-  || die "REGION is not \"land\" — this would run Africa+ME, not global land"
+    sys.exit("total_lessons is %s, expected >= 300 - this pod would train a throwaway model" % lessons)
+
+region = getattr(load("config_queryset"), "REGION", None)
+print("REGION:", region)
+if region != "land":
+    sys.exit("REGION is %r, expected 'land' - this would not be a global-land run" % region)
+CFGCHECK
 
 # ── 3. the run ────────────────────────────────────────────────────────────────────
 stage train_and_evaluate
@@ -105,6 +143,10 @@ echo "run took $(( ($(date +%s) - START) / 60 )) minutes"
 
 # ── 4. collapse to the deliverable ────────────────────────────────────────────────
 stage collapse
+# Clear a previous attempt first. Parquets are named from the SOURCE run's timestamp, so an
+# old set and a new set can coexist; if they happened to sum to 13 the count check below
+# would pass while the manifest covered two different training runs.
+rm -rf "$OUT/parquet"
 mkdir -p "$OUT/parquet"
 cd "$REPO" || die "cannot enter repo"
 "$VENV/bin/python" -m tools.collapse.collapse_predictions \
@@ -132,12 +174,32 @@ PY
 
 # ── 5. compress the posterior (236x on real output — the draws come home too) ─────
 stage compress_draws
+# Clear any archive from a previous attempt on this pod, so a stale one cannot be counted
+# as this run's output.
+rm -rf "$OUT/draws"
 mkdir -p "$OUT/draws"
-SRC=$(ls -d "$REPO/models/$MODEL/data/generated/predictions_calibration_"* | tail -1)
+
+SRC=$(ls -d "$REPO/models/$MODEL/data/generated/predictions_calibration_"* 2>/dev/null | tail -1)
+[ -n "$SRC" ] || die "no predictions_calibration_* directory under $REPO/models/$MODEL/data/generated"
+[ -d "$SRC" ] || die "$SRC is not a directory"
 BASE=$(basename "$SRC")
+
+# COUNT FIRST. `find ... -print0 | tar --null -T -` exits 0 and writes a VALID ~22-byte archive
+# when find matches nothing, so the obvious pipeline reports success while shipping an empty
+# posterior. The only other signal would be a small number in MANIFEST that a human has to
+# notice. That is the failure this block exists to make impossible.
+N_DRAWS=$(cd "$SRC/.." && find "$BASE" -path '*/lr_*' -name '*.np*' | wc -l)
+[ "$N_DRAWS" -gt 0 ] || die "no lr_* draw files under $SRC — the layout is not what this script expects"
+
 ( cd "$SRC/.." && find "$BASE" -path '*/lr_*' -name '*.np*' -print0 \
     | tar -I 'zstd -3 -T0' -cf "$OUT/draws/${BASE}_lr.tar.zst" --null -T - ) \
   || die "compressing draws failed"
+
+# And verify the archive actually holds them, rather than trusting tar's exit code.
+N_ARCHIVED=$(tar -I zstd -tf "$OUT/draws/${BASE}_lr.tar.zst" | wc -l)
+[ "$N_ARCHIVED" -eq "$N_DRAWS" ] \
+  || die "archive holds $N_ARCHIVED entries but $N_DRAWS draw files were found"
+echo "draws archived: $N_ARCHIVED files"
 
 stage manifest
 {

@@ -278,6 +278,21 @@ guessed"*; the figures compared **160 vs 300** lessons on Africa+ME *validation*
 
 ---
 
+**`tools/podrun`, reviewed before merge.** The runner had completed eight real runs, which is
+evidence but not review. A bug-focused pass found that the draws archive could be **empty while
+reporting success** — `find ... -print0 | tar --null -T -` exits 0 and writes a valid 22-byte
+archive when nothing matches, and nothing downstream checked it. On the one model family this has
+run, the pattern matches; on the next one it might not, and the failure would be a `STATUS: OK`
+with no posterior.
+
+It also found that two guards checked config **text** rather than the parsed value — the same
+shape as #501's *"the guard that was not one"*, where a substring assertion was satisfied by a
+comment recording the value's history. Both now load and call the config.
+
+Three of the eight runs this script performed were already complete when the review happened. The
+lesson is not that review beats evidence; it is that **eight successful runs say nothing about the
+ninth input**, and the archive check is precisely a ninth-input problem.
+
 ## 5. What we learned about the models
 
 Not the purpose of the effort, but the most scientifically significant output.
@@ -415,6 +430,7 @@ shape from a plausible-looking artefact instead of asking the session that owns 
 | Model requirements floor `views-datafactory>=1.9.0`; credential-handling fixes landed in 1.13.0 | me | not filed |
 | Whether a delivery staged on one machine can be published from another — untested, and I asserted it | me | open question |
 | Datafactory credential has no expiry; anything that outlives a pod outlives it | Simon | housekeeping |
+| `tools/podrun` has no automated tests; MANIFEST provenance fields are unchecked and would ship blank | me | known, accepted at v0.1.0 |
 | The metrics-punish-calibration finding needs its own document | me | not written |
 | Datafactory over plain HTTP from rented hardware — register entry | me | not filed |
 | Cost figures for a stakeholder | me | **done** — `runpod_cost_and_time_note_2026-09.md` |

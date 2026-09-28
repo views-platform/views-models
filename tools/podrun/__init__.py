@@ -17,6 +17,14 @@ Read that status honestly before depending on it:
 - It performs **no upload**. It deliberately knows nothing about Appwrite or any publishing
   credential, because it is designed to run on hardware we do not own.
 
+It was reviewed for bugs before merge, and the review found one that matters: the draws
+archive could be **empty and still report success**, because `find ... -print0 | tar --null -T -`
+exits 0 and writes a valid 22-byte archive when nothing matches. That is now counted before and
+verified after. Two guards that read config *text* were replaced with guards that load and call
+the config, because a text check here is the defect this repo already shipped once (#501, "the
+guard that was not one"). Known and not fixed: no automated tests, and the MANIFEST's provenance
+fields are unchecked, so a missing git sha would ship blank rather than refuse.
+
 What it does do is refuse early. Every expensive step is preceded by a check that costs seconds,
 because the failure that matters on rented hardware is discovering after seven paid hours that a
 credential was missing or a config still held a throwaway value.
