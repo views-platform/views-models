@@ -3,10 +3,29 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-06-08  
+**Last reviewed:** 2026-09-28  
 **Related ADRs:** ADR-004, ADR-005, ADR-008, ADR-009  
 
 ---
+
+## 0. Operational note: the default timeout no longer fits the HydraNets
+
+The `1800` second default was sized when the eight HydraNet models trained **40 lessons** — a
+run-time budget set by #501 so the first global-land integration pass would be cheap.
+
+Since **#507** they train **300 lessons** again, the production value (#463). One lesson is
+**~84 seconds** at global land (measured on a rented RTX PRO 4500 SE, 2026-09-28), so a single
+HydraNet needs roughly **7 hours of training plus ~1 hour of evaluation**.
+
+On the default they will therefore report `TIMEOUT`, for all eight, every time. **That is the
+training budget, not a regression**, and it is recorded here because a wall of `TIMEOUT` rows is
+exactly the shape a real failure takes — a reader with no context would reasonably start
+debugging.
+
+    bash run_integration_tests.sh --library hydranet --timeout 30000
+
+The default is deliberately left at `1800`: it suits the other libraries, and raising it globally
+would turn every genuine hang in a cheap model into a half-day wait.
 
 ## 1. Purpose
 
@@ -53,7 +72,7 @@
 | `--library` | (all) | Filter by algorithm library: `baseline`, `stepshifter`, `r2darts2`, `hydranet` |
 | `--exclude` | *(none)* | Space-separated model names to skip. Until 2026-09-19 the default was `purple_alien`: when the runner moved to one shared conda env (`5a2fd2e6`, 2026-03-15) it was the only model needing `views-hydranet`, which that env lacked. The env used for the roster carries views-hydranet now, so nothing is excluded by default (#499); a model whose packages the chosen env lacks fails in its own row instead |
 | `--partitions` | `calibration validation` | Space-separated partition names |
-| `--timeout` | `1800` | Seconds per model per partition |
+| `--timeout` | `1800` | Seconds per model per partition. **Insufficient for the eight HydraNets since #507** — see §Operational note |
 
 ### Assumptions
 
@@ -81,7 +100,7 @@
 | Condition | Behavior |
 |---|---|
 | Model training crashes | Captured in log; classified as `FAIL(exit_code)`; script continues |
-| Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues |
+| Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues. A `TIMEOUT` is not by itself evidence of a defect — see §Operational note |
 | Model is retired (`maturity: retired`, or legacy `deployment_status: deprecated`) | Skipped before any subshell is spawned; classified as `RETIRED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
 | User presses `Ctrl-C` (`SIGINT`) | Trap fires; currently-running model killed via shared process group (`timeout --foreground`); slot labeled `ABORTED` (yellow); remaining runs labeled `SKIPPED`; partial summary printed; script exits 130. A single `Ctrl-C` is sufficient. |
 | No models match filters | Prints "No models found to test"; exits 1 |
