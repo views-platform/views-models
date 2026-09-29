@@ -1,5 +1,28 @@
 # Pre-registration v2 — proving (or falsifying) an FAO delivery
 
+> **SUPERSEDED 2026-09-29 by `prereg_fao_delivery_v3.md` and `prereg_model_health_v1.md`.**
+> Retained **unedited** below — a pre-registration that is rewritten after the fact is not one.
+>
+> **Why it was superseded, recorded here so the record is not only in the successor:** the
+> `opponent` session found that v2 silently dropped four of v1's probes — P4 (stem collision),
+> P5 (the served run is ours), P8 (served values == produced values) and P9 (the negative
+> control) — with no successor and no acknowledgement, alongside four *explicit* retentions in
+> the same section. Those were the three v1 itself singled out as its strongest.
+>
+> The structural cause: **v1 was indexed by the chain and v2 by a taxonomy.** A taxonomy has no
+> empty cells, so a class can look full while a hop is empty. v3 re-indexes on the chain and keeps
+> the classes as tags.
+>
+> Two further errors of v2 recorded for the same reason: it reported itself as "5 of 10 passed",
+> which treats a file count and a value check as exchangeable units; and its limitations section
+> dropped three concrete limitations v1 had (durability, the production run differing, whether FAO
+> can use it) in favour of more sophisticated but operationally weaker ones.
+>
+> What v2 got right and v3 keeps: the five-hop chain model, the two manifest kinds,
+> `forecast_serving_state` as the authoritative endpoint, set equality replacing cardinality, a
+> directional threshold for the magnitude check, and the refusal to report a bare pass count.
+
+
 **Written 2026-09-29, after the first end-to-end run failed and after adversarial review by four
 other sessions.** Supersedes `prereg_rusty_bucket_landing_20260929.md`, which is retained
 unedited as the record of what v1 was and how it did.
