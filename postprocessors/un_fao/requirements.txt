@@ -1,4 +1,11 @@
-views-datafactory>=1.9.0,<2.0.0
+# views-datafactory is floored at 1.13.0, not the >=1.9.0 this file carried (#509). The
+# credential-handling fixes landed there: before 1.13.0 the client could carry a netrc
+# credential across a redirect to another host, and could embed it in error messages. The
+# postprocessor runs on the same rented hardware as the training legs and fetches the actuals
+# it curates land -> land_gaul against, so it holds that credential too. Flooring only the pod
+# install (tools/podrun/pod_run_model.sh) left this leg — the LAST one, the one that reaches
+# the partner — declaring a version without the fix.
+views-datafactory>=1.13.0,<2.0.0
 # numpy stays on 1.x. views-datafactory allows <3, so pip resolves 2.x — and the pandas
 # wheel in envs/views-postprocessing is built against the numpy 1.x C ABI. Importing the
 # delivery manager then dies at views_pipeline_core/modules/datastore/datastore.py:54:
@@ -8,3 +15,28 @@ views-datafactory>=1.9.0,<2.0.0
 # Declared identically in un_crafd/requirements.txt — one shared prefix (C-116), so
 # pinning only one lets the other upgrade numpy out from under it on its next run.
 numpy>=1.26.4,<2.0.0
+
+# xarray and pandas are pinned because xarray is the CARRIER, and it was the only thing
+# in this file's dependency closure free to move. views-datafactory declares
+# `xarray>=2024.1,<2026` as a required dependency and `pandas>=2.0` only in its optional
+# `pandas` extra — which is not installed — so pandas arrives transitively THROUGH xarray
+# and nothing here constrained either one.
+#
+# Measured 2026-09-29, resolving this file as it stood:
+#     declared:  views-datafactory>=1.9.0,<2.0.0 + numpy>=1.26.4,<2.0.0
+#     resolved:  numpy 1.26.4, xarray 2025.12.0, pandas 3.0.6
+#     the pod that produced the first FAO delivery ran: xarray 2024.3.0, pandas 1.5.3
+#
+# So this file did not fail to build — it built, on a different pandas MAJOR, silently.
+# views-models#516 originally called the environment "unbuildable"; that was wrong and the
+# wrong version is the more dangerous one, because a build failure is loud. The working
+# versions existed only as hand-pins on a pod that has since been destroyed.
+#
+# The bound is measured, not guessed. xarray 2024.3.0 is the LAST release that accepts
+# pandas 1.x; 2024.5.0 moved to `pandas>=2.0` and 2024.9.0 to `pandas>=2.1`. A tidy-looking
+# `<2025` cap would therefore have been wrong — the cliff is inside the 2024 line, not at
+# the year boundary. Lifting these means moving the platform off pandas 1.x deliberately,
+# which views-pipeline-core already permits (`pandas>=1.5.3,<3.0`) and this codebase does
+# not yet assume.
+xarray>=2024.1,<2024.5
+pandas>=1.5.3,<2.0.0

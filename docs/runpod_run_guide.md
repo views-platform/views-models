@@ -180,6 +180,22 @@ grep -A2 '<data server IP>' ~/.netrc | ssh root@<ip> -p <port> -i ~/.ssh/id_ed25
     'umask 077; cat > /root/.netrc; chmod 600 /root/.netrc'
 ```
 
+> **Put credentials on `/root`, never on `/workspace` — `/workspace` silently ignores
+> `chmod`.**
+>
+> It is a network filesystem. `chmod 600` there **returns success and does nothing**: the
+> file stays mode `666`, readable by every process on the machine, and there is no error to
+> notice. `stat -c %a` is the only way to find out, and only if you think to look.
+>
+> Found on 2026-09-29 while placing the Appwrite publish credentials, which sat
+> world-readable on rented hardware until they were moved to `/root/.secrets`. Registered as
+> **views-models C-154**; see **#518**.
+>
+> This is why the command above writes to `/root/.netrc` and why the runner checks
+> `stat -c %a /root/.netrc` rather than trusting its own `chmod`. Both are deliberate. The
+> `umask 077` is what actually protects the file in transit — the `chmod` is a belt-and-braces
+> check that happens to work *here* because `/root` is local disk.
+
 Check it before trusting it — the pipe can silently deliver nothing:
 
 ```bash
@@ -269,7 +285,38 @@ nohup setsid bash tools/podrun/pod_run_model.sh <model> \
 `setsid` matters: the run must survive your SSH session closing and your laptop sleeping.
 
 It refuses before spending GPU time if `.netrc` is missing, if `total_lessons` is still a
-throwaway value, if `REGION` is not `"land"`, or if the converter is absent.
+throwaway value, if `REGION` is not `"land"`, if the Appwrite client is not importable, or
+if the converter is absent.
+
+### Rehearsing the chain first
+
+After a run that failed late, you usually want the whole chain exercised cheaply before you
+commit to a full one. That is `--rehearsal`, and it takes the lesson count:
+
+```bash
+nohup setsid bash tools/podrun/pod_run_model.sh --rehearsal 40 <model> \
+    > /workspace/<model>.nohup 2>&1 < /dev/null &
+```
+
+It patches **the pod's clone** of `config_hyperparameters.py` to 40 lessons, re-reads the
+config to confirm the patch took, and marks the output. Nothing tracked in git is edited —
+the committed configs stay at their production value, which is the point: a rehearsal
+obtained by committing a low lesson count is the failure mode this flag removes.
+
+A rehearsal leaves an extra file, **`REHEARSAL`**, beside the parquets, and `MANIFEST` gains
+`mode: REHEARSAL — NOT FIT TO DELIVER`. You need them, because the parquets themselves are
+indistinguishable from a real run's: same columns, same row counts, all finite and
+non-negative, every structural check green. Nothing in the data will tell you the model
+behind it is undertrained.
+
+**What a rehearsal does NOT prove.** It exercises the chain, not the capacity. A 40-lesson
+run has a different duration and memory profile from a 300-lesson one, and memory is where
+this platform has failed before. A green rehearsal means the hops connect; it does not mean
+the full run will fit.
+
+**It marks, it does not refuse.** This runner uploads nothing, so it cannot stop a rehearsal
+being published downstream — the `REHEARSAL` file is a warning to a person, not a guard. Do
+not publish a directory that contains one.
 
 Monitor without disturbing it:
 
@@ -296,8 +343,9 @@ The runner already does both. Its output is in `/workspace/deliver/<model>/`:
 |---|---|
 | `parquet/` | 13 files, one per origin, 2,333,448 rows each |
 | `draws/` | the full posterior, zstd — ~236× smaller than raw |
-| `MANIFEST` | sizes, timestamps, git sha, lesson count |
+| `MANIFEST` | sizes, timestamps, git sha, lesson count, and `mode:` |
 | `STATUS` | `OK`, or `FAILED:<stage>` |
+| `REHEARSAL` | present **only** after `--rehearsal` — this output is not fit to deliver |
 
 From your laptop:
 
@@ -322,6 +370,48 @@ Then **look at the picture**. The tests prove the arithmetic; they cannot tell y
 stopped looking like conflict.
 
 ---
+
+## Phase 4b — The FAO delivery (Track B)
+
+Phases 4 and 5 are **Track A**: calibration predictions for research. The FAO delivery is a
+different chain and a different script.
+
+```bash
+cd /workspace/views-models
+
+# Seconds, costs nothing, checks everything that can be known before GPU time:
+bash tools/podrun/pod_run_fao_delivery.sh --preflight
+
+# Then, once preflight is clean:
+nohup setsid bash tools/podrun/pod_run_fao_delivery.sh --rehearsal 40 \
+    > /workspace/fao.nohup 2>&1 < /dev/null &
+```
+
+Drop `--rehearsal 40` for a production delivery.
+
+It runs: the eight HydraNets on the forecasting partition → `rusty_bucket` pools them from
+the saved member forecasts → publish → the `un_fao` postprocessor → a read-back of what
+actually landed via `python -m tools.liveness`.
+
+Watch it with `cat /workspace/deliver/_fao/STAGE` or `tail -f /workspace/deliver/_fao/run.log`.
+
+**Run `--preflight` on every fresh pod.** At 300 lessons the eight forecasts alone are ~16 GPU
+hours, and the two things most likely to stop the delivery are invisible until the end:
+the three Appwrite publish secrets, and **`conda`** — the postprocessor launcher requires it
+while this pod builds a `uv` venv, so a pod can satisfy the training leg and not the delivery
+leg. That failure lands *after* all the training.
+
+### Reading the outcome
+
+- **`DeliveryNotFindableError`** is views-postprocessing 1.4.0 **working**. That build verifies
+  a delivery by what it refuses, and the message names every object it checked. Do not read it
+  as the script failing.
+- A **rehearsal's forecasts reach the FAO shelf and are servable.** Nothing downstream refuses
+  a marked rehearsal (#523), and they are structurally indistinguishable from real forecasts —
+  same columns, same coverage, all finite. `/workspace/deliver/_fao/REHEARSAL` says so. **Do
+  not leave them there**: supersede or remove them before anyone reads them as a forecast.
+- A rehearsal proves the **chain**, not the **capacity**. 40 lessons has a different duration
+  and memory profile from 300, and memory is where this platform has failed before.
 
 ## Phase 6 — Teardown
 
