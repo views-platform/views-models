@@ -31,7 +31,17 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 # #268) — the defect that killed this launcher's first delivery attempt on 2026-08-13.
 # Both launchers moved together; leaving either on 1.1.0 re-creates the downgrade path
 # described above, now with un_crafd armed as well.
-VIEWS_POSTPROCESSING_PIN="1.1.1"
+#
+# Moved to `1.4.0` on 2026-09-29 (#439), and the shared-prefix argument above is again the
+# reason BOTH moved rather than only the leg that failed. 1.1.1's findability guard checked
+# two artefacts out of the 110 a run uploads, by returned file id rather than by name — so
+# the first-ever FAO delivery reported "Postprocessor Run Completed" while being unservable
+# (views-postprocessing#314, and views-pipeline-core#551 for the producer half). CRAF'd runs
+# the identical code down to the shared `_assert_delivery_is_findable`, so the defect is
+# byte-identical on this leg and has simply not fired here yet — the same sentence the 1.1.1
+# note above had to write about #268. Leaving un_crafd on 1.1.1 would also downgrade the
+# shared prefix out from under an armed FAO delivery, which is the C-139 path.
+VIEWS_POSTPROCESSING_PIN="1.4.0"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh
