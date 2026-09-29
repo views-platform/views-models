@@ -126,18 +126,61 @@ if [ -s /root/.netrc ] && [ "$(stat -c %a /root/.netrc 2>/dev/null)" != "600" ];
     echo "  fixed: /root/.netrc was not 600"
 fi
 
-# The publish credentials. Three of the nine are real secrets; the rest are identifiers.
-# Checked HERE and not at first publish, because views-pipeline-core's own
-# PredictionStoreConfig claims to read these "once at startup and fail loud" and does not —
-# it is called from _build_datastore, i.e. after training (views-pipeline-core#557). Until
-# that moves, this is the only check that happens before the money is spent.
+# The publish credentials. NINE variables are required, not three — measured, not assumed:
+# PredictionStoreConfig.from_environment() names ENDPOINT, DATASTORE_PROJECT_ID,
+# DATASTORE_API_KEY, PROD_FORECASTS_BUCKET_ID, PROD_FORECASTS_BUCKET_NAME,
+# PROD_FORECASTS_COLLECTION_ID, PROD_FORECASTS_COLLECTION_NAME, METADATA_DATABASE_ID and
+# METADATA_DATABASE_NAME. Only the first three are secrets; the rest are identifiers, and a
+# missing identifier fails the publish exactly as hard as a missing secret.
+#
+# The first version of this block checked the three secrets only. It would have passed with six
+# of nine missing, and the run would have failed at the publish — after the entire roster
+# trained. The authoritative check is the CONSTRUCTION below; this loop survives only to give a
+# faster, friendlier message for the case an operator hits most often.
 for v in APPWRITE_ENDPOINT APPWRITE_DATASTORE_PROJECT_ID APPWRITE_DATASTORE_API_KEY; do
     eval "val=\${$v:-}"
     [ -n "$val" ] || note "\$$v — a publish secret; see reports/fao_delivery_runbook.md"
 done
+# They must be EXPORTED, not merely present in a .env beside you: pipeline-core stopped
+# auto-loading a .env from the working directory (#346, register C-177), because a library
+# reading whatever .env its caller happens to be standing in is what the Appwrite seam contract
+# §3 forbids. `set -a; . /root/.secrets; set +a` is the shape that works.
 case "${APPWRITE_DATASTORE_API_KEY:-}" in
     *[![:print:]]*) note "\$APPWRITE_DATASTORE_API_KEY contains a non-printable character — re-paste it" ;;
 esac
+
+# And then BUILD the thing, rather than concluding from three non-empty strings that it will
+# build. Variables being set is not the same as the store being constructible: the appwrite
+# extra can be missing, the endpoint can be unreachable, the key can be expired (#359: this one
+# expires 2026-11-17). Every one of those surfaces at `_build_datastore`, whose first caller is
+# the publish — i.e. after the entire roster has trained (views-pipeline-core#557).
+#
+# Suggested by the views-pipeline-core session, which pointed out this is exactly what #557
+# argues the manager should do itself, and that doing it by hand costs nothing until it does.
+if [ -x "$VENV/bin/python" ] && [ "$FAIL" = "0" ]; then
+    if PUBERR=$("$VENV/bin/python" - <<'PUBCHECK' 2>&1
+import sys
+try:
+    from views_pipeline_core.configs.prediction_store import PredictionStoreConfig
+except Exception as e:
+    sys.exit("cannot import PredictionStoreConfig: %s: %s" % (type(e).__name__, e))
+try:
+    cfg = PredictionStoreConfig.from_environment()
+except Exception as e:
+    sys.exit("PredictionStoreConfig.from_environment() failed: %s: %s" % (type(e).__name__, e))
+try:
+    import appwrite  # noqa: F401
+except Exception as e:
+    sys.exit("the appwrite extra is not installed: %s: %s" % (type(e).__name__, e))
+print("publish config builds")
+PUBCHECK
+    ); then
+        echo "  publish path: $PUBERR"
+    else
+        note "the publish path does not build — this WOULD have failed after the whole roster trained:
+      $PUBERR"
+    fi
+fi
 
 # conda, for the postprocessor leg ONLY. tools/launcher/postprocessor.sh uses
 # `conda shell.bash hook` / `conda create --prefix` / `conda activate`, while this pod builds
@@ -180,6 +223,10 @@ DISK_FLOOR_GB=80
 [ "${AVAIL_GB:-0}" -ge "$DISK_FLOOR_GB" ] || note "only ${AVAIL_GB:-0}GB free on $ROOT; eight forecasts plus the pool need >=${DISK_FLOOR_GB}GB (40GB is the per-model transient that pod_run_model.sh enforces on its own, eight times over, plus retained output)"
 
 if [ "$FAIL" = "1" ]; then
+    echo
+    echo "  Note: the nine publish variables must be EXPORTED into this shell, not just present"
+    echo "  in a file — pipeline-core no longer auto-loads a .env (#346, C-177). Try:"
+    echo "      set -a; . /root/.secrets; set +a"
     echo
     die "preflight failed — nothing above costs GPU time to fix. Fix them and re-run --preflight."
 fi

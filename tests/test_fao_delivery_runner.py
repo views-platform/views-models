@@ -109,6 +109,37 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
             "publish credentials. It would then have proceeded to spend GPU hours."
         )
 
+    def test_it_builds_the_publish_config_rather_than_counting_variables(self):
+        """The check that would have caught the real failure.
+
+        PredictionStoreConfig.from_environment() requires NINE variables — the three secrets
+        plus PROD_FORECASTS_BUCKET_ID/NAME, PROD_FORECASTS_COLLECTION_ID/NAME and
+        METADATA_DATABASE_ID/NAME. The first version of this preflight checked the three
+        secrets, so it would have reported ready with six of nine missing and the run would
+        have failed at the publish, after the whole roster trained.
+
+        Counting variables cannot be made correct by adding six more names either: the extra
+        can be absent, the endpoint unreachable, the key expired (#359 — 2026-11-17). Only
+        constructing the thing answers the question.
+        """
+        code = _code_only(FAO.read_text())
+        assert "PredictionStoreConfig" in code and "from_environment()" in code, (
+            "preflight must CONSTRUCT the publish config, not enumerate variable names"
+        )
+        assert "import appwrite" in code, (
+            "preflight must also confirm the appwrite extra is importable — variables can all "
+            "be set while the SDK that uses them is missing (#517)"
+        )
+
+    def test_it_tells_the_operator_the_variables_must_be_exported(self):
+        """pipeline-core stopped auto-loading a .env from the working directory (#346, C-177),
+        so a correct .env sitting beside the operator is not enough. Without this line the
+        failure looks like wrong credentials rather than unexported ones."""
+        code = _code_only(FAO.read_text())
+        assert re.search(r"set -a", code) and re.search(r"C-177|#346", FAO.read_text()), (
+            "preflight must say the nine variables need exporting, and name why"
+        )
+
     def test_it_names_the_missing_publish_secrets(self, result):
         out = result.stdout + result.stderr
         for var in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
