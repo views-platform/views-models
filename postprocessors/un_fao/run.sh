@@ -35,6 +35,28 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 #   python -c "import views_postprocessing, pathlib; \
 #     print(pathlib.Path(views_postprocessing.__file__).parent / 'unfao/managers/unfao.py')"
 #   grep -n 'success is not True' <that path>
+#
+#   4. Moved to 1.4.0 on 2026-09-29 (#439). 1.1.1's findability guard checked TWO artefacts
+#      — the manifest and the historical leg — out of the 110 a run uploads, and resolved
+#      them by a returned file id rather than by name. On 2026-09-29 the first-ever FAO
+#      delivery uploaded 109 of 110 objects, logged "Postprocessor Run Completed", fired a
+#      success alert, and was refused by views-faoapi: the GAUL sidecar's bytes matched the
+#      previous run's, the content-addressed store declined a second copy, and the uploader
+#      returned a real file id for the WRONG file. The manifest then named a file that did
+#      not exist. 1.4.0 carries views-postprocessing#314 — every artefact verified BY NAME,
+#      order-independent — and #315, which derives the port's documented datastore contract
+#      from source so the prose cannot drift from the code.
+#
+#      The producer half of that defect is views-pipeline-core#552, shipped in 3.3.4 and
+#      reached from PyPI. This pin is the OTHER half and is reached from a git tag, which is
+#      why "is the fix released?" had two different correct answers and this line was missed.
+#
+#      Verify this one the same way, by what it refuses rather than what it claims:
+#
+#        grep -rn 'DeliveryNotFindableError' <views_postprocessing path>/delivery/findability.py
+#
+#      Expect a behaviour change: a delivery that previously completed can now STOP. 1.4.0
+#      adds two refusal situations and no new exception types.
 VIEWS_POSTPROCESSING_PIN="1.4.0"
 
 script_path=$(dirname "$(realpath "$0")")
