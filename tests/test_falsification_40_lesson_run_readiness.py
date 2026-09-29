@@ -408,10 +408,14 @@ class TestThePublishPathIsInstalledAndProven:
         requirements still say >=1.9.0 and a resolver will usually pick the newest — but
         "the resolver will probably do the right thing" is the reasoning that put pandas
         3.0.6 into a fresh environment (#516)."""
+        # Comments are stripped from EVERY source, not just the shell one. un_fao's xarray
+        # note quotes the old `views-datafactory>=1.9.0` line as the state it is explaining,
+        # so a guard reading raw text either trips on prose or has to be careful about it —
+        # and "careful about it" is how the comment-satisfied guards got shipped.
         sources = {"tools/podrun/pod_run_model.sh": _code_only(PODRUN.read_text())}
         for pp in ("un_fao", "un_crafd"):
             rel = f"postprocessors/{pp}/requirements.txt"
-            sources[rel] = (REPO / rel).read_text()
+            sources[rel] = _code_only((REPO / rel).read_text())
         for where, text in sources.items():
             floors = re.findall(r"^\s*(?:\S*\s+)?\"?views-datafactory>=(\d+)\.(\d+)",
                                 text, re.M)

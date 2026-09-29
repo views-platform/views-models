@@ -1,4 +1,11 @@
-views-datafactory>=1.9.0,<2.0.0
+# views-datafactory is floored at 1.13.0, not the >=1.9.0 this file carried (#509). The
+# credential-handling fixes landed there: before 1.13.0 the client could carry a netrc
+# credential across a redirect to another host, and could embed it in error messages. The
+# postprocessor runs on the same rented hardware as the training legs and fetches the actuals
+# it curates land -> land_gaul against, so it holds that credential too. Flooring only the pod
+# install (tools/podrun/pod_run_model.sh) left this leg — the LAST one, the one that reaches
+# the partner — declaring a version without the fix.
+views-datafactory>=1.13.0,<2.0.0
 # numpy stays on 1.x. views-datafactory allows <3, so pip resolves 2.x — and the pandas
 # wheel in envs/views-postprocessing is built against the numpy 1.x C ABI. Importing the
 # delivery manager then dies at views_pipeline_core/modules/datastore/datastore.py:54:
