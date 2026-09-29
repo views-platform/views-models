@@ -1,6 +1,6 @@
 # ADR-003: Authority of Declarations Over Inference
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-09-17 (maturity declaration: `config_maturity.py` → `maturity`, ADR-017 Phase 2, #449)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -21,7 +21,7 @@ The system has already experienced this: `create_catalogs.py` originally used `e
 
 Specifically:
 - Model algorithm, level of analysis, targets, and creator are declared in `config_meta.py`
-- Deployment status is declared in `config_deployment.py`
+- Maturity (`candidate | graduate | retired`, ADR-017 §3) is declared in `config_maturity.py`; sources whose engine is still on pipeline-core 2.x declare the legacy `deployment_status` in `config_deployment.py`, translated by ADR-017 §3 — one file per source, never both
 - Hyperparameters and temporal settings are declared in `config_hyperparameters.py`
 - Partition boundaries are declared in each model's self-contained `config_partitions.py` (consistency enforced by tests)
 - Model name must match the directory name (enforced by `test_config_completeness.py`)
@@ -32,7 +32,7 @@ When a required declaration is missing or invalid:
 - The system must fail explicitly, not infer a default
 - `config_meta.py` must contain all required keys: `name`, `algorithm`, `level`, `creator`, `prediction_format`, `rolling_origin_stride`
 - `config_hyperparameters.py` must contain: `steps`, `time_steps`
-- `config_deployment.py` must contain: `deployment_status` (one of: `shadow`, `deployed`, `baseline`, `deprecated`)
+- `config_maturity.py` must contain: `maturity` (one of: `candidate`, `graduate`, `retired`); the legacy `config_deployment.py` must contain: `deployment_status` (one of: `shadow`, `deployed`, `baseline`, `deprecated`)
 
 ### Forbidden Behaviors
 

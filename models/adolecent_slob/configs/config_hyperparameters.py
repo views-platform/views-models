@@ -23,7 +23,7 @@ def get_hp_config():
         'num_filters': 64,
         'dilation_base': 3,
         'weight_norm': False,
-        'num_layers': None,
+        'num_layers': 3,
 
         # --- Regularization ---
         'dropout': 0.3,

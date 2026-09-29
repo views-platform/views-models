@@ -10,8 +10,8 @@ This folder contains code for the White Mustang model, an ensemble machine learn
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  deployed    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 
@@ -22,10 +22,12 @@ White Mustang
 ├── requirements.txt
 ├── run.sh
 ├── logs
+├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
+│   ├── config_modelset.py
 │   ├── config_partitions.py
 ├── data
 │   ├── generated

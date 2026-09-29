@@ -9,8 +9,9 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  wildest_dream   |
 | **Feature Description**       |  No description provided    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
@@ -34,6 +35,7 @@ Wildest Dream
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

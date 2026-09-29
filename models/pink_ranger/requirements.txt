@@ -1,1 +1,1 @@
-views-baseline>=1.0.0,<2.0.0
+views-baseline>=1.0.2,<2.0.0
