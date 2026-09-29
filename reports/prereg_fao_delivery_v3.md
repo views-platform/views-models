@@ -39,7 +39,7 @@ L1  pod        produce and pool                                          P1
 L2  Hop-A      publish -> production_forecasts    (§3.2 manifest per (run,target))   P2 P3 E3
 L3  transform  un_fao postprocessor, land -> land_gaul                    P6 B1 B4 B5
 L4  Hop-B      unfao_bucket                       (§4.2 manifest per run) E1 E2
-L5  serve      faoapi ingest -> /data endpoints                           P5 P4 P7 B6
+L5  serve      faoapi ingest -> /data endpoints                        P5 P4 P7 P11 B6
 ACROSS         served values == produced values                           P8  <- the spine
 CONTROL        nothing outside the declared surface moved                 P9
 ```
@@ -173,6 +173,20 @@ fatality label with no error anywhere.**
 36 months beginning at 561.
 *Falsifier:* 37 (views-models#512's off-by-one reaching the wire), or a range starting before 561.
 
+**P11 — three targets are actually served, not one or two.** `D`
+
+**views-faoapi has asked for this probe because its side will not catch it.** Nothing there asserts
+a target count: `value_columns` is checked for **emptiness only** — in the service, in the daily
+monitor *and* in the smoke test. A manifest declaring one target is internally consistent, so every
+integrity assert passes and **FAO receives one violence series, labelled normally.**
+
+*Check:* `len(value_columns) == 3` against `/health`'s `published.forecast.value_columns`, and
+**27 value columns** on the grid parquet's schema (3 series x 9 quantities).
+*Falsifier:* any count other than 3 and 27.
+
+This is the one probe in this suite that is **strictly better than what the consumer has**, and it
+exists only because views-faoapi said plainly what it could not catch.
+
 **B6 — month boundaries mean the same thing at both ends.** `D`
 `month_id = (year-1980)*12 + month`, epoch pinned as a module constant; 561 is 2026-09 everywhere.
 Assert min, max and distinct count map to the intended calendar months at **both** ends.
@@ -194,14 +208,26 @@ precision, in a companion file. After the delivery, query the API for those same
 **v1 could not execute this.** It flagged that FAO is served MAP and HDI summaries rather than raw
 draws, and never resolved which statistic to compare — so the probe was a wish.
 
-**Resolved.** `views-faoapi/data/handlers/grid_dataset.py::_compute_single_map` delegates to
-**views-frames' `tower_point`** estimator. So this probe **imports the same function faoapi uses**
-rather than reimplementing the statistic. That removes the "compared the wrong thing" failure mode
-*by construction* rather than by care.
+**Resolved.** The chain, traced and then confirmed by views-faoapi:
+
+    grid_dataset.py:696  _compute_single_map
+      -> :684            _tower_collapse
+      -> forecast/summarize/estimator.py:54,:103   vfs.tower_point(frame)
+
+where `vfs` is **`views_frames_summarize`**. So this probe imports **`views_frames_summarize.tower_point`**
+— not a `views_frames` top-level alias, which does not exist — and calls the identical function on
+the identical version (faoapi pins `views-frames>=1.10.2,<2`, installed 1.10.2). That removes the
+"compared the wrong thing" failure mode *by construction* rather than by care.
+
+`estimator.py:4` defines it as *"median of the narrowest canonical HDI floor"* — the definition to
+reach for if a difference ever needs explaining.
 
 *Falsifier:* values differ beyond floating-point tolerance.
-*Carry this caveat:* views-faoapi holds `BUGREPORT_tower_point_degenerate_tip.md`. Do not silently
-assume the estimator is sound — a disagreement may be the estimator, not the delivery.
+*Carry this caveat, now specific:* the degeneracy observed on this path is at `sample_size == 1`,
+where interval bounds collapse onto the point estimate and the served shape is indistinguishable
+from a genuine HDI (views-faoapi register **C-265**). A 128-draw pool is nowhere near that, so it
+should not arise — **but if P8 ever shows zero-width intervals, check that before suspecting an
+estimator mismatch.**
 
 **Why this hop has its own section.** Every reviewing session was a repo owner and contributed
 probes about its own repo. **The seam spans two repos and belongs to neither**, so it was in
