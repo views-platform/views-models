@@ -1,0 +1,24 @@
+{
+ "captured_utc": "2026-09-29T23:51:00.232043+00:00",
+ "purpose": "prereg v3 P5 \u2014 pin WHICH run this is, recorded BEFORE the publish",
+ "git": "d6d4a6689c182b7fc0769f9b8a78758465654d13",
+ "rehearsal_lessons": 40,
+ "run_ids": {
+  "bold_comet": {
+   "forecast_timestamp": "20260929_234023",
+   "rows": 2333448,
+   "n_months": 36,
+   "month_min": 561,
+   "month_max": 596,
+   "n_cells": 64818
+  },
+  "violet_visitor": {
+   "forecast_timestamp": "20260929_231103",
+   "rows": 2333448,
+   "n_months": 36,
+   "month_min": 561,
+   "month_max": 596,
+   "n_cells": 64818
+  }
+ }
+}
