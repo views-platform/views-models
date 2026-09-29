@@ -5,39 +5,59 @@ creating a pod."
 
 Source: /falsify skill, claim mode. Verdict: FALSIFIED, three hard falsifications.
 
-All three had ONE cause, and it is the finding worth keeping: every fix that made the
-2026-09-29 run work was applied BY HAND to the pod, and the pod was destroyed. The
-repository never learned any of them. A fresh pod reproduced the original broken state.
-The environment that produced the first FAO delivery existed only as a running machine —
-the pod was the artefact, and nothing in git described it.
+All three had ONE cause: every fix that made the 2026-09-29 run work was applied BY HAND
+to the pod, and the pod was destroyed. The repository never learned any of them. The pod
+was the artefact and nothing in git described it.
 
-  H1  the run could not be launched at all: pod_run_model.sh refuses total_lessons < 300
-      and every config declares 300, so "40 lessons" was reachable only by editing the
-      guard out — which produced output indistinguishable from a real run.
+  H1  the run could not be launched: pod_run_model.sh refuses total_lessons < 300 and every
+      config declares 300, so a cheap end-to-end test was reachable only by deleting the
+      guard — producing output indistinguishable from a real run.
   H2  a fresh env built SUCCESSFULLY and WRONG: the declared requirements resolved to
-      xarray 2025.12.0 / pandas 3.0.6 where the working pod had 2024.3.0 / 1.5.3, and
-      neither was pinned anywhere. views-models#516 called this "unbuildable"; it was not,
-      and the silent version is the more dangerous of the two.
+      xarray 2025.12.0 / pandas 3.0.6 where the working pod had 2024.3.0 / 1.5.3, neither
+      pinned. #516 called this "unbuildable"; it is not, and the silent version is worse.
   H3  `appwrite` appeared nowhere in pod_run_model.sh, so `_build_datastore` failed at
       publish — after the full training run. That is how 2026-09-29 failed (#517).
 
-These tests now GUARD those three fixes rather than assert the defects. They are kept as a
-single file because they share one cause: if a fourth instance appears, it belongs here.
+────────────────────────────────────────────────────────────────────────────────────────
+SECOND AUDIT, same day: this file's FIRST version was 22 green assertions that protected
+NOTHING. An independent /falsify guard-mode pass reverted every fix in the commit, kept the
+comments, and got 22/22 green. 20 of 24 mutations survived; 10 guards were DECORATIVE.
 
-Two assertions in this file were written as predicted falsifications and SURVIVED — the
-toolz ordering and the guide's chmod warning. They are retained deliberately. A
-falsification file containing only the author's successful predictions is a record of an
-argument, not of an audit.
+The mechanism, and it is the lesson: every assertion read the script as TEXT, and
+pod_run_model.sh is unusually well commented — each fix carries a paragraph naming the
+incident and quoting the exact strings. So THE BETTER THE COMMENT, THE WEAKER THE GUARD:
+deleting the code left the comment, and the comment satisfied the assertion.
 
-ONE ITEM IS DEFERRED, not fixed: a rehearsal's output is MARKED unfit to deliver but
-nothing REFUSES to publish it. That guard belongs in views-pipeline-core, where the publish
-happens, so this file cannot test it. See TestARehearsalCannotBeMistakenForADelivery.
+Worst single case: `requested = os.environ.get("REHEARSAL_LESSONS") or ""` changed to
+`or "40"`. One word. Every production run then patches itself to 40 lessons, the floor is
+dead, and because the SHELL variable stays empty the MANIFEST says `mode: production` and
+no REHEARSAL marker is written. A 40-lesson model, labelled a production delivery, 22/22
+green. Two of the five defects fused by a one-token diff.
+
+Worse still, one assertion certified a safety property that DOES NOT EXIST: it claimed the
+RunPod guide documents the /workspace chmod trap. It does not. The regex matched because
+`/workspace` appears on line 104 and `chmod` on line 180, joined by `.*` under re.S — the
+identical defect the first commit message boasted of having found and deleted elsewhere.
+
+So this version:
+  * EXECUTES the config-check program against fixture models, rather than grepping it. That
+    block is where all the rehearsal/production logic lives and it was wholly unguarded.
+  * STRIPS COMMENTS before any remaining text assertion, so a comment can never stand in
+    for code.
+  * asserts version-specifier SEMANTICS (is 1.5.3 allowed? is 3.0.6 refused?) instead of
+    the mere presence of a pin — `pandas>=3.0` passed the old guard.
+  * CALLS get_hp_config() instead of pattern-matching the literal, which is what
+    pod_run_model.sh itself insists on doing, citing #501 "the guard that was not one".
 """
 
+import importlib.util
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from packaging.specifiers import SpecifierSet
 
 REPO = Path(__file__).resolve().parents[1]
 PODRUN = REPO / "tools" / "podrun" / "pod_run_model.sh"
@@ -48,204 +68,385 @@ HYDRANETS = (
 )
 
 
-class TestACheapRunIsReachableWithoutEditingATrackedFile:
-    """H1. The floor was right; its absence of an escape hatch was not.
+def _code_only(src: str) -> str:
+    """Shell source with comments removed.
 
-    The >=300 floor protects against spending a full budget by ACCIDENT — a config left at
-    a sweep value, a stale checkout. It was never meant to forbid a deliberate cheap
-    end-to-end test, which is routine and is exactly what you want after a run that failed
-    late. Before `--rehearsal` the only way to get one was to delete the guard, and the
-    result looked identical on disk to a real run: the cheap test and the accident were
-    indistinguishable. That, not the wasted GPU time, was the hazard.
+    Every decorative guard in the first version of this file was satisfied by a comment
+    after its code was deleted. Any assertion about what the script DOES must therefore
+    read only what the script RUNS. Full-line and trailing comments both go; this is
+    deliberately cruder than a shell parser, and cruder is the safe direction here — it
+    removes text an assertion might otherwise lean on.
     """
+    out = []
+    for line in src.splitlines():
+        stripped = re.sub(r"(?<![$\\])#.*$", "", line)
+        if stripped.strip():
+            out.append(stripped)
+    return "\n".join(out)
 
-    def test_the_rehearsal_flag_exists_and_takes_a_lesson_count(self):
-        src = PODRUN.read_text()
-        assert "--rehearsal" in src, "no escape hatch: a cheap end-to-end test needs the guard deleted"
-        assert "REHEARSAL_LESSONS" in src, (
-            "--rehearsal must carry the lesson count on the command line. main.py has no "
-            "hyperparameter override, so a flag without a count still forces an edit to a "
-            "tracked config — the hand-edit this audit exists to remove."
+
+def _extract_cfgcheck() -> str:
+    """The config-check program, lifted out of its heredoc so it can be RUN."""
+    src = PODRUN.read_text()
+    m = re.search(r"<<'CFGCHECK'[^\n]*\n(.*?)\nCFGCHECK\s*?\n", src, re.S)
+    assert m, "the CFGCHECK heredoc is gone from pod_run_model.sh — re-read the script"
+    return m.group(1)
+
+
+def _make_model(tmp_path: Path, lessons_body: str, region: str = '"land"') -> Path:
+    """A fixture model directory inside a real git repo.
+
+    Real git, because the leftover-patch detector runs `git status --porcelain`; a fake
+    would let that guard pass without the mechanism it depends on existing.
+    """
+    model = tmp_path / "model"
+    (model / "configs").mkdir(parents=True)
+    (model / "configs" / "config_hyperparameters.py").write_text(lessons_body)
+    (model / "configs" / "config_queryset.py").write_text(f"REGION = {region}\n")
+    for cmd in (
+        ["git", "init", "-q", "."],
+        ["git", "config", "user.email", "t@t"],
+        ["git", "config", "user.name", "t"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-qm", "fixture"],
+    ):
+        subprocess.run(cmd, cwd=model, check=True, capture_output=True)
+    return model
+
+
+def _run_cfgcheck(model: Path, out: Path, rehearsal: str = "") -> subprocess.CompletedProcess:
+    out.mkdir(parents=True, exist_ok=True)
+    script = out / "_cfgcheck.py"
+    script.write_text(_extract_cfgcheck())
+    return subprocess.run(
+        [sys.executable, str(script), str(model)],
+        capture_output=True, text=True,
+        env={
+            "PATH": "/usr/bin:/bin:/usr/local/bin",
+            "REHEARSAL_LESSONS": rehearsal,
+            "OUT": str(out),
+            "MODEL": "fixture_model",
+            "HOME": str(out),
+        },
+    )
+
+
+def _config_lessons(model: Path) -> int:
+    """What get_hp_config() RETURNS — not what the file text says."""
+    path = model / "configs" / "config_hyperparameters.py"
+    spec = importlib.util.spec_from_file_location(f"_probe_{id(path)}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.get_hp_config()["total_lessons"]
+
+
+PRODUCTION_CONFIG = "def get_hp_config():\n    return {'total_lessons': 300}\n"
+CHEAP_CONFIG = "def get_hp_config():\n    return {'total_lessons': 40}\n"
+
+
+class TestTheProductionFloorActuallyRefuses:
+    """H1, executed. The floor is the only thing standing between an accidental config and
+    a full GPU budget, and the first version of this file asserted its SOURCE LINE while a
+    mutation that changed `sys.exit(` to `print(` sailed through: the run announced
+    "expected >= 300" and trained anyway."""
+
+    def test_a_cheap_config_is_refused_with_a_nonzero_exit(self, tmp_path):
+        model = _make_model(tmp_path, CHEAP_CONFIG)
+        r = _run_cfgcheck(model, tmp_path / "out")
+        assert r.returncode != 0, (
+            "a 40-lesson config must REFUSE in production mode. Exit code 0 here means the "
+            f"pod trains a throwaway model on paid hardware.\nstdout: {r.stdout}"
+        )
+        assert "--rehearsal" in (r.stdout + r.stderr), (
+            "the refusal must name the supported way to get a cheap run, or the operator "
+            "edits the guard out — which is the state this audit found"
         )
 
-    def test_the_production_floor_is_still_enforced(self):
-        src = PODRUN.read_text()
-        assert re.search(r"if not requested and lessons < 300:", src), (
-            "the >=300 floor must still apply when --rehearsal is NOT given. Adding the "
-            "escape hatch must not widen the hole it was protecting."
+    def test_a_production_config_passes(self, tmp_path):
+        model = _make_model(tmp_path, PRODUCTION_CONFIG)
+        r = _run_cfgcheck(model, tmp_path / "out")
+        assert r.returncode == 0, f"a 300-lesson production run must proceed.\n{r.stdout}\n{r.stderr}"
+
+    def test_production_mode_does_not_patch_the_config(self, tmp_path):
+        """The one-word mutation `or ""` -> `or "40"` made every production run patch itself
+        to 40 lessons while the MANIFEST still said `mode: production`. Nothing saw it."""
+        model = _make_model(tmp_path, PRODUCTION_CONFIG)
+        _run_cfgcheck(model, tmp_path / "out")
+        assert _config_lessons(model) == 300, (
+            "a production run must not modify the config it was given. If this fails, a run "
+            "labelled 'production' in the MANIFEST trained on a patched lesson count."
         )
+        assert (tmp_path / "out" / ".lessons").read_text().strip() == "300"
+
+
+class TestRehearsalPatchesOnlyThePodAndProvesIt:
+    """H1 / #523, executed."""
+
+    def test_rehearsal_patches_the_config_and_records_the_real_value(self, tmp_path):
+        model = _make_model(tmp_path, PRODUCTION_CONFIG)
+        r = _run_cfgcheck(model, tmp_path / "out", rehearsal="40")
+        assert r.returncode == 0, f"--rehearsal 40 must proceed.\n{r.stdout}\n{r.stderr}"
+        assert _config_lessons(model) == 40, "the pod's config must actually be patched"
+        assert (tmp_path / "out" / ".lessons").read_text().strip() == "40", (
+            "the MANIFEST reads .lessons; it must carry the value the run was gated on"
+        )
+
+    def test_a_patch_that_does_not_take_is_refused_not_believed(self, tmp_path):
+        """The adversarial case the 'verification' exists for.
+
+        Here the literal is patchable but `get_hp_config()` returns 300 regardless — a
+        second assignment wins. A verification that trusted re.subn's return value, or that
+        compared `target` against itself, would report a successful 40-lesson rehearsal
+        while the model trains 300 lessons. The mutation that did exactly that (replacing
+        the re-import with `lessons = target`) survived the first version of this file.
+        """
+        sneaky = (
+            "def get_hp_config():\n"
+            "    d = {'total_lessons': 300}\n"
+            "    d['total_lessons'] = 300\n"
+            "    return d\n"
+        )
+        model = _make_model(tmp_path, sneaky)
+        r = _run_cfgcheck(model, tmp_path / "out", rehearsal="40")
+        assert r.returncode != 0, (
+            "the patch did not take — get_hp_config() still returns 300 — and the run "
+            f"proceeded anyway. It must refuse.\nstdout: {r.stdout}"
+        )
+        assert "still reports total_lessons" in (r.stdout + r.stderr)
+
+    def test_a_leftover_patch_stops_a_later_production_run(self, tmp_path):
+        """Section 2 does not re-clone when .git exists, so a production run on a pod that
+        has rehearsed reads the LEFTOVER patch. It must name that, not blame the committed
+        config and send the operator to edit the wrong file."""
+        model = _make_model(tmp_path, PRODUCTION_CONFIG)
+        assert _run_cfgcheck(model, tmp_path / "o1", rehearsal="40").returncode == 0
+        r = _run_cfgcheck(model, tmp_path / "o2")
+        assert r.returncode != 0, "a production run must refuse a dirty config"
+        assert "MODIFIED in this checkout" in (r.stdout + r.stderr), (
+            "the refusal must name the leftover rehearsal patch. Blaming the committed "
+            "config is a correct refusal for the wrong reason."
+        )
+
+    def test_the_region_gate_still_fires(self, tmp_path):
+        """Not part of this audit's findings — pinned because the rehearsal work edited the
+        block this lives in, and it guards 'this would not be a global-land run'."""
+        model = _make_model(tmp_path, PRODUCTION_CONFIG, region='"africa"')
+        r = _run_cfgcheck(model, tmp_path / "out")
+        assert r.returncode != 0 and "REGION" in (r.stdout + r.stderr)
+
+
+class TestTrackedConfigsDeclareTheProductionCount:
+    """A3. Calls get_hp_config() rather than matching the literal.
+
+    pod_run_model.sh lines 173-176 refuse to pattern-match a config, citing #501 "the guard
+    that was not one — a substring assertion satisfied by a COMMENT recording the value's
+    history". The first version of this guard pattern-matched the config. A mutation that
+    appended `d['total_lessons'] = 40` before the return left the 300 literal untouched and
+    the guard green, while the pod would read 40.
+    """
 
     @pytest.mark.parametrize("model", HYDRANETS)
-    def test_tracked_configs_still_declare_the_production_count(self, model):
-        """A rehearsal patches the pod's clone. The committed config stays production truth."""
-        cfg = REPO / "models" / model / "configs" / "config_hyperparameters.py"
-        hit = re.search(r"'total_lessons':\s*(\d+)", cfg.read_text())
-        assert hit is not None, f"{model}: no total_lessons in {cfg}"
-        assert int(hit.group(1)) >= 300, (
-            f"{model} declares total_lessons={hit.group(1)}. A rehearsal must never be "
-            "obtained by committing a low count — that is the state this audit found and "
-            "the reason --rehearsal patches only the pod's ephemeral checkout."
-        )
-
-    def test_a_leftover_rehearsal_patch_is_named_not_blamed_on_the_config(self):
-        """Found reviewing this change, not in the original audit.
-
-        Section 2 does not re-clone when `.git` already exists, so a production run started
-        on a pod that has already rehearsed reads the LEFTOVER patch. The floor still refuses
-        it — but it would blame the committed config and advise `--rehearsal`, which is the
-        exact opposite of what the operator wants. A correct refusal for the wrong reason
-        sends someone to edit the wrong file.
-        """
-        src = PODRUN.read_text()
-        assert "is MODIFIED in this checkout" in src, (
-            "a production run must detect a leftover rehearsal patch and name it, rather "
-            "than reporting the patched value as though it were the committed config"
-        )
-
-    def test_the_patch_is_verified_by_re_reading_the_config(self):
-        """A substitution that silently missed would produce a 300-lesson run wearing a
-        rehearsal label, or a rehearsal wearing none. Both are worse than a refusal."""
-        src = PODRUN.read_text()
-        assert "importlib.invalidate_caches()" in src and "still reports total_lessons" in src, (
-            "the config patch must be confirmed by re-importing the config, not trusted "
-            "from re.subn's return value alone"
+    def test_the_value_the_pod_will_read_is_a_production_count(self, model):
+        cfg_dir = REPO / "models" / model / "configs"
+        assert (cfg_dir / "config_hyperparameters.py").exists(), f"{model}: no config"
+        lessons = _config_lessons(cfg_dir.parent)
+        assert lessons >= 300, (
+            f"{model}: get_hp_config() returns total_lessons={lessons}. A rehearsal must be "
+            "obtained with --rehearsal, which patches only the pod's clone — never by "
+            "committing a low count."
         )
 
 
-class TestFreshEnvironmentReproducesTheOneThatWorked:
-    """H2 (views-models#516, reframed). Measured, not reasoned about.
+class TestTheEnvironmentPinsAreCORRECTNotMerelyPRESENT:
+    """H2 (#516). Asserts the measurement, not a proxy for it.
 
-        declared:  views-datafactory>=1.9.0,<2.0.0 + numpy>=1.26.4,<2.0.0
-        resolved:  numpy 1.26.4, xarray 2025.12.0, pandas 3.0.6
-        the pod that delivered:  xarray 2024.3.0, pandas 1.5.3
+    The first version checked that a pin EXISTED. `xarray>=2025.12,<2026` and
+    `pandas>=3.0,<4.0` — the exact versions measured as the defect — passed it, and its own
+    failure message ("this file resolves to pandas 3.0.6") was unreachable in the state that
+    resolves pandas 3.0.6.
 
-    views-datafactory requires xarray outright and pandas only in an optional extra that is
-    not installed, so pandas arrives THROUGH xarray — xarray is the sole carrier, as
-    datafactory's own pyproject comment says. Pinning the carrier fixes it.
-
-    The bound is measured: xarray 2024.3.0 is the LAST release accepting pandas 1.x; 2024.5.0
-    moved to pandas>=2.0 and 2024.9.0 to pandas>=2.1. A tidy `<2025` cap would have been
-    WRONG — the cliff is inside the 2024 line, not at the year boundary.
+    Measured 2026-09-29: xarray 2024.3.0 is the LAST release accepting pandas 1.x; 2024.5.0
+    moved to pandas>=2.0 and 2024.9.0 to pandas>=2.1. So a `<2025` cap would look right and
+    be wrong — the cliff is inside the 2024 line.
     """
+
+    # (package, must be allowed, must be refused, why the refused one matters)
+    CASES = (
+        ("pandas", "1.5.3", "3.0.6", "the version a fresh resolve silently picked"),
+        ("pandas", "1.5.3", "2.1.0", "any pandas 2.x is a different major from the platform's"),
+        ("xarray", "2024.3.0", "2025.12.0", "the version a fresh resolve silently picked"),
+        ("xarray", "2024.3.0", "2024.11.0", "already requires pandas>=2.1 — inside the 2024 line"),
+        ("numpy", "1.26.4", "2.0.0", "the pandas wheel is built against the numpy 1.x C ABI"),
+    )
+
+    @staticmethod
+    def _spec(postprocessor: str, package: str) -> SpecifierSet:
+        text = (REPO / "postprocessors" / postprocessor / "requirements.txt").read_text()
+        found = [
+            ln.strip() for ln in text.splitlines()
+            if re.match(rf"^\s*{package}\s*[><=!~]", ln) and ";" not in ln
+        ]
+        assert found, (
+            f"{postprocessor}/requirements.txt declares no unconditional pin for {package}. "
+            "Unpinned, this file resolves pandas to 3.0.6 with no error. See #516. "
+            "(A marker-gated pin is excluded deliberately: `; python_version < \"3.10\"` is "
+            "inert on the 3.11 the runner builds, and looked identical to a real pin.)"
+        )
+        assert len(found) == 1, f"{postprocessor}: {package} pinned {len(found)} times: {found}"
+        return SpecifierSet(found[0][len(package):].strip())
 
     @pytest.mark.parametrize("postprocessor", ["un_fao", "un_crafd"])
-    def test_the_carrier_and_the_passenger_are_both_pinned(self, postprocessor):
-        req = REPO / "postprocessors" / postprocessor / "requirements.txt"
-        text = req.read_text()
-        missing = [p for p in ("xarray", "pandas") if not re.search(rf"^{p}[><=~]", text, re.M)]
-        assert not missing, (
-            f"{req.relative_to(REPO)} does not pin {missing}. Unpinned, this file resolves "
-            "to pandas 3.0.6 — a different MAJOR from every run that has ever succeeded, "
-            "with no error. See views-models#516."
+    @pytest.mark.parametrize("package,allowed,refused,why", CASES)
+    def test_the_pin_admits_the_working_version_and_refuses_the_broken_one(
+        self, postprocessor, package, allowed, refused, why
+    ):
+        spec = self._spec(postprocessor, package)
+        assert spec.contains(allowed), (
+            f"{postprocessor}: {package}{spec} excludes {allowed}, which is what every "
+            "successful run has used. This env would not build."
+        )
+        assert not spec.contains(refused), (
+            f"{postprocessor}: {package}{spec} ADMITS {refused} — {why}. The pin exists but "
+            "does not constrain what it was added to constrain."
         )
 
-    def test_both_postprocessors_declare_identical_pins(self):
-        """C-116: one shared prefix. Pinning one lets whichever runs last decide for both."""
-        pins = {}
-        for name in ("un_fao", "un_crafd"):
-            text = (REPO / "postprocessors" / name / "requirements.txt").read_text()
-            pins[name] = sorted(
-                re.findall(r"^((?:numpy|pandas|xarray)[><=~][^\s#]*)", text, re.M)
-            )
-        assert pins["un_fao"] == pins["un_crafd"], (
-            f"un_fao pins {pins['un_fao']} but un_crafd pins {pins['un_crafd']}. Both "
-            "install into envs/views-postprocessing (C-116); divergent pins mean the last "
-            "postprocessor to run silently decides the versions for the other."
+    @pytest.mark.parametrize("package", ["numpy", "pandas", "xarray"])
+    def test_both_postprocessors_constrain_each_package_identically(self, package):
+        """C-116: one shared prefix, so the last postprocessor to run decides for both.
+
+        Compares SPECIFIER SEMANTICS, not captured strings. The old string compare was
+        defeated by a marker suffix that made un_fao's pins inert while keeping the captured
+        text identical to un_crafd's real ones.
+        """
+        fao, crafd = self._spec("un_fao", package), self._spec("un_crafd", package)
+        probes = ["1.5.3", "2.0.0", "2.1.0", "3.0.6", "1.26.4", "2024.3.0", "2024.11.0", "2025.12.0"]
+        differ = [v for v in probes if fao.contains(v) != crafd.contains(v)]
+        assert not differ, (
+            f"un_fao pins {package}{fao} and un_crafd pins {package}{crafd}; they disagree "
+            f"on {differ}. Both install into envs/views-postprocessing (C-116), so whichever "
+            "runs last silently decides these versions for the other."
         )
 
 
-class TestThePodCanActuallyPublish:
-    """H3 (views-models#517). The publish path has to be installed and PROVEN at preflight.
+class TestThePublishPathIsInstalledAndProven:
+    """H3 (#517). Asserted against comment-stripped source.
 
-    Verified by a real resolve on 2026-09-29: requesting the extra yields appwrite 13.6.1
-    alongside views-hydranet 0.1.2 and views-pipeline-core 3.3.4 — both of which carry the
-    fixes shipped that day — with pandas 1.5.3 and numpy 1.26.4 intact.
+    Both of the first version's assertions here were satisfied by a five-line prose comment
+    that named `views-pipeline-core[appwrite]`: deleting the extra from the install line and
+    commenting out both imports left the suite green, with preflight printing "appwrite
+    client importable — the publish path exists" having imported nothing.
     """
 
-    def test_the_appwrite_extra_is_installed(self):
-        src = PODRUN.read_text()
-        assert "views-pipeline-core[appwrite]" in src, (
-            "the appwrite extra is never installed, so the run trains for hours and then "
-            "cannot publish. This is the failure of 2026-09-29. See views-models#517."
+    def test_the_appwrite_extra_is_in_an_install_command(self):
+        code = _code_only(PODRUN.read_text())
+        install_lines = [
+            ln for ln in code.splitlines()
+            if "pip install" in ln or (ln.strip().startswith('"') and "appwrite" in ln)
+        ]
+        assert any("views-pipeline-core[appwrite]" in ln for ln in install_lines), (
+            "no install command requests the appwrite extra. Without it _build_datastore "
+            "raises at publish, AFTER the full training run — the 2026-09-29 failure (#517). "
+            f"install lines seen: {install_lines}"
         )
 
-    def test_the_publish_path_is_checked_before_the_money_is_spent(self):
-        """An import in preflight costs seconds. Discovering it at publish costs the run."""
-        src = PODRUN.read_text()
-        verify = src.split("stage verify_env", 1)[-1].split("stage", 1)[0]
-        assert "appwrite" in verify, (
-            "pod_run_model.sh verifies torch, tlz, hydranet and datafactory at preflight but "
-            "not the Appwrite client. The whole script is written to fail early; the one "
-            "dependency that failed late was the one not checked here."
+    def test_preflight_imports_the_client_not_just_mentions_it(self):
+        code = _code_only(PODRUN.read_text())
+        verify = code.split("stage verify_env", 1)[-1].split("stage ", 1)[0]
+        assert re.search(r"^\s*import appwrite", verify, re.M) or re.search(
+            r"^\s*from views_pipeline_core\.modules\.appwrite import", verify, re.M
+        ), (
+            "verify_env must IMPORT the Appwrite client, not merely mention it. The whole "
+            "script is written to fail early, and the one dependency that failed late was "
+            "the one not checked here."
         )
 
-    def test_the_toolz_override_is_reasserted_after_the_last_install(self):
-        """GREEN, and it survived as a prediction. Confirmed necessary, not folklore: the
-        resolver really does land on toolz 0.11.2 for this dependency set."""
-        src = PODRUN.read_text()
-        installs = [m.start() for m in re.finditer(r"pip install", src)]
-        overrides = [m.start() for m in re.finditer(r"toolz>=0\.12", src)]
-        assert overrides, "the C-151 toolz override is gone entirely"
-        assert max(overrides) > max(installs), (
-            "the C-151 toolz override must be the LAST install: anything after it "
-            "re-resolves the prefix and can pull toolz back under 0.12, which happened by "
-            "hand on 2026-09-29 (1.1.0 -> 0.11.2) with no error."
+    def test_the_toolz_override_is_an_install_and_is_last(self):
+        code = _code_only(PODRUN.read_text())
+        installs = [m.start() for m in re.finditer(r"pip install", code)]
+        overrides = [
+            m.start() for m in re.finditer(r"pip install[^\n]*toolz>=0\.12", code)
+        ]
+        assert overrides, (
+            "the C-151 toolz override is not an install command any more. A comment saying "
+            "the base image ships toolz>=0.12.1 satisfied the old guard while C-151 was "
+            "reintroduced; the resolver really does land on toolz 0.11.2 for this set."
+        )
+        assert max(overrides) == max(installs), (
+            "the toolz override must be the LAST pip install: anything after it re-resolves "
+            "the prefix and can pull toolz back under 0.12, which happened by hand on "
+            "2026-09-29 (1.1.0 -> 0.11.2) with no error."
         )
 
 
-class TestARehearsalCannotBeMistakenForADelivery:
-    """The half that actually prevents harm.
+class TestARehearsalIsMarkedInTheOutput:
+    """The last line of defence, since nothing REFUSES to publish a rehearsal.
 
-    A rehearsal's parquets are structurally identical to a production run's — same columns,
-    row counts, names, all finite and non-negative. Every structural check passes. Nothing
-    in the DATA says the model behind it is undertrained.
+    Asserted against comment-stripped source. The old guards passed with the marker-writing
+    block deleted outright — `"$OUT/REHEARSAL"` was supplied by the `rm -f` on line 83 and
+    "NOT FIT TO DELIVER" by a MANIFEST line.
     """
 
-    def test_the_run_marks_its_output(self):
-        src = PODRUN.read_text()
-        assert '"$OUT/REHEARSAL"' in src and "NOT FIT TO DELIVER" in src, (
-            "a rehearsal must leave an unmistakable marker beside its parquets"
+    def test_the_marker_is_written_not_only_removed(self):
+        code = _code_only(PODRUN.read_text())
+        writes = re.findall(r'>\s*"\$OUT/REHEARSAL"', code)
+        assert writes, (
+            "nothing WRITES $OUT/REHEARSAL. A guard satisfied by the `rm -f` that clears it "
+            "is green in the state where no rehearsal is ever marked."
         )
 
-    def test_a_stale_marker_cannot_be_inherited(self):
-        """Worse than a stale marker on a real run: a rehearsal inheriting a production
-        run's ABSENCE of one."""
-        src = PODRUN.read_text()
-        assert 'rm -f "$OUT/REHEARSAL"' in src, (
-            "the marker must be cleared with the other stale per-run state, or a rehearsal "
-            "in a directory left by a production run carries no mark at all"
+    def test_the_marker_is_cleared_before_the_run_not_after(self):
+        code = _code_only(PODRUN.read_text())
+        clear = code.index('rm -f "$OUT/REHEARSAL"')
+        assert clear < code.index("stage preflight"), (
+            "the marker must be cleared with the other stale per-run state, before the run. "
+            "Moved to the end, a successful rehearsal deletes its own marker on the way out."
         )
 
-    def test_the_manifest_admits_the_config_was_patched(self):
-        src = PODRUN.read_text()
-        assert "PATCHED after checkout" in src, (
-            "on a rehearsal the MANIFEST's `git:` sha no longer describes the run — the "
-            "config was patched after checkout. A manifest that must be cross-read with a "
-            "command-line flag to be understood will be misread."
+    def test_the_manifest_reports_the_mode_on_the_correct_branch(self):
+        """Swapping the two MANIFEST branches made production runs claim PATCHED and
+        rehearsals claim as-committed. The old guard checked only that the string existed."""
+        code = _code_only(PODRUN.read_text())
+        m = re.search(
+            r'if \[ -n "\$REHEARSAL_LESSONS" \]; then(.*?)else(.*?)fi',
+            code, re.S,
+        )
+        assert m, "the MANIFEST mode branch is not in the expected shape; re-read it"
+        rehearsal_branch, production_branch = m.group(1), m.group(2)
+        assert "NOT FIT TO DELIVER" in rehearsal_branch and "PATCHED after checkout" in rehearsal_branch
+        assert "NOT FIT TO DELIVER" not in production_branch, (
+            "the production branch of the MANIFEST claims the output is unfit to deliver"
+        )
+        assert "PATCHED" not in production_branch, (
+            "the production branch claims the config was patched after checkout"
         )
 
-    # NOT TESTED HERE, DELIBERATELY. pod_run_model.sh MARKS a rehearsal; it cannot REFUSE
-    # to publish one, because the publish step is not in this script — the header is accurate
-    # that this runner uploads nothing. The refusal belongs wherever a forecast is handed to
-    # a store, which is views-pipeline-core, so no assertion in THIS repo can observe it.
-    #
-    # An xfail(strict) stub was written here and deleted: its regex spanned the whole file
-    # under re.S and XPASSed by accident, i.e. it was the exact class of guard-that-cannot-
-    # fire this audit exists to find. A test that cannot observe its subject is worse than no
-    # test, because it reports coverage. Tracked as an issue instead; see the module
-    # docstring. Until that guard exists, $OUT/REHEARSAL is the only thing between an
-    # undertrained model and a partner, and that is weaker than it should be.
 
+class TestTheGuideDocumentsTheChmodTrap:
+    """C-154 / #518. This property DID NOT EXIST when it was first asserted.
 
-class TestPublishCredentialsHaveADurableHome:
-    """GREEN (survived), and the prediction was wrong in the useful direction: the guide
-    DOES record the /workspace chmod trap, so the operator-facing half of C-154 / #518 is
-    already durable. What remains is that placement is still a manual step with a correct
-    runbook — an operator task, not a defect, and not counted as a falsification."""
+    The original assertion claimed the guide records the /workspace chmod trap and passed
+    because `/workspace` appears at line 104 and `chmod` at line 180, joined by `.*` under
+    re.S. An independent audit read the guide and found nothing: no "world-readable", no
+    "network filesystem", no C-154, no #518. The guard certified a safety property that was
+    absent, which is worse than having no guard, because it stopped the next reader looking.
 
-    def test_the_guide_warns_that_workspace_ignores_chmod(self):
-        guide = REPO / "docs" / "runpod_run_guide.md"
-        assert re.search(r"/workspace.*chmod|chmod.*/workspace", guide.read_text(), re.I | re.S), (
-            "/workspace is a network filesystem that reports chmod success and leaves the "
-            "file world-readable. C-154 / views-models#518."
+    The warning has since been written. This asserts its substance on a bounded window, not
+    two words anywhere in a 400-line file.
+    """
+
+    def test_the_trap_is_documented_in_substance(self):
+        text = (REPO / "docs" / "runpod_run_guide.md").read_text()
+        assert re.search(r"C-154|#518", text), "the guide cites neither C-154 nor #518"
+        windows = [
+            text[m.start(): m.start() + 700]
+            for m in re.finditer(r"chmod", text)
+        ]
+        assert any(
+            re.search(r"/workspace", w)
+            and re.search(r"ignore|silent|no effect|world-readable|666", w, re.I)
+            for w in windows
+        ), (
+            "the guide must state, near a chmod instruction, that /workspace SILENTLY "
+            "ignores chmod and leaves the credential world-readable. Two words 76 lines "
+            "apart is what the deleted version of this guard accepted."
         )

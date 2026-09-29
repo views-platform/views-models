@@ -180,6 +180,22 @@ grep -A2 '<data server IP>' ~/.netrc | ssh root@<ip> -p <port> -i ~/.ssh/id_ed25
     'umask 077; cat > /root/.netrc; chmod 600 /root/.netrc'
 ```
 
+> **Put credentials on `/root`, never on `/workspace` — `/workspace` silently ignores
+> `chmod`.**
+>
+> It is a network filesystem. `chmod 600` there **returns success and does nothing**: the
+> file stays mode `666`, readable by every process on the machine, and there is no error to
+> notice. `stat -c %a` is the only way to find out, and only if you think to look.
+>
+> Found on 2026-09-29 while placing the Appwrite publish credentials, which sat
+> world-readable on rented hardware until they were moved to `/root/.secrets`. Registered as
+> **views-models C-154**; see **#518**.
+>
+> This is why the command above writes to `/root/.netrc` and why the runner checks
+> `stat -c %a /root/.netrc` rather than trusting its own `chmod`. Both are deliberate. The
+> `umask 077` is what actually protects the file in transit — the `chmod` is a belt-and-braces
+> check that happens to work *here* because `/root` is local disk.
+
 Check it before trusting it — the pipe can silently deliver nothing:
 
 ```bash
