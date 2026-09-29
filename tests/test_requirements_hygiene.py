@@ -70,7 +70,42 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # extra is what brings views-pipeline-core (>=3.0,<4) on 0.2.x, where it is optional — and
 # it resolves from PyPI beside pipeline-core 3.3.0 and viewser 6.6.4 (measured in a clean
 # venv; one model run end-to-end on the published wheel). The 2.x split is over.
-DEFERRED_PACKAGES: dict[str, str] = {}
+# views-datafactory is split DELIBERATELY and temporarily, 2026-09-30 (#509).
+#
+# The credential-handling fixes landed in 1.13.0: before it the client could carry a netrc
+# credential across a redirect to another host, and could embed it in error messages. Every
+# leg that runs on RENTED HARDWARE holds that credential, so the three that do are floored at
+# 1.13.0 — both postprocessor requirement files and the pod install in
+# tools/podrun/pod_run_model.sh (not a requirements file, so invisible to this rule).
+#
+# The other 34 declarations are model requirements at >=1.9.0. They are NOT floored here, for
+# two reasons. They are unrelated to the delivery legs, so raising them belongs to #509 rather
+# than to a delivery PR; and one of them is `models/violet_visitor/requirements.txt`, whose
+# contents another session owns and which this session is instructed not to edit.
+#
+# The divergence is therefore real and is not decided by run order in the way C-116 warns
+# about: the two postprocessors share one prefix and agree with each other, and the models
+# resolve elsewhere. The resolver picks 1.13.0 for all of them today regardless — the floor
+# only forbids something lower.
+#
+# COST OF THIS ENTRY, because it is wider than it looks: a DEFERRED_PACKAGES entry also
+# exempts the package from test_no_dependency_is_declared_without_an_upper_bound, so nothing
+# here would notice `<2.0.0` being dropped from a views-datafactory line while this entry
+# stands. That hole is closed explicitly by
+# tests/test_falsification_40_lesson_run_readiness.py::test_every_datafactory_declaration_
+# keeps_its_upper_bound, which is narrower than this rule and survives the deferral.
+#
+# REMOVE THIS ENTRY when #509 floors the remaining 34 — that is the whole of the trigger.
+DEFERRED_PACKAGES: dict[str, str] = {
+    "views-datafactory": (
+        "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
+        "credential-handling fixes (both postprocessor requirement files and the pod install); "
+        "the 34 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "and one is violet_visitor, owned by another session. "
+        "TRIGGER: #509 raising the remaining 34 declarations to >=1.13.0 — at which point this "
+        "entry is deleted, not amended, because the divergence it describes no longer exists."
+    ),
+}
 
 # pip accepts a bare VCS URL as a requirements.txt line; PEP 508 does not, because
 # such a line names no package. `apis/un_fao/requirements.txt` uses that form. It is

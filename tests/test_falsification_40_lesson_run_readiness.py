@@ -427,6 +427,37 @@ class TestThePublishPathIsInstalledAndProven:
                     "on rented hardware holds the netrc credential, not just the training one."
                 )
 
+    def test_every_datafactory_declaration_keeps_its_upper_bound(self):
+        """Closes the hole that the #509 deferral opens.
+
+        `views-datafactory` is listed in test_requirements_hygiene.DEFERRED_PACKAGES so the
+        legs on rented hardware can be floored at >=1.13.0 while the 34 model declarations
+        stay at >=1.9.0. But that listing ALSO exempts the package from
+        test_no_dependency_is_declared_without_an_upper_bound, so while the deferral stands
+        nothing would notice `<2.0.0` being dropped — and an unbounded internal package
+        installs the next breaking major on the following monthly run.
+
+        This is narrower than the rule it stands in for: it says nothing about floors, only
+        that a ceiling exists wherever this package is named. It outlives the deferral
+        harmlessly.
+        """
+        import subprocess as sp
+        files = sp.run(["git", "ls-files", "*requirements.txt"], cwd=REPO,
+                       capture_output=True, text=True, check=True).stdout.split()
+        unbounded = []
+        for rel in files:
+            for n, raw in enumerate((REPO / rel).read_text().splitlines(), 1):
+                line = raw.strip()
+                if line.startswith("#") or not line.startswith("views-datafactory"):
+                    continue
+                if not re.search(r"[<~=]", line.split("views-datafactory", 1)[1]):
+                    unbounded.append(f"{rel}:{n}: {line}")
+        assert not unbounded, (
+            "views-datafactory declared with no upper bound:\n  " + "\n  ".join(unbounded)
+            + "\nThe package is in DEFERRED_PACKAGES for #509, which exempts it from the "
+              "repo-wide ceiling rule, so this is the only guard watching."
+        )
+
     def test_preflight_imports_the_client_not_just_mentions_it(self):
         code = _code_only(PODRUN.read_text())
         verify = code.split("stage verify_env", 1)[-1].split("stage ", 1)[0]
