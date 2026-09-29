@@ -235,6 +235,58 @@ class TestRehearsalPatchesOnlyThePodAndProvesIt:
         assert r.returncode != 0 and "REGION" in (r.stdout + r.stderr)
 
 
+class TestTheRehearsalFlagIsActuallyParsed:
+    """The shell argument parser, executed.
+
+    An independent audit deleted the `--rehearsal)` case arm outright — so `--rehearsal`
+    fell through to `--*` and was rejected as an unknown option, removing H1's escape hatch
+    entirely — and every guard stayed green, because the string `--rehearsal` survived in the
+    header comment and in USAGE. Executing the config-check program does not cover this: the
+    flag never reaches Python if the shell refuses it first.
+
+    These run the real script. Argument parsing precedes `mkdir -p "$OUT"`, so each case
+    below exits before the script touches the filesystem or spends anything.
+    """
+
+    @staticmethod
+    def _run(*args):
+        return subprocess.run(
+            ["bash", str(PODRUN), *args],
+            capture_output=True, text=True, cwd=str(REPO), timeout=60,
+        )
+
+    def test_the_flag_and_its_count_are_consumed_not_rejected(self):
+        """With the count consumed, the script must get as far as demanding a model name."""
+        r = self._run("--rehearsal", "40")
+        combined = r.stdout + r.stderr
+        assert "unknown option" not in combined, (
+            "--rehearsal was rejected as an unknown option, so the case arm parsing it is "
+            f"gone and a cheap run is unreachable again.\n{combined}"
+        )
+        assert "usage" in combined.lower(), (
+            f"expected the missing-model-name usage error once the flag was consumed.\n{combined}"
+        )
+
+    def test_a_count_is_required(self):
+        r = self._run("--rehearsal")
+        assert r.returncode != 0
+        assert "lesson count" in (r.stdout + r.stderr), (
+            "--rehearsal with no count must say so. Silently defaulting is how a rehearsal "
+            "becomes indistinguishable from a production run."
+        )
+
+    def test_a_non_integer_count_is_refused(self):
+        r = self._run("--rehearsal", "forty", "purple_alien")
+        assert r.returncode != 0
+        assert "positive integer" in (r.stdout + r.stderr)
+
+    def test_a_genuinely_unknown_option_is_still_refused(self):
+        """The control: the `--*` arm must keep working, or the test above proves nothing."""
+        r = self._run("--bogus", "purple_alien")
+        assert r.returncode != 0
+        assert "unknown option" in (r.stdout + r.stderr)
+
+
 class TestTrackedConfigsDeclareTheProductionCount:
     """A3. Calls get_hp_config() rather than matching the literal.
 
@@ -348,6 +400,22 @@ class TestThePublishPathIsInstalledAndProven:
             "raises at publish, AFTER the full training run — the 2026-09-29 failure (#517). "
             f"install lines seen: {install_lines}"
         )
+
+    def test_datafactory_is_floored_where_the_credential_fixes_landed(self):
+        """#509. The runner only ever executes on hardware we do not own, carrying a netrc
+        credential. Before views-datafactory 1.13.0 the client could carry that credential
+        across a redirect to another host and embed it in error messages. The model
+        requirements still say >=1.9.0 and a resolver will usually pick the newest — but
+        "the resolver will probably do the right thing" is the reasoning that put pandas
+        3.0.6 into a fresh environment (#516)."""
+        code = _code_only(PODRUN.read_text())
+        floors = re.findall(r"views-datafactory>=(\d+)\.(\d+)", code)
+        assert floors, "the pod install does not request views-datafactory at all"
+        for major, minor in floors:
+            assert (int(major), int(minor)) >= (1, 13), (
+                f"pod_run_model.sh installs views-datafactory>={major}.{minor}; the "
+                "credential-handling fixes landed in 1.13.0 (#509)."
+            )
 
     def test_preflight_imports_the_client_not_just_mentions_it(self):
         code = _code_only(PODRUN.read_text())
