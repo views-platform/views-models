@@ -408,14 +408,20 @@ class TestThePublishPathIsInstalledAndProven:
         requirements still say >=1.9.0 and a resolver will usually pick the newest — but
         "the resolver will probably do the right thing" is the reasoning that put pandas
         3.0.6 into a fresh environment (#516)."""
-        code = _code_only(PODRUN.read_text())
-        floors = re.findall(r"views-datafactory>=(\d+)\.(\d+)", code)
-        assert floors, "the pod install does not request views-datafactory at all"
-        for major, minor in floors:
-            assert (int(major), int(minor)) >= (1, 13), (
-                f"pod_run_model.sh installs views-datafactory>={major}.{minor}; the "
-                "credential-handling fixes landed in 1.13.0 (#509)."
-            )
+        sources = {"tools/podrun/pod_run_model.sh": _code_only(PODRUN.read_text())}
+        for pp in ("un_fao", "un_crafd"):
+            rel = f"postprocessors/{pp}/requirements.txt"
+            sources[rel] = (REPO / rel).read_text()
+        for where, text in sources.items():
+            floors = re.findall(r"^\s*(?:\S*\s+)?\"?views-datafactory>=(\d+)\.(\d+)",
+                                text, re.M)
+            assert floors, f"{where} does not request views-datafactory at all"
+            for major, minor in floors:
+                assert (int(major), int(minor)) >= (1, 13), (
+                    f"{where} declares views-datafactory>={major}.{minor}; the "
+                    "credential-handling fixes landed in 1.13.0 (#509). Every leg that runs "
+                    "on rented hardware holds the netrc credential, not just the training one."
+                )
 
     def test_preflight_imports_the_client_not_just_mentions_it(self):
         code = _code_only(PODRUN.read_text())
