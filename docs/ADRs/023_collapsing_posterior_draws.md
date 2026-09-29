@@ -75,9 +75,12 @@ rented GPU — the numpy comes down first, and the conversion is re-runnable fro
 
 ### 2. The method is the one the model declares. It is never hard-coded.
 
-`collapse_origin(..., aggregate_method=...)` implements `arithmetic_mean` and `median` — the same
+`collapse_origin(..., estimator=...)` implements `arithmetic_mean` and `median` — the same
 two names `vhy_021` defines — and **refuses any other string** rather than falling
 back to a default. The converter's default is `arithmetic_mean` because all eight declare it.
+
+*(Amended 2026-09-29: the parameter is now `estimator`, and the tool computes two more of them.
+The set a model may **declare** is still exactly these two. See Amendment 1.)*
 
 **That default and the models' declaration are two places stating one fact, so they are pinned
 together.** `tests/test_roster_conformance.py::test_collapse_declaration_matches_the_converter`
@@ -207,8 +210,9 @@ python -m tools.collapse.collapse_predictions models/<model> --run-type calibrat
 python -m tools.collapse.plot_collapse_audit <parquet> --draws-dir <origin_i> --out audit.png
 ```
 
-`--aggregate-method` exists and must be passed if a model ever stops declaring `arithmetic_mean`;
-the roster test names it when that happens.
+`--estimator` exists and must be passed if a model ever stops declaring `arithmetic_mean`;
+the roster test names it when that happens. `--aggregate-method` remains accepted as the name it
+had before Amendment 1, so runbooks and saved command lines keep working.
 
 **The plot script is part of the procedure, not a debugging aid.** The tests prove the arithmetic;
 they cannot tell you the field stopped looking like conflict. A person looks at the panels before
@@ -251,6 +255,65 @@ a real run.
    for `stochastic` runs rather than a delivery tool.
 
 ---
+
+## Amendment 1 (2026-09-29) — an estimator this tool can compute is not a method a model may declare
+
+**Status:** Accepted. Extends §2; overrides nothing.
+
+### What changed
+
+`tools/collapse` gained two point estimators beyond the two `vhy_021` defines:
+
+| name | what it is |
+|---|---|
+| `q95` | the 95th percentile across draws, numpy's linear interpolation |
+| `conditional_mean` | `E[y|y>0]` — the mean over the positive draws, equal to `E[y] / P(y>0)` |
+
+The parameter is renamed `aggregate_method` → `estimator`, because for these two the old name
+was false: they are not aggregate methods and `vhy_021` does not define them.
+
+### Why the two sets stay separate
+
+`AGGREGATE_METHODS` is **contract vocabulary** — the only names a model may put in its
+`aggregate_method`, checked against every roster member by
+`tests/test_roster_conformance.py::test_collapse_declaration_matches_the_converter`.
+`ESTIMATORS` is **what this tool can compute**, a strict superset.
+
+Merging them would be the whole defect: a config could declare `q95`, and the roster test — whose
+job is to catch exactly that — would wave it through as a legitimate ADR-021 method. The
+separation is pinned by `test_the_experiment_estimators_are_not_declarable_aggregate_methods`,
+which asserts `AGGREGATE_METHODS` is a *strict* subset and names the difference.
+
+**The standing rule: adding an estimator means adding a key to `ESTIMATORS` and nothing else.
+`AGGREGATE_METHODS` changes only when views-hydranet's ADR-021 changes.**
+
+### What the two extra estimators are for
+
+views-models#505's selector experiment. One posterior cube, collapsed three ways, submitted as
+three apparent models (`_I` mean, `_II` q95, `_III` conditional mean), so the ensemble selector's
+own criteria choose between a mean that under-predicts total fatalities ~5x and two estimators
+that do not. Measured on the 2026-09-28 calibration run, summed over 13 origins and all 7 landed
+models, `q95` and `conditional_mean` run **~4x the mean** — the right order to close that gap.
+
+They are **not** candidates for delivery. No model declares them, `arithmetic_mean` remains the
+default and the delivered estimator, and the mean frames this amendment's code produces are
+**byte-exact against the parquets delivered before it** — checked for all 7 models x 13 origins as
+the acceptance condition for the change.
+
+### What is deliberately not recorded in the parquet
+
+Which estimator produced a frame. The output carries `month_id`, `priogrid_id` and three `pred_*`
+columns and nothing else, by §5, and adding provenance to the frame would change a shape
+`ensemble-updater` already reads. **Provenance lives in the output directory the caller picks, and
+nowhere else** — so a frame moved out of its directory is a frame whose estimator is unknowable.
+That is a real sharp edge and the reason the directories are named `I_mean`, `II_q95` and
+`III_conditional_mean` rather than anything shorter.
+
+### Caveat carried forward
+
+At the roster's `D x K = 16`, `q95` sits between the 15th and 16th order statistics — a coarse
+tail estimate that one draw moves. It is reported, not corrected for. Reading either new estimator
+as a calibrated forecast rather than as a probe of the selector's criteria would be a misuse.
 
 ## References
 

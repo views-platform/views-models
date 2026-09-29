@@ -24,20 +24,32 @@
 
 ## The collapse
 
-Whatever the model declares in `aggregate_method` — `arithmetic_mean` or `median`, the two
-views-hydranet `vhy_021` defines. Never hard-coded here; an unknown name is refused rather than
-defaulted. All eight of the roster declare `arithmetic_mean`, and
-`tests/test_roster_conformance.py` fails if that stops being true.
+Two vocabularies, deliberately kept apart.
+
+**Aggregate methods** — `arithmetic_mean` and `median`, the two views-hydranet `vhy_021`
+defines. These are contract vocabulary: the only names a model may *declare* in
+`aggregate_method`. Never hard-coded here; an unknown name is refused rather than defaulted.
+All eight of the roster declare `arithmetic_mean`, and `tests/test_roster_conformance.py`
+fails if that stops being true.
 
 The mean is also the estimator the pipeline's own design points at:
 `feature_scaler.py:199` — *"Essential for accurate Arithmetic Mean collapse (ADR 021)"* — INVERT
 before COLLAPSE, so the mean is taken in count space. A better point estimate exists
 (`gate x mu`, ledger M70) but is unobtainable without replacing `main.py`.
+
+**Estimators** — the wider set this tool can compute, adding `q95` and `conditional_mean`
+(`E[y|y>0]`). These are *not* aggregate methods and no model declares them. They exist for the
+views-models#505 selector experiment: the same posterior cube submitted three times as three
+apparent models, so the ensemble selector's own criteria decide between a mean that
+under-predicts the total ~5x and two estimators that do not. Which estimator produced a frame
+is not recoverable from the parquet — it is recorded by the output directory the caller picks,
+and by nothing else.
 """
 
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -47,9 +59,56 @@ import pandas as pd
 #: not fatalities, and are deliberately absent.
 TARGETS: tuple[str, ...] = ("lr_sb_best", "lr_ns_best", "lr_os_best")
 
+
+def _arithmetic_mean(draws: np.ndarray) -> np.ndarray:
+    return draws.mean(axis=1)
+
+
+def _median(draws: np.ndarray) -> np.ndarray:
+    return np.median(draws, axis=1)
+
+
+def _q95(draws: np.ndarray) -> np.ndarray:
+    """The 95th percentile across draws, linearly interpolated (numpy's default).
+
+    At the roster's D x K = 16 this sits between the 15th and 16th order statistics, so it is
+    a coarse tail estimate — the upper draws are a small sample and one of them moves it. That
+    is a property of 16 draws, not of the quantile: it is reported, not corrected for.
+    """
+    return np.quantile(draws, 0.95, axis=1)
+
+
+def _conditional_mean(draws: np.ndarray) -> np.ndarray:
+    """`E[y|y>0]` — the mean over the positive draws only.
+
+    Identical to `E[y] / P(y>0)`: a zero draw adds nothing to the sum, so
+    `sum / n_positive == (sum / D) / (n_positive / D)`. Both forms are the conditional
+    intensity; this one is written as the division that cannot divide by a probability of zero.
+
+    A cell every draw calls silent has no conditional intensity to report, and gets **0.0**,
+    not NaN. `ensemble-updater` joins and scores these columns, so a NaN would propagate into
+    a metric instead of announcing itself. Where every draw is positive this equals the
+    arithmetic mean; it is never below it.
+    """
+    n_positive = (draws > 0).sum(axis=1)
+    return np.where(n_positive > 0, draws.sum(axis=1) / np.maximum(n_positive, 1), 0.0)
+
+
+#: Every point estimator this tool can compute, by its command-line name.
+ESTIMATORS: dict[str, Callable[[np.ndarray], np.ndarray]] = {
+    "arithmetic_mean": _arithmetic_mean,
+    "median": _median,
+    "q95": _q95,
+    "conditional_mean": _conditional_mean,
+}
+
 # views-hydranet ADR-021 defines exactly these two and rejects anything else
 # (`volume_handler.py::collapse_to_point`). We implement the same two, under the same names,
 # so a model's declared `aggregate_method` can be passed straight through.
+#
+# `q95` and `conditional_mean` are deliberately NOT here. They are alternative estimators for
+# the views-models#505 experiment, not contract vocabulary, and a model that declared one would
+# be a config error `tests/test_roster_conformance.py` must keep catching.
 AGGREGATE_METHODS: tuple[str, ...] = ("arithmetic_mean", "median")
 DEFAULT_AGGREGATE_METHOD = "arithmetic_mean"
 
@@ -101,7 +160,7 @@ def _load_target(target_dir: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 def collapse_origin(
     origin_dir: Path,
     targets: tuple[str, ...] = TARGETS,
-    aggregate_method: str = DEFAULT_AGGREGATE_METHOD,
+    estimator: str = DEFAULT_AGGREGATE_METHOD,
 ) -> pd.DataFrame:
     """One origin directory -> one DataFrame of point predictions.
 
@@ -109,11 +168,14 @@ def collapse_origin(
     identically row-for-row. A mismatch is an error, never a merge: silently joining on keys
     would paper over a misalignment that changes which cell a number belongs to.
     """
-    if aggregate_method not in AGGREGATE_METHODS:
+    try:
+        collapse = ESTIMATORS[estimator]
+    except KeyError:
         raise CollapseError(
-            f"unknown aggregate_method {aggregate_method!r}; "
-            f"views-hydranet ADR-021 defines only {', '.join(AGGREGATE_METHODS)}"
-        )
+            f"unknown estimator {estimator!r}; this tool implements "
+            f"{', '.join(sorted(ESTIMATORS))} — of which views-hydranet ADR-021 defines "
+            f"only {', '.join(AGGREGATE_METHODS)} as a declarable aggregate_method"
+        ) from None
     if not origin_dir.is_dir():
         raise CollapseError(f"not a directory: {origin_dir}")
 
@@ -152,10 +214,7 @@ def collapse_origin(
                 )
 
         wide = draws.astype("float64")  # float32 sums make the answer depend on the draw count
-        if aggregate_method == "median":
-            frame[f"pred_{target}"] = np.median(wide, axis=1)
-        else:
-            frame[f"pred_{target}"] = wide.mean(axis=1)
+        frame[f"pred_{target}"] = collapse(wide)
 
     assert frame is not None  # targets is non-empty by construction
 
@@ -202,7 +261,7 @@ def convert_model(
     out_dir: Path | None = None,
     targets: tuple[str, ...] = TARGETS,
     min_plausible_max: float = MIN_PLAUSIBLE_MAX,
-    aggregate_method: str = DEFAULT_AGGREGATE_METHOD,
+    estimator: str = DEFAULT_AGGREGATE_METHOD,
 ) -> list[Path]:
     """Convert every origin of a model's latest prediction directory. Returns files written.
 
@@ -230,7 +289,7 @@ def convert_model(
     written: list[Path] = []
     for origin in origins:
         index = int(origin.name.split("_")[1])
-        frame = collapse_origin(origin, targets, aggregate_method)
+        frame = collapse_origin(origin, targets, estimator)
         _check_scale(frame, origin, min_plausible_max)
         path = destination / f"predictions_{run_type}_{timestamp}_{index:02d}.parquet"
         frame.to_parquet(path, index=False)
@@ -245,10 +304,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out-dir", type=Path, default=None)
     parser.add_argument("--min-plausible-max", type=float, default=MIN_PLAUSIBLE_MAX)
     parser.add_argument(
-        "--aggregate-method",
+        "--estimator",
+        "--aggregate-method",  # the name before q95/conditional_mean existed; still accepted
+        dest="estimator",
         default=DEFAULT_AGGREGATE_METHOD,
-        choices=AGGREGATE_METHODS,
-        help="must match the model's own `aggregate_method` (all eight declare arithmetic_mean)",
+        choices=sorted(ESTIMATORS),
+        help=(
+            "arithmetic_mean or median must match the model's own `aggregate_method` (all "
+            "eight declare arithmetic_mean); q95 and conditional_mean are the views-models#505 "
+            "selector experiment and are declared by no model"
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -257,7 +322,7 @@ def main(argv: list[str] | None = None) -> int:
         run_type=args.run_type,
         out_dir=args.out_dir,
         min_plausible_max=args.min_plausible_max,
-        aggregate_method=args.aggregate_method,
+        estimator=args.estimator,
     )
     for path in written:
         print(path)
