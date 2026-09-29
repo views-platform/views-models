@@ -371,6 +371,48 @@ stopped looking like conflict.
 
 ---
 
+## Phase 4b — The FAO delivery (Track B)
+
+Phases 4 and 5 are **Track A**: calibration predictions for research. The FAO delivery is a
+different chain and a different script.
+
+```bash
+cd /workspace/views-models
+
+# Seconds, costs nothing, checks everything that can be known before GPU time:
+bash tools/podrun/pod_run_fao_delivery.sh --preflight
+
+# Then, once preflight is clean:
+nohup setsid bash tools/podrun/pod_run_fao_delivery.sh --rehearsal 40 \
+    > /workspace/fao.nohup 2>&1 < /dev/null &
+```
+
+Drop `--rehearsal 40` for a production delivery.
+
+It runs: the eight HydraNets on the forecasting partition → `rusty_bucket` pools them from
+the saved member forecasts → publish → the `un_fao` postprocessor → a read-back of what
+actually landed via `python -m tools.liveness`.
+
+Watch it with `cat /workspace/deliver/_fao/STAGE` or `tail -f /workspace/deliver/_fao/run.log`.
+
+**Run `--preflight` on every fresh pod.** At 300 lessons the eight forecasts alone are ~16 GPU
+hours, and the two things most likely to stop the delivery are invisible until the end:
+the three Appwrite publish secrets, and **`conda`** — the postprocessor launcher requires it
+while this pod builds a `uv` venv, so a pod can satisfy the training leg and not the delivery
+leg. That failure lands *after* all the training.
+
+### Reading the outcome
+
+- **`DeliveryNotFindableError`** is views-postprocessing 1.4.0 **working**. That build verifies
+  a delivery by what it refuses, and the message names every object it checked. Do not read it
+  as the script failing.
+- A **rehearsal's forecasts reach the FAO shelf and are servable.** Nothing downstream refuses
+  a marked rehearsal (#523), and they are structurally indistinguishable from real forecasts —
+  same columns, same coverage, all finite. `/workspace/deliver/_fao/REHEARSAL` says so. **Do
+  not leave them there**: supersede or remove them before anyone reads them as a forecast.
+- A rehearsal proves the **chain**, not the **capacity**. 40 lessons has a different duration
+  and memory profile from 300, and memory is where this platform has failed before.
+
 ## Phase 6 — Teardown
 
 Confirm `STATUS` is `OK` and the files are on your laptop, then **terminate** the pod — not stop
