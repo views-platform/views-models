@@ -109,6 +109,37 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
             "publish credentials. It would then have proceeded to spend GPU hours."
         )
 
+    def test_it_builds_the_publish_config_rather_than_counting_variables(self):
+        """The check that would have caught the real failure.
+
+        PredictionStoreConfig.from_environment() requires NINE variables — the three secrets
+        plus PROD_FORECASTS_BUCKET_ID/NAME, PROD_FORECASTS_COLLECTION_ID/NAME and
+        METADATA_DATABASE_ID/NAME. The first version of this preflight checked the three
+        secrets, so it would have reported ready with six of nine missing and the run would
+        have failed at the publish, after the whole roster trained.
+
+        Counting variables cannot be made correct by adding six more names either: the extra
+        can be absent, the endpoint unreachable, the key expired (#359 — 2026-11-17). Only
+        constructing the thing answers the question.
+        """
+        code = _code_only(FAO.read_text())
+        assert "PredictionStoreConfig" in code and "from_environment()" in code, (
+            "preflight must CONSTRUCT the publish config, not enumerate variable names"
+        )
+        assert "import appwrite" in code, (
+            "preflight must also confirm the appwrite extra is importable — variables can all "
+            "be set while the SDK that uses them is missing (#517)"
+        )
+
+    def test_it_tells_the_operator_the_variables_must_be_exported(self):
+        """pipeline-core stopped auto-loading a .env from the working directory (#346, C-177),
+        so a correct .env sitting beside the operator is not enough. Without this line the
+        failure looks like wrong credentials rather than unexported ones."""
+        code = _code_only(FAO.read_text())
+        assert re.search(r"set -a", code) and re.search(r"C-177|#346", FAO.read_text()), (
+            "preflight must say the nine variables need exporting, and name why"
+        )
+
     def test_it_names_the_missing_publish_secrets(self, result):
         out = result.stdout + result.stderr
         for var in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID",
@@ -128,6 +159,27 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
         assert "command -v conda" in code, (
             "nothing checks for conda. The un_fao postprocessor launcher requires it "
             "(tools/launcher/postprocessor.sh:72) and step 4 is the last step."
+        )
+
+    def test_the_disk_floor_is_not_below_the_floor_it_delegates_to(self):
+        """Found by a falsification pass on the forecasting claim.
+
+        This script delegates to pod_run_model.sh eight times, and that script refuses below
+        40GB for ONE model. A floor below 40 here is a preflight that reports ready and then
+        refuses at model 3 — the exact opposite of why this mode exists. The first version
+        said 60GB for all eight, which was lower than the per-model transient for a run eight
+        times the size.
+        """
+        fao = _code_only(FAO.read_text())
+        model = _code_only((REPO / "tools" / "podrun" / "pod_run_model.sh").read_text())
+        delegated = re.search(r'AVAIL_GB" -ge (\d+)', model)
+        assert delegated, "pod_run_model.sh's disk floor moved; re-read it"
+        mine = re.search(r"DISK_FLOOR_GB=(\d+)", fao)
+        assert mine, "this script no longer declares DISK_FLOOR_GB"
+        assert int(mine.group(1)) >= int(delegated.group(1)), (
+            f"this orchestrator demands {mine.group(1)}GB for eight models while the script it "
+            f"delegates to demands {delegated.group(1)}GB for one. Preflight would pass and a "
+            "later model would refuse, after hours."
         )
 
     def test_it_reports_every_problem_not_only_the_first(self, result):
