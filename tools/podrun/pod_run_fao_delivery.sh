@@ -158,8 +158,26 @@ fi
 
 nvidia-smi -L >/dev/null 2>&1 || note "no GPU visible"
 AVAIL_GB=$(df -BG --output=avail "$ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
-# Eight forecasting runs plus the pooled ensemble, on one disk.
-[ "${AVAIL_GB:-0}" -ge 60 ] || note "only ${AVAIL_GB:-0}GB free on $ROOT; eight forecasts plus the pool need ~60GB"
+# DISK_FLOOR_GB, and the honest state of what it is based on.
+#
+# pod_run_model.sh refuses below 40GB for ONE model ("one model needs ~20GB"), and this script
+# delegates to it eight times — so 40 is a hard lower bound that will be re-checked at every
+# model whatever is written here. A floor BELOW the floor of the thing it delegates to is a
+# preflight that says "ready" and then refuses at model 3, which is the opposite of this
+# script's purpose. The first version of this check said 60 for all eight, which was exactly
+# that mistake: lower than the per-model transient for a run eight times the size.
+#
+# The retained component is an ESTIMATE and cannot be better than that yet: measured on this
+# machine, one model's calibration output is ~2.5GB per predictions directory, and NO
+# FORECASTING RUN HAS EVER COMPLETED ON THIS ROSTER, so the retained size of a forecast is
+# unmeasured. A forecast has one origin against calibration's 13, so it should be smaller —
+# "should be" is doing real work in that sentence.
+#
+# 40 transient + 8 x ~5GB retained, rounded up for the pooled ensemble, which is also
+# unmeasured. Revise this number from the first completed run rather than reasoning about it
+# again; that is the whole of the trigger.
+DISK_FLOOR_GB=80
+[ "${AVAIL_GB:-0}" -ge "$DISK_FLOOR_GB" ] || note "only ${AVAIL_GB:-0}GB free on $ROOT; eight forecasts plus the pool need >=${DISK_FLOOR_GB}GB (40GB is the per-model transient that pod_run_model.sh enforces on its own, eight times over, plus retained output)"
 
 if [ "$FAIL" = "1" ]; then
     echo
