@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pod_run_model.sh [--rehearsal] <model_name>
+# pod_run_model.sh [--rehearsal <lessons>] [--forecast] <model_name>
 #
 # ┌──────────────────────────────────────────────────────────────────────────────────────┐
 # │  VERSION 0.1.0 — PROVISIONAL.  NOT part of the monthly production run.                │
@@ -47,8 +47,18 @@ set -uo pipefail
 # to reach the model through its config; this script patches the POD's ephemeral clone and
 # verifies the patch (see the config check). The count is REQUIRED — there is exactly one way
 # to ask for a rehearsal, and it states the number out loud in the command that starts it.
-USAGE='usage: pod_run_model.sh [--rehearsal <lessons>] <model_name>'
+USAGE='usage: pod_run_model.sh [--rehearsal <lessons>] [--forecast] <model_name>'
 REHEARSAL_LESSONS=""
+# --forecast selects the FAO leg: train on the forecasting partition and PRODUCE a forecast
+# (`-r forecasting -t -f`) instead of train-and-evaluate on calibration. The two legs want
+# different deliverables, so sections 4 and 5 — the 13-origin collapse and the posterior
+# archive — are CALIBRATION-only and are skipped. A forecast has one origin, and what the
+# FAO chain consumes is the pooled ensemble output, not per-model parquets.
+#
+# Kept in this script rather than a copy of it because everything before section 3 is
+# identical and already exercised: the preflight, the venv, the appwrite check, the config
+# patch-and-verify. A second script would have been a second place for C-151 to rot.
+FORECAST=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --rehearsal)
@@ -61,6 +71,7 @@ while [ $# -gt 0 ]; do
             esac
             [ "$REHEARSAL_LESSONS" -ge 1 ] || { echo "!!! --rehearsal 0 has nothing to rehearse" >&2; exit 1; }
             shift 2 ;;
+        --forecast) FORECAST=1; shift ;;
         --*) echo "!!! unknown option: $1" >&2; echo "!!! $USAGE" >&2; exit 1 ;;
         *)   break ;;
     esac
@@ -267,14 +278,68 @@ if region != "land":
 CFGCHECK
 
 # ── 3. the run ────────────────────────────────────────────────────────────────────
-stage train_and_evaluate
+if [ "$FORECAST" = "1" ]; then
+  stage train_and_forecast
+else
+  stage train_and_evaluate
+fi
 cd "$REPO/models/$MODEL" || die "cannot enter model dir"
+# WANDB_MODE=offline is NOT optional. Without it main.py calls wandb.login(), which blocks
+# on an interactive prompt no one is watching, and the first forecasting run on a pod died
+# there after the environment was already built.
 export WANDB_MODE=offline WANDB_SILENT=true
 START=$(date +%s)
-"$VENV/bin/python" main.py -r calibration -t -e || die "main.py exited non-zero"
+if [ "$FORECAST" = "1" ]; then
+  "$VENV/bin/python" main.py -r forecasting -t -f || die "main.py exited non-zero"
+else
+  "$VENV/bin/python" main.py -r calibration -t -e || die "main.py exited non-zero"
+fi
 echo "run took $(( ($(date +%s) - START) / 60 )) minutes"
 
-# ── 4. collapse to the deliverable ────────────────────────────────────────────────
+# ── 4-5. the CALIBRATION deliverable (13-origin parquets + posterior archive) ─────
+# Skipped on the forecast leg: a forecast has one origin, so the 13-parquet count check
+# would refuse it, and the FAO chain consumes the pooled ensemble output rather than these.
+if [ "$FORECAST" = "1" ]; then
+  echo "### forecast leg — skipping the calibration collapse and posterior archive"
+  stage manifest
+  {
+    echo "model:        $MODEL"
+    echo "finished:     $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "run_type:     forecasting"
+    echo "git:          $(git -C "$REPO" rev-parse --short HEAD)"
+    echo "lessons:      $(cat "$OUT/.lessons" 2>/dev/null || echo unknown)"
+    if [ -n "$REHEARSAL_LESSONS" ]; then
+      echo "mode:         REHEARSAL — NOT FIT TO DELIVER"
+      echo "config:       PATCHED after checkout — total_lessons forced to $REHEARSAL_LESSONS"
+    else
+      echo "mode:         production"
+      echo "config:       as committed at the git sha above"
+    fi
+    echo "forecast:     under $REPO/models/$MODEL/data/generated/ (pooled by rusty_bucket)"
+  } > "$OUT/MANIFEST"
+  cat "$OUT/MANIFEST"
+  if [ -n "$REHEARSAL_LESSONS" ]; then
+    {
+      echo "THIS OUTPUT IS A REHEARSAL. DO NOT DELIVER IT."
+      echo
+      echo "model:    $MODEL"
+      echo "lessons:  $(cat "$OUT/.lessons" 2>/dev/null || echo unknown)"
+      echo "run_type: forecasting"
+      echo "finished: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      echo
+      echo "Produced with --rehearsal to exercise the delivery chain end to end. The model is"
+      echo "deliberately undertrained. The forecast is well-formed and will pass every"
+      echo "structural check downstream — that is precisely why this file exists. Nothing in"
+      echo "the data itself will tell you."
+    } > "$OUT/REHEARSAL"
+    echo "### WROTE $OUT/REHEARSAL — this forecast is NOT fit to deliver"
+  fi
+  echo OK > "$OUT/STATUS"
+  stage done
+  echo "### $MODEL — COMPLETE (forecast leg)"
+  exit 0
+fi
+
 stage collapse
 # Clear a previous attempt first. Parquets are named from the SOURCE run's timestamp, so an
 # old set and a new set can coexist; if they happened to sum to 13 the count check below
