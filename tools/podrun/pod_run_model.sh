@@ -77,7 +77,12 @@ while [ $# -gt 0 ]; do
     esac
 done
 MODEL="${1:?$USAGE}"
-ROOT=/workspace
+# Honours PODRUN_ROOT for the same reason pod_run_fao_delivery.sh does, and — more
+# importantly — so the two AGREE. The delivery script reads $ROOT/deliver/<model>/STATUS to
+# decide whether a model may be pooled; if it relocated its workspace and this script did not,
+# it would read a STATUS this script never wrote. On a pod both are /workspace and nothing
+# changes.
+ROOT="${PODRUN_ROOT:-/workspace}"
 REPO=$ROOT/views-models
 VENV=$ROOT/venv
 OUT=$ROOT/deliver/$MODEL
@@ -301,6 +306,13 @@ echo "run took $(( ($(date +%s) - START) / 60 )) minutes"
 # would refuse it, and the FAO chain consumes the pooled ensemble output rather than these.
 if [ "$FORECAST" = "1" ]; then
   echo "### forecast leg — skipping the calibration collapse and posterior archive"
+  # But CLEAR them, rather than merely not writing them. A previous calibration run on this pod
+  # leaves parquet/ and draws/ in this same directory, and the forecast MANIFEST written below
+  # would then sit beside 13 parquets belonging to a different run type. The rsync in the guide
+  # copies the directory, so they would come home as this run's output. This is the same
+  # reasoning as the `rm -rf` guards in sections 4 and 5 — stale artefacts must not be
+  # countable as the current run's — applied to the case where the current run produces none.
+  rm -rf "$OUT/parquet" "$OUT/draws"
   stage manifest
   {
     echo "model:        $MODEL"

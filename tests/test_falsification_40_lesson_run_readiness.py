@@ -511,6 +511,37 @@ class TestARehearsalIsMarkedInTheOutput:
             "Moved to the end, a successful rehearsal deletes its own marker on the way out."
         )
 
+    def test_the_forecast_leg_clears_stale_calibration_artefacts(self):
+        """Found reviewing this branch before merge.
+
+        A previous calibration run on the same pod leaves parquet/ and draws/ in the same
+        output directory. The forecast leg writes no parquets, so without an explicit clear the
+        forecast MANIFEST sits beside 13 parquets from a different run type — and the guide's
+        rsync copies the directory, so they come home as this run's output. The script already
+        applies this reasoning twice (sections 4 and 5) for the case where the current run
+        DOES produce them; the case where it produces none is the same hazard.
+        """
+        code = _code_only(PODRUN.read_text())
+        leg = code[code.index('if [ "$FORECAST" = "1" ]; then\n  echo'):]
+        leg = leg[: leg.index("stage manifest")]
+        assert 'rm -rf "$OUT/parquet"' in leg and '"$OUT/draws"' in leg, (
+            "the forecast leg must clear the calibration artefacts it does not produce, or a "
+            "previous run's parquets travel home labelled as this forecast's output"
+        )
+
+    def test_both_pod_scripts_agree_on_where_the_workspace_is(self):
+        """The delivery script reads $ROOT/deliver/<model>/STATUS to decide whether a model may
+        be pooled. If one script honoured a relocated workspace and the other did not, it would
+        read a STATUS the other never wrote — and a missing STATUS is indistinguishable from a
+        model that failed."""
+        fao = REPO / "tools" / "podrun" / "pod_run_fao_delivery.sh"
+        for path in (PODRUN, fao):
+            code = _code_only(path.read_text())
+            assert re.search(r'ROOT="\$\{PODRUN_ROOT:-/workspace\}"', code), (
+                f"{path.name} does not honour PODRUN_ROOT; the two scripts would disagree "
+                "about where deliver/<model>/STATUS lives"
+            )
+
     def test_the_manifest_reports_the_mode_on_the_correct_branch(self):
         """Swapping the two MANIFEST branches made production runs claim PATCHED and
         rehearsals claim as-committed. The old guard checked only that the string existed."""
