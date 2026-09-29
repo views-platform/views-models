@@ -126,7 +126,7 @@ if [ ! -x "$VENV/bin/python" ]; then
   # attempt failed on 2026-09-29 (views-models#517); it was fixed by hand on a pod that no
   # longer exists, so the repository never learned it.
   uv pip install --python "$VENV/bin/python" \
-      "views-hydranet~=0.1.1" "views-datafactory>=1.9.0,<2.0.0" \
+      "views-hydranet~=0.1.1" "views-datafactory>=1.13.0,<2.0.0" \
       "views-pipeline-core[appwrite]" || die "pip install failed"
   # register C-151: viewser pins toolz<0.12, which cannot import tlz submodules on
   # Python 3.11 and breaks EVERY datafactory fetch. Override after resolution.
