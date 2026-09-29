@@ -31,7 +31,7 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 # #268) — the defect that killed this launcher's first delivery attempt on 2026-08-13.
 # Both launchers moved together; leaving either on 1.1.0 re-creates the downgrade path
 # described above, now with un_crafd armed as well.
-VIEWS_POSTPROCESSING_PIN="1.1.1"
+VIEWS_POSTPROCESSING_PIN="1.4.0"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh

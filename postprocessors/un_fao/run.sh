@@ -35,7 +35,7 @@ POSTPROCESSOR_ENV_NAME="views-postprocessing"
 #   python -c "import views_postprocessing, pathlib; \
 #     print(pathlib.Path(views_postprocessing.__file__).parent / 'unfao/managers/unfao.py')"
 #   grep -n 'success is not True' <that path>
-VIEWS_POSTPROCESSING_PIN="1.1.1"
+VIEWS_POSTPROCESSING_PIN="1.4.0"
 
 script_path=$(dirname "$(realpath "$0")")
 # shellcheck source=../../tools/launcher/postprocessor.sh
