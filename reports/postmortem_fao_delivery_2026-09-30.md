@@ -60,7 +60,15 @@ selects can *pass*. This is the same defect class as §4.2 below, arriving from 
 **`views-pipeline-core` — an upload reported success having written nothing.** Content-hash
 dedup returned the pre-existing file's id. Worst case is **0 of 110 objects servable**, and the
 documented remedy for an invisible delivery — re-publish — *was the trigger for it*. Registered
-**C-155**, Tier 1.
+**views-models C-155** (Tier 1, pending on the unmerged #520 branch) and
+**views-pipeline-core C-335** (Tier 1, registered 2026-09-29).
+
+> *Cite the repository with the number.* This paragraph originally said "Registered C-155, Tier 1"
+> and the `views-pipeline-core` seat read it as pointing at **their** C-155 — which is an unrelated
+> **Tier 4 documentation-drift** row. Both entries are real and both describe this defect, in their
+> own registers. Register IDs are per-repo on this platform and collide constantly; a bare `C-nnn`
+> in a cross-repo document is ambiguous by construction. The adjacent **views-pipeline-core C-336**
+> is the two-guards-masking-each-other finding that came out of the same fix.
 
 **`views-postprocessing` — a findability guard that checked 2 of 110 artefacts.** 1.4.0 verifies
 a delivery **by what it refuses**. A run that stops with `DeliveryNotFindableError` naming every
@@ -258,5 +266,7 @@ This is an ADR-shaped argument and is not yet written.
 
 ---
 
-*Register entries for this effort are deferred behind a named trigger: PR #520 merging, which
-already consumes C-154/C-155.*
+*Register entries for this effort are deferred behind a named trigger: **views-models** PR #520
+merging, which already consumes views-models C-154 and C-155. Numbers in this document are written
+`<repo> C-nnn` throughout for the reason given in §3.1 — the one place they were not, they were
+misread within hours.*
