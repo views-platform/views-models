@@ -182,6 +182,46 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
             "later model would refuse, after hours."
         )
 
+    def test_it_checks_the_appwrite_coordinate_registry(self, result):
+        """Found during the first rehearsal, with four of eight models already trained.
+
+        The postprocessor leg is fatal without the Appwrite coordinate registry —
+        `platform_env_require_registry()` says "the registry is the ONLY source of coordinates"
+        (#308) — and its default path is a relative hop to a SIBLING checkout of views-appwrite,
+        which a pod that cloned only views-models does not have. It would have failed at step 4,
+        the last one, after every GPU hour was spent.
+
+        The REGION check passing is not evidence for this: that resolves a COVERAGE declaration,
+        a different registry entirely. Two registries, two checks.
+        """
+        out = result.stdout + result.stderr
+        code = _code_only(FAO.read_text())
+        assert "coordinate_registry.toml" in code, (
+            "preflight does not check for the Appwrite coordinate registry"
+        )
+        assert "APPWRITE_REGISTRY" in code, (
+            "preflight must name the override, or an operator on a machine with a different "
+            "layout has no way to satisfy the check"
+        )
+        assert "registry" in out.lower(), (
+            f"preflight ran on a machine with no registry and said nothing about it.\n{out}"
+        )
+
+    def test_conda_is_probed_for_CAPABILITY_not_presence(self):
+        """The 2026-09-30 delivery failed at step 4 — the last — because miniconda 26.7.1 will
+        not create an environment until its channel Terms of Service are accepted. Preflight
+        had checked `command -v conda`, which said nothing about that. The binary existing is
+        not the property the postprocessor needs."""
+        code = _code_only(FAO.read_text())
+        assert "conda create --dry-run" in code, (
+            "preflight must probe that conda can CREATE an environment. `command -v conda` "
+            "passed on the pod that then failed at the last step."
+        )
+        assert "tos accept" in code, (
+            "the refusal must name the remedy — an operator who hits the ToS gate at 4am "
+            "should not have to find the two commands themselves"
+        )
+
     def test_it_reports_every_problem_not_only_the_first(self, result):
         """A preflight that dies on the first missing thing costs a round trip per problem,
         on hardware billed by the second."""
@@ -241,6 +281,90 @@ class TestTheChainIsInTheRightOrderWithTheRightFlags:
         watching. The first forecasting run on a pod died exactly there."""
         tail = code[code.index("pool_and_publish"):]
         assert "WANDB_MODE=offline" in tail
+
+
+class TestThePosteriorIsInspectedBeforeTheDeliveryIsCalledDone:
+    """The 2026-09-30 delivery passed every structural check and served a posterior whose point
+    estimate was zero for all 2,333,448 cells. Nothing in the chain said so."""
+
+    @pytest.fixture(scope="class")
+    def code(self):
+        return _code_only(FAO.read_text())
+
+    def test_posterior_health_runs_on_every_delivery(self, code):
+        assert "tools.prereg.posterior_health" in code, (
+            "nothing reports whether the pooled posterior contains anything. A valid manifest "
+            "over an empty posterior passes every other check in the chain."
+        )
+
+    def test_the_health_check_is_told_which_mode_the_run_is(self, code):
+        """The numbers cannot distinguish an expected rehearsal from a broken production run."""
+        seg = code[code.index("tools.prereg.posterior_health"):]
+        assert "--mode" in seg[:300], (
+            f"posterior_health is invoked without --mode:\n{seg[:300]}"
+        )
+
+    def test_anchors_are_captured_by_the_runner_not_by_hand(self, code):
+        """P8's protection is that anchors are not chosen after seeing the API's answer. Running
+        it from the runner makes that true by construction; running it by hand afterwards makes
+        it true only if nobody looked first."""
+        assert "tools.prereg.capture_anchors" in code
+
+    def test_the_posterior_is_inspected_before_the_postprocessor_stage(self, code):
+        """It must run as soon as the pooled frame exists, not after the last step — otherwise a
+        failure in the postprocessor buries the one signal that the numbers were empty."""
+        assert code.index("posterior_health") < code.index("un_fao_postprocessor")
+
+
+class TestTheLastHopIsCheckedNotAssumed:
+    """On 2026-09-30 every stage reported success and faoapi served NOTHING.
+
+    The artefacts were perfect — that seat downloaded all 108 shards and independently
+    re-assembled 2,330,712 rows — so no check on this side could have caught it. One of 108
+    downloads stalled, there is no retry on that path, and the run was refused. Only asking the
+    API distinguishes "delivered" from "served".
+    """
+
+    @pytest.fixture(scope="class")
+    def code(self):
+        return _code_only(FAO.read_text())
+
+    def test_the_serving_state_is_queried(self, code):
+        assert "forecast_serving_state" in code, (
+            "nothing asks whether faoapi is serving the run. Every other stage can report "
+            "success while the delivery is dark."
+        )
+
+    def test_it_does_not_use_health_status_as_the_authority(self, code):
+        """`/health`'s `status` and `forecast_freshness` read the newest record in the STORE,
+        not what is served. During the 2026-09-30 refusal they read 'healthy, age 0.02d, not
+        stale' while nothing was served at all."""
+        assert "forecast_serving_state" in code
+        assert not re.search(r'jq\s+\.status|"status"\s*==', code), (
+            "serving must be judged on forecast_serving_state, not /health's status field"
+        )
+
+    def test_recovery_uses_subset_and_explicitly_warns_against_bulk(self, code):
+        """The route that RECOVERS a refused run is not the route FAO uses. A subset query
+        performs the full ingest (~200s); /pg/data/forecast/bulk 503s in 0.2s without
+        attempting anything, so polling it reports failure forever."""
+        assert "forecast/subset" in code, (
+            "no recovery path — a refused run needs a subset query to trigger the ingest"
+        )
+        # Raw source, NOT comment-stripped: this warning lives in an `echo` the operator reads,
+        # and `_code_only` strips from the first `#` — which eats the `###` inside echo strings.
+        # The helper exists to stop a COMMENT standing in for code; an echo string IS the code's
+        # behaviour, so stripping it here would be the helper defeating the guard.
+        raw = FAO.read_text()
+        assert re.search(r"[Dd]o NOT poll.*bulk|bulk.*without attempting", raw, re.S), (
+            "the script must warn against polling /pg/data/forecast/bulk to recover; it is the "
+            "obvious thing to try and it never retries"
+        )
+
+    def test_it_refuses_to_claim_delivery_when_it_cannot_check(self):
+        """No API key means unverified, not fine. The whole failure was a stage reporting
+        success it had not established. Asserted on raw source for the reason above."""
+        assert "CANNOT VERIFY THE LAST HOP" in FAO.read_text()
 
 
 class TestARehearsalIsMarkedEverywhereItCanBe:

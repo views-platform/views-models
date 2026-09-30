@@ -80,6 +80,7 @@ mkdir -p "$OUT" 2>/dev/null || {
     exit 1
 }
 rm -f "$OUT/STATUS" "$OUT/REHEARSAL" "$OUT/PUBLISHED"
+rm -rf "$OUT/.conda_probe"
 exec > >(tee -a "$LOG") 2>&1
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
@@ -186,7 +187,25 @@ fi
 # `conda shell.bash hook` / `conda create --prefix` / `conda activate`, while this pod builds
 # a uv venv — so the two legs need different interpreters and a pod can satisfy one and not
 # the other. Without conda the delivery dies at step 4, after every GPU hour is spent.
-command -v conda >/dev/null 2>&1 || note "conda — the un_fao postprocessor launcher requires it (tools/launcher/postprocessor.sh:72). A uv venv is not enough."
+# conda must be able to CREATE A PREFIX, not merely be on PATH. On 2026-09-30 this check
+# passed on `command -v conda` and the delivery then failed at step 4 — the last one, after
+# every GPU hour — because miniconda 26.7.1 refuses to create an environment until its channel
+# Terms of Service are accepted:
+#     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+#     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+# The binary existing said nothing about that. A --dry-run create exercises resolution, channel
+# access and the ToS gate together, in seconds, which is the whole point of doing it here.
+if ! command -v conda >/dev/null 2>&1; then
+    note "conda — the un_fao postprocessor launcher requires it (tools/launcher/postprocessor.sh:72). A uv venv is not enough."
+elif ! CONDA_ERR=$(conda create --dry-run --prefix "$OUT/.conda_probe" python=3.11 2>&1); then
+    note "conda is installed but CANNOT CREATE AN ENVIRONMENT, which is what the postprocessor needs.
+      $(printf '%s' "$CONDA_ERR" | grep -iE 'terms of service|tos accept|CondaToS|channel' | head -3)
+      If this is the Terms of Service gate:
+          conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+          conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r"
+else
+    echo "  conda can create an environment"
+fi
 
 # The coordinate registry, which the FAO queryset derives its region from.
 if [ -x "$VENV/bin/python" ] && [ -d "$REPO" ]; then
@@ -197,6 +216,29 @@ if [ -x "$VENV/bin/python" ] && [ -d "$REPO" ]; then
     else
         note "un_fao REGION resolved to '${REGION:-<error>}', expected land_gaul — the FAO wire is disarmed (C-110)"
     fi
+fi
+
+# The Appwrite COORDINATE REGISTRY, which is a different registry from the coverage one the
+# REGION check above resolves — and the postprocessor leg is fatal without it:
+# platform_env_require_registry() says so outright, "the registry is the ONLY source of
+# coordinates" (#308). Its default path is a relative hop to a SIBLING checkout of
+# views-appwrite, which a pod that cloned only views-models does not have.
+#
+# Found 2026-09-30 during the first rehearsal, with four of eight models already trained. It
+# would have failed at step 4 — the last one — after every GPU hour was spent. The REGION check
+# passing is not evidence for this one, which is exactly why it needs its own line.
+#
+# APPWRITE_REGISTRY overrides the path. Note that exporting it AFTER a run has started does not
+# help: the delivery sources its environment once, and the postprocessor inherits that. Place
+# the file, or set the variable, before launching.
+REGISTRY_PATH="${APPWRITE_REGISTRY:-$REPO/../views-appwrite/docs/ADRs/platform/coordinate_registry.toml}"
+if [ -f "$REGISTRY_PATH" ]; then
+    echo "  Appwrite coordinate registry: $REGISTRY_PATH"
+else
+    note "the Appwrite coordinate registry is missing — the un_fao postprocessor (step 4, the LAST step) is fatal without it.
+      looked for: $REGISTRY_PATH
+      Either place it there, or export APPWRITE_REGISTRY=/path/to/coordinate_registry.toml
+      BEFORE launching. It holds non-secret identifiers only; its own header says so."
 fi
 
 nvidia-smi -L >/dev/null 2>&1 || note "no GPU visible"
@@ -262,6 +304,32 @@ export WANDB_MODE=offline WANDB_SILENT=true
 # the eight runs above are wasted. -p publishes the wire shards (ADR-013).
 "$VENV/bin/python" main.py -r forecasting -f -sa -p || die "$ENSEMBLE pool-and-publish exited non-zero"
 
+# ── 3b. is there anything IN the posterior? ───────────────────────────────────────────
+# Runs between the publish and the postprocessor because that is the first moment the pooled
+# frame exists on disk. It cannot prevent anything — pooling and publishing are one invocation,
+# so the numbers are already on the shelf — but on 2026-09-30 a delivery passed every structural
+# check while `tower_point` returned zero for all 2,333,448 cells, and that was found by hand at
+# 4am. A readout every run turns "remember to look" into "cannot miss".
+stage posterior_health
+POOLED=$(ls -d "$REPO/ensembles/$ENSEMBLE/data/generated/predictions_forecasting_"* 2>/dev/null | tail -1)
+if [ -z "$POOLED" ]; then
+    echo "!!! no pooled output found under $ENSEMBLE — cannot report posterior health"
+else
+    MODE_ARG=production
+    [ -n "$REHEARSAL_LESSONS" ] && MODE_ARG=rehearsal
+    "$VENV/bin/python" -m tools.prereg.posterior_health "$POOLED" \
+        --mode "$MODE_ARG" --json-out "$OUT/POSTERIOR_HEALTH.json" \
+        || echo "### posterior health reported a problem above — the delivery is already published"
+
+    # P8 anchors, captured HERE and not later: the property the pre-registration protects is that
+    # anchors are not chosen after seeing what the API returns, and running this from the runner
+    # is what makes that true by construction rather than by discipline.
+    stage capture_anchors
+    "$VENV/bin/python" -m tools.prereg.capture_anchors "$POOLED" \
+        --mode "$MODE_ARG" --out "$OUT/P8_ANCHORS.json" \
+        || echo "!!! anchor capture failed — P8 cannot be evaluated for this run"
+fi
+
 # ── 4. the FAO postprocessor ──────────────────────────────────────────────────────────
 stage un_fao_postprocessor
 cd "$REPO" || die "cannot enter repo"
@@ -269,6 +337,61 @@ cd "$REPO" || die "cannot enter repo"
 # verifies a delivery by what it refuses, and the message says which case it hit. Do not read
 # it as this script failing.
 bash postprocessors/un_fao/run.sh || die "the un_fao postprocessor exited non-zero — read the message before assuming the worst; DeliveryNotFindableError means 1.4.0's findability guard fired and it names every object it checked"
+
+# ── 4b. the LAST hop: is faoapi actually serving it? ──────────────────────────────────
+# Added after the 2026-09-30 rehearsal, where every stage above reported success and the run
+# was NOT served: faoapi refused it with reason="ingest_failed" after one of 108 shard
+# downloads stalled, and there is no retry on that path. The artefacts were perfect — that seat
+# downloaded all 108 and re-assembled 2,330,712 rows independently — so nothing on this side
+# could have detected it. Only asking the API can.
+#
+# TWO THINGS THAT COST TIME TO LEARN AND ARE NOT GUESSABLE:
+#
+#   * The route that RECOVERS a refused run is not the route FAO uses. A subset query
+#     re-evaluates the newest run and performs the full ingest (~200s). `/pg/data/forecast/bulk`
+#     short-circuits on the missing grid artefact and 503s in 0.2s WITHOUT ATTEMPTING ANYTHING
+#     — polling it reports failure forever and never retries.
+#   * `/health`'s `status` and `forecast_freshness` read the newest record in the STORE, not what
+#     is served. During the refusal they read "healthy, age 0.02d, not stale" while nothing was
+#     served at all. The authoritative field is `forecast_serving_state`.
+#
+# Needs a consumer API key, which this repo does not hold. Without one the step prints the
+# verified manual procedure rather than pretending to check.
+stage verify_served
+FAOAPI_BASE="${FAOAPI_BASE:-https://faoapi.viewsforecasting.org}"
+if [ -z "${FAOAPI_KEY:-}" ]; then
+    echo "### CANNOT VERIFY THE LAST HOP — no \$FAOAPI_KEY in the environment."
+    echo "### Everything above can report success while faoapi serves nothing (2026-09-30)."
+    echo "### Check by hand, and note the two traps:"
+    echo "###   curl -s -H \"x-api-key: \$KEY\" '$FAOAPI_BASE/health' | jq .forecast_serving_state"
+    echo "###   # if it reads {\"degraded\": true, \"reason\": \"ingest_failed\"}, trigger an ingest:"
+    echo "###   curl -s -H \"x-api-key: \$KEY\" \\"
+    echo "###     '$FAOAPI_BASE/pg/data/forecast/subset?time_ids=561&features=pred_lr_ged_sb&entity_ids=100001'"
+    echo "###   # ~200 seconds. Then re-check /health. Do NOT poll /pg/data/forecast/bulk to"
+    echo "###   # recover: it 503s in 0.2s without attempting an ingest."
+else
+    SERVING=$(curl -s --max-time 60 -H "x-api-key: $FAOAPI_KEY" "$FAOAPI_BASE/health" 2>/dev/null \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get("forecast_serving_state",{})))' 2>/dev/null)
+    echo "forecast_serving_state: ${SERVING:-<unreadable>}"
+    case "$SERVING" in
+        *'"degraded": false'*|*'"degraded":false'*)
+            echo "### faoapi IS serving this run." ;;
+        *ingest_failed*)
+            echo "### faoapi refused the run (ingest_failed). Triggering an ingest — ~200s."
+            curl -s --max-time 400 -H "x-api-key: $FAOAPI_KEY" \
+                "$FAOAPI_BASE/pg/data/forecast/subset?time_ids=561&features=pred_lr_ged_sb&entity_ids=100001" \
+                >/dev/null 2>&1
+            SERVING2=$(curl -s --max-time 60 -H "x-api-key: $FAOAPI_KEY" "$FAOAPI_BASE/health" 2>/dev/null \
+                       | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get("forecast_serving_state",{})))' 2>/dev/null)
+            echo "after ingest attempt: ${SERVING2:-<unreadable>}"
+            case "$SERVING2" in
+                *'"degraded": false'*|*'"degraded":false'*) echo "### recovered — faoapi is serving this run." ;;
+                *) echo "### STILL NOT SERVED. The artefacts are in the bucket; the last hop is not done." ;;
+            esac ;;
+        *)
+            echo "### could not determine serving state — check by hand before calling this delivered." ;;
+    esac
+fi
 
 # ── 5. what actually landed ───────────────────────────────────────────────────────────
 stage report
