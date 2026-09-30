@@ -190,7 +190,13 @@ A guard was proven by breaking the code and confirming the test failed — but t
 `ship-it` procedure already specifies mutation-verification *after* the commit, for exactly this
 reason. **The ordering is the control; care is not a substitute for it.**
 
-### 4.5 Nobody owned the seam
+### 4.6 Nobody owned the seam
+
+*(Numbered 4.6, not 4.5: the `views-postprocessing` seat's section — a guard that fires, passes
+its test, and names the wrong cause — was written into PR #528 as 4.5 at the same time this was
+written onto the branch as 4.5. Two seats independently reached for the next free number in a
+document neither of them owned, which is a small instance of the thing this very section is
+about. Renumbered here rather than there because #528 is the one still in review.)*
 
 Hours before the run, `views-pipeline-core` ran a six-probe falsification of *"we are ready for a
 full 40-lesson run"* and returned **SURVIVED**. This session ran its own pass and returned
