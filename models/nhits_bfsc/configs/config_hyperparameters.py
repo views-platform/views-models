@@ -58,6 +58,7 @@ def get_hp_config():
         },
         # Loss: SpotlightLoss (alpha=0, beta=0 → Huber + temporal gradient Huber)
         "loss_function": "SpotlightLossLogcosh",
+        "lr_scheduler_monitor": "val_metrics/MSLE",
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)
         "kappa": 0.0,  # unused when beta=0, but required by constructor
