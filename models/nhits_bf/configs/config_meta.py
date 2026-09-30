@@ -12,7 +12,7 @@ def get_meta_config():
         "algorithm": "NHiTSModel",
         "level": "cm",
         "regression_targets": ["lr_gdp_pcap"],
-        "regression_point_metrics": ["MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Xiaolong",
         "time_steps": 36,
         "evaluation_sequencing": "horizon_chunks",
