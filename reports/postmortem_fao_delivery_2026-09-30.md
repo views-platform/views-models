@@ -164,12 +164,65 @@ Adding the six names would not have fixed it. The extra can be absent, the endpo
 the key expired. Preflight now **constructs the config**, which answers the question instead of a
 proxy for it. Suggested by the `views-pipeline-core` session.
 
+**And the same check exists upstream, one layer down, with the same flaw** — filed as
+`views-pipeline-core` **#557**. That module's own docstring reads:
+
+> *"Reads Appwrite environment variables once at startup and fails loud if any are missing —
+> preventing silent failures after hours of training. Addresses C-11."*
+
+It is not called at startup. It is called from `_build_datastore()`, whose first caller is the
+publish step — after `_train_ensemble` and after every constituent's two-hour subprocess. **The
+module is the failure it claims to prevent, in that concern's own words.** On 2026-09-29 the
+missing `appwrite` extra surfaced there: after the full training run, at publish, on rented GPU.
+
+Two things make this worth more than its severity. The guard is **correct** — it does fail loud,
+and `PredictionStoreConfig.from_environment()` refuses a short environment exactly as designed. It
+is invoked at the wrong *time*, which no test of the guard can detect. And the docstring asserting
+the defect is handled is the part that does the damage, because it **stops the next reader
+looking** — the same failure as the pre-fix dedup contract and the `limit(1)` comment in §3.1, and
+the same failure as the `re.S` regex in §4.2. Three instances in one document of *a correct
+statement that has silently stopped being true*.
+
 ### 4.4 Verification order, twice
 
 A guard was proven by breaking the code and confirming the test failed — but the revert
 (`git checkout --`) ran while the *fix* was still uncommitted, discarding it. **Twice.** The
 `ship-it` procedure already specifies mutation-verification *after* the commit, for exactly this
 reason. **The ordering is the control; care is not a substitute for it.**
+
+### 4.5 Nobody owned the seam
+
+Hours before the run, `views-pipeline-core` ran a six-probe falsification of *"we are ready for a
+full 40-lesson run"* and returned **SURVIVED**. This session ran its own pass and returned
+**FALSIFIED**. Both were correct.
+
+Every probe in the first pass held, and two of them were load-bearing: the sidecar is uploaded by
+`views_pipeline_core.modules.appwrite`, so the fix released hours earlier was the code that would
+run; and the pinned `views-postprocessing 1.1.1` requires `views-pipeline-core >=3.0.0,<4.0.0`, so
+that pin blocked *its own* repo's fix and not the other's. Neither of those is guessable from
+outside that repo.
+
+The three actual blockers were a lesson-count guard, an unpinned resolve landing on pandas 3, and
+`appwrite` never installed on the pod — all in `views-models`, none visible from the other seat.
+They shared one cause: **every fix that made the previous run work was applied by hand to a pod
+that was then destroyed.** The pod was the artefact and nothing in git described it.
+
+**This is not §4.1 restated.** §4.1 is a *scoping* failure — an audit examined the artefact in
+front of it. This is an *ownership* gap: four sessions each audited their own repository
+competently, and the joins between them were nobody's. A scoping failure is fixed by widening the
+question. An ownership gap is not fixed by anyone being more careful, because no participant's
+diligence covers ground they cannot see.
+
+Two consequences worth separating:
+
+- **A verdict must carry its own scope in the same breath.** "SURVIVED" answered a question about
+  one repository inside a sentence about the run. The limits *were* stated in the same message and
+  it did not matter — a one-word verdict travels and its caveats do not. Where no one owns the
+  join, saying so **is** the finding, not a caveat beneath it.
+- **The joins need an owner before they need a process.** This arrived three times in one day from
+  three directions — the `opponent` session on the pre-registration, the sidecar probe above, and
+  the three blockers. Three independent arrivals is not a coincidence; it is the shape of the
+  platform.
 
 ---
 
@@ -244,6 +297,40 @@ And the one that is uncomfortable because the same hand wrote both halves: **thi
 compensates with unusually rich comments and many guards, and the comments then defeat the
 guards.**
 
+### The same shape in `views-pipeline-core`, which makes it a pattern rather than an anecdote
+
+The section above is written about this repository. **It is not local to it.** The clearest
+instance upstream was found on 2026-09-29 while diagnosing a different defect, and it is the same
+property with a different subject:
+
+**Which ensemble tier an ensemble runs on is not in its config. It is hardcoded in generated
+`main.py`** — `EnsembleManager` or `PredictionFrameEnsembleManager`, chosen by an import line in a
+scaffolded file. `managers/ensemble/context.py` says so explicitly: the prediction format is
+*"**not** read from the config here"*, and the two managers resolve it separately.
+
+Three consequences, all of them the §8 shape:
+
+- **No config-time validator can see it.** A constituent declaring `prediction_format:
+  "prediction_frame"` inside a DataFrame-tier ensemble is a contradiction no sniffer can detect,
+  because half the contradiction is not in any config. That is `views-pipeline-core` #530: the
+  members ran, wrote frames, exited 0, and the ensemble reported *"No prediction files found"* —
+  a message about saving, when nothing had failed to save.
+- **The per-model half of it validates clean.** `CoreConfigSniffer` checks `prediction_format`,
+  validates its value, and requires its companion key. The failing config **passes every one of
+  those checks.** The repository validates it, admits it, and then fails cryptically at runtime.
+- **A remedy was proposed publicly and cannot work.** Three issues carried a promise of a
+  config-time refusal before anyone noticed the tier is not in config. Filed as
+  `views-pipeline-core` #533, which now carries the correction as well as the defect.
+
+And the scaffold still emits the legacy tier as the active default while the stated direction is
+the other one, so **every new ensemble starts on the wrong side of this** — `views-pipeline-core`
+#126, acceptance criterion unticked.
+
+Two repositories, independently arrived at, same month: **a fact that governs a run lives in
+executable code rather than a declaration, so nothing can check it and the failure surfaces as a
+confusing message somewhere downstream.** One repository doing this is a local habit. Two is the
+platform's default, and the argument below applies to both.
+
 **Proposed smallest change with the largest effect:** make lesson count and run type
 **parameters** to `main.py` rather than file contents. That deletes the entire hand-edit class —
 no config patching, no leftover-patch detector, no `--rehearsal` needing to rewrite a checkout.
@@ -261,7 +348,7 @@ This is an ADR-shaped argument and is not yet written.
 | 4 | Floor the remaining 34 `views-datafactory` declarations (#509) | this repo | deferred, trigger named |
 | 5 | conda→UV: remove the conda preflight when it inverts (#525) | migration | open |
 | 6 | `get_latest_file_id` ordering (views-pipeline-core#555) | that repo | open |
-| 7 | Lazy credential check (views-pipeline-core#557) | that repo | filed this effort |
+| 7 | Credential check runs *after* training, not at startup (views-pipeline-core#557) | that repo | filed this effort; fix is to resolve the store config before the roster runs, behind the flag |
 | 8 | Three Appwrite clients (views-appwrite#173) | þing | deferred with trigger |
 
 ---
