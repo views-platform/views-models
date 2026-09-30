@@ -278,6 +278,74 @@ lesson count. Extrapolating: ~56 min/model at 300 lessons, ~7.5 h for the roster
 
 ---
 
+### 7.1 The serving estimator's version is not observable
+
+*Established with the `views-faoapi` seat, 2026-09-30, while checking P8 before the publish.*
+
+Pre-registration v3's **P8** — *the values served ARE the values we produced* — claims it removes
+the "compared the wrong thing" failure mode **by construction**, by importing the same
+`views_frames_summarize.tower_point` that faoapi calls, *"on the identical version (faoapi pins
+`views-frames>=1.10.2,<2`, installed 1.10.2)"*.
+
+**Two things are wrong with that sentence, and the second is structural.**
+
+First, the measurement behind "installed 1.10.2" was faoapi's **local dev venv**, not the serving
+environment — that seat corrected its own claim when asked. The serving environment is a Hetzner
+box, and `/version` returns only the application's own version:
+
+    {"version": "1.7.1", "deployed_tag": "v1.7.1", "served_contract_version": "1.5"}
+
+No dependency versions. **Neither seat can read the estimator version the box actually runs.** The
+best available evidence is inference: `uv.lock:2614-2615` resolves `views-frames` to 1.10.2 and the
+deploy is `uv sync`-based, which installs from the lock rather than re-resolving — so the box
+*should* be on 1.10.2. That is strong inference, and it is not measurement. Measuring it needs a
+command on the box, which is the operator's.
+
+Second, and independent of who measured what: **`>=1.10.2,<2` pins a contract, not a build.** Both
+sides float inside that range independently. So P8's guarantee is narrower than it reads — it rules
+out *compared the wrong function*, not *compared a different version of the right function*.
+
+**For this version pair the risk does not bite, established by diff rather than by judgement.**
+The pod runs 1.11.0. Across 1.10.2→1.11.0 the only change in `tower_point.py` is a single docstring
+line; `config.py` is comment-only with `tip_mass` still 0.25; `tower.py` — the machinery
+`tower_point` actually calls — is **unchanged**; and `conformance.py`, which did change
+substantively, **is not in the compute path**. 1.11.0 tightened what is *checked*, not what is
+*computed*.
+
+**Remedy, which should have been in P8 from the start:** the anchor file records the exact
+`views_frames` version used to compute it, so a future mismatch is diagnosable instead of
+mysterious.
+
+### 7.2 A rehearsal is indistinguishable at the serving end, not merely unrefused
+
+§7's "marked, not refused" understates it. Confirmed by the `views-faoapi` seat: **there is no
+marker for it to read.** The manifest carries `contract_version`, `run_id`, `targets`,
+`expected_months`, `expected_cell_count` and hashes — **no field for intent, maturity or rehearsal
+status**, and that seat correctly declines to infer one from a `run_id` string. So it serves a
+rehearsal exactly as it would a real run, and `/provenance/forecast` reports it as the served run
+without qualification.
+
+Making a rehearsal distinguishable downstream is therefore a **contract change**, not an inference
+any consumer can make — which is the same conclusion #523 reached from the producing end, arrived at
+independently from the serving end.
+
+The practical protection is that the next real run's manifest wins on `$createdAt`, which that seat
+confirmed is a deterministic Python sort over an exhaustive fetch.
+
+### 7.3 What a degenerate-looking value would and would not mean
+
+Recorded because the obvious candidate is the wrong one and would cost hours. faoapi holds
+`BUGREPORT_tower_point_degenerate_tip.md`, and v3 says to note it rather than silently depend on the
+estimator. **Both its findings were resolved in views-frames 1.3.0** — seven-plus minor versions
+before either side's build. It is not a candidate explanation.
+
+If a 40-lesson rehearsal's values look wrong, the thing to look for is **zero-width intervals from a
+near-degenerate posterior at low sample resolution** (faoapi register C-265). A 128-draw pool is far
+from the `sample_size == 1` case where bounds collapse onto the point estimate, but **undertrained
+models can produce near-degenerate posteriors** — and that would be a **model** observation, not an
+estimator or delivery fault. Distinguishing those three is the whole reason to write this down
+before looking at the numbers.
+
 ## 8. The systemic argument
 
 The difficulty of this work is a signal about the codebase, not only about whoever did it. The
