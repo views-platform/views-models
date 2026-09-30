@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+
+artifacts/*
+!artifacts/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/generated/*
+!data/generated/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+logs/*
+!logs/.gitkeep
+wandb/
+lightning_logs/
+darts_logs/
