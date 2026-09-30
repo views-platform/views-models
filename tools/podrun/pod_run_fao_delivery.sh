@@ -199,6 +199,29 @@ if [ -x "$VENV/bin/python" ] && [ -d "$REPO" ]; then
     fi
 fi
 
+# The Appwrite COORDINATE REGISTRY, which is a different registry from the coverage one the
+# REGION check above resolves — and the postprocessor leg is fatal without it:
+# platform_env_require_registry() says so outright, "the registry is the ONLY source of
+# coordinates" (#308). Its default path is a relative hop to a SIBLING checkout of
+# views-appwrite, which a pod that cloned only views-models does not have.
+#
+# Found 2026-09-30 during the first rehearsal, with four of eight models already trained. It
+# would have failed at step 4 — the last one — after every GPU hour was spent. The REGION check
+# passing is not evidence for this one, which is exactly why it needs its own line.
+#
+# APPWRITE_REGISTRY overrides the path. Note that exporting it AFTER a run has started does not
+# help: the delivery sources its environment once, and the postprocessor inherits that. Place
+# the file, or set the variable, before launching.
+REGISTRY_PATH="${APPWRITE_REGISTRY:-$REPO/../views-appwrite/docs/ADRs/platform/coordinate_registry.toml}"
+if [ -f "$REGISTRY_PATH" ]; then
+    echo "  Appwrite coordinate registry: $REGISTRY_PATH"
+else
+    note "the Appwrite coordinate registry is missing — the un_fao postprocessor (step 4, the LAST step) is fatal without it.
+      looked for: $REGISTRY_PATH
+      Either place it there, or export APPWRITE_REGISTRY=/path/to/coordinate_registry.toml
+      BEFORE launching. It holds non-secret identifiers only; its own header says so."
+fi
+
 nvidia-smi -L >/dev/null 2>&1 || note "no GPU visible"
 AVAIL_GB=$(df -BG --output=avail "$ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
 # DISK_FLOOR_GB, and the honest state of what it is based on.

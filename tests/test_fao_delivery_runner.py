@@ -182,6 +182,31 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
             "later model would refuse, after hours."
         )
 
+    def test_it_checks_the_appwrite_coordinate_registry(self, result):
+        """Found during the first rehearsal, with four of eight models already trained.
+
+        The postprocessor leg is fatal without the Appwrite coordinate registry —
+        `platform_env_require_registry()` says "the registry is the ONLY source of coordinates"
+        (#308) — and its default path is a relative hop to a SIBLING checkout of views-appwrite,
+        which a pod that cloned only views-models does not have. It would have failed at step 4,
+        the last one, after every GPU hour was spent.
+
+        The REGION check passing is not evidence for this: that resolves a COVERAGE declaration,
+        a different registry entirely. Two registries, two checks.
+        """
+        out = result.stdout + result.stderr
+        code = _code_only(FAO.read_text())
+        assert "coordinate_registry.toml" in code, (
+            "preflight does not check for the Appwrite coordinate registry"
+        )
+        assert "APPWRITE_REGISTRY" in code, (
+            "preflight must name the override, or an operator on a machine with a different "
+            "layout has no way to satisfy the check"
+        )
+        assert "registry" in out.lower(), (
+            f"preflight ran on a machine with no registry and said nothing about it.\n{out}"
+        )
+
     def test_it_reports_every_problem_not_only_the_first(self, result):
         """A preflight that dies on the first missing thing costs a round trip per problem,
         on hardware billed by the second."""
