@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 
