@@ -316,6 +316,57 @@ class TestThePosteriorIsInspectedBeforeTheDeliveryIsCalledDone:
         assert code.index("posterior_health") < code.index("un_fao_postprocessor")
 
 
+class TestTheLastHopIsCheckedNotAssumed:
+    """On 2026-09-30 every stage reported success and faoapi served NOTHING.
+
+    The artefacts were perfect — that seat downloaded all 108 shards and independently
+    re-assembled 2,330,712 rows — so no check on this side could have caught it. One of 108
+    downloads stalled, there is no retry on that path, and the run was refused. Only asking the
+    API distinguishes "delivered" from "served".
+    """
+
+    @pytest.fixture(scope="class")
+    def code(self):
+        return _code_only(FAO.read_text())
+
+    def test_the_serving_state_is_queried(self, code):
+        assert "forecast_serving_state" in code, (
+            "nothing asks whether faoapi is serving the run. Every other stage can report "
+            "success while the delivery is dark."
+        )
+
+    def test_it_does_not_use_health_status_as_the_authority(self, code):
+        """`/health`'s `status` and `forecast_freshness` read the newest record in the STORE,
+        not what is served. During the 2026-09-30 refusal they read 'healthy, age 0.02d, not
+        stale' while nothing was served at all."""
+        assert "forecast_serving_state" in code
+        assert not re.search(r'jq\s+\.status|"status"\s*==', code), (
+            "serving must be judged on forecast_serving_state, not /health's status field"
+        )
+
+    def test_recovery_uses_subset_and_explicitly_warns_against_bulk(self, code):
+        """The route that RECOVERS a refused run is not the route FAO uses. A subset query
+        performs the full ingest (~200s); /pg/data/forecast/bulk 503s in 0.2s without
+        attempting anything, so polling it reports failure forever."""
+        assert "forecast/subset" in code, (
+            "no recovery path — a refused run needs a subset query to trigger the ingest"
+        )
+        # Raw source, NOT comment-stripped: this warning lives in an `echo` the operator reads,
+        # and `_code_only` strips from the first `#` — which eats the `###` inside echo strings.
+        # The helper exists to stop a COMMENT standing in for code; an echo string IS the code's
+        # behaviour, so stripping it here would be the helper defeating the guard.
+        raw = FAO.read_text()
+        assert re.search(r"[Dd]o NOT poll.*bulk|bulk.*without attempting", raw, re.S), (
+            "the script must warn against polling /pg/data/forecast/bulk to recover; it is the "
+            "obvious thing to try and it never retries"
+        )
+
+    def test_it_refuses_to_claim_delivery_when_it_cannot_check(self):
+        """No API key means unverified, not fine. The whole failure was a stage reporting
+        success it had not established. Asserted on raw source for the reason above."""
+        assert "CANNOT VERIFY THE LAST HOP" in FAO.read_text()
+
+
 class TestARehearsalIsMarkedEverywhereItCanBe:
     """A rehearsal reaches the FAO shelf, because nothing downstream refuses one (#523). So
     the marking is the only protection, and it has to be loud."""

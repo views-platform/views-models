@@ -338,6 +338,61 @@ cd "$REPO" || die "cannot enter repo"
 # it as this script failing.
 bash postprocessors/un_fao/run.sh || die "the un_fao postprocessor exited non-zero — read the message before assuming the worst; DeliveryNotFindableError means 1.4.0's findability guard fired and it names every object it checked"
 
+# ── 4b. the LAST hop: is faoapi actually serving it? ──────────────────────────────────
+# Added after the 2026-09-30 rehearsal, where every stage above reported success and the run
+# was NOT served: faoapi refused it with reason="ingest_failed" after one of 108 shard
+# downloads stalled, and there is no retry on that path. The artefacts were perfect — that seat
+# downloaded all 108 and re-assembled 2,330,712 rows independently — so nothing on this side
+# could have detected it. Only asking the API can.
+#
+# TWO THINGS THAT COST TIME TO LEARN AND ARE NOT GUESSABLE:
+#
+#   * The route that RECOVERS a refused run is not the route FAO uses. A subset query
+#     re-evaluates the newest run and performs the full ingest (~200s). `/pg/data/forecast/bulk`
+#     short-circuits on the missing grid artefact and 503s in 0.2s WITHOUT ATTEMPTING ANYTHING
+#     — polling it reports failure forever and never retries.
+#   * `/health`'s `status` and `forecast_freshness` read the newest record in the STORE, not what
+#     is served. During the refusal they read "healthy, age 0.02d, not stale" while nothing was
+#     served at all. The authoritative field is `forecast_serving_state`.
+#
+# Needs a consumer API key, which this repo does not hold. Without one the step prints the
+# verified manual procedure rather than pretending to check.
+stage verify_served
+FAOAPI_BASE="${FAOAPI_BASE:-https://faoapi.viewsforecasting.org}"
+if [ -z "${FAOAPI_KEY:-}" ]; then
+    echo "### CANNOT VERIFY THE LAST HOP — no \$FAOAPI_KEY in the environment."
+    echo "### Everything above can report success while faoapi serves nothing (2026-09-30)."
+    echo "### Check by hand, and note the two traps:"
+    echo "###   curl -s -H \"x-api-key: \$KEY\" '$FAOAPI_BASE/health' | jq .forecast_serving_state"
+    echo "###   # if it reads {\"degraded\": true, \"reason\": \"ingest_failed\"}, trigger an ingest:"
+    echo "###   curl -s -H \"x-api-key: \$KEY\" \\"
+    echo "###     '$FAOAPI_BASE/pg/data/forecast/subset?time_ids=561&features=pred_lr_ged_sb&entity_ids=100001'"
+    echo "###   # ~200 seconds. Then re-check /health. Do NOT poll /pg/data/forecast/bulk to"
+    echo "###   # recover: it 503s in 0.2s without attempting an ingest."
+else
+    SERVING=$(curl -s --max-time 60 -H "x-api-key: $FAOAPI_KEY" "$FAOAPI_BASE/health" 2>/dev/null \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get("forecast_serving_state",{})))' 2>/dev/null)
+    echo "forecast_serving_state: ${SERVING:-<unreadable>}"
+    case "$SERVING" in
+        *'"degraded": false'*|*'"degraded":false'*)
+            echo "### faoapi IS serving this run." ;;
+        *ingest_failed*)
+            echo "### faoapi refused the run (ingest_failed). Triggering an ingest — ~200s."
+            curl -s --max-time 400 -H "x-api-key: $FAOAPI_KEY" \
+                "$FAOAPI_BASE/pg/data/forecast/subset?time_ids=561&features=pred_lr_ged_sb&entity_ids=100001" \
+                >/dev/null 2>&1
+            SERVING2=$(curl -s --max-time 60 -H "x-api-key: $FAOAPI_KEY" "$FAOAPI_BASE/health" 2>/dev/null \
+                       | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get("forecast_serving_state",{})))' 2>/dev/null)
+            echo "after ingest attempt: ${SERVING2:-<unreadable>}"
+            case "$SERVING2" in
+                *'"degraded": false'*|*'"degraded":false'*) echo "### recovered — faoapi is serving this run." ;;
+                *) echo "### STILL NOT SERVED. The artefacts are in the bucket; the last hop is not done." ;;
+            esac ;;
+        *)
+            echo "### could not determine serving state — check by hand before calling this delivered." ;;
+    esac
+fi
+
 # ── 5. what actually landed ───────────────────────────────────────────────────────────
 stage report
 # By name, from the live surface, not inferred from an exit code. `python -m tools.liveness`
