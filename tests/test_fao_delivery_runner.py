@@ -207,6 +207,21 @@ class TestPreflightRefusesAMachineThatCannotDeliver:
             f"preflight ran on a machine with no registry and said nothing about it.\n{out}"
         )
 
+    def test_conda_is_probed_for_CAPABILITY_not_presence(self):
+        """The 2026-09-30 delivery failed at step 4 — the last — because miniconda 26.7.1 will
+        not create an environment until its channel Terms of Service are accepted. Preflight
+        had checked `command -v conda`, which said nothing about that. The binary existing is
+        not the property the postprocessor needs."""
+        code = _code_only(FAO.read_text())
+        assert "conda create --dry-run" in code, (
+            "preflight must probe that conda can CREATE an environment. `command -v conda` "
+            "passed on the pod that then failed at the last step."
+        )
+        assert "tos accept" in code, (
+            "the refusal must name the remedy — an operator who hits the ToS gate at 4am "
+            "should not have to find the two commands themselves"
+        )
+
     def test_it_reports_every_problem_not_only_the_first(self, result):
         """A preflight that dies on the first missing thing costs a round trip per problem,
         on hardware billed by the second."""
@@ -266,6 +281,39 @@ class TestTheChainIsInTheRightOrderWithTheRightFlags:
         watching. The first forecasting run on a pod died exactly there."""
         tail = code[code.index("pool_and_publish"):]
         assert "WANDB_MODE=offline" in tail
+
+
+class TestThePosteriorIsInspectedBeforeTheDeliveryIsCalledDone:
+    """The 2026-09-30 delivery passed every structural check and served a posterior whose point
+    estimate was zero for all 2,333,448 cells. Nothing in the chain said so."""
+
+    @pytest.fixture(scope="class")
+    def code(self):
+        return _code_only(FAO.read_text())
+
+    def test_posterior_health_runs_on_every_delivery(self, code):
+        assert "tools.prereg.posterior_health" in code, (
+            "nothing reports whether the pooled posterior contains anything. A valid manifest "
+            "over an empty posterior passes every other check in the chain."
+        )
+
+    def test_the_health_check_is_told_which_mode_the_run_is(self, code):
+        """The numbers cannot distinguish an expected rehearsal from a broken production run."""
+        seg = code[code.index("tools.prereg.posterior_health"):]
+        assert "--mode" in seg[:300], (
+            f"posterior_health is invoked without --mode:\n{seg[:300]}"
+        )
+
+    def test_anchors_are_captured_by_the_runner_not_by_hand(self, code):
+        """P8's protection is that anchors are not chosen after seeing the API's answer. Running
+        it from the runner makes that true by construction; running it by hand afterwards makes
+        it true only if nobody looked first."""
+        assert "tools.prereg.capture_anchors" in code
+
+    def test_the_posterior_is_inspected_before_the_postprocessor_stage(self, code):
+        """It must run as soon as the pooled frame exists, not after the last step — otherwise a
+        failure in the postprocessor buries the one signal that the numbers were empty."""
+        assert code.index("posterior_health") < code.index("un_fao_postprocessor")
 
 
 class TestARehearsalIsMarkedEverywhereItCanBe:

@@ -80,6 +80,7 @@ mkdir -p "$OUT" 2>/dev/null || {
     exit 1
 }
 rm -f "$OUT/STATUS" "$OUT/REHEARSAL" "$OUT/PUBLISHED"
+rm -rf "$OUT/.conda_probe"
 exec > >(tee -a "$LOG") 2>&1
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
@@ -186,7 +187,25 @@ fi
 # `conda shell.bash hook` / `conda create --prefix` / `conda activate`, while this pod builds
 # a uv venv — so the two legs need different interpreters and a pod can satisfy one and not
 # the other. Without conda the delivery dies at step 4, after every GPU hour is spent.
-command -v conda >/dev/null 2>&1 || note "conda — the un_fao postprocessor launcher requires it (tools/launcher/postprocessor.sh:72). A uv venv is not enough."
+# conda must be able to CREATE A PREFIX, not merely be on PATH. On 2026-09-30 this check
+# passed on `command -v conda` and the delivery then failed at step 4 — the last one, after
+# every GPU hour — because miniconda 26.7.1 refuses to create an environment until its channel
+# Terms of Service are accepted:
+#     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+#     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+# The binary existing said nothing about that. A --dry-run create exercises resolution, channel
+# access and the ToS gate together, in seconds, which is the whole point of doing it here.
+if ! command -v conda >/dev/null 2>&1; then
+    note "conda — the un_fao postprocessor launcher requires it (tools/launcher/postprocessor.sh:72). A uv venv is not enough."
+elif ! CONDA_ERR=$(conda create --dry-run --prefix "$OUT/.conda_probe" python=3.11 2>&1); then
+    note "conda is installed but CANNOT CREATE AN ENVIRONMENT, which is what the postprocessor needs.
+      $(printf '%s' "$CONDA_ERR" | grep -iE 'terms of service|tos accept|CondaToS|channel' | head -3)
+      If this is the Terms of Service gate:
+          conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+          conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r"
+else
+    echo "  conda can create an environment"
+fi
 
 # The coordinate registry, which the FAO queryset derives its region from.
 if [ -x "$VENV/bin/python" ] && [ -d "$REPO" ]; then
@@ -284,6 +303,32 @@ export WANDB_MODE=offline WANDB_SILENT=true
 # -sa/--saved pools the member forecasts just written. Without it the ensemble refetches and
 # the eight runs above are wasted. -p publishes the wire shards (ADR-013).
 "$VENV/bin/python" main.py -r forecasting -f -sa -p || die "$ENSEMBLE pool-and-publish exited non-zero"
+
+# ── 3b. is there anything IN the posterior? ───────────────────────────────────────────
+# Runs between the publish and the postprocessor because that is the first moment the pooled
+# frame exists on disk. It cannot prevent anything — pooling and publishing are one invocation,
+# so the numbers are already on the shelf — but on 2026-09-30 a delivery passed every structural
+# check while `tower_point` returned zero for all 2,333,448 cells, and that was found by hand at
+# 4am. A readout every run turns "remember to look" into "cannot miss".
+stage posterior_health
+POOLED=$(ls -d "$REPO/ensembles/$ENSEMBLE/data/generated/predictions_forecasting_"* 2>/dev/null | tail -1)
+if [ -z "$POOLED" ]; then
+    echo "!!! no pooled output found under $ENSEMBLE — cannot report posterior health"
+else
+    MODE_ARG=production
+    [ -n "$REHEARSAL_LESSONS" ] && MODE_ARG=rehearsal
+    "$VENV/bin/python" -m tools.prereg.posterior_health "$POOLED" \
+        --mode "$MODE_ARG" --json-out "$OUT/POSTERIOR_HEALTH.json" \
+        || echo "### posterior health reported a problem above — the delivery is already published"
+
+    # P8 anchors, captured HERE and not later: the property the pre-registration protects is that
+    # anchors are not chosen after seeing what the API returns, and running this from the runner
+    # is what makes that true by construction rather than by discipline.
+    stage capture_anchors
+    "$VENV/bin/python" -m tools.prereg.capture_anchors "$POOLED" \
+        --mode "$MODE_ARG" --out "$OUT/P8_ANCHORS.json" \
+        || echo "!!! anchor capture failed — P8 cannot be evaluated for this run"
+fi
 
 # ── 4. the FAO postprocessor ──────────────────────────────────────────────────────────
 stage un_fao_postprocessor
