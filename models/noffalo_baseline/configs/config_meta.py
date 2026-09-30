@@ -16,6 +16,11 @@ def get_meta_config():
         "prediction_format": "prediction_frame",
         "rolling_origin_stride": 1,
         "creator": "Borbála",
+        "time_steps": 36,
+        "evaluation_sequencing": "horizon_chunks",
+        "prediction_format": "prediction_frame",
+        "rolling_origin_stride": 1,
+        "skip_predictions_delivery": True,
     }
     return meta_config
 
