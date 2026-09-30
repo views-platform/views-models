@@ -90,7 +90,7 @@ def get_hp_config():
         "max_pool_1d": False,
         "activation": "GELU",
         "dropout": 0.3,  # 0.10 → 0.0: tiny model, no overfitting risk
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
