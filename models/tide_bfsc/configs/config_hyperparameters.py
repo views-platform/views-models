@@ -17,7 +17,7 @@ def get_hp_config():
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
         "use_layer_norm": True,
-        "use_reversible_instance_norm": True,
+        "use_reversible_instance_norm": False,
         "dropout": 0.3,
         "use_static_covariates": True,
         "n_epochs": 300,
