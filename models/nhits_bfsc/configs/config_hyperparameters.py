@@ -57,7 +57,7 @@ def get_hp_config():
             "weight_decay": 0.000001,
         },
         # Loss: SpotlightLoss (alpha=0, beta=0 → Huber + temporal gradient Huber)
-        "loss_function": "SpotlightLossLogcosh",
+        "loss_function": "SpotlightLoss",
         "lr_scheduler_monitor": "val_metrics/MSLE",
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)

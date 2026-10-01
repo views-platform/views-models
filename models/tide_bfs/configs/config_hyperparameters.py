@@ -41,7 +41,7 @@ def get_hp_config():
         "gradient_clip_val": 25.0,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
-        "loss_function": "SpotlightLossLogcosh",
+        "loss_function": "SpotlightLoss",
         "non_zero_threshold": 0.88,
         "likelihood": None,
         "num_samples": 1,
