@@ -70,9 +70,19 @@ documented remedy for an invisible delivery — re-publish — *was the trigger 
 > in a cross-repo document is ambiguous by construction. The adjacent **views-pipeline-core C-336**
 > is the two-guards-masking-each-other finding that came out of the same fix.
 
-**`views-postprocessing` — a findability guard that checked 2 of 110 artefacts.** 1.4.0 verifies
-a delivery **by what it refuses**. A run that stops with `DeliveryNotFindableError` naming every
-object is that build *working*; read as a failure it invites exactly the wrong remedy.
+**`views-postprocessing` — a findability guard that checked 2 of 110 artefacts, and could not
+have caught it pointed at the other 108.** The count is the memorable half and the misleading one.
+The guard resolved each artefact with a query for the newest document *per category*, and every
+wire object is uploaded under `category="forecast"` with the manifest last — so that query always
+returned the manifest. **Adding the sidecar to the list it checked would have resolved the manifest
+and passed.** The lookup key was wrong, not the list. Worth stating because "it checked 2 of 110"
+invites a fix that does not work, and that fix is the obvious one.
+
+1.4.0 verifies a delivery **by what it refuses**. A run that stops with
+`DeliveryNotFindableError` naming every object is that build *working*; read as a failure it
+invites exactly the wrong remedy. If it names **every** object rather than one, that is the
+deterministic-re-run case — identical bytes under new filenames, all of them deduplicated at once —
+and the refusal says so in its own text rather than leaving it to be inferred.
 
 ### 3.2 In this repository, found by falsification
 
@@ -190,6 +200,37 @@ A guard was proven by breaking the code and confirming the test failed — but t
 `ship-it` procedure already specifies mutation-verification *after* the commit, for exactly this
 reason. **The ordering is the control; care is not a substitute for it.**
 
+### 4.5 A guard that fired correctly and named the wrong cause
+
+*Added from the `views-postprocessing` seat.* §4.2 is about guards that cannot fire. This is the
+adjacent failure and it is not in this document otherwise: a guard that fires, passes its test, and
+**sends the reader to the wrong file**.
+
+Register **C-83** in `views-postprocessing` recorded "three correct behaviours composing into a
+lie": pipeline-core's `get_queryset()` returned `None` for any import failure,
+`declared_data_format(None)` returned its documented default `'dataframe'`, and the format guard
+then told the operator to set `data_format: 'feature_frame'` — in a file that already said exactly
+that. `assert_queryset_was_importable` was written to refuse `None` before that chain could run.
+
+`views-pipeline-core` **3.3.0** fixed the root cause on 2026-09-17 (their register **C-321**):
+import failures now raise. But `None` did not stop being returned — it kept its *other* meaning,
+*this model has no queryset*, for ensembles. The two meanings split; one did not replace the other.
+
+So the guard still fires, its test is still green — the test passes `None` directly and never goes
+through `get_queryset()`, so nothing would surface this — and its refusal now says the queryset
+**"could not be imported"** for a condition that means *there is no queryset*. An operator reads
+that and goes to `config_queryset.py` and its imports. The file is fine.
+
+**This is C-83 inverted: the guard written to fix a misdirecting refusal now misdirects.** Tracked
+as views-postprocessing#319, not yet fixed — nothing is broken today because the FAO path always
+has a queryset, so the wrong message is reachable only in a state that would be wrong anyway.
+
+The transferable part is the trigger rather than the bug. An upstream fix that **narrows** what a
+sentinel means leaves every downstream reading of that sentinel describing a cause that has moved.
+Nothing fails. No test changes colour. The only signal is someone reading a refusal and going to
+the wrong place — which is the signal this effort got twice, from something downstream failing
+rather than from anyone predicting it.
+
 ### 4.6 Nobody owned the seam
 
 *(Numbered 4.6, not 4.5: the `views-postprocessing` seat's section — a guard that fires, passes
@@ -275,6 +316,22 @@ lesson count. Extrapolating: ~56 min/model at 300 lessons, ~7.5 h for the roster
   The refusal belongs in `views-pipeline-core` as *declare-or-refuse* (#523) — an ADR-013
   contract change across four repos, and a maintainer decision.
 - **`views-datafactory` is declared two ways**, deferred with a named trigger (#509).
+- **`views-postprocessing`'s delivery check still depends on an ordering guarantee that does not
+  exist.** *Added from that seat.* The per-object half was made order-independent in 1.4.0, but the
+  **selection** half — does the consumer's own query land on *this* run — still resolves through
+  pipeline-core's `get_latest_file_id`, which documents *"the newest matching file based on creation
+  timestamp"* and implements `files_list[0]` over a result that `search_files_by_metadata` never
+  sorts (`modules/appwrite/file.py:1045-1050`; no `order_desc`, no `order_asc`). It has held since
+  August, so the order has been favourable rather than guaranteed, and the document set it indexes
+  into grows by ~110 documents **per delivery**, unbounded across runs. *(An earlier draft of this
+  line said "~120 at 40 lessons" — wrong, and wrong in the way this document is about: lessons are a
+  training parameter and the shard count follows the forecast horizon. This run emits months 561–596,
+  n=36, so 3 × 36 + sidecar + manifest = 110 whatever the lesson count. Corrected before commit
+  because the number was reasoned rather than measured.)* The failure mode is a **false**
+  `DeliveryNotFindableError` on a healthy delivery, which is the direction that guard exists to
+  avoid. Pinned as an `xfail(strict=True)` probe in that repo so it flips on its own when action 6
+  lands and the pin moves, rather than depending on anyone remembering. Action **6** owns the fix;
+  this line owns the dependency, which is ours.
 
 ---
 
@@ -371,7 +428,52 @@ And the one that is uncomfortable because the same hand wrote both halves: **thi
 compensates with unusually rich comments and many guards, and the comments then defeat the
 guards.**
 
-### The same shape in `views-pipeline-core`, which makes it a pattern rather than an anecdote
+### 8a. It generalises one level out — nothing declares what an *environment* is either
+
+*Added from the `views-postprocessing` seat, which was asked whether §8 is narrower than the
+property it describes. It is.*
+
+§8's thesis is *nothing here declares what a run is*. The same sentence holds with one word
+changed, and it holds across repositories rather than inside one:
+
+**Nothing declares what an environment is.** The pod installs `views-postprocessing` from a **git
+tag**, by exact pin, with a ref check that refuses a mismatch — and `views-pipeline-core` from
+**PyPI**, transitively, through a dependency range. Two mechanisms, two halves of the same fix. So
+on 2026-09-29 the question *"is the fix released?"* had two different correct answers that had to be
+established two different ways, and three sessions believed this repository's half had shipped while
+it was reachable by nothing. No document anywhere states that this is the arrangement.
+
+The same property inside `views-postprocessing`: **CI installs from `poetry.lock`; production
+resolves live with `pip` from declared ranges.** Until 2026-09-19 the lock said pipeline-core 3.0.1
+while a fresh install got 3.1.1 or 3.3.0 — newest-within-range. They agree today by timing, not by
+mechanism, and the next release re-opens the gap on the day it publishes. Tracked as
+views-postprocessing#310.
+
+And the uncomfortable instance, offered because §8's own strongest line is the one about the same
+hand writing both halves: **every test result that seat reported during this effort was measured in
+a conda prefix its own register says cannot be reproduced.** `views-postprocessing`'s C-104 records
+that its lockfile installs on no interpreter available on that machine, and #295 records that the
+declared Python range is wrong. What saves those numbers is that CI installs from the lock on 3.11
+and agrees — so each has an independent reproducible witness. But the unreproducible environment was
+reached for every time because it was faster, and that was not stated unprompted.
+
+**That is the same failure as the pod, with the evidence merely unshared rather than destroyed.**
+The distinction is what happened to be double-checked, not discipline. So §8's smell table wants one
+more row, and it is not this repository's:
+
+| Smell | What it forces |
+|---|---|
+| two install mechanisms for one platform (git tag *and* PyPI range) | "is it released?" has no single answer → a merged fix can be reachable by nothing while everyone believes it shipped |
+| CI installs a lockfile, production resolves ranges | the tested environment and the running one are different objects → a guard can pass in one and be absent from the other |
+
+**Proposed smallest change with the largest effect:** make lesson count and run type
+**parameters** to `main.py` rather than file contents. That deletes the entire hand-edit class —
+no config patching, no leftover-patch detector, no `--rehearsal` needing to rewrite a checkout.
+This is an ADR-shaped argument and is not yet written.
+
+---
+
+### 8b. The same shape in `views-pipeline-core`, which makes it a pattern rather than an anecdote
 
 The section above is written about this repository. **It is not local to it.** The clearest
 instance upstream was found on 2026-09-29 while diagnosing a different defect, and it is the same
@@ -405,13 +507,6 @@ executable code rather than a declaration, so nothing can check it and the failu
 confusing message somewhere downstream.** One repository doing this is a local habit. Two is the
 platform's default, and the argument below applies to both.
 
-**Proposed smallest change with the largest effect:** make lesson count and run type
-**parameters** to `main.py` rather than file contents. That deletes the entire hand-edit class —
-no config patching, no leftover-patch detector, no `--rehearsal` needing to rewrite a checkout.
-This is an ADR-shaped argument and is not yet written.
-
----
-
 ## 9. Actions
 
 | # | Action | Owner | State |
@@ -431,3 +526,15 @@ This is an ADR-shaped argument and is not yet written.
 merging, which already consumes views-models C-154 and C-155. Numbers in this document are written
 `<repo> C-nnn` throughout for the reason given in §3.1 — the one place they were not, they were
 misread within hours.*
+
+
+*Reviewed from the `views-postprocessing` seat, 2026-09-30. **No objection to action 4.** The two
+postprocessor requirement files are floored at `>=1.13.0` and the 34 model declarations are not, and
+deferring the rest behind #509 is the right call for a reason the table does not state: the two
+files that matter for the FAO delivery are already correct, so the residue is a consistency debt
+rather than a delivery risk, and flooring 34 declarations during a live rehearsal would be the
+larger change made at the worse moment. Recording the agreement rather than silence, since silence
+on a shared document reads as not having looked.*
+
+*Nothing else in §9 is contested from that seat. Action 6 is the one this repository's delivery
+check depends on — see §7.*
