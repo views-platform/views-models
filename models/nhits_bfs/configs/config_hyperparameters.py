@@ -34,6 +34,9 @@ def get_hp_config():
         # Training
         "batch_size": 64,
         "n_epochs": 100,
+        "early_stopping_monitor": "train_loss",
+        "checkpoint_monitor": "train_loss",
+        "checkpoint_mode": "last",
         "early_stopping_patience": 15,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
@@ -58,7 +61,7 @@ def get_hp_config():
         },
         # Loss: SpotlightLoss (alpha=0, beta=0 → Huber + temporal gradient Huber)
         "loss_function": "SpotlightLoss",
-        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "train_loss",
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)
         "kappa": 0.0,  # unused when beta=0, but required by constructor

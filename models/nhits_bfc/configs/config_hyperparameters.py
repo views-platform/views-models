@@ -36,8 +36,9 @@ def get_hp_config():
         "n_epochs": 100,
         "early_stopping_patience": 4,
         "early_stopping_min_delta": 0.0005,
-        "early_stopping_monitor": "val_metrics/MSLE",
-        "checkpoint_monitor": "val_metrics/MSLE",
+        "early_stopping_monitor": "train_loss",
+        "checkpoint_monitor": "train_loss",
+        "checkpoint_mode": "last",
         "force_reset": True,
         # Optimizer
         "optimizer_cls": "Adam",
@@ -49,7 +50,7 @@ def get_hp_config():
         "lr_scheduler_factor": 0.5,
         "lr_scheduler_patience": 2,
         "lr_scheduler_min_lr": 3e-6,
-        "lr_scheduler_monitor": "val_metrics/MSLE",
+        "lr_scheduler_monitor": "train_loss",
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
