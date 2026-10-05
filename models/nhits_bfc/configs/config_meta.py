@@ -16,7 +16,7 @@ def get_meta_config():
         "creator": "Xiaolong",
         "time_steps": 36,
         "evaluation_sequencing": "horizon_chunks",
-        "prediction_format": "prediction_frame",
+        "prediction_format": "dataframe",
         "rolling_origin_stride": 1,
         "skip_predictions_delivery": True,
     }
