@@ -191,11 +191,26 @@ def test_environment_sharing_is_recorded_not_discovered():
 
     expected = {
         "views-baseline": 39,
-        "views_stepshifter": 37,
-        "views_r2darts2": 24,
+        # 37 -> 38: PRE-EXISTING drift, NOT caused by #531. The expected value was already
+        # stale when this branch was measured on 2026-10-06 — a stepshifter tenant was added
+        # without updating it. Recorded here rather than absorbed silently, because the whole
+        # point of this test is that such a change is a visible diff.
+        "views_stepshifter": 38,
+        # 24 -> 36. Two separate causes, deliberately itemised:
+        #   +4  PRE-EXISTING drift, same as the stepshifter line above — already stale.
+        #   +8  #531: the eight cm darts models below moved here from envs/views-hydranet,
+        #       where a scaffold run (4be8f66a) had wrongly put them. They are NHiTS/TiDE/
+        #       TSMixer/TCN models and never belonged in the HydraNet prefix.
+        #       beautiful_people crimson_tide frozen_peak iron_will
+        #       shadow_wolf swift_current teenage_dirtbag wild_storm
+        # Satisfiability checked before the move: this prefix's tenants declare
+        # views-r2darts2 >=0.2.0 (x14), >=0.1.0 (x10) and 4 with no spec, all of which
+        # intersect with the >=0.2.3,<0.3.0 the eight now declare. No co-tenant loses.
+        "views_r2darts2": 36,
         "views_ensemble": 15,
         "views-r2darts2": 9,
-        "views-hydranet": 27,
+        # 27 -> 19: the eight above left this prefix (#531).
+        "views-hydranet": 19,
         "views-stepshifter": 7,
         "views-seldon": 1,
         # 1 -> 2: un_crafd joined un_fao in this prefix (#333). Both install the same
