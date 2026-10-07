@@ -21,8 +21,15 @@ def get_meta_config():
         # views-pipeline-core#529 is why the refusal was invisible.
         "entity_id": "priogrid_id",
         "creator": "Dylan",
-        # "regression_point_baselines": ["average_pgmbaseline", "zero_pgmbaseline", "locf_pgmbaseline"],
-        # "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
+        # #536: point metrics re-activated because they are now REQUIRED, not preferred.
+        # views-evaluation picks the metric list from the DATA, not the config
+        # (native_evaluator.py:258, `"sample" if n_samples > 1 else "point"`), so at
+        # num_samples=1 it reads regression_point_metrics — and an empty list raises AFTER
+        # the full training run, writing no predictions. The sample metrics below are kept
+        # deliberately: they record what these two models are FOR, they are never read at one
+        # sample, and keeping them makes the #492 revert a two-line change rather than six.
+        "regression_point_baselines": ["average_pgmbaseline", "zero_pgmbaseline", "locf_pgmbaseline"],
+        "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         "regression_sample_metrics": ["y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample", "CRPS"],
         "regression_sample_baselines": ["black_ranger", "blue_ranger", "pink_ranger", "white_ranger"],
         "rolling_origin_stride": 1,

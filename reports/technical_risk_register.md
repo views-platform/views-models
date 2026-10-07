@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-28  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 161 (152 concerns + 9 disagreements)  
-**Concerns:** Open 72 | Mitigated 23 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 48 | T3 65 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 164 (155 concerns + 9 disagreements)  
+**Concerns:** Open 73 | Mitigated 25 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 51 | T3 65 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1909,6 +1909,45 @@
 | **Status** | Accepted |
 | **Location** | `~/.netrc` on any rented machine; `datafactory_query.defaults.RemoteConfig(server="…", scheme="http")`; views-datafactory register **C-318** is the same fact from the producing side |
 | **Notes** | The datafactory speaks **plain HTTP**. HTTP Basic sends the credential base64-encoded on every chunk request — base64 is encoding, not encryption — so the password is readable by anything on the path. views-datafactory accepted this (**their C-318**) when the audience was a trusted circle on trusted networks, and on fimbulthul that was reasonable. **We changed the audience without changing the mechanism:** on 2026-09-28 the credential was placed on five rented machines in datacentres we do not control, and the operator chose knowingly to use his personal login rather than provision a throwaway. That choice is recorded, not second-guessed — the work was owed and the server was gone. Two properties make the residual risk outlive the run: the credential has **no expiry** and **no per-host registration**, so it stays valid until a person rotates it by hand, and it authenticates from anywhere. A pod image, a snapshot or a volume that outlives a campaign therefore carries a live, permanent credential. **Tier 3 and not 2** because the exposure is a real but unquantified interception risk rather than a demonstrated compromise, and because the mitigations are cheap and known. **Mitigations, in order of preference:** a throwaway login for the campaign, retired after (about three commands for whoever administers the data server); TLS on the data server, which removes the class; or, failing both, deleting rented volumes and images at campaign end and rotating afterwards. `docs/runpod_run_guide.md` states the throwaway option and tells the operator it is cheaper than it looks. Cross-refs: **C-151** (the other thing that bites a fresh datafactory environment), views-datafactory **C-318**, views-models **#509** (the client floor still permits a version that leaked the credential across redirects). |
+
+---
+
+### C-154 — `/workspace` on RunPod silently ignores `chmod`, so a credential placed there stays world-readable with no error
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Placing any credential on rented hardware — or writing a runbook step that says `chmod 600` without saying which filesystem it must be on. |
+| **Source** | Found 2026-09-29 while placing the Appwrite publish credentials during the first RunPod deployment; #518 |
+| **Status** | Mitigated |
+| **Location** | `docs/runpod_run_guide.md` Step 2.3 (the warning, and the `umask 077` that actually protects the file); `tools/podrun/pod_run_model.sh` and `tools/podrun/pod_run_darts_calibration.sh` (both `stat -c %a /root/.netrc` rather than trusting their own `chmod`) |
+| **Notes** | **Written 2026-10-07 because the register did not contain it.** The guide has cited "views-models C-154" since 2026-09-29 (`docs/runpod_run_guide.md:192`) and no such entry existed — a citation resolving to nothing, which is the documentation equivalent of a guard that cannot fire: it stops the next reader looking. The facts are the guide's own, not new here. `/workspace` is a network filesystem; `chmod 600` there **returns success and does nothing**, leaving the file mode `666` and readable by every process on the machine, with no error to notice. `stat -c %a` is the only way to find out, and only if you think to look. The Appwrite publish credentials sat world-readable on rented hardware until they were moved to `/root/.secrets`. **Mitigations:** credentials go on `/root` (local disk) and never `/workspace`; the guide's placement command uses `umask 077`, which is what actually protects the file in transit; both pod runners verify the mode with `stat` instead of trusting a `chmod` they issued. **Residual:** the protection is a convention plus two scripts that check one specific path. Nothing prevents a future runner, or an operator following a different instruction, from writing a secret to `/workspace` — and it will look like it worked. Cross-refs: **C-153** (the datafactory credential is now on hardware we do not own), **C-155** (also found by measuring rather than by a failure). |
+
+---
+
+### C-155 — The `dataframe` prediction tier materialises every rolling origin as Python lists, so a sample count that passes every check cannot run on any machine we can rent
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Raising `num_samples` on any pgm model whose `prediction_format` is `"dataframe"` — or #492 landing and someone restoring the values it makes affordable, without re-measuring. |
+| **Source** | Measured during epic #532 (2026-10-06/07), while establishing why #536's two models could not be run at all |
+| **Status** | Mitigated |
+| **Location** | `views_r2darts2/transformers/darts_bridge.py::prediction_frames_to_dataframe` (a Python list per cell); `views_r2darts2/engines/darts_forecasting_model_manager.py:353-362` (all origins held before any release). Consumers: `models/{little_talks,mister_bluesky}/configs/config_hyperparameters.py`. |
+| **Notes** | **Nothing in the configuration says this is impossible, and every check passes.** The engine converts each prediction to a list-in-cell DataFrame, and the evaluation path builds **all 13 rolling origins before releasing any of them** — `results` is a list and `_release_scratch_if_frames_copied` runs once after the loop — so peak memory is the whole evaluation, not one origin. Measured at pgm (3 targets x 2,333,448 rows x 13 origins, distinct float objects): `num_samples` 1 -> ~11 GB, 4 -> ~18 GB, 8 -> ~29 GB, 16 -> ~52 GB, **100 -> ~303 GB**, against a pod selection rule of RAM >= 50 GB (`docs/runpod_run_guide.md` Phase 1.1). `little_talks` and `mister_bluesky` sat at 100 and were therefore unrunnable on any hardware available to this project — discovered by arithmetic, not by a failure, because nothing had tried. **Why Mitigated and not Open:** #536/#542 lowered both to 1 and added `tests/test_sample_count_matches_declared_metrics.py`; #534's pod preflight refuses `num_samples != 1` by name before any GPU time. Both are partial — the test guards the *metric pairing*, not the magnitude, and the preflight guards only the pod path, so a local run or a config edit can still produce an unrunnable model. **The class fix is #492** (migrate to `prediction_format: "prediction_frame"`, which hands memmaps instead of Python lists); both config files name it as their revert trigger, and the measurement is recorded on that issue. *Carry forward when #492 lands:* the memmap path is cheaper per unit but has the **same shape** — `PredictionScratch` instances also accumulate in a list and are freed only after the loop (views-r2darts2#54), so disk peak is still `N_origins x scratch`. Re-measure before restoring any sample count. Cross-refs: **C-116** (shared environments), **C-152** (a third reader of an unpublished on-disk layout). |
+
+---
+
+### C-156 — Every config check that loads via `spec_from_file_location` can read stale `__pycache__` bytecode, so a same-length config edit is invisible to it
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Any config edit that does not change the file's byte length — `"num_samples": 1,` -> `"num_samples": 5,`, `300` -> `400` — followed by a check that loads that config. Most acute where a script edits a config and then re-reads it to verify the edit. |
+| **Source** | Found 2026-10-07 while mutation-testing #536's new guard; the mutation's "restoration" was verified by sha256 and the next run still read the mutated value |
+| **Status** | Open |
+| **Location** | 13 test files load configs this way (incl. `tests/conftest.py`, `test_roster_configs_load.py`, `test_darts_entity_id_matches_level.py`, `test_roster_conformance.py`); `tools/catalogs/create_catalogs.py`; and the embedded config checks in `tools/podrun/pod_run_model.sh` and `tools/podrun/pod_run_darts_calibration.sh`. |
+| **Notes** | **`exec_module` reuses `__pycache__` when the cached bytecode's recorded source size and mtime still match.** Size is the weak half: config edits routinely preserve it exactly. Demonstrated — mutating `dark_river`'s `num_samples` 1 -> 5 (same length), restoring the source, and confirming byte-identity by sha256 still left the test reading **5**, because the stale `.pyc` was reused. The source was correct and the check was reading something else. Clearing `models/**/__pycache__` made it green. **Why this is worse than a flaky test:** the failure direction is unbounded. A guard can pass on a config it is not reading (false green on a real defect) or fail on one it is not reading (a day spent on a correct file, which is what happened here). **Worst instance is not in the tests.** `pod_run_model.sh`'s `--rehearsal` patches the pod's config and then re-imports it to *verify the patch took* — its own comment says "VERIFY by re-importing, not by trusting the substitution". `importlib.invalidate_caches()` there clears finder caches, **not** bytecode staleness. Today it is safe only by luck: `'total_lessons': 300` -> `40` changes the length. A same-length patch (`300` -> `400`) would report a verified rehearsal while the model trained a different budget — the precise failure the verification exists to prevent. **Mitigated in one place only:** `tests/test_sample_count_matches_declared_metrics.py::_config` compiles from source text instead, with the reasoning in its docstring, and is proven immune (mutate, poison the cache, restore, still green). Not propagated to the other 15 sites in #542, which is scoped to #536. **Fixes, cheapest first:** (a) `sys.dont_write_bytecode = True` in `tests/conftest.py` and in the podrun heredocs — stops new caches but does not ignore existing ones; (b) compile from source at each load site, as the mitigated test does; (c) `PYTHONDONTWRITEBYTECODE=1` in CI and in the pod runners, which fixes CI and pods but not a developer's laptop. Cross-refs: **C-155** (also found by measuring rather than by a failure), **#501** (the guard that was not one — same class: a check that cannot see what it claims to). |
 
 ---
 
