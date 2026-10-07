@@ -19,6 +19,9 @@ def get_modelset_config():
                    "silver_lining",
                    "broken_arrow",
                    "lovely_creature",
+                   "wild_rose",
+                   "purple_haze",
+                   "fourtieth_symphony"
                 #    "holy_grail"
                    ],
     }
