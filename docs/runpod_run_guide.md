@@ -3,8 +3,8 @@
 **Status:** Active
 **Owner:** Project maintainers
 **Last reviewed:** 2026-09-28
-**Tooling status:** `tools/podrun` is **v0.1.0, provisional** — one model family, one partition, no CI. See its `__init__.py`.
-**Related:** `reports/postmortem_runpod_first_deployment_2026-09.md` (the *why*, and every number quoted here); `reports/runpod_cost_and_time_note_2026-09.md` (what it costs); runbook #499; spec #505
+**Tooling status:** `tools/podrun` is **v0.1.0, provisional** — two model families (HydraNet, r2darts2), one partition, no CI. See its `__init__.py`.
+**Related:** `reports/postmortem_runpod_first_deployment_2026-09.md` (the *why*, and every number quoted here); `reports/runpod_cost_and_time_note_2026-09.md` (what it costs); runbook #499; spec #505; epic #532 (the darts chain, Phase 4c)
 
 > How to train VIEWS models on rented cloud GPUs when our own hardware is unavailable. This is
 > the *how* and the *gates*; read the post-mortem for the *why*. Every rule below was paid for
@@ -42,6 +42,14 @@
    on one machine can then be published from another.** There is a single entrypoint and no
    `--no-upload` flag; disarming is a governance switch on a committed delivery declaration, not
    an ops convenience. Treat "produce here, publish there" as an open question, not a procedure.*
+
+   *The specific way this rule gets broken is by copying a sibling: `pod_run_fao_delivery.sh`
+   **legitimately** needs nine publish variables and the `[appwrite]` extra, because its job is
+   to publish. A calibration runner's job is not, so it must install neither — and "start from
+   the script that already works" is the obvious and wrong way to write the next one.
+   `pod_run_darts_calibration.sh` installs no Appwrite path and reads no publish variable, and
+   `tests/test_darts_calibration_runner.py` asserts both, because a comment saying so would not
+   survive the next edit.*
 
 ---
 
@@ -413,6 +421,94 @@ leg. That failure lands *after* all the training.
 - A rehearsal proves the **chain**, not the **capacity**. 40 lessons has a different duration
   and memory profile from 300, and memory is where this platform has failed before.
 
+## Phase 4c — The darts models (r2darts2), calibration
+
+A third chain, for the eleven pgm `views-r2darts2` models — epic **#532**, deliverable spec
+**#505**. Same hardware rule, same credential, **different script and a different install.**
+
+Phases 2.2 and 2.3 still apply for the credential; **do not run Phase 2.2's install.** The
+runner builds its own environment, and the package set is not the same one.
+
+```bash
+cd /workspace/views-models
+
+# Seconds, costs nothing, and refuses for every reason at once:
+bash tools/podrun/pod_run_darts_calibration.sh --preflight dark_river
+
+# Then, once preflight is clean:
+nohup setsid bash tools/podrun/pod_run_darts_calibration.sh dark_river \
+    > /workspace/darts.nohup 2>&1 < /dev/null &
+```
+
+Watch it with `cat /workspace/deliver/<model>/STAGE`.
+
+It runs: build the environment → verify it → load and check the model's config → `main.py -r
+calibration -t -e` → collapse the output to delivery parquets → verify them.
+
+**Run `dark_river` first, and read its numbers before renting a second pod.** It is the cheapest
+of the eleven — NBEATS, three covariates, one sample — and **no r2darts2 model has ever produced
+a prediction at pgm**, so its runtime, peak RAM and peak disk are genuinely unknown. #537 exists
+to measure them.
+
+### What is different, and why each one cost something
+
+- **The engine is installed from the git tag `0.2.4`, not from PyPI.** PyPI's newest is 0.2.3,
+  and 0.2.3 **never deletes its prediction scratch directory**: ~4 000 of them at ~53 GB each
+  filled fimbulthul's 2 TB disk on 2026-09-20 (views-r2darts2#54). 0.2.4 frees them, and makes a
+  model that cannot be restored to the GPU raise instead of finishing quietly on the CPU. It is
+  tagged and deliberately **not published** — a release is irreversible and other repos resolve
+  against the range. The runner asserts the installed version rather than trusting the install,
+  because a silent fall back to 0.2.3 does not fail; it fills the machine hours later.
+- **`[manager]` is not decoration.** `views-pipeline-core` is an *optional* dependency of
+  `views-r2darts2`, reachable only through that extra. Without it `main.py`'s first import dies
+  with `ModuleNotFoundError: No module named 'views_pipeline_core'` — which is views-models
+  **#531**, still open against eight models on `staging_202608` whose `requirements.txt` omits it.
+- **No Appwrite extra, and no publish variable.** A calibration run uploads nothing, so the only
+  secret this chain needs is `/root/.netrc`. See ground rule 5 — and note that the *sibling*
+  script legitimately installs nine publish variables, so "copy what `pod_run_model.sh` does" is
+  exactly how this gets broken. Two tests enforce it.
+- **`TMPDIR` is pointed at `/workspace/tmp`.** The prediction scratch honours `TMPDIR` and
+  otherwise lands in `/tmp` — the **container** disk — while the disk floor measures
+  `/workspace`, the **volume**. A floor that measures a filesystem the workload does not use
+  cannot fire. The runner exports it; if you run `main.py` by hand, export it yourself.
+- **Two models are refused:** `little_talks` and `mister_bluesky`. They ask for 100 MC-dropout
+  samples, and the engine materialises all 13 rolling origins as Python lists before releasing
+  any of them — **measured at ~303 GB of RAM**, against a selection rule of ≥ 50 GB. Nine models
+  at one sample need ~11 GB. **#536** decides what those two run at; until it lands the preflight
+  refuses them by name rather than discovering it after training.
+- **`libpq-dev` is still installed**, for the same reason as Phase 2.2 — the dependency chain
+  still reaches `viewser`, and `toolz>=0.12.1` is still the last install for the same
+  register **C-151** reason. Both apply unchanged here.
+
+### Phase 5 for darts — what comes home
+
+`/workspace/deliver/<model>/` holds:
+
+| | |
+|---|---|
+| `parquet/` | **13** delivery parquets, one per rolling origin, 2 333 448 rows each |
+| `MANIFEST` | runtime, peak scratch, engine version, git sha, region |
+| `STATUS` | `OK`, `PREFLIGHT_OK`, or `FAILED:<stage>` |
+| `run.log` | the whole transcript |
+
+**There is no `draws/` archive**, and that is correct rather than missing: nine of the eleven are
+deterministic, so there is no posterior to compress. It also means **no `q95` variant is
+definable for them** — the quantile correction that fixed the HydraNets' ~5× undershoot has no
+analogue here. Say so to anyone comparing the two deliveries.
+
+```bash
+rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
+    root@<ip>:/workspace/deliver/<model>/ \
+    models/<model>/data/generated/calibration_delivery_<date>/
+```
+
+Before trusting it, look at one origin as a picture. The tests prove the arithmetic; they cannot
+tell you the field stopped looking like conflict.
+
+**On teardown, if you shared the pod:** `find /tmp /workspace/tmp -maxdepth 1 -name 'pred_frames_*'
+-user "$USER" -exec rm -rf {} +`. On 0.2.4 the scratch frees itself at interpreter exit, so this
+is a backstop for a process that was killed — not routine housekeeping.
+
 ## Phase 6 — Teardown
 
 Confirm `STATUS` is `OK` and the files are on your laptop, then **terminate** the pod — not stop
@@ -429,6 +525,12 @@ it. A stopped pod still bills for its volume, at double the running rate.
   regression — see `docs/CICs/IntegrationTestRunner.md` §0. (That CIC, and the config comments,
   currently say ~7 h from an early bad extrapolation; a correction is pending. The recommended
   `--timeout 30000` is over-provisioned either way and remains safe.)
+- **The same applies to the darts models, and `run_integration_tests.sh` is not the way to run
+  them on a pod regardless.** They declare `n_epochs: 300`, so the 1800 s default times them out
+  too (`--library r2darts2 --timeout 30000` if you do want it locally). On a pod it is the wrong
+  tool twice over: it sets no `WANDB_MODE`, so `main.py` calls `wandb.login()` and blocks on a
+  prompt nobody is watching — this already killed one run — and it activates a pre-existing
+  *named* conda env while a pod builds a `uv` venv. Use `pod_run_darts_calibration.sh`.
 - **`pgrep -f <pattern>` matches your own SSH command**, because the pattern appears in its
   command line. Use `ps -eo args | grep -E "[p]attern"` or you will conclude a process is alive
   when it is not.

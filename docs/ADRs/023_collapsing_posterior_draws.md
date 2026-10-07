@@ -1,6 +1,10 @@
 # ADR-023: Posterior draws collapse by the method the model declares, in count space, outside the run
 
-**Status:** Accepted
+**Status:** **Accepted** (2026-09-28) — **amended 2026-10-06** (§6 added: the r2darts2
+`dataframe` source, where the draws arrive as a Python list in every cell rather than as a numpy
+cube, and a second converter reads them — views-models#533, epic #532. §1–§4's reasons are
+unchanged and now cover a second source shape; **one rule is added**, §6.4: a converter must not
+write over its own input.)
 **Date:** 2026-09-28
 **Deciders:** Simon, VIEWS platform team
 **Related ADRs:** [ADR-012](012_target_scale_and_prefix_convention.md) (target scale and prefix),
@@ -116,6 +120,61 @@ One parquet per origin, `predictions_<run_type>_<ts>_<NN>.parquet`, `NN` = `00`�
 columns `month_id`, `priogrid_id`, `pred_lr_sb_best`, `pred_lr_ns_best`, `pred_lr_os_best`.
 Origins are ordered by integer index — `origin_10` sorts before `origin_2` as text, and a fixture
 of three origins cannot detect that.
+
+### 6. The same decision applies to the r2darts2 `dataframe` source, through a second converter.
+
+*Added 2026-10-06 (#533). §1–§5 were written from the HydraNet source alone. The 11 pgm r2darts2
+models (epic #532) reach the same deliverable from a different shape, and the reasons above hold
+without change — so this is a second **instance**, not a second decision.*
+
+**6.1 What arrives.** A `prediction_format: "dataframe"` model writes the origins as *files*, not
+directories: `predictions_<run_type>_<ts>_<NN>.parquet`, already one per rolling origin, keyed by a
+`(month_id, priogrid_id)` **index**, with every cell holding a **Python list** of sample values —
+"length 1 for deterministic, length S for probabilistic"
+(`views_r2darts2/transformers/darts_bridge.py::prediction_frames_to_dataframe`).
+
+**6.2 Why a second converter rather than a flag on the first.** The two inputs share no format, no
+target naming and no draw-count contract. §4's "fewer than 2 draws → refuse" is *correct* for a
+posterior cube and *false* for nine of the eleven darts models, which carry exactly one sample by
+design. A flag would make that refusal conditional, which is how a guard stops meaning anything.
+`tools/collapse/collapse_darts_predictions.py` is the sibling; `collapse_predictions.py` is
+untouched, and `tools/collapse/__init__.py` states which reads which.
+
+**6.3 The collapse, restated for a list cell.** Length 1 is **unwrapped**, not averaged — a
+deterministic model's single value is the value, and calling it a mean would assert a posterior
+that does not exist. Length S > 1 is the arithmetic mean in `float64`, in count space, exactly as
+§3 requires. The keys become flat `int64` columns, per the specification's "flat column, not an
+index".
+
+**This matters more here than for HydraNet, because the failure is silent.** The consumer does not
+collapse: `_as_float_prediction_array` in `ensemble-updater` takes `float(x[0])` on a list cell —
+**one draw, silently**. So an unconverted hand-over of darts output does not raise; it publishes
+draw zero as the answer. For a deterministic model that is accidentally correct, which is worse,
+because it means the mistake only surfaces on the models where it does damage.
+
+**6.4 A converter must not write over its own input.** New rule, and specific to this source: the
+HydraNet converter reads a *directory* and writes *files*, so the two cannot collide. Here the
+source and the deliverable share one filename pattern, and an in-place default would destroy the
+run output that cost the GPU time. The destination is a distinct directory
+(`delivery_<run_type>_<ts>/` by default) and any collision is refused.
+
+**6.5 The refusals of §4 that carry over, and the two that change.**
+
+| condition | darts converter |
+|---|---|
+| non-finite, negative, duplicate `(month_id, priogrid_id)`, per-target `MIN_PLAUSIBLE_MAX` | **unchanged**, same reasons |
+| fewer than 2 draws | **dropped** — one sample is the declared configuration of nine of the eleven |
+| targets not row-aligned / disagreeing on draw count | **not applicable** — all targets share one frame, so there is no join to misalign |
+| *new:* cells of differing length within a column | the sample count varies row to row; no single collapse reconciles that |
+| *new:* a gap in the `_00.._NN` sequence, or a non-contiguous set | `ensemble-updater` raises `FileNotFoundError` naming a missing origin, so a gap must not be converted quietly |
+| *new:* no `pred_*` column | the metric frames and the run log live in the same directory |
+
+**6.6 What is not pinned, and deliberately.** The target set is **read off the file**, not
+hard-coded as §2's `TARGETS` is, because the darts models declare canonical `lr_ged_*`
+(views-models#151) and a future model may declare others; and `MIN_PLAUSIBLE_MAX` is **inherited
+from §4 and has never been measured against a darts run** — no r2darts2 model has produced a pgm
+prediction at all (epic #488's definition-of-done line 4). The refusal message says so, so that an
+operator who trips it knows the threshold is a candidate and not only the data.
 
 ---
 
@@ -254,9 +313,15 @@ a real run.
 
 ## References
 
-- `tools/collapse/` — the converter and the audit plots; `tools/collapse/__init__.py` has the usage
+- `tools/collapse/` — the converters and the audit plots; `tools/collapse/__init__.py` has the
+  usage and says which converter reads which source
 - `tests/test_roster_conformance.py::test_collapse_declaration_matches_the_converter` — the pin
+- `tests/test_collapse_darts_predictions.py::test_a_multi_sample_cell_becomes_the_mean_and_NOT_the_first_draw`
+  — §6.3's guard against the `float(x[0])` hand-over
 - views-models **#505** — the technical specification this implements
+- views-models **#533** / epic **#532** — §6, the r2darts2 `dataframe` source
+- views-models **#492** — the `prediction_frame` migration, which would move the darts models onto
+  the §1–§5 path and make §6 a transitional section
 - views-hydranet@32bc509 — `views_hydranet/utils/inference_orchestrator.py:175,177,179`
   (stages 4 and 5), `views_hydranet/utils/volume_handler.py:502` (`collapse_to_point`),
   `views_hydranet/utils/feature_scaler.py:199` (why invert precedes collapse)
