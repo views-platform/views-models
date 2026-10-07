@@ -32,6 +32,7 @@ import subprocess
 import pytest
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import SpecifierSet
 
 pytestmark = pytest.mark.green
 
@@ -51,9 +52,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # published AND r2darts#22 is committed — that is the named trigger, not "later".
 DEFERRED_PACKAGES = {
     "views-r2darts2": (
-        "three specs across 31 models (==0.1.0 x12, >=0.1.0 x10, >=1.0.0,<2.0.0 x9); "
-        "upstream versioning unsettled (r2darts#22 uncommitted). Named trigger for "
-        "revisiting: views-r2darts2 1.x published AND r2darts#22 committed. See C-115."
+        "FOUR specs across 52 declarations, measured 2026-10-06: >=0.1.0 x21, >=0.2.0 x14, "
+        ">=1.0.0,<2.0.0 x9, [manager]>=0.2.3,<0.3.0 x8. The last of those is the only one "
+        "that resolves views-pipeline-core on 0.2.x, where it is optional — #531 gave it to "
+        "eight models; see test_the_manager_extra_is_present_wherever_0_2_x_is_reachable for "
+        "the 35 that still lack it. The >=1.0.0,<2.0.0 nine match NO published version "
+        "(upstream is at 0.2.4), so they resolve to nothing at all — a separate defect. "
+        "The previous reason here named the TRIGGER 'views-r2darts2 1.x published AND "
+        "r2darts#22 committed'. Both halves were unreachable: upstream went 0.2.x and never "
+        "1.x, and r2darts#22's data-path half turned out to be already fixed in 0.2.0 "
+        "(`_resolve_raw_parquet_path`, verified against the 0.2.3 tag), so it will not be "
+        "'committed' as described. A trigger that cannot fire is a permanent exemption. "
+        "REPLACEMENT TRIGGER: this branch adopting one spec for all r2darts2 tenants, as "
+        "`development` did in #485 — at which point this entry is DELETED, not amended, "
+        "because the divergence it describes will no longer exist. See C-115, C-116."
     ),
 }
 
@@ -177,3 +189,110 @@ def test_the_deferred_list_stays_small_enough_to_be_honest():
             f"{package} is deferred without a named trigger for revisiting it. "
             "CLAUDE.md: defer behind a named trigger, never a vague 'later'."
         )
+
+
+# ── the `manager` extra: why its absence is silent, and who is still missing it ──────
+#
+# views-r2darts2 moved `views-pipeline-core` from a HARD dependency to an OPTIONAL one at
+# 0.2.0, supplied only by the `manager` extra. Measured from the published metadata:
+#
+#     0.1.1   views-pipeline-core>=2.0.0,<3.0.0     (hard — no extras at all)
+#     0.2.0+  views-pipeline-core>=3.0.0,<4.0.0 ; extra == "manager"
+#
+# Every model's `main.py` opens with `from views_pipeline_core...`. So a model whose spec can
+# resolve to 0.2.0 or later and does NOT declare `[manager]` installs no pipeline-core and
+# dies on its first import — `ModuleNotFoundError: No module named 'views_pipeline_core'`.
+# That is views-models **#531**, reported by Dylan on 2026-10-01 against `crimson_tide`.
+#
+# It is silent twice over. `pip install -r requirements.txt` succeeds, and a model sharing a
+# conda prefix with a co-tenant that DID install pipeline-core inherits it (C-116) — so the
+# same declaration works or fails depending on which model ran in that prefix first.
+#
+# A spec of `>=0.1.0` is enough to trigger it: unbounded, so pip takes 0.2.3.
+#: Every published 0.2.x, plus the tagged-but-unpublished 0.2.4. A specifier that admits
+#: any of these can resolve to a version where views-pipeline-core is optional.
+_ZERO_TWO_RELEASES = ("0.2.0", "0.2.1", "0.2.2", "0.2.3", "0.2.4")
+
+KNOWN_MISSING_MANAGER_EXTRA = {
+    "bad_romance",
+    "blue_ocean",
+    "brave_heart",
+    "bright_star",
+    "cold_heart",
+    "dancing_monkey",
+    "dancing_queen",
+    "dark_necessities",
+    "dark_river",
+    "elastic_heart",
+    "free_fallin",
+    "golden_eagle",
+    "good_life",
+    "heat_waves",
+    "little_talks",
+    "mister_bluesky",
+    "new_rules",
+    "old_rules",
+    "rapid_fire",
+    "ravaging_cleric",
+    "ravaging_fighter",
+    "ravaging_mage",
+    "ravaging_thief",
+    "red_hawk",
+    "revolving_door",
+    "roaming_cleric",
+    "roaming_fighter",
+    "roaming_mage",
+    "roaming_thief",
+    "silent_fox",
+    "smol_cat",
+    "warring_cleric",
+    "warring_fighter",
+    "warring_mage",
+    "warring_thief",
+}
+
+
+def test_the_manager_extra_is_present_wherever_0_2_x_is_reachable():
+    """Characterization test. It asserts nothing about what the set SHOULD be — only that
+    changing it is deliberate (the same contract as
+    `test_environment_sharing_is_recorded_not_discovered`).
+
+    Two directions, both wanted:
+
+    - **A model losing its `[manager]`** joins the set and turns this red. That is the
+      regression guard for #531: the eight models fixed there must keep the extra, and
+      nothing else in this suite would notice if one lost it.
+    - **A model gaining it** leaves the set and also turns this red, asking for the set to
+      shrink. Progress has to be recorded, not absorbed.
+
+    The set is large because the defect is upstream, not per-model:
+    `views_pipeline_core/templates/model/template_requirement_txt.py` writes a bare
+    `{package}=={version}` with no extras, so **every r2darts2 model this scaffold has ever
+    generated was born with it**. That is why #485 had to retrofit 31 by hand on
+    `development`. Fixing the remaining models here is deliberately NOT part of #531 — that
+    PR moved eight models out of the HydraNet prefix and is scoped to them.
+
+    Trigger for emptying this set: the scaffold template emits extras, or a dedicated PR
+    retrofits the rest on this branch.
+    """
+    actual = set()
+    for name, _number, req in _declarations():
+        if req.name != "views-r2darts2":
+            continue
+        # Every 0.2.x that exists, not just the endpoints. Testing only "0.2.0" and
+        # "0.2.3" let `==0.2.1`, `==0.2.2`, `>=0.2.1,<0.2.3` and `==0.2.4` through — each
+        # of which needs the extra just as much. Found reviewing this test, not by it.
+        reaches_02 = any(
+            SpecifierSet(str(req.specifier)).contains(v) for v in _ZERO_TWO_RELEASES
+        )
+        if reaches_02 and "manager" not in req.extras:
+            actual.add(Path(name).parent.name if "/" in name else name)
+
+    assert actual == KNOWN_MISSING_MANAGER_EXTRA, (
+        "the set of models missing the `[manager]` extra changed.\n"
+        f"  newly missing (REGRESSION — these cannot import views_pipeline_core): "
+        f"{sorted(actual - KNOWN_MISSING_MANAGER_EXTRA)}\n"
+        f"  newly fixed (good — remove them from KNOWN_MISSING_MANAGER_EXTRA): "
+        f"{sorted(KNOWN_MISSING_MANAGER_EXTRA - actual)}\n"
+        "See views-models#531 and the comment above this test."
+    )
