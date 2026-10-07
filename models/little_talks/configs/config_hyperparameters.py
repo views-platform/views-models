@@ -71,8 +71,20 @@ def get_hp_config():
 
         # Prediction
         "likelihood": None,
-        "num_samples": 100,
-        "mc_dropout": True,
+        # #536 (epic #532): 100 -> 1 and mc_dropout True -> False, for the point-prediction
+        # delivery to the research team (spec #505, which wants one scalar per cell).
+        # NOT a modelling improvement — a reduction forced by the engine. views-r2darts2
+        # converts every prediction to a list-in-cell DataFrame and the evaluation path
+        # materialises ALL 13 rolling origins before releasing any of them
+        # (darts_forecasting_model_manager.py:353-362). Measured at pgm: ~23.3 GB per origin
+        # at 100 samples, so ~303 GB for the run, against a pod selection rule of RAM >= 50 GB.
+        # At one sample it is ~11 GB. There is no machine on which the old value runs.
+        # mc_dropout goes with it: one stochastic pass is a single draw, not the deterministic
+        # estimate the nine sibling models deliver, and the parquet does not record which.
+        # REVERT TRIGGER: #492 moving this family to prediction_format "prediction_frame",
+        # which hands memmaps instead of Python lists and removes the ceiling entirely.
+        "num_samples": 1,
+        "mc_dropout": False,
 
         # Scalers
         "target_scaler": "AsinhTransform",
