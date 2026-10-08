@@ -353,14 +353,67 @@ def test_a_real_cuda_kernel_is_launched_not_only_queried():
     assert 'device="cuda"' in code, "no kernel is ever launched, so a driver mismatch survives"
 
 
-def test_tmpdir_is_pointed_at_the_volume_before_the_run():
-    """The scratch honours TMPDIR and otherwise lands on the container disk, which the disk
-    floor does not measure. A floor measuring the wrong filesystem cannot fire."""
+def test_scratch_is_on_local_disk_and_never_the_network_volume():
+    """The inversion of an earlier test, and the reason is a model we lost.
+
+    The first version asserted `export TMPDIR="$ROOT/tmp"` — scratch on the volume — so that
+    the existing disk-floor check, which measured `$ROOT`, would be meaningful. The principle
+    was right (a floor must measure what the workload writes) and the application was
+    backwards: it moved the workload to the filesystem the check already watched.
+
+    `$ROOT` is `/workspace`, a NETWORK filesystem — which is why `chmod` silently does nothing
+    there (C-154). The engine writes its Zarr store and prediction memmaps into `TMPDIR`. At 3
+    covariates that is ~1 GB and five models completed without anyone noticing. At 71
+    covariates it is ~15 GB: `blue_ocean` spent 100 minutes at 0% GPU and 11.6% CPU, blocked
+    on I/O, never reached the GPU, and was killed having produced nothing.
+
+    So scratch goes on local disk and the floor follows it there. The deliverable still lands
+    under `$ROOT` — that is the volume that survives a pod stop, and only the throwaway
+    intermediates move.
+    """
     code = _code_only(RUNNER.read_text())
-    m_tmp = re.search(r'export TMPDIR="\$ROOT/tmp"', code)
+    assert not re.search(r'export TMPDIR="\$ROOT', code), (
+        "TMPDIR points back at $ROOT — that is the network volume, and it is what stalled "
+        "blue_ocean for 100 minutes"
+    )
+    m_tmp = re.search(r'export TMPDIR="\$SCRATCH"', code)
+    assert m_tmp, "TMPDIR is not set to $SCRATCH"
+    m_scr = re.search(r'SCRATCH=\$\{PODRUN_SCRATCH:-(/[^}]+)\}', code)
+    assert m_scr, "SCRATCH has no default"
+    assert not m_scr.group(1).startswith("/workspace"), (
+        f"the scratch default is {m_scr.group(1)}, which is on the network volume"
+    )
     m_run = re.search(r"main\.py -r calibration", code)
-    assert m_tmp, "TMPDIR is never set"
     assert m_run and m_tmp.start() < m_run.start(), "TMPDIR is set after the run starts"
+
+
+def test_the_disk_floor_measures_the_scratch_filesystem_not_the_volume():
+    """A floor is only worth having if it watches what the work actually fills."""
+    code = _code_only(RUNNER.read_text())
+    m = re.search(r'AVAIL_GB=\$\(df[^\n]*"\$(\w+)"', code)
+    assert m, "the disk floor does not read a df of any named path"
+    assert m.group(1) == "SCRATCH", (
+        f"the floor measures ${m.group(1)} but the engine writes into $SCRATCH; on this "
+        f"platform those are different filesystems and one of them is a network mount"
+    )
+
+
+def test_a_heartbeat_reports_gpu_cpu_and_scratch_during_the_run():
+    """Silence was the failure this runner could not explain.
+
+    `blue_ocean` logged nothing for 100 minutes. Distinguishing training from CPU-bound
+    conversion from blocked I/O needed an SSH session and /proc, after the fact. These three
+    numbers separate them, and a stalled run now says so itself.
+    """
+    code = _code_only(RUNNER.read_text())
+    hb = re.search(r"HEARTBEAT", code)
+    assert hb, "no heartbeat — a stalled run is undiagnosable from the log alone"
+    window = code[hb.start(): hb.start() + 600]
+    for probe, why in (("utilization.gpu", "GPU busy = training"),
+                       ("pcpu", "CPU pegged = conversion"),
+                       ("TMPDIR", "scratch growing = I/O")):
+        assert probe in window, f"the heartbeat omits {probe} ({why})"
+    assert "kill $HEARTBEAT_PID" in code, "the heartbeat is never stopped"
 
 
 def test_the_converter_is_invoked_from_the_repo_root():
