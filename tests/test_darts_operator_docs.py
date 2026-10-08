@@ -79,16 +79,31 @@ def test_the_engine_pin_comes_with_the_reason_it_exists(darts_section):
     )
 
 
-def test_tmpdir_is_documented_with_the_two_disks(darts_section):
+def test_tmpdir_is_documented_as_local_disk_and_never_the_network_volume(darts_section):
+    """This guide told operators the opposite until 2026-10-09, and it cost a model.
+
+    The earlier version of this test asserted the guide explained scratch on the CONTAINER
+    disk versus the floor on the VOLUME — faithful to what the guide then said, and the guide
+    was wrong. `/workspace` is a network filesystem, and pointing 15 GB of Zarr at it stalled
+    `blue_ocean` for 100 minutes at 0% GPU. So this now asserts the corrected instruction,
+    and that the guide admits it changed.
+    """
     assert "TMPDIR" in darts_section, "the guide never mentions TMPDIR"
-    windows = [darts_section[m.start() - 200: m.start() + 700]
+    windows = [darts_section[max(0, m.start() - 300): m.start() + 900]
                for m in re.finditer(r"TMPDIR", darts_section)]
     assert any(
-        re.search(r"container", w) and re.search(r"volume", w)
+        re.search(r"network filesystem", w) and re.search(r"local disk", w, re.I)
         for w in windows
     ), (
-        "the guide must say, near TMPDIR, that the scratch lands on the CONTAINER disk while "
-        "the floor measures the VOLUME. 'Set TMPDIR' without that is a cargo-cult instruction."
+        "the guide must say, near TMPDIR, that scratch goes on LOCAL disk and that "
+        "/workspace is a NETWORK filesystem. 'Set TMPDIR' without that is cargo cult."
+    )
+    assert any(re.search(r"0% GPU|100 minutes", w) for w in windows), (
+        "the guide gives the instruction without the incident that produced it, so the next "
+        "person to 'simplify' it has nothing to weigh"
+    )
+    assert any(re.search(r"told you the opposite|until 2026-10-09", w) for w in windows), (
+        "the guide silently reversed its own advice; it should say so"
     )
 
 

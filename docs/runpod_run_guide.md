@@ -467,10 +467,19 @@ to measure them.
   secret this chain needs is `/root/.netrc`. See ground rule 5 — and note that the *sibling*
   script legitimately installs nine publish variables, so "copy what `pod_run_model.sh` does" is
   exactly how this gets broken. Two tests enforce it.
-- **`TMPDIR` is pointed at `/workspace/tmp`.** The prediction scratch honours `TMPDIR` and
-  otherwise lands in `/tmp` — the **container** disk — while the disk floor measures
-  `/workspace`, the **volume**. A floor that measures a filesystem the workload does not use
-  cannot fire. The runner exports it; if you run `main.py` by hand, export it yourself.
+- **`TMPDIR` is pointed at local disk (`/tmp/podrun-scratch`), NEVER at `/workspace`.** The
+  engine writes its Zarr store and prediction memmaps through `TMPDIR`, and `/workspace` is a
+  **network filesystem** — the same property that makes `chmod` silently fail there (C-154).
+  At 3 covariates that is ~1 GB and harmless; at 71 it is ~15 GB over the network, and
+  `blue_ocean` spent **100 minutes at 0% GPU and 11.6% CPU** blocked on I/O without ever
+  reaching the GPU. *This guide told you the opposite until 2026-10-09, and that instruction
+  cost a model.* The deliverable still goes to `/workspace`, which is right — that volume
+  survives a pod stop. Only the throwaway intermediates are local. The runner exports it; if
+  you run `main.py` by hand, export it yourself.
+- **The run prints a `HEARTBEAT` line every two minutes** — GPU %, CPU %, RSS, scratch size.
+  Those three separate the states that look identical from outside: training (GPU busy),
+  CPU-bound conversion (GPU idle, CPU pegged), and blocked I/O (both idle). If a run goes
+  quiet, read the heartbeat before SSHing in to read `/proc` by hand.
 - **Two models are refused:** `little_talks` and `mister_bluesky`. They ask for 100 MC-dropout
   samples, and the engine materialises all 13 rolling origins as Python lists before releasing
   any of them — **measured at ~303 GB of RAM**, against a selection rule of ≥ 50 GB. Nine models

@@ -141,13 +141,27 @@ nvidia-smi -L || note "no GPU visible — r2darts2 hardcodes accelerator: gpu an
 # 50 leaves room for the 71-covariate class, which nobody has measured.
 # REVISE THIS when #536 permits num_samples > 1: the scratch term scales linearly with it.
 DISK_FLOOR_GB=50
-AVAIL_GB=$(df -BG --output=avail "$ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
+# Measured on the filesystem the WORK uses, which is SCRATCH, not $ROOT.
+#
+# This was the other way round until 2026-10-09 and it cost a model. The reasoning then was
+# sound as far as it went — a floor must measure what the workload writes — but it was applied
+# backwards: the scratch was MOVED to $ROOT so the existing check would be meaningful. $ROOT is
+# /workspace, a NETWORK filesystem (it is why `chmod` silently does nothing there, C-154), and
+# the engine writes a Zarr store plus the prediction memmaps into TMPDIR. For a 3-covariate
+# model that is ~1 GB and nobody noticed. For a 71-covariate model it is ~15 GB over the
+# network: `blue_ocean` sat 100 minutes at 0% GPU and 11.6% CPU — blocked on I/O, never
+# reaching the GPU — and was killed without producing anything.
+#
+# So: scratch on the container disk (local), and the floor follows it there.
+SCRATCH=${PODRUN_SCRATCH:-/tmp/podrun-scratch}
+mkdir -p "$SCRATCH" 2>/dev/null
+AVAIL_GB=$(df -BG --output=avail "$SCRATCH" 2>/dev/null | tail -1 | tr -dc '0-9')
 if [ -z "$AVAIL_GB" ]; then
     note "cannot read free space on $ROOT"
 elif [ "$AVAIL_GB" -lt "$DISK_FLOOR_GB" ]; then
-    note "only ${AVAIL_GB}GB free on $ROOT; this run needs >= ${DISK_FLOOR_GB}GB"
+    note "only ${AVAIL_GB}GB free on $SCRATCH (the scratch disk); need >= ${DISK_FLOOR_GB}GB"
 else
-    echo "  free on $ROOT: ${AVAIL_GB}GB (floor ${DISK_FLOOR_GB}GB)"
+    echo "  free on $SCRATCH: ${AVAIL_GB}GB (floor ${DISK_FLOOR_GB}GB) — scratch is local disk, deliverable goes to $ROOT"
 fi
 
 # The config gate. config_hyperparameters.py and config_meta.py are plain dicts with no
@@ -401,27 +415,54 @@ echo "REGION: $REGION"
 
 # ── 3. the run ────────────────────────────────────────────────────────────────────
 stage train_and_evaluate
-# The prediction scratch honours TMPDIR and otherwise lands in /tmp — the CONTAINER disk,
-# while the disk floor above measures $ROOT, the volume. A floor that measures a filesystem
-# the workload does not use cannot fire. PredictionScratch() passes no base_dir, so this is
-# the only lever (views_r2darts2/transformers/frame_builder.py).
-mkdir -p "$ROOT/tmp" || die "cannot create $ROOT/tmp"
-export TMPDIR="$ROOT/tmp"
-echo "TMPDIR=$TMPDIR (the volume, not the container disk)"
+# TMPDIR is the only lever over where the engine writes its intermediates: both the Zarr store
+# (views_r2darts2/dataset/zarr_store.py) and the prediction memmaps (transformers/frame_builder.py)
+# go through tempfile with no base_dir. It must point at LOCAL disk.
+#
+# Writing them to $ROOT (/workspace) instead is what stalled blue_ocean for 100 minutes at 0% GPU
+# — a network filesystem carrying ~15 GB of Zarr for a 71-covariate model. The deliverable still
+# lands under $ROOT, which is correct: that is the volume that survives a pod stop. Only the
+# throwaway intermediates move.
+mkdir -p "$SCRATCH" || die "cannot create $SCRATCH"
+export TMPDIR="$SCRATCH"
+echo "TMPDIR=$TMPDIR ($(df -h --output=avail "$SCRATCH" | tail -1 | tr -d ' ') free, local disk — NOT the network volume)"
 
 cd "$REPO/models/$MODEL" || die "cannot enter model dir"
 # WANDB_MODE=offline is NOT optional. Without it main.py calls wandb.login(), which blocks on
 # an interactive prompt no one is watching, and a forecasting run on a pod already died there
 # after the environment was built.
 export WANDB_MODE=offline WANDB_SILENT=true
+# A heartbeat, because silence is the one failure this script could not explain.
+# blue_ocean logged nothing for 100 minutes and the only way to learn why was to SSH in and
+# read /proc by hand — after it had already been killed. The three numbers below separate the
+# three things that look identical from outside: training (GPU busy), CPU-bound conversion
+# (GPU idle, CPU pegged), and blocked I/O (both idle, scratch growing slowly). Two minutes of
+# this would have diagnosed it.
+( while :; do
+    printf '    HEARTBEAT %s gpu=%s cpu=%s%% rss=%sGB scratch=%s\n' \
+      "$(date -u +%H:%M:%S)" \
+      "$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader 2>/dev/null | tr -d ' ')" \
+      "$(ps -eo pcpu,args --sort=-pcpu | awk '/[m]ain\.py/{print int($1); exit}')" \
+      "$(( $(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0) / 1073741824 ))" \
+      "$(du -sh "$TMPDIR" 2>/dev/null | cut -f1)"
+    sleep 120
+  done ) &
+HEARTBEAT_PID=$!
+trap 'kill $HEARTBEAT_PID 2>/dev/null; rmdir "$OUT/.lock" 2>/dev/null; [ "$HELD_VENV_LOCK" = 1 ] && rmdir "$VENV_LOCK" 2>/dev/null' EXIT
+
 START=$(date +%s)
-"$VENV/bin/python" main.py -r calibration -t -e || die "main.py exited non-zero"
+"$VENV/bin/python" main.py -r calibration -t -e || { kill $HEARTBEAT_PID 2>/dev/null; die "main.py exited non-zero"; }
+kill $HEARTBEAT_PID 2>/dev/null
 RUN_MIN=$(( ($(date +%s) - START) / 60 ))
 echo "run took ${RUN_MIN} minutes"
 
 # Peak scratch, for the MANIFEST. #537 exists to measure this, and a number nobody wrote down
 # is a number the next pod has to rediscover.
-SCRATCH_PEAK=$(du -sh "$TMPDIR" 2>/dev/null | cut -f1)
+# NOT a peak: 0.2.4 frees the scratch when the run ends, so this is what is LEFT, which is
+# why every manifest from the 2026-10-08 campaign read "1.0K". Kept because a non-trivial
+# value here means the engine failed to release something. The real peak is in the HEARTBEAT
+# lines in run.log.
+SCRATCH_RESIDUE=$(du -sh "$TMPDIR" 2>/dev/null | cut -f1)
 
 # ── 4. the deliverable ────────────────────────────────────────────────────────────
 stage collapse
@@ -473,7 +514,7 @@ stage manifest
   echo "engine:         views_r2darts2 $("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("views_r2darts2"))' 2>/dev/null || echo unknown) (git tag 0.2.4)"
   echo "region:         $REGION"
   echo "runtime_min:    $RUN_MIN"
-  echo "scratch_peak:   ${SCRATCH_PEAK:-unknown} (in $TMPDIR)"
+  echo "scratch_left:   ${SCRATCH_RESIDUE:-unknown} (in $TMPDIR — should be ~0; peak is in the HEARTBEAT lines)"
   echo "parquets:       $(du -sh "$OUT/parquet" | cut -f1)"
   echo "git:            $(git -C "$REPO" rev-parse --short HEAD)"
   echo "config:         as committed at the git sha above"
