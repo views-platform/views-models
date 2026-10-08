@@ -319,23 +319,57 @@ def test_mutation_log_space_values_are_refused(tmp_path):
         tmp_path / "predictions_calibration_20260101_000000_00.parquet",
         {TARGETS[0]: _cells(small)},
     )
-    with pytest.raises(DartsCollapseError, match="log1p space"):
+    with pytest.raises(DartsCollapseError, match="inverse transform did not run"):
         collapse_parquet(p, expected_rows=None)
 
 
-def test_mutation_log_space_in_ONE_target_only_is_refused(tmp_path):
-    """A healthy sibling must not carry a corrupted target over the threshold."""
+def test_a_single_small_target_beside_a_large_one_is_ACCEPTED(tmp_path):
+    """The guarantee this converter deliberately gives up, asserted so it cannot be lost.
+
+    The HydraNet converter checks the scale PER TARGET, because its per-target scaler registry
+    can leave one target in log1p space while its siblings invert correctly. r2darts2 has no
+    such registry — one `target_scaler` chain covers every target — so that failure cannot
+    occur here, and the per-target form instead refuses correct output.
+
+    It did exactly that on the first real run: `dark_river` at global pgm, 2026-10-07, refused
+    at origin 06 because `pred_lr_ged_os` peaked at 11.46, after 87 minutes of GPU time, on a
+    frame whose `pred_lr_ged_sb` reached 283.68. One-sided violence is rare and a deterministic
+    point model shrinks hard; small is the model being timid, not the scaler being broken.
+
+    So this asserts the NEW behaviour, not the old: a rare target may be small beside a large
+    sibling. **The trigger to restore the per-target check is an r2darts2 release that scales
+    targets independently** — at which point this test should fail and be rewritten, which is
+    the point of asserting it rather than deleting the old one.
+    """
     rng = np.random.default_rng(5)
     p = _write_parquet(
         tmp_path / "predictions_calibration_20260101_000000_00.parquet",
         {
-            TARGETS[0]: _cells(_counts(rng, ROWS, 1)),
-            TARGETS[1]: _cells(rng.random((ROWS, 1)) * 5.0),
+            TARGETS[0]: _cells(_counts(rng, ROWS, 1)),      # plainly counts
+            TARGETS[1]: _cells(rng.random((ROWS, 1)) * 5.0),  # rare and shrunk
+        },
+    )
+    df = collapse_parquet(p, expected_rows=None)
+    assert len(df) == ROWS
+    assert df[TARGETS[1]].max() < 12.0, "fixture no longer exercises the small-target case"
+
+
+def test_a_frame_where_NO_target_reaches_a_plausible_count_is_still_refused(tmp_path):
+    """The guarantee that is kept: if the inverse transform did not run, nothing is large."""
+    rng = np.random.default_rng(9)
+    p = _write_parquet(
+        tmp_path / "predictions_calibration_20260101_000000_00.parquet",
+        {
+            TARGETS[0]: _cells(rng.random((ROWS, 1)) * 5.0),
+            TARGETS[1]: _cells(rng.random((ROWS, 1)) * 4.0),
+            TARGETS[2]: _cells(rng.random((ROWS, 1)) * 6.0),
         },
     )
     with pytest.raises(DartsCollapseError) as exc:
         collapse_parquet(p, expected_rows=None)
-    assert TARGETS[1] in str(exc.value), "the guard did not name the offending target"
+    msg = str(exc.value)
+    assert "WHOLE frame" in msg, "the refusal does not say it is frame-level"
+    assert "one scaler chain" in msg, "the refusal does not give its reason"
 
 
 def test_the_scale_guard_can_be_disabled_deliberately(tmp_path):
@@ -397,13 +431,15 @@ def test_a_prediction_frame_layout_is_not_silently_accepted(tmp_path):
         convert_model(tmp_path, expected_rows=None)
 
 
-def test_the_scale_refusal_tells_the_operator_the_threshold_is_unvalidated(tmp_path):
-    """No darts model has ever produced a pgm prediction, so 12.0 is inherited, not measured.
+def test_the_scale_refusal_carries_the_measurement_that_calibrates_it(tmp_path):
+    """The threshold used to be unvalidated; it no longer is, and the message must say what by.
 
-    An operator who trips this guard on the first real run has to decide whether the data or the
-    threshold is wrong. The message must say that the threshold is a candidate — otherwise the
-    only documented-looking escape is `--min-plausible-max 0`, which silences the one guard
-    standing between a log-space field and the researchers.
+    The previous version of this test asserted the message admitted it had "never been
+    validated against a darts run" — correct then, and the honest thing to say when nothing
+    had been measured. `dark_river` measured it on 2026-10-07: frame maximum 283.68 against a
+    rarest-target maximum of 14.94. An operator who trips this guard now needs that number, not
+    an apology: it is what tells them whether their frame maximum of 9 is a broken scaler or a
+    very timid model.
     """
     assert MIN_PLAUSIBLE_MAX == 12.0
     rng = np.random.default_rng(7)
@@ -414,5 +450,6 @@ def test_the_scale_refusal_tells_the_operator_the_threshold_is_unvalidated(tmp_p
     with pytest.raises(DartsCollapseError) as exc:
         collapse_parquet(p, expected_rows=None)
     message = str(exc.value)
-    assert "never been validated" in message
-    assert "revise MIN_PLAUSIBLE_MAX" in message
+    assert "283.68" in message, "the refusal does not carry the measured reference point"
+    assert "dark_river" in message, "the refusal does not say which run calibrated it"
+    assert "one scaler chain" in message, "the refusal does not justify being frame-level"
