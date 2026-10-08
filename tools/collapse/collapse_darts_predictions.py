@@ -70,11 +70,12 @@ EXPECTED_ROWS = 2_333_448
 #: `_resolve_total_sequence_number`.
 EXPECTED_ORIGINS = 13
 
-#: Inherited from `collapse_predictions.MIN_PLAUSIBLE_MAX`, and **not yet validated for darts** —
-#: no r2darts2 model has ever produced a prediction at pgm (epic #488 DoD line 4), so no darts
-#: field has ever been measured. A real global-land HydraNet origin reaches the hundreds. If the
-#: first genuine run trips this, the number is the suspect, not necessarily the data: look, then
-#: revise it here with the measurement written down. `--min-plausible-max 0` disables the check.
+#: Applied to the FRAME maximum, not per target — see `_check_scale`. **Now validated against a
+#: real darts run**, which is what the previous note here asked for: dark_river at global pgm
+#: (2026-10-07, the first such run in existence) reached 283.68 on `lr_ged_sb`, 21.56 on
+#: `lr_ged_ns` and 14.94 on `lr_ged_os`. Per target this threshold REFUSED that correct output
+#: after 87 minutes of GPU time; against the frame maximum it has 20x headroom.
+#: `--min-plausible-max 0` disables the check.
 MIN_PLAUSIBLE_MAX = 12.0
 
 #: Legacy HydraNet spelling, for `--rename`. Canonical on the left (views-models#151).
@@ -221,24 +222,53 @@ def collapse_parquet(
 
 
 def _check_scale(frame: pd.DataFrame, source: Path, min_plausible_max: float) -> None:
-    """Refuse a target whose magnitude says it never left log1p space.
+    """Refuse a FRAME whose magnitude says it never left transformed space.
 
-    Checked PER TARGET, for the reason `collapse_predictions._check_scale` records: one target can
-    be left in log1p space while its siblings are correctly inverted, and a combined maximum is
-    then carried over the threshold by a healthy sibling while the corrupted one ships.
+    **Frame-level, not per-target — and the first real run is why.** This guard was imported
+    per-target from `collapse_predictions._check_scale`, whose reasoning is sound for HydraNet:
+    there, a per-target scaler REGISTRY can leave one target in log1p space while its siblings
+    invert correctly, so a combined maximum is carried over the threshold by a healthy sibling
+    while the corrupted one ships.
+
+    r2darts2 has no such registry. One `target_scaler` chain is applied to all targets, so the
+    inverse either ran for the frame or did not. The failure mode the per-target form exists to
+    catch cannot occur here, and keeping it imports a false positive instead:
+
+        dark_river, 2026-10-07, the first pgm r2darts2 run in existence
+            pred_lr_ged_sb  max 283.68   <- plainly counts
+            pred_lr_ged_ns  max  21.56
+            pred_lr_ged_os  max  14.94   <- REFUSED, "below 12" on some origins
+
+        It refused at origin 06 with `pred_lr_ged_os` at 11.46, after 87 minutes of GPU time,
+        on output that was correct.
+
+    `sb` at 283 settles the frame: were it transformed, the underlying value would be
+    astronomical. One-sided and non-state violence are simply rarer, and a deterministic point
+    model shrinks hard toward the mean — measured against observed data the same run under-
+    predicts totals by 2.5-4x. A small maximum on a rare target is the model being timid, not
+    the scaler being broken, and no magnitude test can separate those two for a single column.
+
+    **What this gives up, stated plainly.** If a future engine does acquire per-target scaling,
+    this check will not see one target left behind. The trigger to revisit is exactly that: an
+    r2darts2 release that scales targets independently. Until then, per-target here is a guard
+    that fires on correct data, which is worse than one that is narrower and true.
     """
     if min_plausible_max <= 0:
         return
-    for col in (c for c in frame.columns if c.startswith("pred_")):
-        hi = float(frame[col].max())
+    predictions = [c for c in frame.columns if c.startswith("pred_")]
+    if predictions:
+        hi = max(float(frame[c].max()) for c in predictions)
+        col = max(predictions, key=lambda c: float(frame[c].max()))
         if hi < min_plausible_max:
             raise DartsCollapseError(
-                f"{source}: largest collapsed '{col}' is {hi:.4g}, below {min_plausible_max:g}. "
-                f"Counts at global land reach the hundreds; this looks like log1p space. "
-                f"Investigate upstream — do NOT expm1 here (views-models#505). NOTE: this "
-                f"threshold is inherited from the HydraNet converter and has never been "
-                f"validated against a darts run; if the field is genuinely small, measure it and "
-                f"revise MIN_PLAUSIBLE_MAX rather than passing --min-plausible-max 0 in anger."
+                f"{source}: the largest value in the WHOLE frame is {hi:.4g} "
+                f"(in '{col}'), below {min_plausible_max:g}. Every target here shares one "
+                f"scaler chain, so if none of them reaches a plausible count, the inverse "
+                f"transform did not run. Investigate upstream — do NOT expm1 here "
+                f"(views-models#505). For calibration: the first real pgm darts run "
+                f"(dark_river, 2026-10-07) reached 283.68 on lr_ged_sb while its rarest "
+                f"target peaked at 14.94, so a frame maximum in the hundreds is normal and "
+                f"one in single digits is not."
             )
 
 
