@@ -2,9 +2,9 @@
 
 **Last updated:** 2026-09-28  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 164 (155 concerns + 9 disagreements)  
-**Concerns:** Open 73 | Mitigated 25 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 51 | T3 65 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 166 (157 concerns + 9 disagreements)  
+**Concerns:** Open 75 | Mitigated 25 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 53 | T3 65 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1948,6 +1948,32 @@
 | **Status** | Open |
 | **Location** | 13 test files load configs this way (incl. `tests/conftest.py`, `test_roster_configs_load.py`, `test_darts_entity_id_matches_level.py`, `test_roster_conformance.py`); `tools/catalogs/create_catalogs.py`; and the embedded config checks in `tools/podrun/pod_run_model.sh` and `tools/podrun/pod_run_darts_calibration.sh`. |
 | **Notes** | **`exec_module` reuses `__pycache__` when the cached bytecode's recorded source size and mtime still match.** Size is the weak half: config edits routinely preserve it exactly. Demonstrated — mutating `dark_river`'s `num_samples` 1 -> 5 (same length), restoring the source, and confirming byte-identity by sha256 still left the test reading **5**, because the stale `.pyc` was reused. The source was correct and the check was reading something else. Clearing `models/**/__pycache__` made it green. **Why this is worse than a flaky test:** the failure direction is unbounded. A guard can pass on a config it is not reading (false green on a real defect) or fail on one it is not reading (a day spent on a correct file, which is what happened here). **Worst instance is not in the tests.** `pod_run_model.sh`'s `--rehearsal` patches the pod's config and then re-imports it to *verify the patch took* — its own comment says "VERIFY by re-importing, not by trusting the substitution". `importlib.invalidate_caches()` there clears finder caches, **not** bytecode staleness. Today it is safe only by luck: `'total_lessons': 300` -> `40` changes the length. A same-length patch (`300` -> `400`) would report a verified rehearsal while the model trained a different budget — the precise failure the verification exists to prevent. **Mitigated in one place only:** `tests/test_sample_count_matches_declared_metrics.py::_config` compiles from source text instead, with the reasoning in its docstring, and is proven immune (mutate, poison the cache, restore, still green). Not propagated to the other 15 sites in #542, which is scoped to #536. **Fixes, cheapest first:** (a) `sys.dont_write_bytecode = True` in `tests/conftest.py` and in the podrun heredocs — stops new caches but does not ignore existing ones; (b) compile from source at each load site, as the mitigated test does; (c) `PYTHONDONTWRITEBYTECODE=1` in CI and in the pod runners, which fixes CI and pods but not a developer's laptop. Cross-refs: **C-155** (also found by measuring rather than by a failure), **#501** (the guard that was not one — same class: a check that cannot see what it claims to). |
+
+---
+
+### C-157 — Model config fields have no schema: a dead key, a missing key and a look-alike key all pass every check and are indistinguishable by reading
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Adding, renaming or removing a key in any `configs/config_*.py` — or cloning a model's config to make a new one, which is how the roster was built. |
+| **Source** | Four instances found in four days during epic #532 (2026-10-06 to 2026-10-09), each by a run failing rather than by a check |
+| **Status** | Open |
+| **Location** | `models/*/configs/config_hyperparameters.py` and `config_meta.py` (129 models); consumed by views-r2darts2 and views-pipeline-core, neither of which validates the set of keys it is given. |
+| **Notes** | **Nothing anywhere states which keys exist, which are required, which are consumed, or which must agree with each other.** Each config is a dict that is passed through several repositories and read by `.get()`. A key that is misspelt, dead, missing or merely *adjacent* to the one that matters all behave identically: silently. Four instances, each costing a run or a model: **(1) MISSING — `brave_heart` had no `target_scaler`. views-r2darts2 scales the target through that key alone (`dataset/base.py:1192-1223`); without it the loss saw raw counts reaching 113,395 and `logcosh` overflowed float32, dying with `per_channel=[nan, nan, nan]` after ~90 GPU-minutes. Its 39 darts siblings all declare it. Fixed #537; guarded by `tests/test_target_scaler_is_declared_with_a_loss.py`. **(2) LOOK-ALIKE — the same config carries a `feature_scaler_map` that explicitly lists `lr_ged_sb/ns/os` under `AsinhTransform`. It reads exactly like target scaling and is not: that map applies to columns used as features. This is presumably how the omission survived review. **(3) DEAD — `force_target_only` has zero references in views-r2darts2 0.2.4. Nine models set it; some `True`, some `False`; it changes nothing. A reader cannot tell it from a live key. **(4) INCONSISTENT SET — `num_samples`, `mc_dropout` and `regression_point_metrics`/`regression_sample_metrics` must agree or the run trains to completion and then raises "No metrics configured for (regression, point)". Nothing checked that until #536, and the same change collapsed two models onto siblings because those keys were the *only* thing distinguishing them (C-158). **Why a schema and not more tests:** each of the four was caught by writing one more bespoke guard after one more failed run. That scales linearly with keys and finds nothing in advance. The asymmetry is the argument — a key that is read is exercised by every run, while a key that is *not* read is exercised by nothing, so the cheap win is enumerating the keys each consumer actually reads and refusing the rest. **Not actioned here** (#537 fixes one instance); filed as views-models#546 with the four as evidence. Cross-refs: **C-95** (`feature_scaler_map` silently skips unmapped features — the same family), **C-156** (a check that cannot see what it claims to), **C-158**. |
+
+---
+
+### C-158 — Two models were distinguished from siblings only by sample-count keys, so normalising those keys silently made them duplicates
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Changing `num_samples` or `mc_dropout` on any model — or any edit intended to make models "consistent" with each other. |
+| **Source** | Measured 2026-10-08 on real predictions after #536 shipped |
+| **Status** | Open |
+| **Location** | `models/mister_bluesky` (= `dancing_monkey`), `models/little_talks` (= `dark_necessities`) |
+| **Notes** | #536 set `num_samples: 100 -> 1` and `mc_dropout: True -> False` on two models so they could run at all (the 100-sample path needs ~303 GB, C-155). Those two keys were the **entire** functional difference between each and an existing sibling: same architecture, same queryset, same hyperparameters, same seed — verified by diff, and then by the output, which is **byte-identical** (`corr = 1.0000`, identical sums and non-zero fractions, produced on two different pods). They were never independent models; they were the probabilistic variants of `dancing_monkey` and `dark_necessities`, and removing the probabilistic part removed the model. **Consequence beyond the count:** the consumer is ensemble-diversity work, where shipping one model twice double-weights an architecture and corrupts the measurement — worse than shipping nine instead of eleven. **What did not catch it:** the guard added in #536 asserted the delivery batch was internally *comparable*, and identical is maximally comparable. A test can be true and measure the wrong property. **The fix is not to re-split them by hand** but views-models#492, which removes the memory ceiling so they can run at 100 samples and be themselves again. Until then the delivery is 8 distinct models, and saying "eleven files" would be false. Cross-refs: **C-155**, **C-157**. |
 
 ---
 

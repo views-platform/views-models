@@ -59,7 +59,22 @@ def get_hp_config():
         "non_zero_threshold": 0.88,
 
         # Scaling
+        # #537: target_scaler was ABSENT here and training died after ~90 GPU-minutes with
+        # `NaN in SpotlightLossLogcosh: per_channel=[nan, nan, nan]`. views-r2darts2 scales
+        # the target through this key ALONE (dataset/base.py:1192-1223); the
+        # `feature_scaler_map` below lists lr_ged_sb/ns/os and looks like it does the job, but
+        # that map only applies to columns used as FEATURES. Without this line the loss saw
+        # raw counts — 113,395 in one cell-month of the calibration window — and logcosh
+        # overflows float32 above ~89:
+        #     log(cosh(asinh(113395))) = 11.64   finite
+        #     log(cosh(113395))        = inf  -> NaN
+        # Its 39 darts siblings all declare AsinhTransform; brave_heart was the only one that
+        # did not, which is why three models running this same loss trained fine.
+        "target_scaler": "AsinhTransform",
         "feature_scaler": None,
+        # Unused: `force_target_only` has zero references in views-r2darts2 (checked 0.2.4).
+        # Left in place rather than removed, because deleting a dead key and fixing a live one
+        # in the same change makes the fix harder to review. Tracked separately.
         "force_target_only": False,
                 "feature_scaler_map": {
                     "AsinhTransform": [
