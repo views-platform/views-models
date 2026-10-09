@@ -2,10 +2,9 @@
 def get_hp_config():
     """
     TSMixer hyperparameters
-    Best run: elastic_heart_tsmixer_shadow_20260508_C
-    lr=1e-4, clip=20, dropout=0.35, hidden=64, patience=15, RevIN=True
+    Ported from tuning_202606 post-r8 ("fix elastic heart", 2026-06):
+    lr=3e-4, clip=20, dropout=0.4, hidden=128, es_patience=25, RevIN=True
     """
-
     hyperparameters = {
         # Temporal
         "steps": [*range(1, 36 + 1, 1)],
@@ -23,45 +22,43 @@ def get_hp_config():
         # Training
         "batch_size": 128,
         "n_epochs": 300,
-        "early_stopping_patience": 35,
+        "early_stopping_patience": 25,
         "early_stopping_min_delta": 0.001,
         "force_reset": True,
 
         # Optimizer
         "optimizer_cls": "AdamW",
-        "lr": 0.0001,
-        "weight_decay": 0.001,
-        "gradient_clip_val": 50,
+        "lr": 3e-4,
+        "weight_decay": 3e-4,
+        "gradient_clip_val": 20.0,
 
         # LR Scheduler
         "lr_scheduler_cls": "ReduceLROnPlateau",
         "lr_scheduler_factor": 0.5,
-        "lr_scheduler_patience": 25,
+        "lr_scheduler_patience": 15,
         "lr_scheduler_min_lr": 1e-6,
         "lr_scheduler_kwargs": {
             "mode": "min",
             "factor": 0.5,
-            "patience": 25,
+            "patience": 15,
             "min_lr": 1e-6,
-            "monitor": "val_loss",
-            "cooldown": 3,
+            "cooldown": 4,
             "threshold": 0.01,
             "threshold_mode": "rel",
         },
         "optimizer_kwargs": {
-            "lr": 0.0001,
-            "weight_decay": 0.001,
+            "lr": 3e-4,
+            "weight_decay": 3e-4,
         },
         "checkpoint_mode": "best",
         "loss_function": "SpotlightLossLogcosh",
-        "delta": 0.01,
         "non_zero_threshold": 0.88,
 
         # Scaling
         "feature_scaler": None,
         "target_scaler": "AsinhTransform",
         "feature_scaler_map": {
-            "AsinhTransform->StandardScaler": [
+            "AsinhTransform->MaxAbsScaler": [
                     # Conflict counts + deltas + spatial lags
                     "lr_ged_ns", "lr_ged_os",
                     "lr_ged_sb_delta", "lr_ged_ns_delta", "lr_ged_os_delta",
@@ -105,16 +102,13 @@ def get_hp_config():
         },
 
         # TSMixer Architecture
-        # 3 blocks × 64 width: sweep-validated configuration. Wider depth
-        # (3 blocks) compensates for narrower hidden_size=64 by stacking
-        # more mixing passes
-        "num_blocks": 2,
-        "hidden_size": 256,
-        "ff_size": 512,
+        "num_blocks": 3,
+        "hidden_size": 128,
+        "ff_size": 256,
         "activation": "GELU",
         "norm_type": "LayerNorm",
         "normalize_before": True,
-        "dropout": 0.25,
+        "dropout": 0.4,
         "use_static_covariates": True,
         "use_reversible_instance_norm": True,
 

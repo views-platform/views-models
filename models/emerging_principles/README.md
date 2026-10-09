@@ -1,4 +1,4 @@
-# New Rules 
+# Emerging Principles 
 ## Overview
 
 
@@ -6,16 +6,17 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | NBEATSModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Features**       |  emerging_principles   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
 ```
-New Rules
+Emerging Principles
 ├── README.md
 ├── main.py
 ├── requirements.txt
@@ -23,8 +24,8 @@ New Rules
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

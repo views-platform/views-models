@@ -6,6 +6,9 @@
 # But please, take a second to consult with the team before doing so anyways.
 
 
+# Claude Code
+.claude/
+
 # Integration test logs (allow .gitkeep through to preserve empty log dirs)
 logs/*
 !logs/.gitkeep
@@ -30,6 +33,16 @@ __pycache__/
 *.hdf5
 *_proto
 *_prototype
+
+# CI configuration is never a build artifact (#300). The blanket *.json/*.yaml/*.yml
+# rules above exist for wandb run outputs, and they silently swallow NEW files under
+# .github/ — the four workflows tracked today survive only because they predate those
+# rules, and git does not ignore what is already tracked. Found the hard way while
+# adding .github/workflows/secret_scan.yml: `git add` reported it ignored and the
+# commit went through WITHOUT it, which is exactly the silent-omission class this
+# repo keeps rediscovering.
+!.github/
+!.github/**
 
 # Darts
 *.scalers
@@ -166,7 +179,14 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+# `.env` alone left two shapes exposed on a PUBLIC repo (#299): `.env.faoapi` — the exact filename
+# the production server uses — and `.env.<date>`, the shape of a file made on a rotation day.
+# `.env.bak`/`.env.local` were covered only incidentally, by `*.bak` and `*.local` further down.
+# `!.env.example` is REQUIRED: that file is tracked and is the credential schema
+# `tools/check_credentials.py` reads. Asserted by tests/test_credentials_presence.py.
 .env
+.env.*
+!.env.example
 .venv
 env/
 envs/
@@ -233,6 +253,7 @@ cython_debug/
 # data files
 *.csv
 *.npy
+*.npz
 *.parquet
 *.pt
 *.pkl 
@@ -252,6 +273,11 @@ cython_debug/
 
 # txt logs
 *.txt
+# ...but NOT the environment snapshots. These are the record of which package
+# versions produced a delivered forecast (C-117) and are useless unless committed:
+# they exist to answer a question months later, on a different machine. A blanket
+# *.txt swallowed them silently once, the same way *.yml swallowed a workflow file.
+!reports/env_snapshots/*.txt
 
 # logs
 *.log

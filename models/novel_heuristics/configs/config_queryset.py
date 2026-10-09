@@ -395,7 +395,6 @@ def generate():
         )
 
     def _add_topics(queryset: Queryset) -> Queryset:
-        print("Adding topic model features...")
         return (
             queryset.with_column(
                 Column(

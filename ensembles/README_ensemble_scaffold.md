@@ -11,7 +11,7 @@ This folder contains code for the {{ENSEMBLE_NAME}} model, an ensemble machine l
 | **Targets**         | {{TARGET}} |
 | **Aggregation**       |  {{AGGREGATION}}   |
 | **Metrics**       |  {{METRICS}}    |
-| **Deployment Status**       |  {{DEPLOYMENT}}    |
+| **Maturity**       |  {{DEPLOYMENT}}    |
 
 ## Repository Structure
 
