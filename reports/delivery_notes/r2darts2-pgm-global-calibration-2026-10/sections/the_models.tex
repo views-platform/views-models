@@ -13,13 +13,14 @@ Section~\ref{sec:architectures}.
 \catcode`\_=12  % underscores are ordinary characters in this table
 \begin{table}[h!]
 \centering
+\small
 \renewcommand{\arraystretch}{1.2}
 \caption{The nine delivered models.}
 \label{tab:models}
-\begin{tabular}{@{}p{3.2cm}p{1.8cm}p{2.0cm}p{2.8cm}p{1.9cm}p{2.1cm}@{}}
+\begin{tabular}{@{}p{2.9cm}p{1.7cm}p{1.9cm}p{2.7cm}p{3.1cm}p{1.5cm}@{}}
 \toprule
 \textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors}
-  & \textbf{HP~config} & \textbf{Features} \\ \midrule
+  & \textbf{Hyperparameters} & \textbf{Features} \\ \midrule
 dark_river       & N-BEATS & MSE       & Outcomes only   & \cfg{dark_river}       & \qs{dark_river} \\
 old_rules        & N-BEATS & Spotlight & Outcomes only   & \cfg{old_rules}        & \qs{old_rules} \\
 blue_ocean       & N-BEATS & Spotlight & + 69 covariates & \cfg{blue_ocean}       & \qs{blue_ocean} \\ \addlinespace
@@ -35,7 +36,7 @@ golden_eagle     & TiDE    & Spotlight & + 69 covariates & \cfg{golden_eagle}   
 \endgroup
 
 \noindent The link columns open each model's configuration files on GitHub, fixed at the delivery
-commit on the title page: \textbf{HP~config} is \texttt{config\_hyperparameters.py}, which sets the
+commit on the title page: \textbf{Hyperparameters} is \texttt{config\_hyperparameters.py}, which sets the
 architecture, the loss and the training schedule; \textbf{Features} is
 \texttt{config\_queryset.py}, which declares the predictors the model was given.
 
