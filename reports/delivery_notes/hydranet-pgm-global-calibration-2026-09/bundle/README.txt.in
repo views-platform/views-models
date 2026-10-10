@@ -23,7 +23,7 @@ note disagree, the delivery note is correct.
 
 WHAT IS IN THIS FOLDER
 ------------------------------------------------------------------------
-One folder per model, eight in all:
+One folder per model, @MODELCOUNT@ in all:
 
 @MODELLIST@
 
@@ -39,9 +39,9 @@ run collapsed three different ways, not three models and not three runs:
 Section @FRAMESECTION@ of the delivery note, "The Three Frames",
 explains the three and says which of them can be reproduced.
 
-Each frame directory holds thirteen Parquet files, one per forecast
-origin, named ..._00 through ..._12. The thirteen overlap in time and
-must not be stacked into a panel; the note says why.
+Each frame directory holds @ORIGINCOUNT@ Parquet files, one per forecast
+origin, named ..._00 upwards. They overlap in time and must not be
+stacked into a panel; the note says why.
 
 @FILECOUNT@ Parquet files in all, @BUNDLESIZE@. Every file holds @ROWCOUNT@
 rows and five columns. Section @FILESECTION@ of the delivery note,

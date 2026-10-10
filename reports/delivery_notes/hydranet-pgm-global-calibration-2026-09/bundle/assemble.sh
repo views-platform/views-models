@@ -58,7 +58,7 @@ AUTHOR="$(macro deliveryauthor)"     || exit 1
 TITLE="$(macro deliverytitle)"       || exit 1
 
 # --- measure the bundle; refuse on anything inconsistent ------------------
-read -r FILECOUNT ROWCOUNT SAMPLEFILE MODELCOUNT < <(
+read -r FILECOUNT ROWCOUNT SAMPLEFILE MODELCOUNT ORIGINCOUNT < <(
     "$PYTHON" - "$BUNDLE" <<'PY'
 import pathlib, sys
 import pyarrow.parquet as pq
@@ -95,7 +95,7 @@ for m in models:
 
 if len(rows) != 1:
     sys.exit(f"row counts differ across files: {sorted(rows)}")
-print(f"{count} {rows.pop()} {sample or 'predictions_calibration_..._00.parquet'} {len(models)}")
+print(f"{count} {rows.pop()} {sample or 'predictions_calibration_..._00.parquet'} {len(models)} {ORIGINS}")
 PY
 ) || die "the bundle does not hold what the note describes — nothing written"
 
@@ -132,7 +132,8 @@ cp -f "$NOTE_DIR/main.pdf" "$BUNDLE/DELIVERY_NOTE.pdf"
 awk -v title="$TITLE" -v id="$ID" -v sum="$CHECKSUM" -v date="$DATE" \
     -v author="$AUTHOR" -v models="$MODELLIST" -v fc="$FILECOUNT" \
     -v size="$BUNDLESIZE" -v rows="$ROWPRETTY" -v sample="$SAMPLEFILE" \
-    -v pages="$PAGECOUNT" -v filesec="$FILESECTION" -v framesec="$FRAMESECTION" '
+    -v pages="$PAGECOUNT" -v filesec="$FILESECTION" -v framesec="$FRAMESECTION" \
+    -v modelcount="$MODELCOUNT" -v origincount="$ORIGINCOUNT" '
 {
     gsub(/@DELIVERYTITLE@/, title);     gsub(/@DELIVERYID@/, id)
     gsub(/@DELIVERYCHECKSUM@/, sum);    gsub(/@DELIVERYDATE@/, date)
@@ -141,6 +142,7 @@ awk -v title="$TITLE" -v id="$ID" -v sum="$CHECKSUM" -v date="$DATE" \
     gsub(/@ROWCOUNT@/, rows);           gsub(/@SAMPLEFILE@/, sample)
     gsub(/@PAGECOUNT@/, pages);         gsub(/@FILESECTION@/, filesec)
     gsub(/@FRAMESECTION@/, framesec)
+    gsub(/@MODELCOUNT@/, modelcount); gsub(/@ORIGINCOUNT@/, origincount)
     print
 }' "$NOTE_DIR/bundle/README.txt.in" > "$BUNDLE/README.txt"
 

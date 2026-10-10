@@ -91,17 +91,68 @@ def test_the_readme_reports_what_the_bundle_actually_holds(assembled: Path):
     # fixture: that would mean the script restates rather than measures.
     assert "312 Parquet files" not in text
     assert "2,333,448" not in text
+    # The counts that were prose until a mutation audit found them: a two-model
+    # fixture produced a packing list that said "eight in all".
+    assert f"One folder per model, {len(MODELS)} in all:" in text
+    assert f"holds {ORIGINS} Parquet files" in text
+    assert "eight in all" not in text, "the model count is hard-coded in the template"
+    assert "thirteen Parquet files" not in text, "the origin count is hard-coded"
+
+
+def test_the_readme_quotes_a_file_that_is_actually_in_the_bundle(assembled: Path):
+    """The worked example has to be openable.
+
+    A hard-coded sample filename reads correctly and fails the one thing the
+    section exists for, which is being pasted into a session.
+    """
+    import re
+
+    text = (assembled / "README.txt").read_text(encoding="utf-8")
+    quoted = set(re.findall(r'"([^"]+\.parquet)"', text))
+    assert quoted, "the README quotes no parquet file"
+    for ref in quoted:
+        assert (assembled / ref).is_file(), f"the README points at {ref}, which is not there"
+
+
+def test_the_template_reads_the_section_numbers_rather_than_restating_them(assembled: Path):
+    """Section numbers shift when a section is inserted.
+
+    Restating them as literals is what this forbids: the generated README is
+    checked against the note's own ordering, and the template is checked for
+    still carrying the tokens, because a test that derives the number the same
+    way the script does would agree with a hard-coded one.
+    """
+    template = (NOTE / "bundle/README.txt.in").read_text(encoding="utf-8")
+    assert "@FILESECTION@" in template, "the file-section number is hard-coded in the template"
+    assert "@FRAMESECTION@" in template, "the frame-section number is hard-coded in the template"
 
 
 def test_the_readme_agrees_with_the_note_on_identity(assembled: Path):
-    note = (NOTE / "main.tex").read_text(encoding="utf-8")
-    text = (assembled / "README.txt").read_text(encoding="utf-8")
+    """Both sides read main.tex, so agreement between them proves little.
+
+    The checksum is therefore recomputed from the specification fields rather
+    than copied: a note and a README that agree on a checksum neither of them
+    derived is the failure this looks for.
+    """
     import re
 
-    for macro in ("deliveryid", "deliverychecksum", "deliverydate"):
+    note = (NOTE / "main.tex").read_text(encoding="utf-8")
+    text = (assembled / "README.txt").read_text(encoding="utf-8")
+
+    for macro in ("deliveryid", "deliverychecksum", "deliverydate", "deliveryauthor"):
         match = re.search(rf"^\\newcommand\{{\\{macro}\}}\{{(.*)\}}$", note, re.M)
         assert match, f"\\{macro} is not in main.tex"
         assert match.group(1) in text, f"the README does not carry the note's {macro}"
+
+    computed = subprocess.run(
+        [sys.executable, str(NOTE.parent / "checksum.py"), str(NOTE)],
+        capture_output=True,
+        text=True,
+    )
+    assert computed.returncode == 0, computed.stderr
+    assert computed.stdout.strip() in text, (
+        "the README carries a checksum that is not the one the specification computes to"
+    )
 
 
 def test_numbers_are_grouped_the_way_the_note_groups_them(assembled: Path):
@@ -116,7 +167,12 @@ def test_the_readme_names_the_three_frames_and_which_one_is_declared(assembled: 
     for frame in FRAMES:
         assert frame in text, f"{frame} is not named in the packing list"
     assert "not three models and not three runs" in text
-    assert "the estimator the models declare" in text
+    # Against the right frame. "This is the estimator the models declare" under
+    # II_q95 would be a packing list that declares the wrong one.
+    declared = text[text.index("I_mean/") : text.index("II_q95/")]
+    assert "the estimator the models declare" in declared, (
+        "the declared estimator is not named against I_mean"
+    )
 
 
 def test_the_readme_sends_the_reader_to_the_right_sections(assembled: Path):
@@ -145,6 +201,19 @@ def test_no_checksum_manifest_is_shipped(assembled: Path):
     assert not (assembled / "SHA256SUMS.txt").exists()
     text = (assembled / "README.txt").read_text(encoding="utf-8")
     assert "sha256" not in text.lower(), "the README still talks about checksums"
+
+
+def test_a_stale_checksum_manifest_is_removed(tmp_path: Path):
+    """The `rm -f SHA256SUMS.txt` exists for a re-assembled folder.
+
+    Without planting one the cleanup cannot be tested, and an earlier run's
+    manifest would ship with nothing noticing.
+    """
+    bundle = _write_bundle(tmp_path / "stale")
+    (bundle / "SHA256SUMS.txt").write_text("deadbeef  purple_alien/I_mean/x.parquet\n", encoding="utf-8")
+    result = _assemble(bundle)
+    assert result.returncode == 0, result.stderr
+    assert not (bundle / "SHA256SUMS.txt").exists(), "a stale checksum manifest shipped"
 
 
 def test_the_superseded_readme_is_removed_from_the_bundle(tmp_path: Path):
