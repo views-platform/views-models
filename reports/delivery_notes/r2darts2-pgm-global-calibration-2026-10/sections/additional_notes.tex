@@ -38,10 +38,10 @@ detection did not run. So re-running these nine models at these versions would r
 method, and would not guarantee reproducing the numbers, because the underlying observations may
 have been revised in the meantime. Worth knowing before anyone treats a re-run as a check.
 
-\textbf{Column naming matches the tool.} These files use \texttt{pred\_lr\_ged\_sb}, which is the
-ensemble tool's own default \texttt{target\_column}. The September delivery used
-\texttt{pred\_lr\_sb\_best} instead, so if anything needs renaming when the two are compared it is
-that one, not this. Renaming either takes minutes and needs no re-run.
+\textbf{Column naming.} These files use the canonical target names,
+\texttt{pred\_lr\_ged\_sb} and its two siblings. The September delivery used
+\texttt{pred\_lr\_sb\_best} instead, so the two are not directly comparable without a rename.
+Renaming either set takes minutes and needs no re-run.
 
 \textbf{Comparison with the September delivery.} You were sent three variants per model then --- a
 mean, a 95th percentile and a conditional mean --- each computed from that model family's

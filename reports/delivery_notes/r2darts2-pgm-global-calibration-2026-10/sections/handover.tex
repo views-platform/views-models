@@ -1,31 +1,11 @@
-\subsection*{Observed Values Are Not in This Folder, and Do Not Need to Be}
+\subsection*{Observed Values}
 
 The evaluation joins forecasts to observed fatalities on \texttt{month\_id} and
-\texttt{priogrid\_id}. Those observations are not included here, and Sonja's ensemble-construction
-tool does not need them to be: it fetches actuals itself from a viewser queryset named in its own
-configuration, and also accepts an actuals dataframe passed in directly. They can equally be pulled
-from the dataFactory.
+\texttt{priogrid\_id}. Those observations are not in this folder and do not need to be: the
+ensemble-construction tool retrieves them itself, and they are in any case available from the
+datafactory. The file naming here already matches what that tool expects.
 
-Three things about that tool are worth flagging to whoever runs it, taken from reading its current
-source rather than from memory.
-
-\begin{itemize}
-    \item \textbf{The file naming already matches.} It expects\\
-          \path{predictions_calibration_{timestamp}_{ts}.parquet}\\
-          with \texttt{ts} running \texttt{00}--\texttt{12}, which is exactly what is here.
-    \item \textbf{Its shipped default configuration is country-month, not PRIO-GRID.} The default
-          keys are \texttt{(country\_id, month\_id)} and the default actuals queryset is a
-          country-level one. The evaluation code itself is indifferent to the level --- it merges
-          on whatever keys the configuration names --- so pointing it at these models is a
-          configuration change, to \texttt{(priogrid\_id, month\_id)} and a PRIO-GRID actuals
-          queryset, not a code change.
-    \item \textbf{It resolves prediction files inside the repository layout}, at
-          \path{views-models/models/<model>/data/generated/}, rather than from an
-          arbitrary folder. The files here are laid out one folder per model and will need placing
-          accordingly, or the paths adjusting.
-\end{itemize}
-
-\subsection*{If a Research Assistant Runs It Instead}
+\subsection*{Computing Metrics Directly}
 
 The instruction is: \textit{iterate over the thirteen files per model, join each to the observed
 values on} \texttt{month\_id} \textit{and} \texttt{priogrid\_id}\textit{, and compute point metrics
