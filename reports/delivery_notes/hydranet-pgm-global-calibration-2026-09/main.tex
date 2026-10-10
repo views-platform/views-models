@@ -1,0 +1,304 @@
+% ============================================================
+% Delivery Note Template --- VIEWS
+% ============================================================
+% A delivery note accompanies a set of data handed to someone outside
+% the team that produced it. It records WHAT was delivered, HOW to read
+% it, and WHAT IS NOT in it. It does not ask the recipient to decide
+% anything --- that is a pre-release note's job.
+%
+% TO USE THIS TEMPLATE:
+%   1. Copy this directory to ../<delivery-id>/ and work there.
+%   2. Fill the six \delivery* macros below. All six are required.
+%   3. Build the \section + \input spine in the DOCUMENT BODY to suit
+%      this delivery. There is no fixed structure --- comment in,
+%      comment out, reorder, rename. A stub exists for each section in
+%      sections/; delete the ones you do not use.
+%   4. Write body prose in sections/*.tex. Those files contain NO
+%      \section commands --- the headings live here, so reordering is a
+%      single-file edit.
+%   5. Build with ./build.sh (three pdflatex passes).
+%
+% Conventions: ../README.md, and the house style guides at
+%   ~/brain/2_projects/fao02/_dev_materials/release_notes/STYLE.md
+%   ~/brain/2_projects/fao02/_dev_materials/prerelease_notes/STYLE.md
+% British spelling. Title Case headings, sentence case bodies.
+% booktabs rules only, no vertical rules, every table captioned and
+% labelled.
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% LANGUAGE & ENCODING
+% ------------------------------------------------------------
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}        % REQUIRED: OT1 cannot set a, o, edh etc.
+
+% ------------------------------------------------------------
+% TYPOGRAPHY & SPACING
+% ------------------------------------------------------------
+\usepackage{microtype}           % Better kerning and justification
+\usepackage[onehalfspacing]{setspace} % Line spacing
+\usepackage{parskip}             % Paragraph spacing, no indent
+\setlength{\footnotesep}{0.7\baselineskip}
+\usepackage[hang,flushmargin]{footmisc} % Footnotes: no indent
+
+% ------------------------------------------------------------
+% PAGE LAYOUT
+% ------------------------------------------------------------
+\usepackage[a4paper,margin=1in]{geometry} % Clean margins
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{} % clear all fields
+% Head/foot fields are set after the delivery metadata is defined,
+% further down. Inherited \lhead{Maase et al.} / \rhead{\today} removed
+% deliberately: the date must not float on rebuild.
+\renewcommand{\footrulewidth}{0.8pt}
+
+% ------------------------------------------------------------
+% GRAPHICS & TABLES
+% ------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{array}
+% Weighted full-width column: L{w} where the w's across a row sum to the column count.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hsize=#1\hsize}X}
+\usepackage{makecell}
+\usepackage[section]{placeins} % Prevent floats before sections
+\usepackage[table]{xcolor}
+
+% ------------------------------------------------------------
+% MATH & SYMBOLS
+% ------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+
+% ------------------------------------------------------------
+% CITATION & QUOTING
+% ------------------------------------------------------------
+\usepackage{csquotes}
+\usepackage{natbib}
+
+% ------------------------------------------------------------
+% HYPERLINKS
+% ------------------------------------------------------------
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, allcolors=black, urlcolor=[rgb]{0,0.25,0.55}}
+
+% ------------------------------------------------------------
+% NOTES
+% ------------------------------------------------------------
+\usepackage[colorinlistoftodos]{todonotes}
+
+% ------------------------------------------------------------
+% WATERMARK
+%\usepackage{draftwatermark}
+%\SetWatermarkText{DRAFT}
+%\SetWatermarkScale{7}          % Size of the text (default: 1)
+%\SetWatermarkLightness{0.9}    % 0 = black, 1 = invisible
+
+% ------------------------------------------------------------
+% DELIVERY METADATA --- fill all of these
+% ------------------------------------------------------------
+% IDENTIFIER. Composed from the facts below, never hashed:
+%
+%     <library>-<loa>-<scope>-<partition>-<YYYY-MM>[-<n>]
+%
+%   library    the model library that produced it: r2darts2, hydranet,
+%              stepshifter, ...
+%   loa        the VIEWS level of analysis: pgm (PRIO-GRID month) or
+%              cm (country month). This carries BOTH the spatial unit
+%              and the temporal resolution.
+%   scope      the spatial extent: global, africa, ... Always present.
+%              A delivery is not assumed global.
+%   partition  calibration / validation / forecasting
+%   YYYY-MM    month of delivery
+%   n          sequence number, ONLY if a second delivery with the same
+%              fields goes out in the same month
+%
+% CHECKSUM. \deliverychecksum is derived from every specification field
+% below by ../checksum.py --- it is not chosen. Regenerate it whenever
+% any of those fields changes:
+%
+%     python3 ../checksum.py . > /dev/null && python3 ../checksum.py .
+%
+% build.sh verifies it, so a note cannot quietly disagree with its own
+% specification.
+%
+% \deliverydate is deliberately NOT \today. A note records what was sent
+% on a given day; rebuilding it must not restamp it. Set it once and
+% leave it.
+%
+% \deliverysha is the views-models commit THE DATA WAS PRODUCED AT ---
+% not the commit of this document. The MANIFEST beside each model's
+% output records the sha its config was read at; use the latest commit
+% that touched any delivered model's configuration. It MUST be pushed,
+% or the \cfg links will not resolve.
+
+\newcommand{\deliveryid}{hydranet-pgm-global-calibration-2026-09}
+\newcommand{\deliverychecksum}{36172716}
+\newcommand{\deliverytitle}{Eight HydraNet Forecast Models, Collapsed Three Ways}
+\newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
+\newcommand{\deliverydate}{11-10-2026}
+
+% --- SCOPE: what the data is --------------------------------
+% Resolution and extent on each axis, stated in parallel. The level-of
+% -analysis shorthand (pgm, cm) is not repeated here --- it is the second
+% field of the identifier.
+\newcommand{\deliverypartition}{Calibration}
+\newcommand{\deliveryspatialres}{PRIO-GRID cell}
+\newcommand{\deliveryspatialextent}{Global land --- 64,818 cells}
+\newcommand{\deliverytemporalres}{Month}
+\newcommand{\deliverytemporalextent}{Forecasts Jan 2018 to Dec 2021; trained on Jan 1990 to Dec 2017}
+\newcommand{\deliverystructure}{13 rolling origins, each forecasting 36 months, collapsed three ways}
+\newcommand{\deliverytargets}{State-based, non-state and one-sided fatalities}
+
+% --- PROVENANCE: what produced it ---------------------------
+\newcommand{\deliverylibrary}{views-hydranet, pinned \texttt{\textasciitilde{}=0.1.1}; exact version not recorded}
+\newcommand{\deliveryframework}{views-pipeline-core, version not recorded}
+\newcommand{\deliverybackend}{views-datafactory, pinned \texttt{>=1.9.0,<2.0.0}; exact version not recorded}
+\newcommand{\deliverysha}{1b9cebc}
+\newcommand{\deliverycompute}{Rented cloud GPUs (RunPod), NVIDIA RTX PRO 4500}
+
+% Link a model name to its hyperparameter config at the delivery commit.
+% Underscores in model names need \catcode`\_=12 around the table that
+% uses this --- see the darts note for the pattern.
+\newcommand{\cfg}[1]{%
+  \href{https://github.com/views-platform/views-models/blob/\deliverysha/models/#1/configs/config_hyperparameters.py}%
+       {link}}
+\newcommand{\qs}[1]{%
+  \href{https://github.com/views-platform/views-models/blob/\deliverysha/models/#1/configs/config_queryset.py}%
+       {link}}
+
+% ------------------------------------------------------------
+% TITLE
+% ------------------------------------------------------------
+\usepackage{titling}
+
+\pretitle{\vspace{2em}\centering\Huge\bfseries}
+\posttitle{\par\vspace{1em}}
+\preauthor{\centering\large}
+\postauthor{\par\vspace{0.5em}}
+\predate{\centering\small}
+\postdate{\par\vspace{2em}}
+
+\title{\deliverytitle}
+\author{\deliveryauthor}
+\date{\deliverydate}
+
+% ------------------------------------------------------------
+% RUNNING HEAD --- the identifier travels on every page, so a loose
+% printed page can still be traced back to the delivery it came from.
+% ------------------------------------------------------------
+\lhead{\deliveryauthor}
+\rhead{\deliverydate}
+\lfoot{PRIO --- VIEWS \quad \texttt{\deliveryid}}
+\rfoot{\thepage}
+
+% ------------------------------------------------------------
+% DOCUMENT STARTS
+% ------------------------------------------------------------
+\begin{document}
+
+% ------------------------------------------------------------
+% TITLE PAGE
+% ------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace{3cm}
+
+    {\Huge \textbf{VIEWS}\par}
+    {\Huge Delivery Note \par}
+    \vspace{0.6cm}
+    {\LARGE \deliverytitle \par}
+    \vspace{1.5cm}
+
+    \noindent\makebox[\textwidth]{\Large\textemdash\quad$\diamond$\quad\textemdash}
+    \vspace{1.5cm}
+
+    \begin{tabular}{@{}r@{\quad}p{10cm}@{}}
+        \textbf{Identifier}  & \texttt{\deliveryid} \\
+        \textbf{Checksum}    & \texttt{\deliverychecksum} \\[0.35em]
+        \textbf{Date}        & \deliverydate \\
+        \textbf{Author}      & \deliveryauthor \\[0.9em]
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}} \quad\small\textit{what the data is}} \\[0.2em]
+        \textbf{Partition}            & \deliverypartition \\
+        \textbf{Spatial resolution}   & \deliveryspatialres \\
+        \textbf{Spatial extent}       & \deliveryspatialextent \\
+        \textbf{Temporal resolution}  & \deliverytemporalres \\
+        \textbf{Temporal extent}      & \deliverytemporalextent \\
+        \textbf{Forecast structure}   & \deliverystructure \\
+        \textbf{Targets}              & \deliverytargets \\[0.9em]
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}} \quad\small\textit{what produced it}} \\[0.2em]
+        \textbf{Model library}        & \deliverylibrary \\
+        \textbf{Framework}            & \deliveryframework \\
+        \textbf{Data backend}         & \deliverybackend \\
+        \textbf{Source commit}        & \texttt{views-models@\deliverysha} \\
+        \textbf{Computed on}          & \deliverycompute \\
+    \end{tabular}
+
+    \vspace{0.8cm}
+    \textit{PRIO -- Oslo}
+
+    \vfill
+    \includegraphics[width=0.25\textwidth]{figures/VIEWS_logo_tagline.png}
+    \hspace{1cm}
+    \includegraphics[width=0.25\textwidth]{figures/PRIO_Logo.png}
+
+    \thispagestyle{empty}
+\end{titlepage}
+
+% ============================================================
+% DOCUMENT BODY
+% ------------------------------------------------------------
+% There is NO fixed structure. Comment in what this delivery needs,
+% comment out the rest, reorder freely. The headings below are
+% suggestions drawn from past deliveries, not a required spine.
+% ============================================================
+
+% The spine below is a starting point drawn from past deliveries, not a
+% required structure. Comment in, comment out, reorder, rename.
+%
+% Section 1 is the exception: a delivery note should always open with a
+% Context section stating what the document is, what it covers, what it
+% explicitly does NOT cover, and that the delivery is a fixed artefact
+% identified by its identifier and checksum. That shape is inherited
+% from the FAO release notes --- see ../README.md.
+
+\section{Context}
+\input{sections/context}
+
+\section{The Model}\label{sec:model}
+\input{sections/the_model}
+
+\section{The Eight Models}\label{sec:models}
+\input{sections/the_eight_models}
+
+\section{The Three Frames}\label{sec:frames}
+\input{sections/the_frames}
+
+\section{The Delivered Files}\label{sec:files}
+\input{sections/the_data}
+
+\section{Magnitude and Horizon}\label{sec:magnitude}
+\input{sections/magnitude_and_horizon}
+
+\section{Not Included in This Delivery}\label{sec:excluded}
+\input{sections/not_included}
+
+\section{Caveats and Notes}\label{sec:caveats}
+\input{sections/additional_notes}
+
+\section{Next Steps}\label{sec:next}
+\input{sections/conclusion}
+
+% ------------------------------------------------------------
+% BIBLIOGRAPHY --- build.sh runs bibtex when this is uncommented
+% and something is actually cited.
+% ------------------------------------------------------------
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}

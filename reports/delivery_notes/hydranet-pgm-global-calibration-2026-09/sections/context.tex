@@ -1,0 +1,48 @@
+This Delivery Note accompanies \texttt{\deliveryid}, a set of conflict forecasts produced by eight
+HydraNet models on the calibration partition at global PRIO-GRID month, each collapsed from its
+posterior draws three different ways. It is the authoritative description of what was handed over.
+The folder was uploaded on 29 September 2026 with a short README and an audit notebook and no note;
+this document supplies the note, and supersedes that README where the two disagree.
+
+The purpose of this note is to:
+\begin{itemize}
+    \item record what was delivered, in enough detail to identify it again later;
+    \item describe the models that produced it, and what distinguishes them from one another;
+    \item explain why there are three files per model per origin rather than one, and what each
+          one is;
+    \item state how the files are organised and how they are intended to be consumed; and
+    \item set out what is \emph{not} in the delivery, and what is not yet known about it.
+\end{itemize}
+
+\noindent This note covers:
+\begin{itemize}
+    \item the architecture all eight share, and the eight configurations that differ
+          (Sections~\ref{sec:model}--\ref{sec:models});
+    \item the three point estimators, the arithmetic of each, and which one the models declare
+          (Section~\ref{sec:frames});
+    \item the file layout, schema and units of the delivered forecasts
+          (Section~\ref{sec:files});
+    \item measured magnitude and horizon behaviour --- diagnostics, not an evaluation
+          (Section~\ref{sec:magnitude}); and
+    \item what the delivery excludes, and the caveats that bear on using it
+          (Sections~\ref{sec:excluded}--\ref{sec:caveats}).
+\end{itemize}
+
+\noindent This note explicitly does \emph{not} cover:
+\begin{itemize}
+    \item \textbf{any evaluation against observed outcomes.} Section~\ref{sec:magnitude} reports
+          what the models predict and how that varies by forecast step and by estimator. It scores
+          nothing, ranks nothing and compares nothing to actuals beyond the single magnitude ratio
+          the run itself computed;
+    \item any recommendation as to which of the eight, or which of the three estimators, to
+          prefer. That is what the selection routine is for;
+    \item the validation or forecasting partitions, or any live forecast; and
+    \item the internal machinery that produced the run --- the cost, the hardware and what the
+          deployment cost us are recorded separately, in
+          \texttt{reports/runpod\_cost\_and\_time\_note\_2026-09.md} and
+          \texttt{reports/postmortem\_runpod\_first\_deployment\_2026-09.md}.
+\end{itemize}
+
+\noindent The delivery is a fixed artefact. It is identified by the identifier and checksum on
+the title page --- quote both --- and is not revised in place: any correction is issued as a new
+delivery with a new identifier and a new checksum.

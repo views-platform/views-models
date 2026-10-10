@@ -1,0 +1,74 @@
+All eight delivered models are the same architecture under eight configurations. The architecture
+is \textbf{HydraNet}, designed and built in-house --- the class the eight instantiate is
+\texttt{HydraBNUNet06\_LSTM4} in \texttt{views-hydranet}. It is my own work: the design, the
+implementation and the paper describing it \citep{maase_hydranet} are mine. It is not a library
+model and has no upstream.
+
+\subsection*{What It Is}
+
+HydraNet treats the global grid as an image sequence rather than as a panel of independent cells.
+Each training example is a 32-month window of the whole $360 \times 720$ half-degree grid, with
+three input channels --- the state-based, non-state and one-sided fatality histories. The network
+is a recurrent U-Net: two encoder levels with batch normalisation and max pooling compress the
+grid spatially, four parallel ConvLSTM cells carry temporal memory between months, and skip
+connections return the compressed representation to full resolution. One set of parameters is
+shared across every cell, so a cell with almost no conflict history is forecast using structure
+learned from the whole grid and from its neighbours.
+
+\subsection*{Six Heads, Two Per Target}
+
+The name is the architecture's main feature. There are six independent decoder heads --- two for
+each of the three outcomes:
+
+\begin{itemize}
+    \item a \textbf{gate} head, trained as a classifier on whether the outcome is non-zero at all,
+          emitting $P(y > 0)$ per cell per month; and
+    \item a \textbf{body} head, trained as a regression on how large the outcome is, emitting the
+          parameters of a count distribution rather than a single number.
+\end{itemize}
+
+\noindent The split matters because the overwhelming majority of cell-months carry no fatalities at
+all --- in the delivered forecasts, 99.4\% of them (Section~\ref{sec:magnitude}). A single head
+asked to produce both the zeros and the magnitudes is pulled toward predicting almost nothing
+everywhere; separating the two lets each be trained on the question it is actually answering. The
+gate is trained with a weighted binary cross-entropy (positive class weighted $2.0$); the body
+with mean squared error on the $\log(1+y)$ scale.
+
+A forecast is the two composed. Two compositions are used across the eight, and the choice is the
+single most consequential setting that varies between them:
+
+\begin{itemize}
+    \item \textbf{soft gate} --- for each draw, a Bernoulli trial on the gate probability decides
+          whether that cell is non-zero in that draw. A cell with a gate of $0.3$ is zero in
+          roughly seven draws out of ten and carries the body's magnitude in the other three.
+    \item \textbf{threshold gate} --- the cell is kept if the gate exceeds a fixed threshold
+          $\tau$ and zeroed otherwise, identically in every draw. Three of the eight use this,
+          at $\tau = 0.14$, $0.16$ and $0.20$.
+\end{itemize}
+
+\noindent The masks are exactly zero or one and are applied on the $\log(1+y)$ scale, where
+$\log(1+0) = 0$, so the multiplication introduces no approximation.
+
+\subsection*{Why There Are Draws At All}
+
+The body head does not emit a number, it emits a distribution --- a negative binomial, or a
+mixture of two negative binomials, depending on the model. Drawing from it gives one possible
+future; drawing repeatedly gives a sample of them. This delivery carries \textbf{16 draws per cell
+per month}, built as four passes with dropout left active at prediction time, each yielding four
+draws from the distribution the body emitted ($4 \times 4 = 16$). Both sources of variation are
+deliberate: the dropout passes express uncertainty about the model, the family draws express
+uncertainty about the outcome given the model.
+
+Sixteen is a setting for this run and not a property of the architecture. The platform standard is
+higher; the full-depth configuration peaks at roughly 28.6~GB and does not fit the hardware this
+run had. The consequence that bears on the delivered files is in
+Section~\ref{sec:frames}: an upper quantile of 16 draws is a coarse statistic.
+
+\subsection*{What Reaches Disk}
+
+The forecasts are produced one month at a time, each month's prediction feeding back as the next
+month's input, out to 36 months. Because every model declares \texttt{evaluation\_mode:
+stochastic}, the run keeps the full set of draws rather than reducing them, and the collapse to a
+single number per cell happens afterwards and outside the run --- which is what
+Section~\ref{sec:frames} describes. The draws are composed on the $\log(1+y)$ scale and are on the
+count scale by the time they reach the collapse, which refuses them if they are not.

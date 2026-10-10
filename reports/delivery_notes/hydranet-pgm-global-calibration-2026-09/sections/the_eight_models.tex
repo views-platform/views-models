@@ -1,0 +1,96 @@
+Nearly everything is held fixed across the eight. All of them are
+\texttt{HydraBNUNet06\_LSTM4}; all train for 300 lessons of three windows each at learning rate
+$0.001$ with the same warm-up and decay schedule; all take the same three input channels on the
+same global land grid of 64,818 cells; all target the same three outcomes on the $\log(1+y)$
+scale; all produce 16 draws; all were trained in the same two days on the same rented hardware
+from the same commit. Those facts are stated once here and are not repeated per model.
+
+\begingroup
+\catcode`\_=12  % underscores are ordinary characters in this table
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{The eight delivered models, and the five settings that differ between them.}
+\label{tab:models}
+\begin{tabular}{@{}p{2.8cm}p{1.9cm}p{2.2cm}p{1.6cm}p{2.0cm}p{1.2cm}p{1.1cm}@{}}
+\toprule
+\textbf{Model} & \textbf{Body} & \textbf{Composition} & \textbf{Window}
+  & \textbf{Scheduled} & \textbf{Config} & \textbf{Feat.} \\
+ & \textbf{family} & & \textbf{sampling} & \textbf{sampling} & & \\ \midrule
+purple_alien     & mixture NB & soft gate        & threshold & off & \cfg{purple_alien}     & \qs{purple_alien} \\
+pink_pirate      & mixture NB & soft gate        & threshold & off & \cfg{pink_pirate}      & \qs{pink_pirate} \\
+blue_stranger    & mixture NB & soft gate        & Boltzmann & off & \cfg{blue_stranger}    & \qs{blue_stranger} \\
+bold_comet       & mixture NB & threshold, 0.14  & threshold & off & \cfg{bold_comet}       & \qs{bold_comet} \\
+blazing_meteor   & mixture NB & threshold, 0.16  & threshold & off & \cfg{blazing_meteor}   & \qs{blazing_meteor} \\ \addlinespace
+heavy_freighter  & NB         & soft gate        & threshold & \textbf{on} & \cfg{heavy_freighter}  & \qs{heavy_freighter} \\
+bright_starship  & NB         & soft gate        & threshold & off & \cfg{bright_starship}  & \qs{bright_starship} \\
+violet_visitor   & NB         & threshold, 0.20  & sigmoid   & off & \cfg{violet_visitor}   & \qs{violet_visitor} \\
+\bottomrule
+\end{tabular}
+\end{table}
+\endgroup
+
+\noindent The link columns open each model's configuration on GitHub, fixed at the delivery commit
+on the title page: \textbf{Config} is \texttt{config\_hyperparameters.py}, which sets the body
+family, the composition, the dropout rate and the training schedule; \textbf{Feat.} is
+\texttt{config\_queryset.py}, which declares the inputs. The names are arbitrary labels assigned
+by the \texttt{adjective\_noun} convention used across views-models and carry no meaning.
+
+Two further settings vary and are not in the table because they are not interpretable as
+treatments: the random seed (42--47, locked and logged per run) and the dropout rate (0.125 in six
+models, 0.1 in \texttt{blue\_stranger}, 0.15 in \texttt{violet\_visitor}).
+
+\subsection*{The Eight, One Paragraph Each}
+
+\noindent\textbf{\texttt{purple\_alien}} --- Mixture-negative-binomial body, soft gate. The
+reference configuration the other seven are variations on, and the only one carrying bespoke
+regression-loss weights. It is the model used for the worked examples throughout this note.
+
+\noindent\textbf{\texttt{pink\_pirate}} --- Identical to \texttt{purple\_alien} in body family and
+composition, with the standard regression-loss weights and a different seed. The nearest thing in
+the set to a seed replicate of the reference configuration.
+
+\noindent\textbf{\texttt{blue\_stranger}} --- Mixture-negative-binomial body, soft gate, and the
+only model whose training windows are drawn by Boltzmann weighting: a window's anchor cell is
+sampled with probability proportional to $\exp(\text{activity}/\tau)$ rather than uniformly from
+cells above an activity threshold. It also carries the lowest dropout rate of the eight, 0.1.
+
+\noindent\textbf{\texttt{bold\_comet}} --- Mixture-negative-binomial body with a threshold gate at
+$\tau = 0.14$: a cell is forecast as non-zero only where the gate exceeds that probability, and
+identically in all 16 draws. The lowest of the three thresholds, so the most permissive of the
+three threshold-gate models.
+
+\noindent\textbf{\texttt{blazing\_meteor}} --- As \texttt{bold\_comet} with the threshold raised to
+$\tau = 0.16$. The pair is the closest thing in the set to a clean reading of what moving the
+threshold does, though the seeds differ between them.
+
+\noindent\textbf{\texttt{heavy\_freighter}} --- Single-negative-binomial body, soft gate, and
+\textbf{the only model trained with scheduled sampling active}, which feeds the model's own
+predictions back during training rather than always the observed history. It is retained
+deliberately: it was the only configuration predicting fatalities at a realistic scale, and it
+remains the highest-magnitude model of the eight (Section~\ref{sec:magnitude}).
+
+\noindent\textbf{\texttt{bright\_starship}} --- Single-negative-binomial body, soft gate,
+scheduled sampling off. Intended as the controlled contrast to \texttt{heavy\_freighter}, and the
+lowest-magnitude model of the eight. \textbf{The contrast is confounded:} the two also differ in
+seed, so the gap between them cannot be attributed to scheduled sampling alone.
+
+\noindent\textbf{\texttt{violet\_visitor}} --- Single-negative-binomial body with the highest
+threshold gate, $\tau = 0.20$, the highest dropout rate, 0.15, and the only sigmoid window
+sampler, which weights a window's anchor cell by $\sigma(k(\text{activity} - \text{threshold}))$
+instead of applying a hard cut.
+
+\subsection*{What the Design Does and Does Not Establish}
+
+The two axes that were chosen as treatments are the body family (mixture of two negative binomials
+in five models, a single negative binomial in three) and the composition (soft gate in five,
+threshold gate in three). Both are real trades rather than one option dominating: the threshold
+gate ranks slightly better on the run's own metrics and predicts measurably less on every model it
+was tried on, which is why both are carried into the selection rather than one being chosen here.
+
+Three things about this set are assumptions rather than findings, and are recorded as such: the
+five-to-three split between the two body families, the specific seeds, and the premise that eight
+separate trainings are more informative than fewer models each carrying more compositions. The
+eight are a spread of plausible configurations submitted for selection, not a factorial design
+from which an effect can be read.

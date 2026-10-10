@@ -1,0 +1,33 @@
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\caption{What this delivery does not contain, and where it is instead.}
+\label{tab:not-included}
+\begin{tabular}{@{}p{4.4cm}p{10.2cm}@{}}
+\toprule
+\textbf{Not included} & \textbf{Where it is, or why not} \\ \midrule
+Observed values &
+  The files carry predictions only. Actuals come from the data store, keyed on the same
+  \texttt{month\_id} and \texttt{priogrid\_id}, so a join needs nothing from here. \\ \addlinespace
+The posterior draws &
+  Produced and compressed on the rented machines, never transferred off them, and the machines are
+  gone. This is the one omission with consequences --- Section~\ref{sec:frames}. \\ \addlinespace
+Evaluation metrics &
+  Beyond the magnitude and CRPS figures in Section~\ref{sec:magnitude}, which the run computed on
+  its own output, nothing has been scored. The per-step and per-origin evaluation outputs were
+  written on the machines and did not come home either. \\ \addlinespace
+Per-model manifests &
+  No provenance file travels inside the folder. Run host, runtime, engine version and
+  configuration commit are held in views-models; the commit is on the title page. \\ \addlinespace
+Training logs &
+  Held in views-models beside each model's output, not shipped. They carry the metric tables
+  Section~\ref{sec:magnitude} quotes. \\ \addlinespace
+Other partitions &
+  Calibration only. No validation partition, no forecasting partition, no live forecast. \\ \addlinespace
+Model artefacts &
+  No trained weights. None from this run exist on any machine we hold, so the run cannot be
+  resumed or re-predicted from --- only repeated from the configuration. \\
+\bottomrule
+\end{tabular}
+\end{table}

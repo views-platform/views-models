@@ -1,0 +1,141 @@
+The delivery is one folder per model, eight in all, each holding three frame directories of
+thirteen Parquet files:
+
+\begin{verbatim}
+  <model>/
+    I_mean/                 predictions_calibration_<ts>_<NN>.parquet  (13 files)
+    II_q95/                 "
+    III_conditional_mean/   "
+\end{verbatim}
+
+\noindent That is $8 \times 3 \times 13 = 312$ files and a little over 180~MB. The timestamp in each
+filename is the model's own run, so it is the same within a model and differs between models; the
+two-digit suffix \texttt{\_00} to \texttt{\_12} is the forecast origin.
+
+Parquet is a columnar table format. It is not a text format and will not open in a text editor,
+but every analysis environment reads it directly, with no conversion step:
+
+\begin{quote}
+\small
+\textbf{Python} \\
+\texttt{import pandas as pd} \\
+\texttt{f = "purple\_alien/I\_mean/predictions\_calibration\_20260928\_201214\_00.parquet"} \\
+\texttt{df = pd.read\_parquet(f)}
+
+\medskip
+\textbf{R} \\
+\texttt{library(arrow)} \\
+\texttt{f <- "purple\_alien/I\_mean/predictions\_calibration\_20260928\_201214\_00.parquet"} \\
+\texttt{df <- read\_parquet(f)}
+\end{quote}
+
+\subsection*{Thirteen Origins, and Why They Must Not Be Stacked}
+
+The calibration test window is months 457 to 504 --- January 2018 to December 2021. Each model
+forecasts 36 months ahead from each of thirteen successive starting points, one month apart.
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{The thirteen forecast origins. Each file covers 36 months from its own origin.}
+\label{tab:origins}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{File} & \textbf{Forecast from} & \textbf{Months covered} & \textbf{Calendar} \\ \midrule
+\texttt{\_00} & month 456 & 457--492 & Jan 2018 -- Dec 2020 \\
+\texttt{\_01} & month 457 & 458--493 & Feb 2018 -- Jan 2021 \\
+\texttt{\_02} & month 458 & 459--494 & Mar 2018 -- Feb 2021 \\
+\multicolumn{4}{@{}l@{}}{\quad\textit{\ldots one month later at each step \ldots}} \\
+\texttt{\_11} & month 467 & 468--503 & Dec 2018 -- Nov 2021 \\
+\texttt{\_12} & month 468 & 469--504 & Jan 2019 -- Dec 2021 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{The windows overlap, so the same cell-month appears in many files.} Month 480
+appears in all thirteen, forecast from thirteen different distances. Concatenating the thirteen
+files and treating the result as a panel produces a table with up to thirteen different values for
+the same cell and month, which is not a forecast of anything. Pick one origin, or carry the origin
+as an explicit dimension. The audit notebook in the folder prints the overlap as a table if it
+helps to see it.
+
+\subsection*{Schema}
+
+Every one of the 312 files holds exactly five columns and \textbf{2,333,448 rows} --- 64,818 cells
+$\times$ 36 months, a complete block with no gaps. The schema is byte-identical across all 312.
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{The five columns, identical in every file.}
+\label{tab:columns}
+\begin{tabular}{@{}p{4.2cm}p{2.0cm}p{8.0cm}@{}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Meaning} \\ \midrule
+\texttt{month\_id}           & integer & VIEWS month index; 457 is January 2018 \\
+\texttt{priogrid\_id}        & integer & PRIO-GRID cell identifier (see below) \\
+\texttt{pred\_lr\_sb\_best}  & double  & predicted state-based fatalities \\
+\texttt{pred\_lr\_ns\_best}  & double  & predicted non-state fatalities \\
+\texttt{pred\_lr\_os\_best}  & double  & predicted one-sided fatalities \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{\texttt{priogrid\_id} is a cell, not a coordinate.} PRIO-GRID is a $720 \times
+360$ grid of half-degree cells covering the globe, numbered from 1 in the south-west corner and
+running east before north. To place a row on a map:
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\caption{Converting \texttt{priogrid\_id} to coordinates. The result is the cell centre.}
+\label{tab:priogrid}
+\begin{tabular}{@{}p{4.6cm}p{9.4cm}@{}}
+\toprule
+Row (south to north) & $\texttt{row} = \lfloor (\texttt{priogrid\_id} - 1) / 720 \rfloor$ \\
+Column (west to east) & $\texttt{col} = (\texttt{priogrid\_id} - 1) \bmod 720$ \\
+Latitude  & $-90 + (\texttt{row} + 0.5) \times 0.5$ \\
+Longitude & $-180 + (\texttt{col} + 0.5) \times 0.5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent In R:
+
+\begin{quote}
+\small
+\texttt{d\$lat <- -90  + (((d\$priogrid\_id - 1) \%/\% 720) + 0.5) * 0.5} \\
+\texttt{d\$lon <- -180 + (((d\$priogrid\_id - 1) \%\%  720) + 0.5) * 0.5}
+\end{quote}
+
+\noindent As a check: in \texttt{purple\_alien}'s first origin the largest predicted state-based
+value is 58.0 fatalities in month 462 --- June 2018 --- at \texttt{priogrid\_id} 181875, which
+resolves to $36.25^\circ$N, $37.25^\circ$E, in northern Syria. The 64,818 cells delivered here are
+the land subset of the 259,200 in the full grid; their centres span $55.75^\circ$S to
+$83.25^\circ$N.
+
+Values are fatality counts. They are continuous rather than integer, because a mean over draws is
+not a whole number, and they are on the original count scale --- not logged, not scaled, not
+truncated. Observed values are not included (Section~\ref{sec:excluded}).
+
+\subsection*{Checking the Delivery Without Running Anything}
+
+The folder contains \texttt{audit\_selector\_frames.ipynb}, which audits the folder it sits in. It
+opens all 312 files, checks the columns and types, checks for non-finite, negative and duplicated
+values, verifies that every file is a complete $64{,}818 \times 36$ block, draws the global maps
+and the per-step profiles, and ends in a cell that \emph{raises} rather than prints if anything is
+wrong.
+
+\textbf{Its outputs are saved from the run that checked this exact copy of the data}, so it can be
+read without executing it. To re-run it, start Jupyter in the folder and Run All; it needs only
+\texttt{pandas}, \texttt{pyarrow}, \texttt{numpy} and \texttt{matplotlib}, and reads the model
+directories beside it. Nothing else in this delivery needs to be verified by hand, and there is no
+checksum file to run.
+
+One gap to record: the delivered folder carries \textbf{no per-model manifest.} The engine version,
+run host, runtime and configuration commit for each model exist, in the run records held in
+views-models, and the commit is on the title page of this note --- but they do not travel inside
+the folder. A later delivery of this kind should ship them beside the data.

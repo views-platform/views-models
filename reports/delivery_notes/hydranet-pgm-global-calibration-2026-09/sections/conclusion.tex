@@ -1,0 +1,31 @@
+Four things follow from this delivery. None of them needs a decision from the reader.
+
+\begin{enumerate}
+    \item \textbf{All twenty-four go into the selection routine as separate models.} Eight models
+          times three frames. The published criteria decide which collapse wins, rather than my
+          choosing one here and then defending it. This was settled in September and is restated
+          rather than reopened.
+
+    \item \textbf{The column names in this delivery differ from the darts delivery's, and the
+          consuming tool must be told which it is reading.} Here the columns are
+          \texttt{pred\_lr\_sb\_best}, \texttt{pred\_lr\_ns\_best} and
+          \texttt{pred\_lr\_os\_best}; the darts delivery uses \texttt{pred\_lr\_ged\_sb} and its
+          siblings. \texttt{lr\_ged\_\{sb,ns,os\}} is the canonical form and future deliveries
+          will carry it, renamed at send-off rather than in the files on disk. Until then the
+          target column has to be set explicitly wherever these files are read, not inferred from
+          the schema --- a tool that guesses will silently read the wrong delivery's convention.
+
+    \item \textbf{The next delivery of this kind ships its provenance inside the folder.} A
+          manifest per model --- resolved engine versions, run host, runtime, configuration
+          commit --- and the per-step evaluation outputs retained rather than left on the machine
+          that produced them. Both gaps in this delivery trace to the same cause, which is that
+          nothing was brought down from the rented hardware except the predictions.
+
+    \item \textbf{The posterior draws are retained on any future run before anything is derived
+          from them.} The reason frames II and III are unverifiable is that the draws were
+          compressed on a machine and then lost with it. The compression ratio is large enough ---
+          roughly 9~MB per model --- that there was never a cost argument for leaving them
+          behind.
+\end{enumerate}
+
+\noindent Questions about the data, the models or anything in this note come to me.

@@ -1,0 +1,55 @@
+\textbf{Nothing here has been evaluated in the sense the selection routine means.} The figures in
+Section~\ref{sec:magnitude} are the ones the run computed on its own output, plus three
+measurements taken from the delivered files for this note. No model has been scored against the
+published criteria, ranked against another, or compared with any model outside these eight.
+
+\textbf{Two of the three frames cannot be reproduced.} Frame I is produced by code in views-models
+and its refusals are tested. Frames II and III were computed once, outside that code, from draws
+that were never transferred off the rented machines. They cannot be recomputed or checked, and no
+governing document describes them. Section~\ref{sec:frames} sets this out in full; it is repeated
+here because it is the caveat most likely to matter later.
+
+\textbf{A statistic other than these three needs a new run.} My cost memo of 28 September said the
+full posterior had come home and that a different summary form could be produced without paying
+for more compute. That was wrong: the draws are not on disk. Anything else --- a different
+quantile, a different conditional, a predictive interval --- requires training to be repeated on
+rented hardware.
+
+\textbf{The software is pinned as ranges, not versions.} The configuration commit on the title page
+is exact, and the run logs record the CUDA build. The engine versions are not recorded anywhere:
+the models pinned \texttt{views-hydranet~}$\sim$\texttt{=0.1.1} and
+\texttt{views-datafactory>=1.9.0,<2.0.0}, the environment that resolved those pins existed only on
+the rented machines, and no version line was captured before they were destroyed. So the code is
+identified to a repository state but not to a release. A later delivery should record the resolved
+versions in a manifest beside the data.
+
+\textbf{Pinning the code does not pin the input.} The predictors were fetched live from the data
+store at run time. A re-run from the same commit against a later state of that store can produce
+different numbers without anything in the configuration having changed. What is fixed is this
+delivery, by its identifier and checksum.
+
+\textbf{The horizon behaviour has a mechanism, and it is the gate.} The gate probability decays
+with forecast step --- roughly thirtyfold by month 36, in all eight models --- and that decay is
+what flattens the field after about five steps. It is not caused by the choice of regression loss;
+substituting the loss was tried and changed the decay very little. The predicted magnitude
+conditional on firing is comparatively stable; what fades is the model's willingness to fire at
+all.
+
+\textbf{One comparison in the set looks controlled and is not.} The models
+\texttt{heavy\_freighter} and \texttt{bright\_starship} share a body family and a composition
+and differ in scheduled sampling, which invites reading the gap between them as the effect of
+scheduled sampling. They also differ in random seed. With one run each, the two explanations
+cannot be separated.
+
+\textbf{An earlier scrutiny of these eight reached a harsher verdict, on a different run.} In
+August the same eight were examined at a shorter training budget on Africa and the Middle East
+only, and that report recommended against promotion on the grounds that seven of the eight
+collapsed to near-zero magnitude within six months. This delivery is a different run --- full
+training budget, global land --- and Section~\ref{sec:magnitude} measures the behaviour afresh on
+the files actually delivered. The August report is superseded for these files and is not
+superseded as a record of what it measured.
+
+\textbf{The model carries no covariates.} Each model sees the three fatality histories and nothing
+else --- no population, no terrain, no governance indices, no event data beyond the outcomes
+themselves. These are purely autoregressive spatiotemporal models. Whatever structure they use is
+learned from the spatial and temporal pattern of past fatalities.
