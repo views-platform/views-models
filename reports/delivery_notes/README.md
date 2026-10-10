@@ -325,3 +325,53 @@ check their own arithmetic against. Guarded in
 **WET:** `bundle/` lives in the delivery it was written for, not in
 `_template/`. Trigger for promoting it: the second delivery that ships a data
 bundle.
+
+## Writing for this recipient
+
+Four rules came out of the mail that accompanied the 2026-10 delivery, after
+four drafts were rejected. Three of the rejections were corrections to how the
+text was written rather than to what it said, so they apply to the next note as
+much as to the next mail.
+
+**No lateness line, anywhere.** A delivery that also asks whether anyone has
+looked at the previous one cannot open by conceding that this one is late. The
+concession hands the recipient the frame, and the question then reads as
+deflection. Open on the files.
+
+**Anything inside our remit reads as a decision, not a request.** Column
+naming, which collapse to use, what the partition means — these are ours.
+Putting them to the recipient as questions asks him to adjudicate engineering,
+and he will. Section 9 (Next Steps) is where this goes wrong most easily: write
+it as statements plus, where needed, a documentation requirement. The sent mail
+has no question marks at all.
+
+**Where the recipient owns the subject, state the inference and stop.** He
+knows GED better than anyone on the distribution list. Three sentences
+explaining how UCDP codes aggregated events are three sentences of
+junior-explaining. "I read it as the Tigray war arriving as one aggregated
+event" is the whole move. A delivery note has more licence than a mail —
+Sections 1 and 8 exist to give context — but not unlimited.
+
+**Concision is not compression.** Asked to tighten, the draft went 880 → 552
+words by deleting connective tissue and produced verdict-stacked telegraphese
+with no actors and repeated topic labels. The sent version is 624. The win is
+deleting one redundant *move*, never the words that join the remaining ones.
+
+Two things the 2026-10 mail does **not** say, which the note does, and which
+therefore live only here:
+
+- That the nine are deterministic and no draws were retained. In the mail by
+  Simon's decision ("I'll tell him if he asks"). It is in Section 8, so it is
+  on the record. Consequence: the first request for any HydraNet summary other
+  than the mean, q95 or E[y|y>0] will arrive without the asker expecting a GPU
+  re-run. Answer that straight.
+- Tigray went out hedged as "I read it as", pending confirmation from the
+  datafactory session against the actual GED records. If that confirmation
+  contradicts the reading, the mail needs no retraction — but this note's
+  Section 8 must match whatever comes back.
+
+**The Drive URL belongs in the record.** September's mail kept its folder link
+in front-matter and that has been useful since. The front-matter of
+`~/brain/0_inbox/comms/mail/_sent/2026-10-10_havard_darts_calibration_nine_SENT.md`
+records that the URL replacing `<<<DRIVE LINK>>>` was not captured. Put it there
+and in the delivery's own record when it is known.
