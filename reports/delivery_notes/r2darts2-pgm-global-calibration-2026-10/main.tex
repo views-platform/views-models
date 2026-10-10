@@ -84,7 +84,8 @@
 % ------------------------------------------------------------
 % HYPERLINKS
 % ------------------------------------------------------------
-\usepackage[hidelinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, allcolors=black, urlcolor=[rgb]{0,0.25,0.55}}
 
 % ------------------------------------------------------------
 % NOTES
@@ -130,13 +131,17 @@
 % on a given day; rebuilding it must not restamp it. Set it once and
 % leave it.
 %
-% \deliverysha is the views-models commit the delivery was produced at:
-%   git rev-parse --short HEAD
-% It is what makes the run reconstructible --- it pins the exact model
-% configs, runner and converter used.
+% \deliverysha is the views-models commit THE DATA WAS PRODUCED AT ---
+% not the commit of this document. Find it from the runs themselves (the
+% MANIFEST beside each model's output records the sha it read its config
+% at) and use the latest commit that touched any delivered model's
+% configuration. It must be pushed, or the links below will not resolve.
+%
+% \cfg{model} links a model name to its hyperparameter configuration on
+% GitHub, pinned to that commit.
 
 \newcommand{\deliveryid}{r2darts2-pgm-global-calibration-2026-10}
-\newcommand{\deliverychecksum}{29436368}
+\newcommand{\deliverychecksum}{60597598}
 \newcommand{\deliverytitle}{Nine Deep-Learning Forecast Models}
 \newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
 \newcommand{\deliverydate}{10-10-2026}
@@ -155,8 +160,13 @@
 \newcommand{\deliverylibrary}{views-r2darts2 0.2.4, wrapping Darts (\texttt{unit8co/darts})}
 \newcommand{\deliveryframework}{views-pipeline-core 3.3.4}
 \newcommand{\deliverybackend}{views-datafactory 1.13.0}
-\newcommand{\deliverysha}{914ce29d}
+\newcommand{\deliverysha}{be7b7b6}
 \newcommand{\deliverycompute}{Rented cloud GPUs (RunPod)}
+% Link a model name to its hyperparameter config at the delivery commit.
+\newcommand{\cfg}[1]{%
+  \href{https://github.com/views-platform/views-models/blob/\deliverysha/models/#1/configs/config_hyperparameters.py}%
+       {\texttt{#1}}}
+
 % ------------------------------------------------------------
 % TITLE
 % ------------------------------------------------------------

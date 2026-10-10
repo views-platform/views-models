@@ -159,7 +159,7 @@ resolution", which are not the same kind of thing.
 | `\deliverylibrary` | model library and version, e.g. `views-r2darts2 0.2.4` |
 | `\deliverybackend` | where the input data came from, **with its version**, e.g. `views-datafactory 1.13.0` |
 | `\deliveryframework` | the pipeline framework and version, e.g. `views-pipeline-core 3.3.4`. It decides the partitions, the rolling origins and how predictions are saved, so it belongs beside the model library |
-| `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter |
+| `\deliverysha` | the views-models commit **the data was produced at** — not the commit of the note. The `MANIFEST` beside each model's output records the sha its config was read at; use the latest commit that touched any delivered model's configuration. It **must be pushed**, or the config links will not resolve |
 | `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Name the thing; do not add what it was *not*, which is implied. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |
 | `\deliverychecksum` | **computed, not chosen** — see above |
 
@@ -200,6 +200,34 @@ Five deliberate deviations from that series, each for a reason:
 
 Also added, with no FAO counterpart: `build.sh` and a `.gitignore`. The FAO notes are built by hand
 and their build artefacts are committed; we should not copy that.
+
+## Linking to configurations
+
+`\cfg{model_name}` renders a model name as a link to its
+`configs/config_hyperparameters.py` on GitHub, pinned to `\deliverysha`. It lets a table of models
+double as an index into the exact configuration each one was run from, which is the question a
+reader has after seeing that two models differ in one setting.
+
+Two things to know. Underscores in model names are mathematics to LaTeX, so wrap any table using
+`\cfg` in a group that makes them ordinary:
+
+```latex
+\begingroup
+\catcode`\_=12
+\begin{table}[h!]
+...
+\endgroup
+```
+
+And **check the links resolve before sending.** A pinned link to an unpushed commit returns 404.
+Extract them from the built PDF and test them:
+
+```bash
+pdftk main.pdf output /tmp/u.pdf uncompress
+for u in $(grep -ao 'https://github.com/[^)]*' /tmp/u.pdf | sort -u); do
+    printf '%s  %s\n' "$(curl -s -o /dev/null -w '%{http_code}' -L "$u")" "$u"
+done
+```
 
 ## Conventions
 

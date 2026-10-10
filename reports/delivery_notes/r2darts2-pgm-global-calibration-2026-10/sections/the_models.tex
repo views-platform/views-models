@@ -9,26 +9,31 @@ almost no conflict history is still forecast using structure learned from the wh
 cell's own level and scale are restored separately, by the normalisation described in
 Section~\ref{sec:architectures}.
 
+\begingroup
+\catcode`\_=12  % underscores are ordinary characters in this table, so a
+                % model name can serve as both URL fragment and label
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.2}
-\caption{The nine delivered models.}
+\caption{The nine delivered models. Each model name links to its hyperparameter configuration on
+GitHub, pinned to the delivery commit on the title page.}
 \label{tab:models}
-\begin{tabular}{@{}p{3.6cm}p{2.2cm}p{2.4cm}p{5.2cm}@{}}
+\begin{tabular}{@{}p{3.6cm}p{2.0cm}p{2.2cm}p{3.4cm}@{}}
 \toprule
 \textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors} \\ \midrule
-\texttt{dark\_river}       & N-BEATS & MSE       & Outcomes only \\
-\texttt{old\_rules}        & N-BEATS & Spotlight & Outcomes only \\
-\texttt{blue\_ocean}       & N-BEATS & Spotlight & + 69 covariates \\ \addlinespace
-\texttt{silent\_fox}       & TSMixer & MSE       & Outcomes only \\
-\texttt{dancing\_monkey}   & TSMixer & Spotlight & Outcomes only \\
-\texttt{brave\_heart}      & TSMixer & Spotlight & + 69 covariates \\ \addlinespace
-\texttt{red\_hawk}         & TiDE    & MSE       & Outcomes only \\
-\texttt{dark\_necessities} & TiDE    & Spotlight & Outcomes only \\
-\texttt{golden\_eagle}     & TiDE    & Spotlight & + 69 covariates \\
+\cfg{dark_river}       & N-BEATS & MSE       & Outcomes only \\
+\cfg{old_rules}        & N-BEATS & Spotlight & Outcomes only \\
+\cfg{blue_ocean}       & N-BEATS & Spotlight & + 69 covariates \\ \addlinespace
+\cfg{silent_fox}       & TSMixer & MSE       & Outcomes only \\
+\cfg{dancing_monkey}   & TSMixer & Spotlight & Outcomes only \\
+\cfg{brave_heart}      & TSMixer & Spotlight & + 69 covariates \\ \addlinespace
+\cfg{red_hawk}         & TiDE    & MSE       & Outcomes only \\
+\cfg{dark_necessities} & TiDE    & Spotlight & Outcomes only \\
+\cfg{golden_eagle}     & TiDE    & Spotlight & + 69 covariates \\
 \bottomrule
 \end{tabular}
 \end{table}
+\endgroup
 
 The names are arbitrary labels, assigned according to the \texttt{adjective\_noun} convention
 used across views-models, and carry no meaning.

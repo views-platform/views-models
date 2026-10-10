@@ -84,7 +84,8 @@
 % ------------------------------------------------------------
 % HYPERLINKS
 % ------------------------------------------------------------
-\usepackage[hidelinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, allcolors=black, urlcolor=[rgb]{0,0.25,0.55}}
 
 % ------------------------------------------------------------
 % NOTES
@@ -130,10 +131,11 @@
 % on a given day; rebuilding it must not restamp it. Set it once and
 % leave it.
 %
-% \deliverysha is the views-models commit the delivery was produced at:
-%   git rev-parse --short HEAD
-% It is what makes the run reconstructible --- it pins the exact model
-% configs, runner and converter used.
+% \deliverysha is the views-models commit THE DATA WAS PRODUCED AT ---
+% not the commit of this document. The MANIFEST beside each model's
+% output records the sha its config was read at; use the latest commit
+% that touched any delivered model's configuration. It MUST be pushed,
+% or the \cfg links will not resolve.
 
 \newcommand{\deliveryid}{library-loa-scope-partition-YYYY-MM}
 \newcommand{\deliverychecksum}{85494325}
@@ -159,6 +161,13 @@
 \newcommand{\deliverybackend}{views-datafactory X.Y.Z}
 \newcommand{\deliverysha}{0000000}
 \newcommand{\deliverycompute}{...}
+
+% Link a model name to its hyperparameter config at the delivery commit.
+% Underscores in model names need \catcode`\_=12 around the table that
+% uses this --- see the darts note for the pattern.
+\newcommand{\cfg}[1]{%
+  \href{https://github.com/views-platform/views-models/blob/\deliverysha/models/#1/configs/config_hyperparameters.py}%
+       {\texttt{#1}}}
 
 % ------------------------------------------------------------
 % TITLE
