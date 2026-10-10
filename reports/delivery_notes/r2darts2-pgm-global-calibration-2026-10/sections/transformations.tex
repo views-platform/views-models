@@ -9,13 +9,7 @@ of observed cell-months in this window are exactly zero.
 
 \textbf{Reversible instance normalisation.} Each cell's series is standardised before the network
 sees it and the standardisation is undone on the way out. This is what returns a cell's own level
-and scale after the pooling described in Section~\ref{sec:models}.
-
-\begin{quote}
-\small
-Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H. \& Choo, J. (2022), \textit{Reversible Instance
-Normalization for Accurate Time-Series Forecasting against Distribution Shift}, ICLR 2022.
-\end{quote}
+and scale after the pooling described in Section~\ref{sec:models} \citep{kim2022revin}.
 
 \noindent Both inversions happen before the delivered files are written, so \textbf{every column in
 this delivery is on the original count scale} and no back-transformation should be applied to it.
@@ -28,7 +22,7 @@ how the delivered numbers should be read.
 
 \textbf{Inverting a point estimate is biased.} A model fitted to minimise error on a transformed
 scale estimates the transformed quantity, and applying a nonlinear inverse to that estimate does
-not recover the conditional mean --- long settled, and not specific to \texttt{asinh} (Duan, 1983).
+not recover the conditional mean --- long settled, and not specific to \texttt{asinh} \citep{duan1983smearing}.
 Collapsing draws in count space avoids it, but there are no draws here: all nine models produce a
 single value per cell, so the inverse is necessarily applied to a point. The inverse of
 \texttt{asinh} is convex over the positive range, so the bias is downward. Its magnitude for these
@@ -37,21 +31,10 @@ without refitting.
 
 \textbf{The transform is under active criticism.} Elasticities estimated from
 inverse-hyperbolic-sine-transformed regressions depend on the units of the dependent variable
-(Bellemare and Wichman, 2020), and where there is a mass at zero the magnitude of an estimated
-effect on any log-like transform can be altered arbitrarily by rescaling the outcome (Chen and
-Roth, 2024). That literature concerns the interpretation of coefficients in causal inference rather
+\citep{bellemare2020elasticities}, and where there is a mass at zero the magnitude of an estimated
+effect on any log-like transform can be altered arbitrarily by rescaling the outcome \citep{chen2024logs}. That literature concerns the interpretation of coefficients in causal inference rather
 than prediction followed by inversion, so whether it carries over here is an open question rather
 than a settled objection.
-
-\begin{quote}
-\small
-Bellemare, M.~F. \& Wichman, C.~J. (2020), \textit{Elasticities and the Inverse Hyperbolic Sine
-Transformation}, Oxford Bulletin of Economics and Statistics 82(1), 50--61. \\
-Chen, J. \& Roth, J. (2024), \textit{Logs with Zeros? Some Problems and Solutions}, Quarterly
-Journal of Economics 139(2), 891--936. \\
-Duan, N. (1983), \textit{Smearing Estimate: A Nonparametric Retransformation Method}, Journal of
-the American Statistical Association 78(383), 605--610.
-\end{quote}
 
 \noindent A fuller set of starting points --- including how closely \texttt{asinh} resembles
 \texttt{log1p} on non-negative counts, how the transform interacts with the Spotlight objective,

@@ -7,14 +7,9 @@ A deep stack of fully connected layers with backward and forward residual links.
 forecast as a sum of learned basis functions, which is what makes it partly interpretable. Designed
 for univariate point forecasting and benchmarked on the M3, M4 and TOURISM competition datasets.
 
-\begin{quote}
-\small
-Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.nbeats.html}%
-{\texttt{NBEATSModel}} \\
-Paper cited there: Oreshkin, B.~N., Carpov, D., Chapados, N. \& Bengio, Y. (2020),
-\textit{N-BEATS: Neural basis expansion analysis for interpretable time series forecasting},
-ICLR 2020. \href{https://arxiv.org/abs/1905.10437}{arXiv:1905.10437}
-\end{quote}
+\noindent Implemented in Darts as \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.nbeats.html}{\texttt{NBEATSModel}};
+see \citet{oreshkin2020nbeats}.
+
 
 \subsection*{TSMixer}
 
@@ -22,25 +17,15 @@ Dense layers only, applied alternately along the time axis and across the predic
 the model mixes temporal structure and cross-variable structure in turn. Built for the multivariate
 case.
 
-\begin{quote}
-\small
-Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tsmixer_model.html}%
-{\texttt{TSMixerModel}} \\
-Paper cited there: Chen, S.-A., Li, C.-L., Yoder, N., Arik, S.~O. \& Pfister, T. (2023),
-\textit{TSMixer: An All-MLP Architecture for Time Series Forecasting}, Transactions on Machine
-Learning Research. \href{https://arxiv.org/abs/2303.06053}{arXiv:2303.06053}
-\end{quote}
+\noindent Implemented in Darts as \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tsmixer_model.html}{\texttt{TSMixerModel}};
+see \citet{chen2023tsmixer}.
+
 
 \subsection*{TiDE}
 
 An encoder--decoder, again dense layers only. It compresses the history and the predictors into a
 single code, then decodes the whole 36-month path from it in one pass.
 
-\begin{quote}
-\small
-Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tide_model.html}%
-{\texttt{TiDEModel}} \\
-Paper cited there: Das, A., Kong, W., Leach, A., Mathur, S., Sen, R. \& Yu, R. (2023),
-\textit{Long-term Forecasting with TiDE: Time-series Dense Encoder}.
-\href{https://arxiv.org/abs/2304.08424}{arXiv:2304.08424}
-\end{quote}
+\noindent Implemented in Darts as \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tide_model.html}{\texttt{TiDEModel}};
+see \citet{das2023tide}.
+

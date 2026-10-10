@@ -243,9 +243,14 @@ Inherited from the house style guides and worth following:
 - **Every table gets a `\caption` and a `\label{tab:...}`.** `booktabs` rules only — `\toprule`,
   `\midrule`, `\bottomrule` — and no vertical rules. `\renewcommand{\arraystretch}{1.2}`, or 1.3
   for dense tables.
-- **Leave the bibliography lines commented** unless the note actually cites something; otherwise it
-  renders an empty References section. `natbib`, `apalike`, `\citep`. Add a `bibtex` pass to
-  `build.sh` if you enable it.
+- **Citations go in `references.bib` and render as a References section at the end** — never as
+  inline blocks in the body, which interrupt the argument and scatter the same reference across
+  sections. `natbib` with `apalike`: `\citep{key}` for a parenthetical, `\citet{key}` when the
+  work is the subject of the sentence. `build.sh` runs `bibtex` automatically when the
+  `\bibliography` line is uncommented and the document actually cites something, and fails on an
+  undefined citation.
+- **Leave the bibliography lines commented if the note cites nothing**, and delete
+  `references.bib`; an empty References section is worse than none.
 
 ## Traps
 
