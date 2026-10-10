@@ -371,7 +371,15 @@ therefore live only here:
   Section 8 must match whatever comes back.
 
 **The Drive URL belongs in the record.** September's mail kept its folder link
-in front-matter and that has been useful since. The front-matter of
-`~/brain/0_inbox/comms/mail/_sent/2026-10-10_havard_darts_calibration_nine_SENT.md`
-records that the URL replacing `<<<DRIVE LINK>>>` was not captured. Put it there
-and in the delivery's own record when it is known.
+in front-matter and that has been useful since. A delivery folder's URL is the
+only part of a delivery that exists nowhere on disk, so it is recorded twice:
+in the sent mail's front-matter and here.
+
+| delivery | Drive folder |
+|---|---|
+| `r2darts2-pgm-global-calibration-2026-10` (the nine) | <https://drive.google.com/drive/folders/1kN_cRaBDgPU9MlhfiQkV8EBssg1DOKFf> |
+| the eight HydraNet calibration frame sets, 2026-09-29 | <https://drive.google.com/drive/folders/1_sMEardRo_nfIwUMVy2S0HaogwrYvCYJ> |
+
+Both are share links (`?usp=drive_link` in the mails, dropped here). The note
+itself does not carry the URL: the PDF ships *inside* the folder, so a link in
+it would be circular, and it would also go stale if the folder ever moved.
