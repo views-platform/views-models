@@ -103,21 +103,28 @@
 % ------------------------------------------------------------
 % IDENTIFIER. Composed from the facts below, never hashed:
 %
-%     <library>-<loa>-<partition>-<YYYY-MM>[-<n>]
+%     <library>-<loa>-<scope>-<partition>-<YYYY-MM>[-<n>]
 %
 %   library    the model library that produced it: r2darts2, hydranet,
 %              stepshifter, ...
 %   loa        the VIEWS level of analysis: pgm (PRIO-GRID month) or
-%              cm (country month). This carries BOTH the unit and the
-%              temporal resolution, which is why they are not separate
-%              fields here.
+%              cm (country month). This carries BOTH the spatial unit
+%              and the temporal resolution.
+%   scope      the spatial extent: global, africa, ... Always present.
+%              A delivery is not assumed global.
 %   partition  calibration / validation / forecasting
 %   YYYY-MM    month of delivery
-%   n          sequence number, ONLY if a second delivery of the same
-%              library/loa/partition goes out in the same month
+%   n          sequence number, ONLY if a second delivery with the same
+%              fields goes out in the same month
 %
-% Insert the spatial scope only when it is NOT the full default extent
-% for that loa, e.g. r2darts2-pgm-africa-calibration-2026-10.
+% CHECKSUM. \deliverychecksum is derived from every specification field
+% below by ../checksum.py --- it is not chosen. Regenerate it whenever
+% any of those fields changes:
+%
+%     python3 ../checksum.py . > /dev/null && python3 ../checksum.py .
+%
+% build.sh verifies it, so a note cannot quietly disagree with its own
+% specification.
 %
 % \deliverydate is deliberately NOT \today. A note records what was sent
 % on a given day; rebuilding it must not restamp it. Set it once and
@@ -128,7 +135,8 @@
 % It is what makes the run reconstructible --- it pins the exact model
 % configs, runner and converter used.
 
-\newcommand{\deliveryid}{library-loa-partition-YYYY-MM}
+\newcommand{\deliveryid}{library-loa-scope-partition-YYYY-MM}
+\newcommand{\deliverychecksum}{15808073}
 \newcommand{\deliverytitle}{Short Descriptive Title}
 \newcommand{\deliveryauthor}{Author Name}
 \newcommand{\deliverydate}{DD-MM-YYYY}
@@ -139,6 +147,7 @@
 \newcommand{\deliveryscope}{Global land --- N cells}
 \newcommand{\deliveryresolution}{Monthly}
 \newcommand{\deliverypartition}{Calibration --- Mon YYYY to Mon YYYY}
+\newcommand{\deliverybackend}{views-datafactory}
 \newcommand{\deliverytargets}{...}
 
 % --- how it was produced ------------------------------------
@@ -192,7 +201,8 @@
     \vspace{1.5cm}
 
     \begin{tabular}{@{}r@{\quad}p{10cm}@{}}
-        \textbf{Identifier}  & \texttt{\deliveryid} \\[0.35em]
+        \textbf{Identifier}  & \texttt{\deliveryid} \\
+        \textbf{Checksum}    & \texttt{\deliverychecksum} \\[0.35em]
         \textbf{Date}        & \deliverydate \\
         \textbf{Author}      & \deliveryauthor \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}}} \\[0.2em]
@@ -201,7 +211,8 @@
         \textbf{Spatial scope}      & \deliveryscope \\
         \textbf{Temporal resolution}& \deliveryresolution \\
         \textbf{Partition}          & \deliverypartition \\
-        \textbf{Targets}            & \deliverytargets \\[0.9em]
+        \textbf{Targets}            & \deliverytargets \\
+        \textbf{Data backend}       & \deliverybackend \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
         \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
         \textbf{Computed on}        & \deliverycompute \\

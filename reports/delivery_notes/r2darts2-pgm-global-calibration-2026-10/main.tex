@@ -103,21 +103,28 @@
 % ------------------------------------------------------------
 % IDENTIFIER. Composed from the facts below, never hashed:
 %
-%     <library>-<loa>-<partition>-<YYYY-MM>[-<n>]
+%     <library>-<loa>-<scope>-<partition>-<YYYY-MM>[-<n>]
 %
 %   library    the model library that produced it: r2darts2, hydranet,
 %              stepshifter, ...
 %   loa        the VIEWS level of analysis: pgm (PRIO-GRID month) or
-%              cm (country month). This carries BOTH the unit and the
-%              temporal resolution, which is why they are not separate
-%              fields here.
+%              cm (country month). This carries BOTH the spatial unit
+%              and the temporal resolution.
+%   scope      the spatial extent: global, africa, ... Always present.
+%              A delivery is not assumed global.
 %   partition  calibration / validation / forecasting
 %   YYYY-MM    month of delivery
-%   n          sequence number, ONLY if a second delivery of the same
-%              library/loa/partition goes out in the same month
+%   n          sequence number, ONLY if a second delivery with the same
+%              fields goes out in the same month
 %
-% Insert the spatial scope only when it is NOT the full default extent
-% for that loa, e.g. r2darts2-pgm-africa-calibration-2026-10.
+% CHECKSUM. \deliverychecksum is derived from every specification field
+% below by ../checksum.py --- it is not chosen. Regenerate it whenever
+% any of those fields changes:
+%
+%     python3 ../checksum.py . > /dev/null && python3 ../checksum.py .
+%
+% build.sh verifies it, so a note cannot quietly disagree with its own
+% specification.
 %
 % \deliverydate is deliberately NOT \today. A note records what was sent
 % on a given day; rebuilding it must not restamp it. Set it once and
@@ -128,7 +135,8 @@
 % It is what makes the run reconstructible --- it pins the exact model
 % configs, runner and converter used.
 
-\newcommand{\deliveryid}{r2darts2-pgm-calibration-2026-10}
+\newcommand{\deliveryid}{r2darts2-pgm-global-calibration-2026-10}
+\newcommand{\deliverychecksum}{26493508}
 \newcommand{\deliverytitle}{Nine Deep-Learning Forecast Models}
 \newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
 \newcommand{\deliverydate}{10-10-2026}
@@ -139,11 +147,12 @@
 \newcommand{\deliveryscope}{Global land --- 64,818 cells}
 \newcommand{\deliveryresolution}{Monthly}
 \newcommand{\deliverypartition}{Calibration --- trained Jan 1990 to Dec 2017, forecasting Jan 2018 to Dec 2021}
+\newcommand{\deliverybackend}{views-datafactory}
 \newcommand{\deliverytargets}{State-based, non-state and one-sided fatalities}
 
 % --- how it was produced ------------------------------------
-\newcommand{\deliverysha}{f9e47eda}
-\newcommand{\deliverycompute}{Rented cloud GPUs (RunPod), not PRIO hardware}
+\newcommand{\deliverysha}{05a3de47}
+\newcommand{\deliverycompute}{Rented cloud GPUs (RunPod)}
 
 % ------------------------------------------------------------
 % TITLE
@@ -192,7 +201,8 @@
     \vspace{1.5cm}
 
     \begin{tabular}{@{}r@{\quad}p{10cm}@{}}
-        \textbf{Identifier}  & \texttt{\deliveryid} \\[0.35em]
+        \textbf{Identifier}  & \texttt{\deliveryid} \\
+        \textbf{Checksum}    & \texttt{\deliverychecksum} \\[0.35em]
         \textbf{Date}        & \deliverydate \\
         \textbf{Author}      & \deliveryauthor \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}}} \\[0.2em]
@@ -201,7 +211,8 @@
         \textbf{Spatial scope}      & \deliveryscope \\
         \textbf{Temporal resolution}& \deliveryresolution \\
         \textbf{Partition}          & \deliverypartition \\
-        \textbf{Targets}            & \deliverytargets \\[0.9em]
+        \textbf{Targets}            & \deliverytargets \\
+        \textbf{Data backend}       & \deliverybackend \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
         \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
         \textbf{Computed on}        & \deliverycompute \\

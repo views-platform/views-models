@@ -36,24 +36,51 @@ than hashed into an opaque number. A hashed id needs a lookup table to mean anyt
 lookup table is the thing that goes missing.
 
 ```
-<library>-<loa>-<partition>-<YYYY-MM>[-<n>]
+<library>-<loa>-<scope>-<partition>-<YYYY-MM>[-<n>]
 
-r2darts2-pgm-calibration-2026-10
+r2darts2-pgm-global-calibration-2026-10
 ```
 
 | field | |
 |---|---|
 | `library` | the model library that produced the forecasts — `r2darts2`, `hydranet`, `stepshifter` |
-| `loa` | the VIEWS level of analysis: `pgm` (PRIO-GRID month) or `cm` (country month). This carries **both** the spatial unit and the temporal resolution, which is why they are not separate fields |
+| `loa` | the VIEWS level of analysis: `pgm` (PRIO-GRID month) or `cm` (country month). This carries **both** the spatial unit and the temporal resolution |
+| `scope` | the spatial extent — `global`, `africa`, … **Always present.** A delivery is not assumed global |
 | `partition` | `calibration`, `validation` or `forecasting` |
 | `YYYY-MM` | month of delivery |
-| `n` | sequence number, **only** when a second delivery of the same library, level and partition goes out in the same month |
-
-Insert the spatial scope only when it is *not* the full default extent for that level — e.g.
-`r2darts2-pgm-africa-calibration-2026-10`. Omitting it means "everything".
+| `n` | sequence number, **only** when a second delivery with the same fields goes out in the same month |
 
 The identifier is also the directory name, so the repository tree sorts by library, then level,
-then partition, then date.
+then scope, then partition, then date.
+
+## The checksum
+
+The identifier says what a delivery **is**. The checksum says it has not **drifted**.
+
+`checksum.py` derives an eight-digit number from every specification field on the title page —
+identifier, library, level, scope, resolution, partition, targets, backend, compute environment,
+source commit and date. Change any one of them and the number changes. It is computed, never
+chosen:
+
+```bash
+python3 ../checksum.py .          # print it
+python3 ../checksum.py . --check  # fail if main.tex disagrees
+```
+
+`build.sh` runs the check, so a note cannot quietly come to disagree with its own specification —
+the failure this whole scheme exists to prevent.
+
+Two design points. LaTeX markup is stripped before hashing, because `\texttt{pgm}` and `pgm`
+describe the same delivery and must not produce different numbers. And the field *order* is part
+of the definition: appending a field changes every checksum computed afterwards, which is correct,
+because it is then a different specification.
+
+Eight decimal digits gives ~10⁸ values. For a project producing tens of deliveries a year the
+collision risk is negligible, and the number stays short enough to read aloud.
+
+**Quote the pair.** `r2darts2-pgm-global-calibration-2026-10 / 26493508` names a delivery and
+proves the note still describes it. The slug alone is readable but can be reused after an edit;
+the checksum alone is unambiguous but says nothing.
 
 ## Title-page fields
 
@@ -77,13 +104,15 @@ page and page furniture read from them — so nothing can drift between two copi
 | `\deliveryresolution` | temporal resolution |
 | `\deliverypartition` | partition, with the training and forecast spans in calendar dates |
 | `\deliverytargets` | the outcome variables |
+| `\deliverybackend` | where the input data came from, e.g. `views-datafactory` |
 
 **Provenance** — how it was produced:
 
 | macro | |
 |---|---|
 | `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter, and is what makes the run reconstructible |
-| `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |
+| `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Name the thing; do not add what it was *not*, which is implied. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |
+| `\deliverychecksum` | **computed, not chosen** — see above |
 
 There is deliberately **no "To" field**. A delivery note describes a delivery, not a letter; the
 same note may go to several people, and addressing it to one of them dates it badly.
