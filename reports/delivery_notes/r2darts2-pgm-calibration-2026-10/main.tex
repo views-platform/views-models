@@ -99,20 +99,51 @@
 %\SetWatermarkLightness{0.9}    % 0 = black, 1 = invisible
 
 % ------------------------------------------------------------
-% DELIVERY METADATA --- fill all six
+% DELIVERY METADATA --- fill all of these
 % ------------------------------------------------------------
-% \deliverydate is deliberately NOT \today. A note is a record of what
-% was sent on a given day; rebuilding it must not restamp it. Set it
-% once, when the delivery goes out, and never touch it again.
+% IDENTIFIER. Composed from the facts below, never hashed:
+%
+%     <library>-<loa>-<partition>-<YYYY-MM>[-<n>]
+%
+%   library    the model library that produced it: r2darts2, hydranet,
+%              stepshifter, ...
+%   loa        the VIEWS level of analysis: pgm (PRIO-GRID month) or
+%              cm (country month). This carries BOTH the unit and the
+%              temporal resolution, which is why they are not separate
+%              fields here.
+%   partition  calibration / validation / forecasting
+%   YYYY-MM    month of delivery
+%   n          sequence number, ONLY if a second delivery of the same
+%              library/loa/partition goes out in the same month
+%
+% Insert the spatial scope only when it is NOT the full default extent
+% for that loa, e.g. r2darts2-pgm-africa-calibration-2026-10.
+%
+% \deliverydate is deliberately NOT \today. A note records what was sent
+% on a given day; rebuilding it must not restamp it. Set it once and
+% leave it.
+%
 % \deliverysha is the views-models commit the delivery was produced at:
 %   git rev-parse --short HEAD
+% It is what makes the run reconstructible --- it pins the exact model
+% configs, runner and converter used.
 
-\newcommand{\deliveryid}{darts-pgm-calibration-2026-10}
-\newcommand{\deliverytitle}{Darts Deep-Learning Models \\ Calibration Forecasts, Global PRIO-GRID Month}
-\newcommand{\deliveryto}{Håvard Hegre}
-\newcommand{\deliveryfrom}{Simon Polichinel von der Maase}
+\newcommand{\deliveryid}{r2darts2-pgm-calibration-2026-10}
+\newcommand{\deliverytitle}{Nine Deep-Learning Forecast Models}
+\newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
 \newcommand{\deliverydate}{10-10-2026}
-\newcommand{\deliverysha}{b1dcfaa2}
+
+% --- what the delivery covers -------------------------------
+\newcommand{\deliverylibrary}{views-r2darts2 0.2.4, wrapping Darts (\texttt{unit8co/darts})}
+\newcommand{\deliveryloa}{PRIO-GRID cell (\texttt{pgm})}
+\newcommand{\deliveryscope}{Global land --- 64,818 cells}
+\newcommand{\deliveryresolution}{Monthly}
+\newcommand{\deliverypartition}{Calibration --- trained Jan 1990 to Dec 2017, forecasting Jan 2018 to Dec 2021}
+\newcommand{\deliverytargets}{State-based, non-state and one-sided fatalities}
+
+% --- how it was produced ------------------------------------
+\newcommand{\deliverysha}{f9e47eda}
+\newcommand{\deliverycompute}{Rented cloud GPUs (RunPod), not PRIO hardware}
 
 % ------------------------------------------------------------
 % TITLE
@@ -127,14 +158,14 @@
 \postdate{\par\vspace{2em}}
 
 \title{\deliverytitle}
-\author{\deliveryfrom}
+\author{\deliveryauthor}
 \date{\deliverydate}
 
 % ------------------------------------------------------------
 % RUNNING HEAD --- the identifier travels on every page, so a loose
 % printed page can still be traced back to the delivery it came from.
 % ------------------------------------------------------------
-\lhead{\deliveryfrom}
+\lhead{\deliveryauthor}
 \rhead{\deliverydate}
 \lfoot{PRIO --- VIEWS \quad \texttt{\deliveryid}}
 \rfoot{\thepage}
@@ -160,15 +191,23 @@
     \noindent\makebox[\textwidth]{\Large\textemdash\quad$\diamond$\quad\textemdash}
     \vspace{1.5cm}
 
-    \begin{tabular}{@{}r@{\quad}l@{}}
-        \textbf{To}       & \deliveryto   \\
-        \textbf{From}     & \deliveryfrom \\
-        \textbf{Date}     & \deliverydate \\
-        \textbf{Delivery} & \texttt{\deliveryid} \\
-        \textbf{Produced at} & \texttt{views-models@\deliverysha} \\
+    \begin{tabular}{@{}r@{\quad}p{10cm}@{}}
+        \textbf{Identifier}  & \texttt{\deliveryid} \\[0.35em]
+        \textbf{Date}        & \deliverydate \\
+        \textbf{Author}      & \deliveryauthor \\[0.9em]
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}}} \\[0.2em]
+        \textbf{Model library}      & \deliverylibrary \\
+        \textbf{Unit of analysis}   & \deliveryloa \\
+        \textbf{Spatial scope}      & \deliveryscope \\
+        \textbf{Temporal resolution}& \deliveryresolution \\
+        \textbf{Partition}          & \deliverypartition \\
+        \textbf{Targets}            & \deliverytargets \\[0.9em]
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
+        \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
+        \textbf{Computed on}        & \deliverycompute \\
     \end{tabular}
 
-    \vspace{1cm}
+    \vspace{0.8cm}
     \textit{PRIO -- Oslo}
 
     \vfill

@@ -29,16 +29,64 @@ $EDITOR sections/*.tex    # write the prose
 prose only and contain no `\section` commands. Reordering, renaming or dropping a section is
 therefore a single-file edit. Delete the stubs you do not use.
 
-The six metadata macros are all required:
+## The identifier
+
+Every delivery note carries an identifier, composed from the facts on its own title page rather
+than hashed into an opaque number. A hashed id needs a lookup table to mean anything, and the
+lookup table is the thing that goes missing.
+
+```
+<library>-<loa>-<partition>-<YYYY-MM>[-<n>]
+
+r2darts2-pgm-calibration-2026-10
+```
+
+| field | |
+|---|---|
+| `library` | the model library that produced the forecasts — `r2darts2`, `hydranet`, `stepshifter` |
+| `loa` | the VIEWS level of analysis: `pgm` (PRIO-GRID month) or `cm` (country month). This carries **both** the spatial unit and the temporal resolution, which is why they are not separate fields |
+| `partition` | `calibration`, `validation` or `forecasting` |
+| `YYYY-MM` | month of delivery |
+| `n` | sequence number, **only** when a second delivery of the same library, level and partition goes out in the same month |
+
+Insert the spatial scope only when it is *not* the full default extent for that level — e.g.
+`r2darts2-pgm-africa-calibration-2026-10`. Omitting it means "everything".
+
+The identifier is also the directory name, so the repository tree sorts by library, then level,
+then partition, then date.
+
+## Title-page fields
+
+All of these are required. They are set once, as macros at the top of `main.tex`, and the title
+page and page furniture read from them — so nothing can drift between two copies of the same fact.
 
 | macro | |
 |---|---|
-| `\deliveryid` | the identifier, e.g. `darts-pgm-calibration-2026-10`. Appears in the page footer |
+| `\deliveryid` | the identifier above. Also printed in every page footer |
 | `\deliverytitle` | short descriptive title |
-| `\deliveryto` | recipient |
-| `\deliveryfrom` | author |
+| `\deliveryauthor` | who wrote the note |
 | `\deliverydate` | **a fixed date, typed by hand** — see below |
-| `\deliverysha` | `git rev-parse --short HEAD` at the time of the delivery |
+
+**Scope** — what the delivery covers:
+
+| macro | |
+|---|---|
+| `\deliverylibrary` | model library and version, e.g. `views-r2darts2 0.2.4` |
+| `\deliveryloa` | unit of analysis |
+| `\deliveryscope` | spatial extent, with the cell or country count |
+| `\deliveryresolution` | temporal resolution |
+| `\deliverypartition` | partition, with the training and forecast spans in calendar dates |
+| `\deliverytargets` | the outcome variables |
+
+**Provenance** — how it was produced:
+
+| macro | |
+|---|---|
+| `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter, and is what makes the run reconstructible |
+| `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |
+
+There is deliberately **no "To" field**. A delivery note describes a delivery, not a letter; the
+same note may go to several people, and addressing it to one of them dates it badly.
 
 ## Where this came from, and how it differs
 
@@ -63,8 +111,14 @@ Five deliberate deviations from that series, each for a reason:
    have since been unable to establish what was in it. The identifier travels in the page footer so
    that a loose printed page can still be traced.
 4. **A git sha on the title page.** Immutable provenance, which a date alone does not give.
-5. **A configurable `\author`.** The FAO series hard-codes three names across every note. A
-   delivery note may have different authorship and should say so rather than inherit it.
+5. **A configurable author, and no recipient field.** The FAO series hard-codes three names
+   across every note. A delivery note may have different authorship and should say so rather than
+   inherit it — and it names no recipient at all, because it describes a delivery rather than
+   addressing a letter.
+6. **A structured title-page spec block** — library, level of analysis, spatial scope, temporal
+   resolution, partition, targets, source commit, compute environment. The FAO notes carry none of
+   this; their subject is a specification under negotiation, ours is a dataset someone has to be
+   able to identify later.
 
 Also added, with no FAO counterpart: `build.sh` and a `.gitignore`. The FAO notes are built by hand
 and their build artefacts are committed; we should not copy that.

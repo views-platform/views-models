@@ -1,0 +1,10 @@
+All nine are \textbf{off-the-shelf deep-learning models for time series}, taken from the Python
+library \textbf{Darts} (\texttt{unit8co/darts}). The architectures are the library's, unmodified ---
+each is a published model used as Darts implements it. What we supply is the data, the
+configuration, and for six of the nine a loss function of our own (Section~\ref{sec:losses}).
+
+They are \textit{global} models in the forecasting sense: one model is fitted across all grid cells
+at once, rather than one model per cell.
+
+The scope of the delivery --- library, unit of analysis, spatial extent, temporal resolution,
+partition and targets --- is on the title page and is not repeated here.
