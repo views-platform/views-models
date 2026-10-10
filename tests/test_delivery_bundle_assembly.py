@@ -9,7 +9,6 @@ not contain.
 
 from __future__ import annotations
 
-import hashlib
 import shutil
 import subprocess
 import sys
@@ -107,23 +106,25 @@ def test_the_manifest_is_renamed_so_a_browser_will_preview_it(assembled: Path):
         assert not (assembled / model / "MANIFEST").exists()
 
 
-def test_every_delivered_file_is_checksummed_and_the_sums_are_right(assembled: Path):
-    sums = assembled / "SHA256SUMS.txt"
-    listed = {}
-    for line in sums.read_text(encoding="utf-8").splitlines():
-        digest, name = line.split("  ", 1)
-        listed[name] = digest
+def test_no_checksum_manifest_is_shipped(assembled: Path):
+    """Nobody in this delivery's audience will run `sha256sum -c`.
 
-    on_disk = {
-        str(p.relative_to(assembled))
-        for p in assembled.rglob("*")
-        if p.is_file() and p.name != "SHA256SUMS.txt"
-    }
-    assert set(listed) == on_disk, "SHA256SUMS.txt does not cover exactly the delivered files"
+    An unexplained SHA256SUMS.txt at the top of the folder is a question the
+    recipient has to ask, so the paperwork is a README and the note, and
+    nothing else.
+    """
+    assert not (assembled / "SHA256SUMS.txt").exists()
+    text = (assembled / "README.txt").read_text(encoding="utf-8")
+    assert "sha256" not in text.lower(), "the README still talks about checksums"
 
-    for name, digest in listed.items():
-        actual = hashlib.sha256((assembled / name).read_bytes()).hexdigest()
-        assert actual == digest, f"{name}: recorded {digest}, actual {actual}"
+
+def test_a_stale_checksum_manifest_is_removed(tmp_path: Path):
+    """An earlier assembly's leftovers must not survive a re-run."""
+    bundle = _write_bundle(tmp_path / "stale")
+    (bundle / "SHA256SUMS.txt").write_text("deadbeef  nothing\n", encoding="utf-8")
+    result = _assemble(bundle)
+    assert result.returncode == 0, result.stderr
+    assert not (bundle / "SHA256SUMS.txt").exists()
 
 
 def test_the_note_pdf_travels_with_the_data(assembled: Path):

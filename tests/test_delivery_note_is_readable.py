@@ -152,3 +152,19 @@ def test_the_ensemble_tool_is_named_consistently():
         f"same entity named both ways: 'ensemble-construction tool' x{long_name}, "
         f"'ensemble tool' x{short_name}"
     )
+
+
+def test_the_note_says_how_to_turn_a_priogrid_id_into_coordinates():
+    """Without this the recipient cannot put a single row on a map.
+
+    The delivered files carry `priogrid_id` and no latitude or longitude.
+    Every element of the conversion has to be present, because three of the
+    four are useless alone.
+    """
+    text = (SECTIONS / "the_data.tex").read_text(encoding="utf-8")
+    assert "720" in text, "the grid width is missing"
+    assert "-90 + (" in text or "$-90 +" in text, "the latitude formula is missing"
+    assert "-180 + (" in text or "$-180 +" in text, "the longitude formula is missing"
+    assert "centre" in text, "it does not say the coordinates are cell centres"
+    # The worked example is what lets a reader check they applied it correctly.
+    assert "148759" in text and "13.25" in text and "39.25" in text

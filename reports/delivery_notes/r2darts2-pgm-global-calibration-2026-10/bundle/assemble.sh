@@ -12,7 +12,6 @@
 #   DELIVERY_NOTE.pdf   the built note
 #   README.txt          a packing list, generated from the note's own title
 #                       page so the two cannot drift apart
-#   SHA256SUMS.txt      so an incomplete upload is detectable
 #   MANIFEST            -> MANIFEST.txt, so a browser will preview it
 #
 # Every number in README.txt is MEASURED from the bundle, never asserted. If
@@ -126,12 +125,12 @@ if grep -q '@[A-Z]*@' "$BUNDLE/README.txt"; then
     die "unsubstituted placeholders left in README.txt"
 fi
 
-# SHA256SUMS last, and never over itself.
-( cd "$BUNDLE" && rm -f SHA256SUMS.txt \
-  && find . -type f ! -name SHA256SUMS.txt -printf '%P\n' | sort \
-     | xargs -d '\n' sha256sum > SHA256SUMS.txt )
+# No checksum manifest. Nobody in this delivery's audience will run one,
+# and an unexplained SHA256SUMS.txt at the top of the folder is a question
+# the recipient has to ask. Remove it if an earlier run left one.
+rm -f "$BUNDLE/SHA256SUMS.txt"
 
 printf 'assembled %s\n' "$BUNDLE"
 printf '  %s models, %s parquet files, %s rows each, %s\n' \
        "$MODELCOUNT" "$FILECOUNT" "$ROWPRETTY" "$BUNDLESIZE"
-printf '  README.txt, DELIVERY_NOTE.pdf, SHA256SUMS.txt, %s MANIFEST.txt\n' "$MODELCOUNT"
+printf '  README.txt, DELIVERY_NOTE.pdf, %s MANIFEST.txt\n' "$MODELCOUNT"

@@ -278,17 +278,26 @@ and reading `sections/*.tex` later is not the same as reading what was transmitt
 
 ## Shipping the data with the note
 
-A note that goes out alongside a data bundle needs three things on top of the
-data, and the recipient needs all three before the first file makes sense:
+A note that goes out alongside a data bundle needs two things on top of the
+data, and the recipient needs both before the first file makes sense:
 
 | file | why |
 |---|---|
 | `DELIVERY_NOTE.pdf` | the note itself, travelling with what it describes |
-| `README.txt` | a packing list — what is in the folder, how to open one file, how to check the download |
-| `SHA256SUMS.txt` | an upload of a few GB can lose a file without reporting it; this is how the recipient finds out |
+| `README.txt` | a packing list — what is in the folder, and how to open one file |
 
-`bundle/assemble.sh <bundle-dir>` writes all three and renames each model's
+`bundle/assemble.sh <bundle-dir>` writes both and renames each model's
 `MANIFEST` to `MANIFEST.txt` so a browser will preview it.
+
+**No checksum manifest.** An earlier version of this shipped `SHA256SUMS.txt`
+and cross-platform verification instructions. Nobody in this audience will
+run `sha256sum -c`, and an unexplained file at the top of the folder is a
+question the recipient has to ask rather than an assurance. The prior
+HydraNet delivery solved the same problem better and is the pattern to copy
+if a delivery needs one: a notebook that audits the folder it sits in, with
+its outputs already saved so it can be read without running anything, ending
+in a cell that raises rather than prints
+(`/home/simon/Documents/views_selector_frames_20260929/`).
 
 **Nothing in `README.txt` is written by hand.** The identity fields come from
 the note's own `\delivery*` macros, and every figure — file count, row count,
@@ -304,6 +313,14 @@ That is a backstop, not a licence — if they disagree, the generator is broken.
 `tests/test_delivery_bundle_assembly.py` holds this, including the cases that
 matter: a bundle with the wrong columns, and one whose files disagree on row
 count, must both be refused rather than described.
+
+## What the recipient cannot work without
+
+A delivery at PRIO-GRID carries `priogrid_id` and no coordinates. Without the
+conversion to latitude and longitude the recipient cannot place a single row
+on a map, so a pgm delivery note states it, with a worked example they can
+check their own arithmetic against. Guarded in
+`tests/test_delivery_note_is_readable.py`.
 
 **WET:** `bundle/` lives in the delivery it was written for, not in
 `_template/`. Trigger for promoting it: the second delivery that ships a data
