@@ -91,6 +91,13 @@ over the same twenty-four: 2.88 to 6.89 on state-based, 4.19 to 10.71 on non-sta
 on one-sided. Its pooled 4.75 is an average over a fourfold spread and should not be used as a
 conversion factor for any particular model.
 
+The two ratios also differ in how durable they are. Frame III's spread is a difference between the
+models. Frame II's stability is not a property of the models at all: it is what an upper quantile of
+sixteen draws does (Section~\ref{sec:frames}), and because that estimator is biased low at this
+sample size the ratio would rise if the same models were run with more draws. So
+``about $4.6\times$'' describes these eight models \emph{at sixteen draws}, and is not a number to
+carry over to a run at a different draw count.
+
 \textbf{All three frames are non-zero on exactly the same rows.} 1,469,004 of the 242,678,592 rows
 in each frame carry a non-zero prediction --- 0.61\%, so 99.4\% of the delivered field is exact
 zeros. Those rows fall on 98,995 distinct cell-months and 6,552 distinct PRIO-GRID cells, a tenth

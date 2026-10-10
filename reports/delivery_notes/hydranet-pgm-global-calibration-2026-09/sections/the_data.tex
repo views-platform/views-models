@@ -53,8 +53,9 @@ forecasts 36 months ahead from each of thirteen successive starting points, one 
 \end{tabular}
 \end{table}
 
-\noindent \textbf{The windows overlap, so the same cell-month appears in many files.} Month 480
-appears in all thirteen, forecast from thirteen different distances. Concatenating the thirteen
+\noindent \textbf{The windows overlap, so the same cell-month appears in many files.} Months 469
+to 492 --- twenty-four of the forty-eight in the span --- appear in \emph{all thirteen} origins,
+each time at a different forecast age. Concatenating the thirteen
 files and treating the result as a panel produces a table with up to thirteen different values for
 the same cell and month, which is not a forecast of anything. Pick one origin, or carry the origin
 as an explicit dimension. The audit notebook in the folder prints the overlap as a table if it
@@ -134,6 +135,17 @@ read without executing it. To re-run it, start Jupyter in the folder and Run All
 \texttt{pandas}, \texttt{pyarrow}, \texttt{numpy} and \texttt{matplotlib}, and reads the model
 directories beside it. Nothing else in this delivery needs to be verified by hand, and there is no
 checksum file to run.
+
+For the record, rather than as something to take on trust: across all 312 files and all 2.18 billion
+delivered values there is \textbf{no missing, negative or infinite value}, every file is a complete
+$64{,}818 \times 36$ block with no repeated \texttt{(month\_id, priogrid\_id)} pair, and the
+columns and types are exact in every file. Two further checks were run for this note. The three
+frames are written in the same row order, so they can be compared row by row without a join. And on
+every one of the 242,678,592 rows, in all three targets, frame II and frame III are both greater
+than or equal to frame I --- no exceptions, worst violation exactly zero. The second of those is
+the one worth having: since $\text{mean} = P(y>0) \times \mathrm{E}[y \mid y>0]$, a row where the
+conditional mean fell below the mean would mean the two frames had been collapsed from different
+draws. None did.
 
 One gap to record: the delivered folder carries \textbf{no per-model manifest.} The engine version,
 run host, runtime and configuration commit for each model exist, in the run records held in

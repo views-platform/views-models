@@ -68,10 +68,18 @@ new GPU run.}
 
 \subsection*{Two Properties of These Estimators}
 
-\textbf{Frame II is coarse at 16 draws.} The 95th percentile of 16 values falls between the 15th
-and 16th order statistic, so a single draw moves it, and at a sample this small an upper quantile
-is biased low. It is reported as computed, with no small-sample correction. If the draw count is
-ever raised, frame II must be re-measured before anything relies on it.
+\textbf{Frame II is a near-maximum of 16 draws rather than a well-estimated percentile.} This is
+worth being exact about, because the name invites the wrong reading. A 95th percentile of 16 values
+interpolates at position $0.95 \times 15 = 14.25$ of the sorted sample, which works out to
+\[
+  \texttt{q95} \;=\; 0.75 \times (\text{second-largest draw}) \;+\; 0.25 \times (\text{largest draw}).
+\]
+So frame II reads a blend of the top two draws of sixteen. A single draw moves it, and as an
+estimator of the distribution's 95th percentile it is biased low at this sample size --- the bias
+shrinks as the draw count rises. Frame II is therefore a property of \emph{this run at 16 draws}
+and not a stable feature of the models: at a higher draw count the same models would give a larger
+frame II. It is reported as computed, with no small-sample correction, and must be re-measured
+before anything relies on it if the draw count is ever raised.
 
 \textbf{Frame III inflates the sparse targets most.} Dividing by $P(y>0)$ multiplies a cell that
 was positive in one draw of 16 by about 16. The effect is largest where positive draws are rarest,

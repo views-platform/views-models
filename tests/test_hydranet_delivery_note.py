@@ -204,6 +204,49 @@ def test_the_note_gives_the_coordinate_conversion_correctly():
     assert "181875" in text and "36.25" in text and "37.25" in text
 
 
+def test_the_note_says_what_a_95th_percentile_of_sixteen_draws_actually_is():
+    """The name invites the wrong reading, and the arithmetic is exact.
+
+    numpy interpolates at position 0.95 x 15 = 14.25 of the sorted sample, so
+    frame II is 0.75 x the second-largest draw plus 0.25 x the largest. A
+    reader who takes it for a well-estimated quantile of the predictive
+    distribution is reading more resolution into sixteen draws than they hold.
+    """
+    text = _flat("the_frames.tex")
+    assert "0.95 \\times 15 = 14.25" in text, "the interpolation position is missing"
+    assert "0.75 \\times (\\text{second-largest draw})" in text
+    assert "0.25 \\times (\\text{largest draw})" in text
+    assert "biased low at this sample size" in text
+    assert "property of \\emph{this run at 16 draws}" in text
+
+
+def test_the_note_ties_frame_twos_ratio_to_the_draw_count():
+    """Frame II's stability across the eight is not a model property.
+
+    It is what an upper quantile of sixteen draws does, and the ratio would
+    move at a different draw count. Carrying 4.6x into a later run is the
+    mistake this prevents.
+    """
+    text = _flat("magnitude_and_horizon.tex")
+    assert "at sixteen draws" in text
+    assert "not a number to carry over to a run at a different draw count" in text
+
+
+def test_the_note_states_the_integrity_result_rather_than_offering_a_check():
+    """Deliverables assume near-zero recipient effort.
+
+    The audience will not run a verification step, so the note states what was
+    found. The ordering check is the load-bearing one: mean = P(y>0) x
+    E[y|y>0], so a conditional mean below the mean would mean the two frames
+    came from different draws.
+    """
+    text = _flat("the_data.tex")
+    assert "no missing, negative or infinite value" in text
+    assert "242,678,592 rows" in text, "the ordering check does not say over how many rows"
+    assert "worst violation exactly zero" in text
+    assert "collapsed from different draws" in text, "the check's purpose is not stated"
+
+
 def test_the_note_warns_against_stacking_the_origins():
     text = _flat("the_data.tex")
     assert (

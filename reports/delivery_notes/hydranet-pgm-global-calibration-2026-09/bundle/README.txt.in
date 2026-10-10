@@ -68,6 +68,11 @@ that checked this exact copy of the data, so it can be read without
 running anything. To re-run it, start Jupyter here and Run All; it
 needs only pandas, pyarrow, numpy and matplotlib.
 
+What it found, so you do not have to take it on trust: across all
+@FILECOUNT@ files and all 2.18 billion delivered values, no missing,
+negative or infinite value; every file a complete block with no
+repeated cell-month; columns and types exact everywhere.
+
 There is no checksum file and nothing else to verify by hand.
 
 
