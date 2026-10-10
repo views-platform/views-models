@@ -1,0 +1,66 @@
+@DELIVERYTITLE@
+Forecasts on the calibration partition, PRIO-GRID month, global land
+
+  Identifier   @DELIVERYID@
+  Checksum     @DELIVERYCHECKSUM@
+  Date         @DELIVERYDATE@
+  Author       @DELIVERYAUTHOR@
+
+  PRIO - VIEWS
+
+
+START HERE
+------------------------------------------------------------------------
+  DELIVERY_NOTE.pdf
+
+Read that first. It says what these models are, what the files contain,
+how the columns are defined, and what is not included. @PAGECOUNT@ pages.
+
+This file is a packing list and nothing more. Where it and the delivery
+note disagree, the delivery note is correct.
+
+
+WHAT IS IN THIS FOLDER
+------------------------------------------------------------------------
+One folder per model, nine in all:
+
+@MODELLIST@
+
+Inside each model folder:
+
+  parquet/        Thirteen Parquet files, one per forecast origin, named
+                  ..._00 through ..._12.
+  MANIFEST.txt    When the model ran, which version of the software
+                  produced it, and which configuration it used.
+
+@FILECOUNT@ Parquet files in all, @BUNDLESIZE@. Every file holds @ROWCOUNT@
+rows and five columns. Section @FILESECTION@ of the delivery note,
+"The Delivered Files", names and defines the columns.
+
+
+OPENING A FILE
+------------------------------------------------------------------------
+Python
+  import pandas as pd
+  df = pd.read_parquet("dark_river/parquet/@SAMPLEFILE@")
+
+R
+  library(arrow)
+  df <- read_parquet("dark_river/parquet/@SAMPLEFILE@")
+
+
+CHECKING THAT THE DOWNLOAD IS COMPLETE
+------------------------------------------------------------------------
+SHA256SUMS.txt lists every file in this delivery with its checksum. To
+verify a downloaded copy, run this from the top of the folder:
+
+  sha256sum -c SHA256SUMS.txt
+
+Any file that is missing or arrived truncated is reported by name. An
+upload of this size can lose a file without saying so; this is how you
+find out that it did.
+
+
+QUESTIONS
+------------------------------------------------------------------------
+@DELIVERYAUTHOR@, PRIO.

@@ -275,3 +275,36 @@ cross-references settle on the second and `xltabular` column widths on the third
 **Commit the PDF of any note that has gone out.** `.gitignore` excludes the `.aux`/`.log`/`.out`
 family but not the PDF, deliberately: the PDF is the record of what the recipient actually received,
 and reading `sections/*.tex` later is not the same as reading what was transmitted.
+
+## Shipping the data with the note
+
+A note that goes out alongside a data bundle needs three things on top of the
+data, and the recipient needs all three before the first file makes sense:
+
+| file | why |
+|---|---|
+| `DELIVERY_NOTE.pdf` | the note itself, travelling with what it describes |
+| `README.txt` | a packing list — what is in the folder, how to open one file, how to check the download |
+| `SHA256SUMS.txt` | an upload of a few GB can lose a file without reporting it; this is how the recipient finds out |
+
+`bundle/assemble.sh <bundle-dir>` writes all three and renames each model's
+`MANIFEST` to `MANIFEST.txt` so a browser will preview it.
+
+**Nothing in `README.txt` is written by hand.** The identity fields come from
+the note's own `\delivery*` macros, and every figure — file count, row count,
+total size, the note's page count, the number of the section that defines the
+columns — is measured from the bundle or read from the built PDF. This is
+deliberate: a packing list that restates the note's numbers is a second copy
+of them, and the two copies drift. The script refuses to write anything if the
+bundle does not hold what the note describes.
+
+The generated README names the note as authoritative where the two disagree.
+That is a backstop, not a licence — if they disagree, the generator is broken.
+
+`tests/test_delivery_bundle_assembly.py` holds this, including the cases that
+matter: a bundle with the wrong columns, and one whose files disagree on row
+count, must both be refused rather than described.
+
+**WET:** `bundle/` lives in the delivery it was written for, not in
+`_template/`. Trigger for promoting it: the second delivery that ships a data
+bundle.
