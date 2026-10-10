@@ -23,7 +23,9 @@ ASSEMBLE = NOTE / "bundle/assemble.sh"
 
 COLUMNS = ["month_id", "priogrid_id", "pred_lr_ged_sb", "pred_lr_ged_ns", "pred_lr_ged_os"]
 MODELS = ("dark_river", "silent_fox")
-ROWS = 7
+# Over a thousand, so the thousands separator is actually exercised. At 7
+# rows the grouping guard below could not fail whatever the locale did.
+ROWS = 1234
 ORIGINS = 2
 
 pytestmark = pytest.mark.skipif(
@@ -71,7 +73,7 @@ def test_the_readme_reports_what_the_bundle_actually_holds(assembled: Path):
     """Every figure measured, none recited."""
     text = (assembled / "README.txt").read_text(encoding="utf-8")
     assert f"{len(MODELS) * ORIGINS} Parquet files" in text
-    assert str(ROWS) in text
+    assert "1,234" in text
     # Not the real delivery's figures, which a hand-written README would carry.
     assert "117 Parquet files" not in text
     assert "2,333,448" not in text
@@ -88,10 +90,15 @@ def test_the_readme_agrees_with_the_note_on_identity(assembled: Path):
 
 
 def test_numbers_are_grouped_the_way_the_note_groups_them(assembled: Path):
-    """A Danish locale writes 2 333 448 and 1,9 GB. The note writes 2,333,448."""
+    """A Danish locale writes 2 333 448; the note writes 2,333,448.
+
+    This machine's locale is Danish, so `printf "%'d"` here would group with
+    spaces and the README would punctuate numbers differently from the note
+    it ships beside.
+    """
     text = (assembled / "README.txt").read_text(encoding="utf-8")
-    assert "1,9 GB" not in text and "0,9 GB" not in text
-    assert "2 333 448" not in text
+    assert "1,234" in text, "the thousands separator is not a comma"
+    assert "1 234" not in text and "1.234" not in text
 
 
 def test_the_manifest_is_renamed_so_a_browser_will_preview_it(assembled: Path):
