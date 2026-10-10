@@ -7,7 +7,7 @@ They are \textit{global} models in the forecasting sense: a single set of parame
 across all 64,818 cells. The closest familiar analogue is a pooled panel estimator --- a cell with
 almost no conflict history is still forecast using structure learned from the whole grid. Each
 cell's own level and scale are restored separately, by the normalisation described in
-Section~\ref{sec:architectures}.
+Section~\ref{sec:transforms}.
 
 \begingroup
 \catcode`\_=12  % underscores are ordinary characters in this table
@@ -80,10 +80,9 @@ source. That is the authoritative account and this note does not restate it.
 
 Preparation after the fetch is set in the model configuration, and is documented only by the
 configuration itself. Two operations apply here: the selection of which covariates each model
-receives, and an \texttt{asinh} transform applied to all 72 columns, the three outcomes and the 69
-covariates alike, before training. Both are visible in the files linked in Table~\ref{tab:models}.
-Neither carries a decision record or a written rationale, and whether either is warranted is not
-established by this note.
+receives, and the transformations described in Section~\ref{sec:transforms}. Both are visible in
+the files linked in Table~\ref{tab:models}. Neither carries a decision record or a written
+rationale, and whether either is warranted is not established by this note.
 
 \subsection*{Covariate Coverage}
 

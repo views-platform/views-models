@@ -44,16 +44,3 @@ Paper cited there: Das, A., Kong, W., Leach, A., Mathur, S., Sen, R. \& Yu, R. (
 \textit{Long-term Forecasting with TiDE: Time-series Dense Encoder}.
 \href{https://arxiv.org/abs/2304.08424}{arXiv:2304.08424}
 \end{quote}
-
-\subsection*{One Setting All Nine Share}
-
-All nine use \textbf{reversible instance normalisation}: each cell's series is standardised before
-the network sees it and the transformation is inverted on the way out. The model therefore fits on
-a per-cell normalised scale, while the forecasts you have are in counts.
-
-\begin{quote}
-\small
-Paper cited by Darts for all three models: Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H. \&
-Choo, J. (2022), \textit{Reversible Instance Normalization for Accurate Time-Series Forecasting
-against Distribution Shift}, ICLR 2022.
-\end{quote}

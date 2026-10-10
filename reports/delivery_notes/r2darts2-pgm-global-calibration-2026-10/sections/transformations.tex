@@ -1,0 +1,33 @@
+Two transformations are applied between the data and the model, and both are reversible. No others
+are used: the configurations declare no logarithm, no min--max or standard scaling, no winsorising
+and no clipping of values.
+
+\textbf{An \texttt{asinh} transform, declared in the model configuration.} All nine models apply it
+to the three outcomes. The three covariate-using models apply it to their inputs as well, so for
+those every one of the 72 columns is transformed. The inverse hyperbolic sine is used rather than a
+logarithm because it is defined at zero, which matters at this resolution: \textbf{99.6\%} of
+observed cell-months in this window are exactly zero. It is set by \texttt{target\_scaler} and \texttt{feature\_scaler\_map} in the
+files linked in Table~\ref{tab:models}, and it is inverted on the model's output before predictions
+are written.
+
+\textbf{Reversible instance normalisation, inside the network.} Each cell's series is standardised
+before the network sees it and the standardisation is undone on the way out. This is what returns a
+cell's own level and scale after the pooling described in Section~\ref{sec:models}, and it is
+applied by all nine models.
+
+\begin{quote}
+\small
+Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H. \& Choo, J. (2022), \textit{Reversible Instance
+Normalization for Accurate Time-Series Forecasting against Distribution Shift}, ICLR 2022.
+\end{quote}
+
+\noindent Both inversions happen before the delivered files are written, so \textbf{every column in
+this delivery is intended to be on the original count scale} and no back-transformation should be
+applied to it.
+
+That is an intention supported by a check rather than a proof. The largest delivered value is of
+the order of a few hundred fatalities, which is plausible as a count and would be absurd on the
+transformed scale --- \texttt{asinh} of a few hundred corresponds to a number with over a hundred
+digits. Totals are within the same order of magnitude as the observed field. Nothing in the
+delivery verifies the inversion formally, and the check described in Section~\ref{sec:caveats} is
+the extent of what was done.

@@ -45,9 +45,8 @@ those apart; metrics pooled across origins mix them.
 \end{table}
 
 \textbf{Units are fatality counts.} A value of 2.4 means 2.4 fatalities; values are continuous
-rather than integer. The models are fitted on an \texttt{asinh} scale (Section~\ref{sec:models}),
-but that transform is inverted before the predictions are written, so the files require no
-back-transformation and none should be applied.
+rather than integer. The transformations applied during fitting are inverted before these files
+are written (Section~\ref{sec:transforms}), so no back-transformation should be applied to them.
 
 \textbf{Observed values are not included, and are not needed from here.} Evaluation joins these
 forecasts to observed fatalities on \texttt{month\_id} and \texttt{priogrid\_id}; the
