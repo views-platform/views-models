@@ -58,6 +58,78 @@ single setting. Across blocks the architecture changes and the comparison is a d
           models: the third row of each block.
 \end{itemize}
 
+\subsection*{How the Covariates Are Conditioned}
+
+Three things happen to a covariate between the data store and the model. Only the last is ours.
+
+\textbf{Spatial handling.} Nothing arrives natively on the PRIO-GRID. Population and built-up
+surface are aggregated by summing $60\times60$ source raster pixels per cell; V-Dem and SHDI are
+attached to cells by polygon-to-centroid spatial joins. The source documentation describes these as
+opinionated decisions rather than mechanical transforms, and they are not reversible from the
+delivered data.
+
+\textbf{Temporal handling.} There is no feature engineering --- no lags, decay functions, ratios or
+derived indices; the datafactory places cross-feature derivation in the model layer by design
+(ADR-014 §6). But the series are not left as-is either. Annually observed quantities are extended
+across their twelve months, by one of two per-source rules (ADR-014 §5): V-Dem and SHDI hold the
+annual value flat; population and built-up surface interpolate linearly between five-yearly epochs.
+Outside a source's observed range, values are \emph{manufactured}: zero before the first
+observation, and the last observation held constant after it (ADR-052). Where a source's coverage
+is narrower than the grid, the gap is filled with zeros rather than nulls, deliberately, because
+consumers assume float arrays without missing-value handling (ADR-047). SHDI is the one exception:
+cells its source never covered keep a null (ADR-042).
+
+\textbf{In the model configuration.} All 72 columns --- the three outcomes and all 69 covariates
+--- then pass through an \texttt{asinh} transform before training, declared in each model's
+hyperparameter configuration (linked in Table~\ref{tab:models}). The transform is inverted for the
+outcomes, which is why the delivered forecasts are in counts.
+
+\subsection*{A Consequence Worth Knowing Before Using the Covariate Models}
+
+The zero-fill rule above has a specific effect on this delivery, and it is not visible in the data:
+\textbf{a manufactured zero is indistinguishable from an observed zero.}
+
+The store publishes the real observation window per source. Checked against this delivery's
+partition:
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Source coverage against the calibration partition. Months outside a source's observed
+window are manufactured, not measured.}
+\label{tab:coverage}
+\begin{tabular}{@{}p{3.4cm}p{3.6cm}p{3.6cm}p{3.4cm}@{}}
+\toprule
+\textbf{Source} & \textbf{Observed from} & \textbf{In training (1990--2017)} & \textbf{In test (2018--2021)} \\ \midrule
+ACLED (7 covariates) & January 2020 & \textbf{none --- all zeros} & real from January 2020 \\
+V-Dem                & January 1989 & real & real \\
+SHDI                 & January 1989 & real & real \\
+Population           & January 1989 & real & real \\
+Built-up surface     & January 1989 & real & real \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{The seven ACLED covariates were identically zero throughout training.} They carry
+no information for any month the three covariate-using models were fitted on, and then become
+non-zero partway through the forecast window. A feature that is constant in training and varies in
+test is not merely uninformative --- the model has learned that it is always zero.
+
+This affects \texttt{blue\_ocean}, \texttt{brave\_heart} and \texttt{golden\_eagle} only. The six
+outcomes-only models do not use covariates at all. The other four sources cover the whole partition.
+
+\textbf{What this note does not address.} Whether any of this conditioning is appropriate --- the
+fill rules, the zero-for-missing convention, the spatial joins, the \texttt{asinh} transform, or
+the treatment of annual variables at monthly resolution --- is outside the scope of a delivery
+note. Nothing here endorses those choices and nothing here has examined them. They are recorded so
+that someone evaluating these models knows what the models were given. Two limitations of the
+record itself are worth stating: provenance is held per \emph{source}, not per covariate, so
+reconstructing what happened to any one of the 69 means assembling it from the source mapping, the
+relevant ADR and the run ledger; and the population and built-up-surface series include projected
+rather than measured epochs at recent dates, delivered identically to measured ones --- beyond this
+partition's end, but worth knowing if the window is ever extended.
+
 Note that the two splits are not the same split. Six models are outcomes-only and six use the
 Spotlight loss, but they are different sixes: \texttt{blue\_ocean}, \texttt{brave\_heart} and
 \texttt{golden\_eagle} have covariates \textit{and} Spotlight, while \texttt{dark\_river},
