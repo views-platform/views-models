@@ -10,30 +10,31 @@ cell's own level and scale are restored separately, by the normalisation describ
 Section~\ref{sec:architectures}.
 
 \begingroup
-\catcode`\_=12  % underscores are ordinary characters in this table, so a
-                % model name can serve as both URL fragment and label
+\catcode`\_=12  % underscores are ordinary characters in this table
 \begin{table}[h!]
 \centering
 \renewcommand{\arraystretch}{1.2}
-\caption{The nine delivered models. Each model name links to its hyperparameter configuration on
-GitHub, pinned to the delivery commit on the title page.}
+\caption{The nine delivered models.}
 \label{tab:models}
-\begin{tabular}{@{}p{3.6cm}p{2.0cm}p{2.2cm}p{3.4cm}@{}}
+\begin{tabular}{@{}p{3.4cm}p{1.9cm}p{2.1cm}p{3.0cm}p{2.0cm}@{}}
 \toprule
-\textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors} \\ \midrule
-\cfg{dark_river}       & N-BEATS & MSE       & Outcomes only \\
-\cfg{old_rules}        & N-BEATS & Spotlight & Outcomes only \\
-\cfg{blue_ocean}       & N-BEATS & Spotlight & + 69 covariates \\ \addlinespace
-\cfg{silent_fox}       & TSMixer & MSE       & Outcomes only \\
-\cfg{dancing_monkey}   & TSMixer & Spotlight & Outcomes only \\
-\cfg{brave_heart}      & TSMixer & Spotlight & + 69 covariates \\ \addlinespace
-\cfg{red_hawk}         & TiDE    & MSE       & Outcomes only \\
-\cfg{dark_necessities} & TiDE    & Spotlight & Outcomes only \\
-\cfg{golden_eagle}     & TiDE    & Spotlight & + 69 covariates \\
+\textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors} & \textbf{HP~config} \\ \midrule
+dark_river       & N-BEATS & MSE       & Outcomes only   & \cfg{dark_river} \\
+old_rules        & N-BEATS & Spotlight & Outcomes only   & \cfg{old_rules} \\
+blue_ocean       & N-BEATS & Spotlight & + 69 covariates & \cfg{blue_ocean} \\ \addlinespace
+silent_fox       & TSMixer & MSE       & Outcomes only   & \cfg{silent_fox} \\
+dancing_monkey   & TSMixer & Spotlight & Outcomes only   & \cfg{dancing_monkey} \\
+brave_heart      & TSMixer & Spotlight & + 69 covariates & \cfg{brave_heart} \\ \addlinespace
+red_hawk         & TiDE    & MSE       & Outcomes only   & \cfg{red_hawk} \\
+dark_necessities & TiDE    & Spotlight & Outcomes only   & \cfg{dark_necessities} \\
+golden_eagle     & TiDE    & Spotlight & + 69 covariates & \cfg{golden_eagle} \\
 \bottomrule
 \end{tabular}
 \end{table}
 \endgroup
+
+\noindent The \textbf{HP~config} links open each model's hyperparameter configuration file on
+GitHub, fixed at the delivery commit on the title page.
 
 The names are arbitrary labels, assigned according to the \texttt{adjective\_noun} convention
 used across views-models, and carry no meaning.
