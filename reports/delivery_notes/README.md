@@ -345,6 +345,12 @@ and he will. Section 9 (Next Steps) is where this goes wrong most easily: write
 it as statements plus, where needed, a documentation requirement. The sent mail
 has no question marks at all.
 
+The same test reaches the authorship line. The HydraNet note states Simon's
+authorship of the architecture as settled, not as a claim, because it is: on
+2026-10-01 Håvard wrote "full credit should be given to your paper of course".
+A note that hedges something the PI has conceded in writing invites it to be
+reopened.
+
 **Where the recipient owns the subject, state the inference and stop.** He
 knows GED better than anyone on the distribution list. Three sentences
 explaining how UCDP codes aggregated events are three sentences of
