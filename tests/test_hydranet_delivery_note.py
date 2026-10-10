@@ -140,6 +140,33 @@ def test_the_note_separates_a_settled_total_from_a_frozen_field():
     assert "untested rather than disproven" in text
 
 
+def test_the_note_says_the_eight_disagree_about_location_not_only_level():
+    """A reader choosing among eight models assumes they agree about where.
+
+    They do not: a third of the predicted conflict in the delivery comes from
+    one model firing where none of the other seven does, and only 13.5% of it
+    has all eight. Without this the section's statement that each model's
+    shortfall is "in severity rather than in location" --- which is about a
+    model against observed --- reads as though the eight agree with each other.
+    """
+    text = _flat("magnitude_and_horizon.tex")
+    assert "factor of 3.6 in total predicted fatalities" in text
+    assert "328,562" in text, "the union support is missing"
+    assert "33.0\\%" in text and "13.5\\%" in text, "the agreement extremes are missing"
+    assert "one model firing where none of the other seven does" in text
+    assert "0.27 to 0.55" in text, "the pairwise correlation range is missing"
+    assert "eight genuinely different fields, not eight calibrations of one field" in text
+    # The all-rows correlation is inflated by shared zeros and must be labelled.
+    assert "should not be used" in text
+
+
+def test_the_agreement_measurement_carries_its_two_disclaimers():
+    """It cannot say which of the eight is right, or that pooling beats choosing."""
+    text = _flat("magnitude_and_horizon.tex")
+    assert "whether combining them beats choosing one" in text
+    assert "Neither has been measured." in text
+
+
 def test_the_note_does_not_offer_frame_iii_as_a_conversion_factor():
     """q95/mean is stable across models; the conditional mean is not.
 

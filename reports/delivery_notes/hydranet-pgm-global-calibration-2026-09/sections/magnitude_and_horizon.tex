@@ -52,6 +52,58 @@ while state-based magnitude spans 3.8-fold. The two orderings also run opposite 
 timid model carries the worst CRPS and the least timid the best. A 3.8\% spread is a narrow basis
 for a decision, and the selection criteria --- not this note --- determine what weight it carries.
 
+\subsection*{The Eight Do Not Agree About Where, Either}
+
+The paragraph above is about each model against observed totals. Between models the picture is
+different, and a reader choosing among the eight should not assume that they agree about location
+and differ only in level.
+
+Measured on frame I's state-based column, over all thirteen origins and all 30,334,824 rows per
+model --- the eight are written in the same row order, so these are row-by-row comparisons and not
+joins. \textbf{The extremes differ by a factor of 3.6 in total predicted fatalities}:
+\texttt{bold\_comet} predicts 1.68 times the eight-model average and \texttt{bright\_starship}
+0.46 times it. That is consistent with the magnitude spread in Table~\ref{tab:magnitude}, though
+the ordering is not quite identical, because that table's ratios were computed by the run over its
+evaluation window and these are measured over the delivered rows.
+
+The disagreement about \emph{where} is larger than the disagreement about how much. Across the
+eight, 328,562 cell-months --- 1.08\% of the rows --- have a non-zero prediction from at least one
+model. How many models fire on each:
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Agreement on location. Of the cell-months where any model predicts conflict, how many of
+the eight predict it there.}
+\label{tab:agreement}
+\begin{tabular}{@{}rrr@{}}
+\toprule
+\textbf{Models firing} & \textbf{Cell-months} & \textbf{Share of the union} \\ \midrule
+1 & 108,446 & \textbf{33.0\%} \\
+2 &  47,639 & 14.5\% \\
+3 &  36,029 & 11.0\% \\
+4 &  28,304 &  8.6\% \\
+5 &  22,445 &  6.8\% \\
+6 &  19,647 &  6.0\% \\
+7 &  21,765 &  6.6\% \\
+8 &  44,287 & \textbf{13.5\%} \\ \midrule
+\textit{union} & 328,562 & 100\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{A third of the predicted conflict in this delivery comes from one model firing
+where none of the other seven does.} All eight agree on 13.5\% of it. Pairwise correlation between
+models, over the union support, runs from 0.27 to 0.55 with a median of 0.44. Computed over all
+rows instead it reads higher, 0.33 to 0.59, but that figure is inflated by the 98.9\% of rows that
+are zero in every model and should not be used.
+
+So these are eight genuinely different fields, not eight calibrations of one field. Two things that
+does not tell you, both of which need actuals: whether their union, their intersection or any
+single member is closer to what happened, and whether combining them beats choosing one. Neither
+has been measured.
+
 \subsection*{The Three Estimators, Per Target}
 
 Totals over all eight models and all thirteen origins, with each frame's ratio to frame I.
