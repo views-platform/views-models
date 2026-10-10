@@ -32,6 +32,7 @@ FIELDS = (
     "deliverypartition",
     "deliverytargets",
     "deliverybackend",
+    "deliveryframework",
     "deliverycompute",
     "deliverysha",
     "deliverydate",

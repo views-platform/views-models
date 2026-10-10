@@ -29,6 +29,15 @@ falls in only one of the thirteen origins (\texttt{\dots\_12}), where that singl
 41\% of observed fatalities. I do not know whether it is a real event or a data error. Either way
 it is better settled before the numbers are produced than explained afterwards.
 
+\textbf{The software is pinned; the data is not.} The title page records the three versions that
+determine the output --- the model library, the framework and the data backend --- along with the
+\texttt{views-models} commit the configurations were read at. Between them those fix the code.
+They do not fix the \textit{input}: the data backend served this run from a live store with no
+snapshot identifier, and the provenance record written beside the fetched data shows drift
+detection did not run. So re-running these nine models at these versions would reproduce the
+method, and would not guarantee reproducing the numbers, because the underlying observations may
+have been revised in the meantime. Worth knowing before anyone treats a re-run as a check.
+
 \textbf{Column naming matches the tool.} These files use \texttt{pred\_lr\_ged\_sb}, which is the
 ensemble tool's own default \texttt{target\_column}. The September delivery used
 \texttt{pred\_lr\_sb\_best} instead, so if anything needs renaming when the two are compared it is

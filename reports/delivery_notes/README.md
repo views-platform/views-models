@@ -82,6 +82,13 @@ collision risk is negligible, and the number stays short enough to read aloud.
 proves the note still describes it. The slug alone is readable but can be reused after an edit;
 the checksum alone is unambiguous but says nothing.
 
+## What the provenance block does and does not pin
+
+Three versions plus a commit — model library, framework, data backend, and the `views-models` sha —
+fix the **code** that produced a delivery. They do not fix the **input**. Our data backend serves
+from a live store, and a delivery note should say so rather than let a reader infer that a re-run
+would reproduce the numbers. Record what you can; state the gap in the note body.
+
 ## Title-page fields
 
 All of these are required. They are set once, as macros at the top of `main.tex`, and the title
@@ -104,13 +111,14 @@ page and page furniture read from them — so nothing can drift between two copi
 | `\deliveryresolution` | temporal resolution |
 | `\deliverypartition` | partition, with the training and forecast spans in calendar dates |
 | `\deliverytargets` | the outcome variables |
-| `\deliverybackend` | where the input data came from, e.g. `views-datafactory` |
+| `\deliverybackend` | where the input data came from, **with its version**, e.g. `views-datafactory 1.13.0` |
 
 **Provenance** — how it was produced:
 
 | macro | |
 |---|---|
-| `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter, and is what makes the run reconstructible |
+| `\deliveryframework` | the pipeline framework and version, e.g. `views-pipeline-core 3.3.4`. It decides the partitions, the rolling origins and how predictions are saved, so it belongs beside the model library |
+| `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter |
 | `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Name the thing; do not add what it was *not*, which is implied. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |
 | `\deliverychecksum` | **computed, not chosen** — see above |
 

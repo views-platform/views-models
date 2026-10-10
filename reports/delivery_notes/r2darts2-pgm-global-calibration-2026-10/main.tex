@@ -136,7 +136,7 @@
 % configs, runner and converter used.
 
 \newcommand{\deliveryid}{r2darts2-pgm-global-calibration-2026-10}
-\newcommand{\deliverychecksum}{26493508}
+\newcommand{\deliverychecksum}{85142410}
 \newcommand{\deliverytitle}{Nine Deep-Learning Forecast Models}
 \newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
 \newcommand{\deliverydate}{10-10-2026}
@@ -147,11 +147,12 @@
 \newcommand{\deliveryscope}{Global land --- 64,818 cells}
 \newcommand{\deliveryresolution}{Monthly}
 \newcommand{\deliverypartition}{Calibration --- trained Jan 1990 to Dec 2017, forecasting Jan 2018 to Dec 2021}
-\newcommand{\deliverybackend}{views-datafactory}
+\newcommand{\deliverybackend}{views-datafactory 1.13.0}
 \newcommand{\deliverytargets}{State-based, non-state and one-sided fatalities}
 
 % --- how it was produced ------------------------------------
-\newcommand{\deliverysha}{05a3de47}
+\newcommand{\deliveryframework}{views-pipeline-core 3.3.4}
+\newcommand{\deliverysha}{75cb68a7}
 \newcommand{\deliverycompute}{Rented cloud GPUs (RunPod)}
 
 % ------------------------------------------------------------
@@ -214,6 +215,7 @@
         \textbf{Targets}            & \deliverytargets \\
         \textbf{Data backend}       & \deliverybackend \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
+        \textbf{Framework}          & \deliveryframework \\
         \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
         \textbf{Computed on}        & \deliverycompute \\
     \end{tabular}

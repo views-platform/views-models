@@ -136,7 +136,7 @@
 % configs, runner and converter used.
 
 \newcommand{\deliveryid}{library-loa-scope-partition-YYYY-MM}
-\newcommand{\deliverychecksum}{15808073}
+\newcommand{\deliverychecksum}{17957710}
 \newcommand{\deliverytitle}{Short Descriptive Title}
 \newcommand{\deliveryauthor}{Author Name}
 \newcommand{\deliverydate}{DD-MM-YYYY}
@@ -147,10 +147,11 @@
 \newcommand{\deliveryscope}{Global land --- N cells}
 \newcommand{\deliveryresolution}{Monthly}
 \newcommand{\deliverypartition}{Calibration --- Mon YYYY to Mon YYYY}
-\newcommand{\deliverybackend}{views-datafactory}
+\newcommand{\deliverybackend}{views-datafactory X.Y.Z}
 \newcommand{\deliverytargets}{...}
 
 % --- how it was produced ------------------------------------
+\newcommand{\deliveryframework}{views-pipeline-core X.Y.Z}
 \newcommand{\deliverysha}{0000000}
 \newcommand{\deliverycompute}{...}
 
@@ -214,6 +215,7 @@
         \textbf{Targets}            & \deliverytargets \\
         \textbf{Data backend}       & \deliverybackend \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
+        \textbf{Framework}          & \deliveryframework \\
         \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
         \textbf{Computed on}        & \deliverycompute \\
     \end{tabular}
