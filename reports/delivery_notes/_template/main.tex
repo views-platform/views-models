@@ -136,22 +136,27 @@
 % configs, runner and converter used.
 
 \newcommand{\deliveryid}{library-loa-scope-partition-YYYY-MM}
-\newcommand{\deliverychecksum}{17957710}
+\newcommand{\deliverychecksum}{85494325}
 \newcommand{\deliverytitle}{Short Descriptive Title}
 \newcommand{\deliveryauthor}{Author Name}
 \newcommand{\deliverydate}{DD-MM-YYYY}
 
-% --- what the delivery covers -------------------------------
-\newcommand{\deliverylibrary}{views-r2darts2 X.Y.Z}
-\newcommand{\deliveryloa}{PRIO-GRID month (\texttt{pgm})}
-\newcommand{\deliveryscope}{Global land --- N cells}
-\newcommand{\deliveryresolution}{Monthly}
-\newcommand{\deliverypartition}{Calibration --- Mon YYYY to Mon YYYY}
-\newcommand{\deliverybackend}{views-datafactory X.Y.Z}
+% --- SCOPE: what the data is --------------------------------
+% Resolution and extent on each axis, stated in parallel. The level-of
+% -analysis shorthand (pgm, cm) is not repeated here --- it is the second
+% field of the identifier.
+\newcommand{\deliverypartition}{Calibration}
+\newcommand{\deliveryspatialres}{PRIO-GRID cell}
+\newcommand{\deliveryspatialextent}{Global land --- N cells}
+\newcommand{\deliverytemporalres}{Month}
+\newcommand{\deliverytemporalextent}{Forecasts Mon YYYY to Mon YYYY; trained on Mon YYYY to Mon YYYY}
+\newcommand{\deliverystructure}{N rolling origins, each forecasting M months}
 \newcommand{\deliverytargets}{...}
 
-% --- how it was produced ------------------------------------
+% --- PROVENANCE: what produced it ---------------------------
+\newcommand{\deliverylibrary}{views-r2darts2 X.Y.Z}
 \newcommand{\deliveryframework}{views-pipeline-core X.Y.Z}
+\newcommand{\deliverybackend}{views-datafactory X.Y.Z}
 \newcommand{\deliverysha}{0000000}
 \newcommand{\deliverycompute}{...}
 
@@ -207,17 +212,19 @@
         \textbf{Date}        & \deliverydate \\
         \textbf{Author}      & \deliveryauthor \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}} \quad\small\textit{what the data is}} \\[0.2em]
-        \textbf{Unit of analysis}   & \deliveryloa \\
-        \textbf{Spatial scope}      & \deliveryscope \\
-        \textbf{Temporal resolution}& \deliveryresolution \\
-        \textbf{Partition}          & \deliverypartition \\
-        \textbf{Targets}            & \deliverytargets \\[0.9em]
+        \textbf{Partition}            & \deliverypartition \\
+        \textbf{Spatial resolution}   & \deliveryspatialres \\
+        \textbf{Spatial extent}       & \deliveryspatialextent \\
+        \textbf{Temporal resolution}  & \deliverytemporalres \\
+        \textbf{Temporal extent}      & \deliverytemporalextent \\
+        \textbf{Forecast structure}   & \deliverystructure \\
+        \textbf{Targets}              & \deliverytargets \\[0.9em]
         \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}} \quad\small\textit{what produced it}} \\[0.2em]
-        \textbf{Model library}      & \deliverylibrary \\
-        \textbf{Framework}          & \deliveryframework \\
-        \textbf{Data backend}       & \deliverybackend \\
-        \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
-        \textbf{Computed on}        & \deliverycompute \\
+        \textbf{Model library}        & \deliverylibrary \\
+        \textbf{Framework}            & \deliveryframework \\
+        \textbf{Data backend}         & \deliverybackend \\
+        \textbf{Source commit}        & \texttt{views-models@\deliverysha} \\
+        \textbf{Computed on}          & \deliverycompute \\
     \end{tabular}
 
     \vspace{0.8cm}

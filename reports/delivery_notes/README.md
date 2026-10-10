@@ -112,15 +112,23 @@ though the library also appears in the identifier: they are tools, and a tool is
 the data. An earlier version split them — library and backend under Scope, framework under
 Provenance — which had no rule behind it and did not read.
 
-**Scope** — what the data is:
+**Scope** — what the data is. Resolution and extent are stated separately on each axis, and in
+parallel: a reader should be able to see the shape of the dataset without reading prose.
 
 | macro | |
 |---|---|
-| `\deliveryloa` | unit of analysis |
-| `\deliveryscope` | spatial extent, with the cell or country count |
-| `\deliveryresolution` | temporal resolution |
-| `\deliverypartition` | partition, with the training and forecast spans in calendar dates |
+| `\deliverypartition` | `Calibration`, `Validation` or `Forecasting` |
+| `\deliveryspatialres` | the spatial unit — `PRIO-GRID cell`, `Country` |
+| `\deliveryspatialextent` | which units, with a count — `Global land — 64,818 cells` |
+| `\deliverytemporalres` | the temporal unit — `Month` |
+| `\deliverytemporalextent` | which periods: the forecast span, and the training span |
+| `\deliverystructure` | the forecast design — rolling origins and horizon |
 | `\deliverytargets` | the outcome variables |
+
+The level-of-analysis shorthand (`pgm`, `cm`) is not a field. It is the product of the two
+resolutions and already the second component of the identifier; repeating it alongside them is what
+made an earlier version of this block incoherent — it listed "unit of analysis" against "temporal
+resolution", which are not the same kind of thing.
 
 **Provenance** — what produced it:
 
