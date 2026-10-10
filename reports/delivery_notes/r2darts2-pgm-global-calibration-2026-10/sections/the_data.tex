@@ -47,12 +47,13 @@ those apart; metrics pooled across origins mix them.
 \end{table}
 
 \textbf{Units are fatality counts.} A value of 2.4 means 2.4 fatalities; values are continuous
-rather than integer. The transformations applied during fitting are inverted before these files
-are written (Section~\ref{sec:transforms}), so no back-transformation should be applied to them.
+rather than integer. The transformations applied during fitting are intended to be inverted
+before these files are written, so no back-transformation should be applied to them;
+Section~\ref{sec:transforms} states what is and is not established about that.
 
 \textbf{Observed values are not included, and are not needed from here.} Evaluation joins these
 forecasts to observed fatalities on \texttt{month\_id} and \texttt{priogrid\_id}; the
-ensemble-construction tool retrieves those itself, and they are otherwise available from the
+ensemble tool retrieves those itself, and they are otherwise available from the
 datafactory. The file naming used here already matches what that tool expects.
 
 Nine models $\times$ thirteen origins = \textbf{117 files, about 2\,GB} in total.

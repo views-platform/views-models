@@ -119,3 +119,36 @@ def test_spectral_term_is_explained():
     assert "spectral" not in losses or "spectral term is" in losses, (
         "'spectral term' is used without explanation"
     )
+
+
+# --------------------------------------------------------------------------
+# Consistency audit (second /falsify pass)
+# --------------------------------------------------------------------------
+
+def test_the_inversion_claim_has_the_same_status_in_every_section():
+    """C5a: Section 6 asserted what Section 4 hedges, while citing Section 4.
+
+    The Delivered Files said the transformations "are inverted before these
+    files are written"; Transformations says the columns are *intended* to be
+    on the count scale and that nothing verifies the inversion. A reader
+    following the cross-reference found the opposite epistemic status at the
+    other end.
+    """
+    data = (SECTIONS / "the_data.tex").read_text(encoding="utf-8")
+    if "inverted" not in data:
+        return
+    assert "intended" in data or "are inverted" not in data, (
+        "Section 6 states the inversion as fact; Section 4 states it as an "
+        "intention that nothing verifies"
+    )
+
+
+def test_the_ensemble_tool_is_named_consistently():
+    """C4: the same tool is called two different things."""
+    prose = _all_prose()
+    long_name = prose.count("ensemble-construction tool")
+    short_name = prose.count("ensemble tool")
+    assert not (long_name and short_name), (
+        f"same entity named both ways: 'ensemble-construction tool' x{long_name}, "
+        f"'ensemble tool' x{short_name}"
+    )
