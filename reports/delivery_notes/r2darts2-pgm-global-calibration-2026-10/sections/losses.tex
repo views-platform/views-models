@@ -3,7 +3,7 @@
 implementation, a thin wrapper around PyTorch's. Used by \texttt{dark\_river}, \texttt{silent\_fox}
 and \texttt{red\_hawk}.
 
-\textbf{Spotlight} (\texttt{SpotlightLossLogcosh}) --- ours, not off the shelf. A three-part
+\textbf{Spotlight} (\texttt{SpotlightLossLogcosh}) --- in-house, not off the shelf. A three-part
 objective computed after an \texttt{asinh} transform. It scores the \textit{shape} of the error only
 in cells where the observation or the forecast exceeds one fatality; separately penalises the
 \textit{level} in cells whose observation exceeds one fatality; and separately penalises
@@ -12,7 +12,7 @@ error, so a single very large observation does not dominate the gradient. Used b
 
 \subsection*{What You Should Know About Spotlight}
 
-It is Dylan's own construction, developed since March 2026; the variant used here dates from April
+It is an in-house construction (author: Dylan), developed since March 2026; the variant used here dates from April
 and is the fifth iteration of a family of related objectives. He has written a detailed account of
 how it works. One of its two parameters is derived rather than tuned --- the threshold separating
 ``event'' from ``quiet'' cells is $\mathrm{asinh}(1) \approx 0.88$, exactly one fatality on the
