@@ -16,25 +16,28 @@ Section~\ref{sec:architectures}.
 \renewcommand{\arraystretch}{1.2}
 \caption{The nine delivered models.}
 \label{tab:models}
-\begin{tabular}{@{}p{3.4cm}p{1.9cm}p{2.1cm}p{3.0cm}p{2.0cm}@{}}
+\begin{tabular}{@{}p{3.2cm}p{1.8cm}p{2.0cm}p{2.8cm}p{1.9cm}p{2.1cm}@{}}
 \toprule
-\textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors} & \textbf{HP~config} \\ \midrule
-dark_river       & N-BEATS & MSE       & Outcomes only   & \cfg{dark_river} \\
-old_rules        & N-BEATS & Spotlight & Outcomes only   & \cfg{old_rules} \\
-blue_ocean       & N-BEATS & Spotlight & + 69 covariates & \cfg{blue_ocean} \\ \addlinespace
-silent_fox       & TSMixer & MSE       & Outcomes only   & \cfg{silent_fox} \\
-dancing_monkey   & TSMixer & Spotlight & Outcomes only   & \cfg{dancing_monkey} \\
-brave_heart      & TSMixer & Spotlight & + 69 covariates & \cfg{brave_heart} \\ \addlinespace
-red_hawk         & TiDE    & MSE       & Outcomes only   & \cfg{red_hawk} \\
-dark_necessities & TiDE    & Spotlight & Outcomes only   & \cfg{dark_necessities} \\
-golden_eagle     & TiDE    & Spotlight & + 69 covariates & \cfg{golden_eagle} \\
+\textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors}
+  & \textbf{HP~config} & \textbf{Features} \\ \midrule
+dark_river       & N-BEATS & MSE       & Outcomes only   & \cfg{dark_river}       & \qs{dark_river} \\
+old_rules        & N-BEATS & Spotlight & Outcomes only   & \cfg{old_rules}        & \qs{old_rules} \\
+blue_ocean       & N-BEATS & Spotlight & + 69 covariates & \cfg{blue_ocean}       & \qs{blue_ocean} \\ \addlinespace
+silent_fox       & TSMixer & MSE       & Outcomes only   & \cfg{silent_fox}       & \qs{silent_fox} \\
+dancing_monkey   & TSMixer & Spotlight & Outcomes only   & \cfg{dancing_monkey}   & \qs{dancing_monkey} \\
+brave_heart      & TSMixer & Spotlight & + 69 covariates & \cfg{brave_heart}      & \qs{brave_heart} \\ \addlinespace
+red_hawk         & TiDE    & MSE       & Outcomes only   & \cfg{red_hawk}         & \qs{red_hawk} \\
+dark_necessities & TiDE    & Spotlight & Outcomes only   & \cfg{dark_necessities} & \qs{dark_necessities} \\
+golden_eagle     & TiDE    & Spotlight & + 69 covariates & \cfg{golden_eagle}     & \qs{golden_eagle} \\
 \bottomrule
 \end{tabular}
 \end{table}
 \endgroup
 
-\noindent The \textbf{HP~config} links open each model's hyperparameter configuration file on
-GitHub, fixed at the delivery commit on the title page.
+\noindent The link columns open each model's configuration files on GitHub, fixed at the delivery
+commit on the title page: \textbf{HP~config} is \texttt{config\_hyperparameters.py}, which sets the
+architecture, the loss and the training schedule; \textbf{Features} is
+\texttt{config\_queryset.py}, which declares the predictors the model was given.
 
 The names are arbitrary labels, assigned according to the \texttt{adjective\_noun} convention
 used across views-models, and carry no meaning.

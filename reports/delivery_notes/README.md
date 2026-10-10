@@ -203,10 +203,14 @@ and their build artefacts are committed; we should not copy that.
 
 ## Linking to configurations
 
-`\cfg{model_name}` renders a model name as a link to its
-`configs/config_hyperparameters.py` on GitHub, pinned to `\deliverysha`. It lets a table of models
-double as an index into the exact configuration each one was run from, which is the question a
-reader has after seeing that two models differ in one setting.
+`\cfg{model_name}` and `\qs{model_name}` render the word *link*, pointing at a model's
+`configs/config_hyperparameters.py` and `configs/config_queryset.py` on GitHub, pinned to
+`\deliverysha`. They let a table of models double as an index into the exact configuration each
+one was run from — the question a reader has after seeing that two models differ in one setting.
+
+Give them their own columns rather than hyperlinking the model names. A linked name is not
+discoverable as a link by a reader who is not looking for one, and the people who click these are
+not the people the note is addressed to.
 
 Two things to know. Underscores in model names are mathematics to LaTeX, so wrap any table using
 `\cfg` in a group that makes them ordinary:
