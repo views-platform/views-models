@@ -42,14 +42,6 @@ detection did not run. So re-running these nine models at these versions would r
 method, and would not guarantee reproducing the numbers, because the underlying observations may
 have been revised in the meantime. Worth knowing before anyone treats a re-run as a check.
 
-\textbf{Column naming.} These files use the canonical target names,
-\texttt{pred\_lr\_ged\_sb} and its two siblings. The September delivery used
-\texttt{pred\_lr\_sb\_best} instead, so the two are not directly comparable without a rename.
-Renaming either set takes minutes and needs no re-run.
-
-\textbf{Comparison with the September delivery.} You were sent three variants per model then --- a
-mean, a 95th percentile and a conditional mean --- each computed from that model family's
-predictive distribution. These nine have no distribution, so only the mean has an equivalent here.
-If the evaluation work has been built on one of the other two, the two deliveries are not
-like-for-like. A correction while I am here: my September note said the full distributions had been
-retained so alternative summaries could be produced without re-running. They were not kept.
+\textbf{A correction to my September note.} It said the full predictive distributions had been
+retained, so alternative summaries could be produced from those models without re-running them.
+They were not kept.

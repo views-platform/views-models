@@ -1,4 +1,6 @@
-\textbf{One folder per model.} Inside each: thirteen Parquet files, \texttt{\dots\_00} through
+\textbf{One folder per model.} Inside each: thirteen Parquet files --- a columnar table format
+that opens in one call from both Python (\texttt{pandas.read\_parquet}) and R
+(\texttt{arrow::read\_parquet}) --- named \texttt{\dots\_00} through
 \texttt{\dots\_12}, and a short text file recording when the model ran, which version of the
 software produced it, and which configuration it used.
 

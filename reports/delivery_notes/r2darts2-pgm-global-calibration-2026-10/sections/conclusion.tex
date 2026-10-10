@@ -1,0 +1,26 @@
+The delivery is complete and the files are ready to be evaluated. Three things would help, and
+each is quick.
+
+\begin{enumerate}
+    \item \textbf{Which column naming should the evaluation use?} These files use
+          \texttt{pred\_lr\_ged\_sb} and its two siblings; the September delivery used
+          \texttt{pred\_lr\_sb\_best}. Renaming either set takes minutes and needs no re-run, but
+          somebody has to say which convention the evaluation code expects.
+    \item \textbf{Which of the three September variants has the evaluation been built on?} You
+          were sent a mean, a 95th percentile and a conditional mean, each computed from that
+          model family's predictive distribution. These nine have no distribution, so only the
+          mean has an equivalent here. If the work rests on one of the other two, the two
+          deliveries are not comparable and it is better to know before they are placed side by
+          side.
+    \item \textbf{Can someone establish whether December 2021, cell 148759 is a real event or a
+          data error?} At 113,395 fatalities against a next-largest of 5,395 it will dominate any
+          squared-error metric computed over the final origin, and the answer changes how that
+          origin should be handled.
+\end{enumerate}
+
+\noindent Two further items are open on our side rather than yours. The transform these models
+were fitted on has never been examined; the starting points are collected in views-models
+issue~\#548. And the objective six of the nine were trained on has no tests and no derivation, as
+Section~\ref{sec:losses} sets out; producing those sits with its author.
+
+Questions about the data, the models or anything in this note come to me.

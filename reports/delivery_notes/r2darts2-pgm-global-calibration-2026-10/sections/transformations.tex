@@ -11,8 +11,14 @@ of observed cell-months in this window are exactly zero.
 sees it and the standardisation is undone on the way out. This is what returns a cell's own level
 and scale after the pooling described in Section~\ref{sec:models} \citep{kim2022revin}.
 
-\noindent Both inversions happen before the delivered files are written, so \textbf{every column in
-this delivery is on the original count scale} and no back-transformation should be applied to it.
+\noindent Both inversions happen before the delivered files are written, so \textbf{every column
+in this delivery is intended to be on the original count scale} and no back-transformation should
+be applied to it.
+
+That is an intention supported by a check rather than a proof. The largest delivered value is a few
+hundred fatalities, which is plausible as a count and absurd on the transformed scale, and the
+totals are the same order of magnitude as the observed field. Nothing in the delivery verifies the
+inversion formally.
 
 \subsection*{Implications for Interpretation}
 
