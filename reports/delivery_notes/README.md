@@ -323,8 +323,73 @@ check their own arithmetic against. Guarded in
 `tests/test_delivery_note_is_readable.py`.
 
 **WET:** `bundle/` lives in the delivery it was written for, not in
-`_template/`. Trigger for promoting it: the second delivery that ships a data
-bundle.
+`_template/`. The trigger was "the second delivery that ships a data bundle",
+and the second one arrived in October 2026 --- `hydranet-pgm-global-calibration-2026-09`
+--- and it was **declined**, which a recorded trigger is allowed to be only in
+writing. The reason: the two bundles are not the same shape. The darts bundle
+is `<model>/parquet/` with a per-model `MANIFEST`; the HydraNet one is
+`<model>/<frame>/` with three frames, no manifest at all, and a verification
+notebook the darts bundle does not have. The column names differ. Promoting now
+produces one script with a per-delivery configuration block for each of those,
+sitting on the path of every later delivery, which is the abstraction the WET
+rule exists to defer. Two copies that are understood beat one that is guessed.
+
+**New trigger: a third data bundle, or a second bundle that shares the
+`<model>/parquet/` layout.** At that point the shared part is the measurement
+loop, the locale-safe formatting and the refusal set, and the varying part is
+small enough to be an argument rather than a configuration block.
+
+## The second note, and what the first one's guards could not see
+
+`hydranet-pgm-global-calibration-2026-09` / `36172716` is the second note. It
+documents a delivery that went out in September with a hand-written README and
+no note, which is deviation 3 above arriving in practice rather than in theory.
+
+Writing it produced one finding worth keeping, because it applies to any note
+whose prose is guarded by tests. **Keyword presence is not a guard.** The first
+version of `tests/test_hydranet_delivery_note.py` asserted that words were
+present --- "not reproducible", "confounded", "overlap". A mutation audit in a
+clean-context subagent kept every one of those words and inverted the sentence
+around it: *"The contrast is confounded: not really --- the two share a seed"*
+passed, as did prose instructing the reader to stack the origins, to infer the
+column convention from the schema, and to read a row count as a count of
+distinct cell-months. Thirteen of fifteen guards fell to that one move.
+
+Guards on prose therefore pin **the whole claim**, whitespace-normalised so it
+matches across LaTeX line wrapping, including the `\textbf{}` that makes a
+sentence a claim rather than an aside. Numbers are pinned individually,
+including the ones in the surrounding prose rather than only those in the
+table --- the prose figures are the ones a reader quotes.
+
+Three further traps the same audit found, all of them the test agreeing with
+the code rather than checking it:
+
+- **A circular identity check.** The test compared the generated README's
+  checksum against `main.tex`, and so did the generator. A checksum that did
+  not match the specification passed both. It now recomputes with
+  `checksum.py`. A separate guard does the same for the note alone, because
+  nothing in `build.sh` runs it --- despite `main.tex` and this file both
+  saying it does, which remains untrue.
+- **A label the test followed.** `\label{sec:files}` could be moved to another
+  section and the test, which located the label and counted to it, agreed.
+  Labels are now checked against their section titles.
+- **A cleanup with no scenario.** `rm -f SHA256SUMS.txt` exists for a folder
+  being re-assembled, and no fixture planted one, so removing the line changed
+  nothing.
+
+And one defect that was a real bug rather than a weak test: the packing-list
+template carried the model count and the per-frame file count as **prose**, so
+a two-model fixture generated a README announcing eight models. Anything a
+packing list states about the data is a token or it is a lie waiting for the
+next delivery.
+
+**What these guards still cannot do, stated so they are not trusted past it:**
+they catch drift --- a claim reworded, softened, renumbered or deleted --- and
+not sabotage. Someone who keeps a guarded sentence and writes "that is no
+longer true" beside it passes all of them. A question in Next Steps phrased
+without a question mark also passes. Both were left unfixed deliberately:
+detecting them needs a test that reads for meaning, and the guard count is
+already on the path of every later edit to these notes.
 
 ## Writing for this recipient
 
