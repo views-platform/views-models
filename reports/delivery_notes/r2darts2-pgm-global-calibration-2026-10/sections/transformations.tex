@@ -45,14 +45,36 @@ $x=100$. What distinguishes \texttt{asinh} is its symmetric treatment of negativ
 fatality counts have none. Any claim that the choice between them matters materially here would
 need evidence, and none is offered in this delivery.
 
+\textbf{The transform is under active criticism in applied econometrics.} Elasticities estimated
+from inverse-hyperbolic-sine-transformed regressions depend on the units of the dependent variable
+(Bellemare and Wichman, 2020), and where there is a mass at zero the magnitude of an estimated
+effect on any log-like transform, \texttt{asinh} included, can be altered arbitrarily by rescaling
+the outcome (Chen and Roth, 2024). That literature concerns the interpretation of coefficients in
+causal inference rather than prediction followed by inversion, and whether it carries over with
+equal force to a forecasting setting is an open question rather than a settled objection. It is
+named here because it is recent, prominent, and not addressed anywhere in this delivery.
+
+\begin{quote}
+\small
+Bellemare, M.~F. \& Wichman, C.~J. (2020), \textit{Elasticities and the Inverse Hyperbolic Sine
+Transformation}, Oxford Bulletin of Economics and Statistics 82(1), 50--61. \\
+Chen, J. \& Roth, J. (2024), \textit{Logs with Zeros? Some Problems and Solutions}, Quarterly
+Journal of Economics 139(2), 891--936. \\
+Duan, N. (1983), \textit{Smearing Estimate: A Nonparametric Retransformation Method}, Journal of
+the American Statistical Association 78(383), 605--610.
+\end{quote}
+
 \textbf{The transform acts weakly where the data actually is.} $\mathrm{asinh}(1) = 0.88$ and
 $\mathrm{asinh}(2) = 1.44$: close to linear across the small counts where nearly all non-zero mass
 sits. Compression engages only in the tail. On a field that is 99.6\% zero, ``a variance-stabilising
 transform was applied'' claims less than it may appear to.
 
-\textbf{Inverting a point estimate is biased low, and these models deliver point estimates.} A
-model fitted to minimise error on a transformed scale estimates the transformed quantity; applying
-a convex inverse to that estimate does not recover the conditional mean. Collapsing draws in count
+\textbf{Inverting a point estimate is biased, and these models deliver point estimates.} A model
+fitted to minimise error on a transformed scale estimates the transformed quantity; applying a
+nonlinear inverse to that estimate does not recover the conditional mean. This is long settled and
+not specific to \texttt{asinh} --- Duan (1983) sets out the general problem and a nonparametric
+correction for it --- but it applies here, and the inverse of \texttt{asinh} is convex over the
+positive range, so the bias is downward. Collapsing draws in count
 space avoids this, but there are no draws here --- all nine models produce a single value per cell
 (Section~\ref{sec:caveats}), so the inverse is necessarily applied to a point. The mechanism is
 therefore present by construction. Its magnitude depends on the conditional dispersion and has not
