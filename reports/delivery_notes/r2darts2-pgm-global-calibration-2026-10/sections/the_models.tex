@@ -58,48 +58,56 @@ single setting. Across blocks the architecture changes and the comparison is a d
           models: the third row of each block.
 \end{itemize}
 
-\subsection*{How the Covariates Are Conditioned}
+\subsection*{Where the Covariates Come From, and Who Accounts for Them}
 
-Three things happen to a covariate between the data store and the model. Only the last is ours.
+A covariate crosses one boundary on its way to a model, and the two sides of that boundary are not
+documented to the same standard.
 
-\textbf{Spatial handling.} Nothing arrives natively on the PRIO-GRID. Population and built-up
-surface are aggregated by summing $60\times60$ source raster pixels per cell; V-Dem and SHDI are
-attached to cells by polygon-to-centroid spatial joins. The source documentation describes these as
-opinionated decisions rather than mechanical transforms, and they are not reversible from the
-delivered data.
+\textbf{Up to the datafactory: governed, and documented there.} Everything done to a covariate
+inside the datafactory is a deliberate design decision with a written record behind it, taken
+within an explicitly defined remit. Annual sources are extended across their twelve months by
+per-source rules; values outside a source's observed range are manufactured --- zero before the
+first observation, the last value held after it; missing coverage is zero-filled rather than
+null-filled; spatial handling attaches raster and polygon sources to grid cells by aggregation and
+spatial join. Feature engineering is deliberately \emph{excluded}: no lags, decay functions, ratios
+or derived indices, because cross-feature derivation is assigned to the model layer by design.
 
-\textbf{Temporal handling.} There is no feature engineering --- no lags, decay functions, ratios or
-derived indices; the datafactory places cross-feature derivation in the model layer by design
-(ADR-014 §6). But the series are not left as-is either. Annually observed quantities are extended
-across their twelve months, by one of two per-source rules (ADR-014 §5): V-Dem and SHDI hold the
-annual value flat; population and built-up surface interpolate linearly between five-yearly epochs.
-Outside a source's observed range, values are \emph{manufactured}: zero before the first
-observation, and the last observation held constant after it (ADR-052). Where a source's coverage
-is narrower than the grid, the gap is filled with zeros rather than nulls, deliberately, because
-consumers assume float arrays without missing-value handling (ADR-047). SHDI is the one exception:
-cells its source never covered keep a null (ADR-042).
+None of that is a shortcoming, and this note does not restate the reasoning. Each decision has its
+own architecture decision record in the datafactory repository --- ADR-014 for the interpolation
+policy and the responsibility boundary, ADR-052 for the held-value extrapolation, ADR-047 for
+zero-fill over null-fill, ADR-042 for the one exception --- alongside a per-source documentation
+card. That is the authoritative account; read it there rather than here.
 
-\textbf{In the model configuration.} All 72 columns --- the three outcomes and all 69 covariates
---- then pass through an \texttt{asinh} transform before training, declared in each model's
-hyperparameter configuration (linked in Table~\ref{tab:models}). The transform is inverted for the
-outcomes, which is why the delivered forecasts are in counts.
+\textbf{After the datafactory: not accounted for anywhere I can point to.} What happens to a
+covariate once it has been fetched is decided in the model configuration, and has no equivalent
+record. For these nine, two such decisions: which covariates each model is given, and the
+\texttt{asinh} transform applied to all 72 columns --- the three outcomes and all 69 covariates
+alike --- before training. Both are visible in the configuration files linked in
+Table~\ref{tab:models}. Neither has a decision record, a review, or a written rationale.
 
-\subsection*{A Consequence Worth Knowing Before Using the Covariate Models}
+That is the missing link, and it is worth naming plainly: the datafactory documents and governs
+everything within its remit, and the choices made downstream of it are not governed by anything I
+can identify. \textbf{Whether those downstream choices are appropriate --- the transform, the
+covariate selection --- is not something this note establishes, and it is not this note's
+responsibility to establish it.} It is recorded here so that someone evaluating these models knows
+what the models were given.
 
-The zero-fill rule above has a specific effect on this delivery, and it is not visible in the data:
-\textbf{a manufactured zero is indistinguishable from an observed zero.}
+\subsection*{One Consequence: The ACLED Covariates Were Zero Throughout Training}
 
-The store publishes the real observation window per source. Checked against this delivery's
-partition:
+One case is concrete enough to state rather than leave to the reader, and it sits on the
+\emph{modelling} side of that boundary.
+
+The datafactory publishes, per source, the window in which observations are real; anything outside
+it is manufactured. For ACLED that window begins in \textbf{January 2020}. These models train on
+months 121--456, \textbf{January 1990 to December 2017}.
 
 \begin{table}[h!]
 \centering
 \small
 \renewcommand{\arraystretch}{1.2}
-\caption{Source coverage against the calibration partition. Months outside a source's observed
-window are manufactured, not measured.}
+\caption{Source coverage against this delivery's partition.}
 \label{tab:coverage}
-\begin{tabular}{@{}p{3.4cm}p{3.6cm}p{3.6cm}p{3.4cm}@{}}
+\begin{tabular}{@{}p{3.6cm}p{3.2cm}p{3.8cm}p{3.2cm}@{}}
 \toprule
 \textbf{Source} & \textbf{Observed from} & \textbf{In training (1990--2017)} & \textbf{In test (2018--2021)} \\ \midrule
 ACLED (7 covariates) & January 2020 & \textbf{none --- all zeros} & real from January 2020 \\
@@ -111,24 +119,19 @@ Built-up surface     & January 1989 & real & real \\
 \end{tabular}
 \end{table}
 
-\noindent \textbf{The seven ACLED covariates were identically zero throughout training.} They carry
-no information for any month the three covariate-using models were fitted on, and then become
-non-zero partway through the forecast window. A feature that is constant in training and varies in
-test is not merely uninformative --- the model has learned that it is always zero.
+\noindent So the seven ACLED covariates were identically zero for every month these models were
+fitted on, and become non-zero partway through the forecast window. A feature that is constant in
+training and varies in test is worse than an absent one: the model has learned that it is always
+zero. And because missing coverage is filled with zeros by design, a manufactured zero cannot be
+told from an observed zero by looking at the data.
 
-This affects \texttt{blue\_ocean}, \texttt{brave\_heart} and \texttt{golden\_eagle} only. The six
-outcomes-only models do not use covariates at all. The other four sources cover the whole partition.
+\textbf{This is not a datafactory defect.} The coverage bounds are published precisely so that
+manufactured values are identifiable, and they were available at the time these models were
+configured. The gap is that nothing on the modelling side checked them against the training window
+--- which is the same missing link as above, in a form that happens to be measurable.
 
-\textbf{What this note does not address.} Whether any of this conditioning is appropriate --- the
-fill rules, the zero-for-missing convention, the spatial joins, the \texttt{asinh} transform, or
-the treatment of annual variables at monthly resolution --- is outside the scope of a delivery
-note. Nothing here endorses those choices and nothing here has examined them. They are recorded so
-that someone evaluating these models knows what the models were given. Two limitations of the
-record itself are worth stating: provenance is held per \emph{source}, not per covariate, so
-reconstructing what happened to any one of the 69 means assembling it from the source mapping, the
-relevant ADR and the run ledger; and the population and built-up-surface series include projected
-rather than measured epochs at recent dates, delivered identically to measured ones --- beyond this
-partition's end, but worth knowing if the window is ever extended.
+It affects \texttt{blue\_ocean}, \texttt{brave\_heart} and \texttt{golden\_eagle} only. The other
+four sources cover the whole partition, and the six outcomes-only models use no covariates at all.
 
 Note that the two splits are not the same split. Six models are outcomes-only and six use the
 Spotlight loss, but they are different sixes: \texttt{blue\_ocean}, \texttt{brave\_heart} and
