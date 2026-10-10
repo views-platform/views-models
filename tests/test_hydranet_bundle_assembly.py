@@ -53,8 +53,12 @@ def _write_bundle(
             out.mkdir(parents=True)
             for i in range(origins):
                 table = pa.table({c: list(range(ROWS)) for c in columns})
+                # A timestamp the real delivery does not use, so a sample
+                # filename hard-coded from the real delivery is not a file
+                # that exists here. Without that, the guard below cannot tell
+                # a discovered filename from a typed one.
                 pq.write_table(
-                    table, out / f"predictions_calibration_20260928_201214_{i:02d}.parquet"
+                    table, out / f"predictions_calibration_20260101_000000_{i:02d}.parquet"
                 )
     if notebook:
         (root / "audit_selector_frames.ipynb").write_text("{}", encoding="utf-8")
