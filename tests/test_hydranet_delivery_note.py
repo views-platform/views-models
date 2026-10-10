@@ -115,7 +115,53 @@ def test_the_horizon_figures_are_the_measured_ones():
     assert "falls by 45\\%" in text, "the step-1-to-5 fall is missing or changed"
     assert "a spread of 7.8\\%" in text, "the plateau spread is missing or changed"
     assert "thirty-one of the thirty-six months delivered" in text
-    assert "reading month 30 as a forecast is a misuse of the file" in text
+
+
+def test_the_note_separates_a_settled_total_from_a_frozen_field():
+    """The correction that cost this section a rewrite.
+
+    An earlier draft said the models emit "close to a constant field" after
+    five steps and that reading month 30 as a forecast is a misuse. The total
+    does settle; the field does not. Roughly 93% of the predicted mass
+    relocates between consecutive months, as much at month 36 as at month 2. A
+    statistician who opens two consecutive months sees that immediately, so
+    the stronger claim costs the note credibility on a point it does not need.
+    """
+    text = _flat("magnitude_and_horizon.tex")
+    assert "\\textbf{What settles is the total, not the field.}" in text
+    assert "0.93" in text and "0.94" in text, "the churn figures are missing"
+    assert "A frozen field would read 0." in text
+    assert "So the forecasts do not go flat." in text
+    # The claims the measurement does not support must stay out.
+    assert "close to a constant field" not in text
+    assert "misuse" not in text, "the note has reacquired the unsupported misuse claim"
+    # And the caution that replaced it rests on the right thing.
+    assert "nothing in this delivery has been scored at any" in text
+    assert "untested rather than disproven" in text
+
+
+def test_the_note_does_not_offer_frame_iii_as_a_conversion_factor():
+    """q95/mean is stable across models; the conditional mean is not.
+
+    Pooled, both land near five. Per model and target, frame II sits in
+    4.25-4.91 and frame III in 2.88-11.62. A reader who scales one model's
+    mean by the pooled 4.75 can be out by a factor of two either way.
+    """
+    text = _flat("magnitude_and_horizon.tex")
+    assert "2.88 to 11.62" in text, "frame III's spread across models is missing"
+    assert "between 4.25 and 4.91" in text, "frame II's stability is missing"
+    assert "should not be used as a conversion factor" in text
+
+
+def test_the_shared_support_is_given_its_mechanism():
+    """Three estimators agreeing exactly reads as a coincidence without it.
+
+    They collapse the same draw set, and a cell with no positive draws gives
+    zero under all three.
+    """
+    text = _flat("magnitude_and_horizon.tex")
+    assert "all three estimators collapse the \\emph{same} draw set" in text
+    assert "no positive draws among its sixteen" in text
 
 
 def test_the_magnitude_section_states_it_is_not_an_evaluation():

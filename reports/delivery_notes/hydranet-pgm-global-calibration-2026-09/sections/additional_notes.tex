@@ -28,12 +28,21 @@ store at run time. A re-run from the same commit against a later state of that s
 different numbers without anything in the configuration having changed. What is fixed is this
 delivery, by its identifier and checksum.
 
-\textbf{The horizon behaviour has a mechanism, and it is the gate.} The gate probability decays
-with forecast step --- roughly thirtyfold by month 36, in all eight models --- and that decay is
-what flattens the field after about five steps. It is not caused by the choice of regression loss;
-substituting the loss was tried and changed the decay very little. The predicted magnitude
-conditional on firing is comparatively stable; what fades is the model's willingness to fire at
-all.
+\textbf{The settling of the total has a mechanism, and it is the gate.} The gate probability
+decays with forecast step --- roughly thirtyfold by month 36, in all eight models --- and that
+decay is what brings the predicted total down over the first five steps and holds it there. It is
+not caused by the choice of regression loss; substituting the loss was tried and changed the decay
+very little. The predicted magnitude conditional on firing is comparatively stable; what fades is
+the model's willingness to fire at all. This explains the level, not the movement: the field itself
+goes on relocating at full amplitude to month 36 (Section~\ref{sec:magnitude}).
+
+\textbf{\texttt{heavy\_freighter} is unlike the other seven on every measure taken for this
+note, and nothing here explains why.} It has the highest magnitude, the shallowest decay in total
+over the horizon, and the only step-to-step field movement above 1.0 --- meaning more than the
+whole field's mass relocates between consecutive months, where the other seven sit between 0.67 and
+0.98. It is also the only one trained with scheduled sampling, and the only one that was the
+original global template, and those two facts do not jointly single it out in the way the
+measurements do. Flagged as unexplained rather than attributed.
 
 \textbf{One comparison in the set looks controlled and is not.} The models
 \texttt{heavy\_freighter} and \texttt{bright\_starship} share a body family and a composition

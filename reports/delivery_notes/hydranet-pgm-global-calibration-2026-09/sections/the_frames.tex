@@ -56,7 +56,9 @@ percentile nor the conditional mean is implemented anywhere in views-models; bot
 once, in an ad-hoc step, and the posterior draws they were computed from are not on any machine we
 still have. The draws were written and compressed on the rented GPUs --- the run manifests record
 13~GB of raw draws per model compressing to roughly 9~MB --- but they were never transferred off,
-and the machines are gone. \textbf{So frames II and III cannot be recomputed, re-derived or
+and the machines are gone. To be exact about the scope of that: the delivered files carry the three
+collapses and nothing else, there is no draw axis anywhere in them, and no draws archive from this
+run exists on any machine we hold. \textbf{So frames II and III cannot be recomputed, re-derived or
 checked against the posterior.} They are what they are: a probe, recorded here as such.
 
 This also corrects a claim made in my own cost memo of 28 September, which stated that the full

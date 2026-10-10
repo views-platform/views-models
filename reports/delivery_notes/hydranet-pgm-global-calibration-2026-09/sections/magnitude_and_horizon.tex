@@ -84,13 +84,23 @@ reason all three were kept. But the per-target columns are the point of the tabl
 Section~\ref{sec:frames}. A single ratio quoted for all three targets would be wrong for two of
 them.
 
+\textbf{And the two estimators are not equally well summarised by a ratio.} Taken per model and
+per target --- twenty-four figures --- frame II sits between 4.25 and 4.91 times frame I, so
+``about $4.6\times$'' describes every one of them. Frame III ranges from \textbf{2.88 to 11.62}
+over the same twenty-four: 2.88 to 6.89 on state-based, 4.19 to 10.71 on non-state, 4.75 to 11.62
+on one-sided. Its pooled 4.75 is an average over a fourfold spread and should not be used as a
+conversion factor for any particular model.
+
 \textbf{All three frames are non-zero on exactly the same rows.} 1,469,004 of the 242,678,592 rows
 in each frame carry a non-zero prediction --- 0.61\%, so 99.4\% of the delivered field is exact
 zeros. Those rows fall on 98,995 distinct cell-months and 6,552 distinct PRIO-GRID cells, a tenth
 of the 64,818 delivered. The three estimators differ in magnitude and never in where conflict is
-predicted; this was verified across all 312 files, not sampled. Note that the figure 1,469,004
-counts \emph{rows}, which means the same cell-month is counted once per model and once per origin;
-it is not a count of distinct cell-months.
+predicted; this was verified across all 312 files, not sampled. It is a property of the
+construction rather than a coincidence: all three estimators collapse the \emph{same} draw set, and
+a cell with no positive draws among its sixteen gives a mean, a 95th percentile and a conditional
+mean that are all zero. Note that the figure 1,469,004 counts \emph{rows}, which means the same
+cell-month is counted once per model and once per origin; it is not a count of distinct
+cell-months.
 
 \subsection*{Horizon: The Field Halves Over Five Steps, Then Stops Changing}
 
@@ -123,20 +133,35 @@ summed over the eight models.
 \end{tabular}
 \end{table}
 
-\noindent \textbf{The informative part of these forecasts is the first few months.} Between step 1
-and step 5 the predicted field falls by 45\%. From step 6 to step 36 --- thirty-one of the
-thirty-six months delivered --- frame I stays between 8,265 and 8,907, a spread of 7.8\% with no
-trend, and the other two frames behave the same way. The models carry little dynamic signal past
-about five months; what they emit after that is close to a constant field.
+\noindent \textbf{The total settles after about five steps.} Between step 1 and step 5 the
+predicted total falls by 45\%. From step 6 to step 36 --- thirty-one of the thirty-six months
+delivered --- frame I stays between 8,265 and 8,907, a spread of 7.8\% with no trend, and the other
+two frames behave the same way.
 
-The practical consequence: \textbf{a difference between two of these models at month 30 is not a
-difference in forecast, and reading month 30 as a forecast is a misuse of the file.} Any use that
-weights the 36 months equally --- including a metric averaged over the horizon --- is dominated by
-steps at which the models are no longer forecasting.
+\textbf{What settles is the total, not the field.} These are different claims and only the first
+one is true, so the distinction is worth making explicitly. Measuring how much of the field moves
+between consecutive forecast steps ---
+$\sum_i |f_i(h) - f_i(h-1)| \,/\, \sum_i f_i(h-1)$, the share of the predicted mass that
+relocates --- gives a median of \textbf{0.93} pooled over the eight models and all thirteen
+origins, and \textbf{0.94} over steps 12 to 36 alone. A frozen field would read 0. Roughly as much
+of the field relocates between month 35 and month 36 as between month 1 and month 2. Per model the
+figure runs from 0.67 to 1.32, and it rises slightly with the horizon rather than falling.
 
-Two things this measurement does not establish. It is the \emph{predicted} total, not a comparison
-to observed, so it says the model stops responding and not that it becomes wrong. And an earlier
-scrutiny of these eight on a smaller region and a shorter training budget found per-step magnitude
-decaying toward zero rather than flattening; that was a different run and this measurement
-supersedes it for these files, but the two are different quantities and neither should be read into
-the other.
+So the forecasts do not go flat. What goes flat is their marginal intensity: after five steps the
+models predict about the same amount of conflict in total, and about the same number of active
+cells, while continuing to move it around the map at full amplitude.
+
+\textbf{What this does not establish, and it is the part that matters.} A field that keeps moving
+is equally consistent with real month-to-month dynamics and with churn around a fixed
+climatological intensity, and this measurement cannot separate the two. It is a property of the
+predictions with no observed values in it. So nothing here licenses either reading --- neither that
+month 30 carries forecast information nor that it does not. The reason to be careful with the long
+horizon is Section~\ref{sec:excluded}: \textbf{nothing in this delivery has been scored at any
+horizon}, and a 36-month forecast whose accuracy has not been measured past month one is untested
+rather than disproven. A metric averaged evenly over the 36 months is still worth treating with
+care, because 31 of those months sit in the regime where the total has stopped changing.
+
+One further thing this does not establish. An earlier scrutiny of these eight, on a smaller region
+and a shorter training budget, found per-step magnitude decaying toward zero rather than settling.
+That was a different run; this measurement is of these files. The two are different quantities and
+neither should be read into the other.
