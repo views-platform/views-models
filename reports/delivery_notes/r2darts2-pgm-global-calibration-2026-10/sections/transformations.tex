@@ -2,18 +2,14 @@ Two transformations are applied between the data and the model, and both are rev
 are used: the configurations declare no logarithm, no min--max or standard scaling, no winsorising
 and no clipping of values.
 
-\textbf{An \texttt{asinh} transform, declared in the model configuration.} All nine models apply it
-to the three outcomes. The three covariate-using models apply it to their inputs as well, so for
-those every one of the 72 columns is transformed. The inverse hyperbolic sine is used rather than a
-logarithm because it is defined at zero, which matters at this resolution: \textbf{99.6\%} of
-observed cell-months in this window are exactly zero. It is set by \texttt{target\_scaler} and \texttt{feature\_scaler\_map} in the
-files linked in Table~\ref{tab:models}, and it is inverted on the model's output before predictions
-are written.
+\textbf{An \texttt{asinh} transform.} All nine models apply it to the three outcomes; the three
+covariate-using models apply it to their inputs as well. The inverse hyperbolic sine is used rather
+than a logarithm because it is defined at zero, which matters at this resolution --- \textbf{99.6\%}
+of observed cell-months in this window are exactly zero.
 
-\textbf{Reversible instance normalisation, inside the network.} Each cell's series is standardised
-before the network sees it and the standardisation is undone on the way out. This is what returns a
-cell's own level and scale after the pooling described in Section~\ref{sec:models}, and it is
-applied by all nine models.
+\textbf{Reversible instance normalisation.} Each cell's series is standardised before the network
+sees it and the standardisation is undone on the way out. This is what returns a cell's own level
+and scale after the pooling described in Section~\ref{sec:models}.
 
 \begin{quote}
 \small
@@ -22,37 +18,30 @@ Normalization for Accurate Time-Series Forecasting against Distribution Shift}, 
 \end{quote}
 
 \noindent Both inversions happen before the delivered files are written, so \textbf{every column in
-this delivery is intended to be on the original count scale} and no back-transformation should be
-applied to it.
+this delivery is on the original count scale} and no back-transformation should be applied to it.
 
-That is an intention supported by a check rather than a proof. The largest delivered value is of
-the order of a few hundred fatalities, which is plausible as a count and would be absurd on the
-transformed scale --- \texttt{asinh} of a few hundred corresponds to a number with over a hundred
-digits. Totals are within the same order of magnitude as the observed field. Nothing in the
-delivery verifies the inversion formally, and the check described in Section~\ref{sec:caveats} is
-the extent of what was done.
+\subsection*{Two Caveats, and Where the Rest Live}
 
-\subsection*{Scope, and Points for Future Examination}
+Whether \texttt{asinh} is a prudent choice here, and what follows from it, are questions this note
+does not answer and is not responsible for answering. Two are worth stating because they bear on
+how the delivered numbers should be read.
 
-Whether \texttt{asinh} is a prudent choice here, what assumptions it imposes, and what follows for
-the delivered numbers are questions this note does not answer and is not responsible for
-answering. It records what was applied. The following are offered to whoever does examine it, and
-are arithmetic or configuration facts rather than findings.
+\textbf{Inverting a point estimate is biased.} A model fitted to minimise error on a transformed
+scale estimates the transformed quantity, and applying a nonlinear inverse to that estimate does
+not recover the conditional mean --- long settled, and not specific to \texttt{asinh} (Duan, 1983).
+Collapsing draws in count space avoids it, but there are no draws here: all nine models produce a
+single value per cell, so the inverse is necessarily applied to a point. The inverse of
+\texttt{asinh} is convex over the positive range, so the bias is downward. Its magnitude for these
+models is unquantified, and whether the delivered totals sit below observed totals is measurable
+without refitting.
 
-\textbf{On this field, \texttt{asinh} is \texttt{log1p} shifted by a constant.} For non-negative
-values the two converge rapidly to a fixed offset of $\ln 2 \approx 0.693$ --- already 0.68 at
-$x=100$. What distinguishes \texttt{asinh} is its symmetric treatment of negative values, and
-fatality counts have none. Any claim that the choice between them matters materially here would
-need evidence, and none is offered in this delivery.
-
-\textbf{The transform is under active criticism in applied econometrics.} Elasticities estimated
-from inverse-hyperbolic-sine-transformed regressions depend on the units of the dependent variable
+\textbf{The transform is under active criticism.} Elasticities estimated from
+inverse-hyperbolic-sine-transformed regressions depend on the units of the dependent variable
 (Bellemare and Wichman, 2020), and where there is a mass at zero the magnitude of an estimated
-effect on any log-like transform, \texttt{asinh} included, can be altered arbitrarily by rescaling
-the outcome (Chen and Roth, 2024). That literature concerns the interpretation of coefficients in
-causal inference rather than prediction followed by inversion, and whether it carries over with
-equal force to a forecasting setting is an open question rather than a settled objection. It is
-named here because it is recent, prominent, and not addressed anywhere in this delivery.
+effect on any log-like transform can be altered arbitrarily by rescaling the outcome (Chen and
+Roth, 2024). That literature concerns the interpretation of coefficients in causal inference rather
+than prediction followed by inversion, so whether it carries over here is an open question rather
+than a settled objection.
 
 \begin{quote}
 \small
@@ -64,43 +53,7 @@ Duan, N. (1983), \textit{Smearing Estimate: A Nonparametric Retransformation Met
 the American Statistical Association 78(383), 605--610.
 \end{quote}
 
-\textbf{The transform acts weakly where the data actually is.} $\mathrm{asinh}(1) = 0.88$ and
-$\mathrm{asinh}(2) = 1.44$: close to linear across the small counts where nearly all non-zero mass
-sits. Compression engages only in the tail. On a field that is 99.6\% zero, ``a variance-stabilising
-transform was applied'' claims less than it may appear to.
-
-\textbf{Inverting a point estimate is biased, and these models deliver point estimates.} A model
-fitted to minimise error on a transformed scale estimates the transformed quantity; applying a
-nonlinear inverse to that estimate does not recover the conditional mean. This is long settled and
-not specific to \texttt{asinh} --- Duan (1983) sets out the general problem and a nonparametric
-correction for it --- but it applies here, and the inverse of \texttt{asinh} is convex over the
-positive range, so the bias is downward. Collapsing draws in count
-space avoids this, but there are no draws here --- all nine models produce a single value per cell
-(Section~\ref{sec:caveats}), so the inverse is necessarily applied to a point. The mechanism is
-therefore present by construction. Its magnitude depends on the conditional dispersion and has not
-been quantified for these models. Whether the delivered totals are depressed relative to observed
-totals is measurable today, without refitting, and is the first thing worth checking.
-
-\textbf{One failure mode was checked and is absent.} A consumer that applies a hardcoded inverse
-belonging to a different transform --- \texttt{expm1}, assuming \texttt{log1p} --- would return
-silently wrong counts, and this has occurred elsewhere on the platform. Neither the converter that
-produced these files nor the ensemble-construction tool applies any transform; the converter
-refuses to. What remains unverified is the count of inversion sites along the whole path: a value
-inverted twice, or not at all, would not be distinguished by the magnitude check described above,
-because on a sparse field of small counts an un-inverted column looks almost right. A round-trip
-assertion on the delivered columns would settle it.
-
-\textbf{The transform and the objective are coupled.} The Spotlight threshold separating event from
-quiet cells is defined \emph{on the transformed scale}, at $\mathrm{asinh}(1) \approx 0.88$.
-Changing the transform would silently change what that threshold means; the two cannot be
-reconsidered independently.
-
-\textbf{A different choice was made elsewhere on the same data, and reasoned.} Another model family
-on this platform uses \texttt{log1p} throughout and, for count-likelihood heads, rejects
-\texttt{asinh} at configuration load rather than permitting it. The reasoning is recorded in that
-repository (ADR-067, and C-198 in its risk register) and is the natural starting point for anyone
-examining this one. No head-to-head comparison of the two transforms has been run on either side.
-
-\noindent One risk does \emph{not} apply here. Repeated inversion can amplify modest drift into
-implausible counts where forecasts are fed back as inputs; these models forecast all 36 months
-directly in a single pass rather than recursively, so that path does not arise.
+\noindent A fuller set of starting points --- including how closely \texttt{asinh} resembles
+\texttt{log1p} on non-negative counts, how the transform interacts with the Spotlight objective,
+and what remains unverified about the inversion itself --- is collected in views-models issue
+\textbf{\#548}, so that it reaches whoever examines it rather than sitting in a delivery note.
