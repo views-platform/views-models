@@ -51,14 +51,25 @@ R
 
 CHECKING THAT THE DOWNLOAD IS COMPLETE
 ------------------------------------------------------------------------
-SHA256SUMS.txt lists every file in this delivery with its checksum. To
-verify a downloaded copy, run this from the top of the folder:
+SHA256SUMS.txt lists every file in this delivery with its checksum. Run
+one of these from the top of the folder:
 
-  sha256sum -c SHA256SUMS.txt
+  Linux            sha256sum -c SHA256SUMS.txt
+  macOS            shasum -a 256 -c SHA256SUMS.txt
+  Windows          Get-FileHash on each file, or use the Python below
 
-Any file that is missing or arrived truncated is reported by name. An
-upload of this size can lose a file without saying so; this is how you
-find out that it did.
+  Python, anywhere
+    import hashlib, pathlib
+    for line in pathlib.Path("SHA256SUMS.txt").read_text().splitlines():
+        digest, name = line.split("  ", 1)
+        f = pathlib.Path(name)
+        actual = hashlib.sha256(f.read_bytes()).hexdigest() if f.exists() else None
+        if actual != digest:
+            print("MISSING" if actual is None else "CHANGED", name)
+
+Anything missing or truncated is named. Nothing printed means the copy is
+complete. A transfer of this size can lose a file without reporting it;
+this is how you find out that it did.
 
 
 QUESTIONS
