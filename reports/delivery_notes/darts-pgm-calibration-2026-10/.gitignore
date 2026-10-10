@@ -1,0 +1,15 @@
+# LaTeX build artefacts. The PDF is NOT ignored: a delivery note's PDF
+# is the record of what the recipient was actually sent, and reading
+# the .tex is not the same as reading what was transmitted. Commit the
+# PDF of any note that has gone out.
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.synctex.gz
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk

@@ -1,0 +1,222 @@
+% ============================================================
+% Delivery Note Template --- VIEWS
+% ============================================================
+% A delivery note accompanies a set of data handed to someone outside
+% the team that produced it. It records WHAT was delivered, HOW to read
+% it, and WHAT IS NOT in it. It does not ask the recipient to decide
+% anything --- that is a pre-release note's job.
+%
+% TO USE THIS TEMPLATE:
+%   1. Copy this directory to ../<delivery-id>/ and work there.
+%   2. Fill the six \delivery* macros below. All six are required.
+%   3. Build the \section + \input spine in the DOCUMENT BODY to suit
+%      this delivery. There is no fixed structure --- comment in,
+%      comment out, reorder, rename. A stub exists for each section in
+%      sections/; delete the ones you do not use.
+%   4. Write body prose in sections/*.tex. Those files contain NO
+%      \section commands --- the headings live here, so reordering is a
+%      single-file edit.
+%   5. Build with ./build.sh (three pdflatex passes).
+%
+% Conventions: ../README.md, and the house style guides at
+%   ~/brain/2_projects/fao02/_dev_materials/release_notes/STYLE.md
+%   ~/brain/2_projects/fao02/_dev_materials/prerelease_notes/STYLE.md
+% British spelling. Title Case headings, sentence case bodies.
+% booktabs rules only, no vertical rules, every table captioned and
+% labelled.
+% ============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------
+% LANGUAGE & ENCODING
+% ------------------------------------------------------------
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}        % REQUIRED: OT1 cannot set a, o, edh etc.
+
+% ------------------------------------------------------------
+% TYPOGRAPHY & SPACING
+% ------------------------------------------------------------
+\usepackage{microtype}           % Better kerning and justification
+\usepackage[onehalfspacing]{setspace} % Line spacing
+\usepackage{parskip}             % Paragraph spacing, no indent
+\setlength{\footnotesep}{0.7\baselineskip}
+\usepackage[hang,flushmargin]{footmisc} % Footnotes: no indent
+
+% ------------------------------------------------------------
+% PAGE LAYOUT
+% ------------------------------------------------------------
+\usepackage[a4paper,margin=1in]{geometry} % Clean margins
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{} % clear all fields
+% Head/foot fields are set after the delivery metadata is defined,
+% further down. Inherited \lhead{Maase et al.} / \rhead{\today} removed
+% deliberately: the date must not float on rebuild.
+\renewcommand{\footrulewidth}{0.8pt}
+
+% ------------------------------------------------------------
+% GRAPHICS & TABLES
+% ------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{array}
+% Weighted full-width column: L{w} where the w's across a row sum to the column count.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash\hsize=#1\hsize}X}
+\usepackage{makecell}
+\usepackage[section]{placeins} % Prevent floats before sections
+\usepackage[table]{xcolor}
+
+% ------------------------------------------------------------
+% MATH & SYMBOLS
+% ------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+
+% ------------------------------------------------------------
+% CITATION & QUOTING
+% ------------------------------------------------------------
+\usepackage{csquotes}
+\usepackage{natbib}
+
+% ------------------------------------------------------------
+% HYPERLINKS
+% ------------------------------------------------------------
+\usepackage[hidelinks]{hyperref}
+
+% ------------------------------------------------------------
+% NOTES
+% ------------------------------------------------------------
+\usepackage[colorinlistoftodos]{todonotes}
+
+% ------------------------------------------------------------
+% WATERMARK
+%\usepackage{draftwatermark}
+%\SetWatermarkText{DRAFT}
+%\SetWatermarkScale{7}          % Size of the text (default: 1)
+%\SetWatermarkLightness{0.9}    % 0 = black, 1 = invisible
+
+% ------------------------------------------------------------
+% DELIVERY METADATA --- fill all six
+% ------------------------------------------------------------
+% \deliverydate is deliberately NOT \today. A note is a record of what
+% was sent on a given day; rebuilding it must not restamp it. Set it
+% once, when the delivery goes out, and never touch it again.
+% \deliverysha is the views-models commit the delivery was produced at:
+%   git rev-parse --short HEAD
+
+\newcommand{\deliveryid}{darts-pgm-calibration-2026-10}
+\newcommand{\deliverytitle}{Darts Deep-Learning Models \\ Calibration Forecasts, Global PRIO-GRID Month}
+\newcommand{\deliveryto}{Håvard Hegre}
+\newcommand{\deliveryfrom}{Simon Polichinel von der Maase}
+\newcommand{\deliverydate}{10-10-2026}
+\newcommand{\deliverysha}{b1dcfaa2}
+
+% ------------------------------------------------------------
+% TITLE
+% ------------------------------------------------------------
+\usepackage{titling}
+
+\pretitle{\vspace{2em}\centering\Huge\bfseries}
+\posttitle{\par\vspace{1em}}
+\preauthor{\centering\large}
+\postauthor{\par\vspace{0.5em}}
+\predate{\centering\small}
+\postdate{\par\vspace{2em}}
+
+\title{\deliverytitle}
+\author{\deliveryfrom}
+\date{\deliverydate}
+
+% ------------------------------------------------------------
+% RUNNING HEAD --- the identifier travels on every page, so a loose
+% printed page can still be traced back to the delivery it came from.
+% ------------------------------------------------------------
+\lhead{\deliveryfrom}
+\rhead{\deliverydate}
+\lfoot{PRIO --- VIEWS \quad \texttt{\deliveryid}}
+\rfoot{\thepage}
+
+% ------------------------------------------------------------
+% DOCUMENT STARTS
+% ------------------------------------------------------------
+\begin{document}
+
+% ------------------------------------------------------------
+% TITLE PAGE
+% ------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace{3cm}
+
+    {\Huge \textbf{VIEWS}\par}
+    {\Huge Delivery Note \par}
+    \vspace{0.6cm}
+    {\LARGE \deliverytitle \par}
+    \vspace{1.5cm}
+
+    \noindent\makebox[\textwidth]{\Large\textemdash\quad$\diamond$\quad\textemdash}
+    \vspace{1.5cm}
+
+    \begin{tabular}{@{}r@{\quad}l@{}}
+        \textbf{To}       & \deliveryto   \\
+        \textbf{From}     & \deliveryfrom \\
+        \textbf{Date}     & \deliverydate \\
+        \textbf{Delivery} & \texttt{\deliveryid} \\
+        \textbf{Produced at} & \texttt{views-models@\deliverysha} \\
+    \end{tabular}
+
+    \vspace{1cm}
+    \textit{PRIO -- Oslo}
+
+    \vfill
+    \includegraphics[width=0.25\textwidth]{figures/VIEWS_logo_tagline.png}
+    \hspace{1cm}
+    \includegraphics[width=0.25\textwidth]{figures/PRIO_Logo.png}
+
+    \thispagestyle{empty}
+\end{titlepage}
+
+% ============================================================
+% DOCUMENT BODY
+% ------------------------------------------------------------
+% There is NO fixed structure. Comment in what this delivery needs,
+% comment out the rest, reorder freely. The headings below are
+% suggestions drawn from past deliveries, not a required spine.
+% ============================================================
+
+\section{What These Models Are}
+\input{sections/what_this_is}
+
+\section{The Models}
+\input{sections/the_models}
+
+\section{The Model Types}
+\input{sections/model_types}
+
+\section{The Loss Functions}\label{sec:losses}
+\input{sections/losses}
+
+\section{What Is in the Files}
+\input{sections/the_data}
+
+\section{Handing It On}\label{sec:handover}
+\input{sections/handover}
+
+\section{What Is Not Included}
+\input{sections/not_included}
+
+\section{Additional Notes}\label{sec:additional}
+\input{sections/additional_notes}
+
+% ------------------------------------------------------------
+% BIBLIOGRAPHY --- uncomment ONLY if the note actually cites
+% something, otherwise it renders an empty References section.
+% Add a bibtex pass to build.sh if you enable this.
+% ------------------------------------------------------------
+% \bibliographystyle{apalike}
+% \bibliography{conflict}
+
+\end{document}

@@ -1,0 +1,59 @@
+All three are feed-forward neural networks built from ordinary dense layers. None uses recurrence,
+convolution or attention.
+
+\subsection*{N-BEATS}
+
+A deep stack of fully connected layers with backward and forward residual links. It builds the
+forecast as a sum of learned basis functions, which is what makes it partly interpretable. Designed
+for univariate point forecasting and benchmarked on the M3, M4 and TOURISM competition datasets.
+
+\begin{quote}
+\small
+Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.nbeats.html}%
+{\texttt{NBEATSModel}} \\
+Paper cited there: Oreshkin, B.~N., Carpov, D., Chapados, N. \& Bengio, Y. (2020),
+\textit{N-BEATS: Neural basis expansion analysis for interpretable time series forecasting},
+ICLR 2020. \href{https://arxiv.org/abs/1905.10437}{arXiv:1905.10437}
+\end{quote}
+
+\subsection*{TSMixer}
+
+Dense layers only, applied alternately along the time axis and across the predictor variables, so
+the model mixes temporal structure and cross-variable structure in turn. Built for the multivariate
+case.
+
+\begin{quote}
+\small
+Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tsmixer_model.html}%
+{\texttt{TSMixerModel}} \\
+Paper cited there: Chen, S.-A., Li, C.-L., Yoder, N., Arik, S.~O. \& Pfister, T. (2023),
+\textit{TSMixer: An All-MLP Architecture for Time Series Forecasting}, Transactions on Machine
+Learning Research. \href{https://arxiv.org/abs/2303.06053}{arXiv:2303.06053}
+\end{quote}
+
+\subsection*{TiDE}
+
+An encoder--decoder, again dense layers only. It compresses the history and the predictors into a
+single code, then decodes the whole 36-month path from it in one pass.
+
+\begin{quote}
+\small
+Darts: \href{https://unit8co.github.io/darts/generated_api/darts.models.forecasting.tide_model.html}%
+{\texttt{TiDEModel}} \\
+Paper cited there: Das, A., Kong, W., Leach, A., Mathur, S., Sen, R. \& Yu, R. (2023),
+\textit{Long-term Forecasting with TiDE: Time-series Dense Encoder}.
+\href{https://arxiv.org/abs/2304.08424}{arXiv:2304.08424}
+\end{quote}
+
+\subsection*{One Setting All Nine Share}
+
+All nine use \textbf{reversible instance normalisation}: each cell's series is standardised before
+the network sees it and the transformation is inverted on the way out. The model therefore fits on
+a per-cell normalised scale, while the forecasts you have are in counts.
+
+\begin{quote}
+\small
+Paper cited by Darts for all three models: Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H. \&
+Choo, J. (2022), \textit{Reversible Instance Normalization for Accurate Time-Series Forecasting
+against Distribution Shift}, ICLR 2022.
+\end{quote}

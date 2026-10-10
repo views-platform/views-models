@@ -1,0 +1,50 @@
+\textbf{One folder per model.} Inside each: thirteen Parquet files, \texttt{\dots\_00} through
+\texttt{\dots\_12}, and a short text file recording when the model ran, which version of the
+software produced it, and which configuration it used.
+
+\textbf{The thirteen files are thirteen forecast origins}, stepping forward one month at a time. An
+origin is the last month the model was allowed to see; from there it forecasts the next 36 months.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\caption{The thirteen forecast origins.}
+\label{tab:origins}
+\begin{tabular}{@{}p{3cm}p{4cm}p{5cm}@{}}
+\toprule
+\textbf{File} & \textbf{Last month seen} & \textbf{Months forecast} \\ \midrule
+\texttt{\dots\_00} & December 2017 & January 2018 -- December 2020 \\
+\texttt{\dots\_01} & January 2018  & February 2018 -- January 2021 \\
+\multicolumn{3}{@{}c@{}}{\dots} \\
+\texttt{\dots\_12} & December 2018 & January 2019 -- December 2021 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Within every file the earliest month is horizon 1 and the latest horizon 36, so a given target
+month sits at a different horizon in each file containing it. Metrics computed per origin keep
+those apart; metrics pooled across origins mix them.
+
+\textbf{Each file holds 2,333,448 rows} --- 36 months $\times$ 64,818 cells --- and five columns.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\caption{Columns in every file.}
+\label{tab:columns}
+\begin{tabular}{@{}p{4.5cm}p{9.5cm}@{}}
+\toprule
+\textbf{Column} & \textbf{Contents} \\ \midrule
+\texttt{month\_id}        & Month \\
+\texttt{priogrid\_id}     & Grid cell \\
+\texttt{pred\_lr\_ged\_sb} & Forecast state-based fatalities \\
+\texttt{pred\_lr\_ged\_ns} & Forecast non-state fatalities \\
+\texttt{pred\_lr\_ged\_os} & Forecast one-sided fatalities \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Units are fatality counts, untransformed} --- not logged, not scaled. A value of 2.4 means
+2.4 fatalities. Values are continuous, not integers.
+
+Nine models $\times$ thirteen origins = \textbf{117 files, about 2\,GB} in total.

@@ -1,0 +1,44 @@
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\caption{The nine delivered models.}
+\label{tab:models}
+\begin{tabular}{@{}p{3.6cm}p{2.2cm}p{2.4cm}p{5.2cm}@{}}
+\toprule
+\textbf{Model} & \textbf{Type} & \textbf{Loss} & \textbf{Predictors} \\ \midrule
+\texttt{dark\_river}       & N-BEATS & MSE       & Outcomes only \\
+\texttt{old\_rules}        & N-BEATS & Spotlight & Outcomes only \\
+\texttt{blue\_ocean}       & N-BEATS & Spotlight & + 69 covariates \\ \addlinespace
+\texttt{silent\_fox}       & TSMixer & MSE       & Outcomes only \\
+\texttt{dancing\_monkey}   & TSMixer & Spotlight & Outcomes only \\
+\texttt{brave\_heart}      & TSMixer & Spotlight & + 69 covariates \\ \addlinespace
+\texttt{red\_hawk}         & TiDE    & MSE       & Outcomes only \\
+\texttt{dark\_necessities} & TiDE    & Spotlight & Outcomes only \\
+\texttt{golden\_eagle}     & TiDE    & Spotlight & + 69 covariates \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The names are arbitrary labels and carry no meaning.
+
+\textbf{Within each block of three, exactly two settings vary} --- the loss function, and whether
+the model sees covariates. Everything else is identical: layer widths, depth, training epochs,
+learning rate, early stopping. So inside a block, each row differs from the one above it in a
+single setting. Across blocks the architecture changes and the comparison is a different one.
+
+\begin{itemize}
+    \item \textbf{Outcomes only} --- the model's inputs are the past values of the three outcomes
+          and nothing else. Purely autoregressive. Six models: the first two rows of each block.
+    \item \textbf{+ 69 covariates} --- the same three histories plus 69 predictors: ACLED event and
+          fatality counts, land cover shares, population and built-up area, infant and child
+          mortality, V-Dem governance indices, SHDI development indices, travel time to cities,
+          mineral and petroleum deposits, growing season and harvested area, and terrain. Three
+          models: the third row of each block.
+\end{itemize}
+
+Note that the two splits are not the same split. Six models are outcomes-only and six use the
+Spotlight loss, but they are different sixes: \texttt{blue\_ocean}, \texttt{brave\_heart} and
+\texttt{golden\_eagle} have covariates \textit{and} Spotlight, while \texttt{dark\_river},
+\texttt{silent\_fox} and \texttt{red\_hawk} have neither.
+
+\textbf{There is no model combining MSE with the covariates.} Three configurations exist, not four.
