@@ -101,22 +101,33 @@ page and page furniture read from them — so nothing can drift between two copi
 | `\deliveryauthor` | who wrote the note |
 | `\deliverydate` | **a fixed date, typed by hand** — see below |
 
-**Scope** — what the delivery covers:
+The remaining fields sit in two blocks, and the line between them is a test rather than a
+judgement call:
+
+> **Scope** is what the data *is*. Every field could be written down before anything was run.
+> **Provenance** is what *produced* it. No field exists until it has run.
+
+That is why the model library, the framework and the data backend are all under Provenance even
+though the library also appears in the identifier: they are tools, and a tool is not a property of
+the data. An earlier version split them — library and backend under Scope, framework under
+Provenance — which had no rule behind it and did not read.
+
+**Scope** — what the data is:
 
 | macro | |
 |---|---|
-| `\deliverylibrary` | model library and version, e.g. `views-r2darts2 0.2.4` |
 | `\deliveryloa` | unit of analysis |
 | `\deliveryscope` | spatial extent, with the cell or country count |
 | `\deliveryresolution` | temporal resolution |
 | `\deliverypartition` | partition, with the training and forecast spans in calendar dates |
 | `\deliverytargets` | the outcome variables |
-| `\deliverybackend` | where the input data came from, **with its version**, e.g. `views-datafactory 1.13.0` |
 
-**Provenance** — how it was produced:
+**Provenance** — what produced it:
 
 | macro | |
 |---|---|
+| `\deliverylibrary` | model library and version, e.g. `views-r2darts2 0.2.4` |
+| `\deliverybackend` | where the input data came from, **with its version**, e.g. `views-datafactory 1.13.0` |
 | `\deliveryframework` | the pipeline framework and version, e.g. `views-pipeline-core 3.3.4`. It decides the partitions, the rolling origins and how predictions are saved, so it belongs beside the model library |
 | `\deliverysha` | `git rev-parse --short HEAD` in views-models at delivery time. This pins the exact model configs, runner and converter |
 | `\deliverycompute` | where it was computed — own hardware, a named server, or rented cloud GPUs. Name the thing; do not add what it was *not*, which is implied. Unrecoverable later if not recorded, and it has already mattered: a rented machine's network filesystem once cost a hundred minutes of a run |

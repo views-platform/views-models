@@ -140,7 +140,6 @@
 \newcommand{\deliverytitle}{Nine Deep-Learning Forecast Models}
 \newcommand{\deliveryauthor}{Simon Polichinel von der Maase}
 \newcommand{\deliverydate}{10-10-2026}
-
 % --- what the delivery covers -------------------------------
 \newcommand{\deliverylibrary}{views-r2darts2 0.2.4, wrapping Darts (\texttt{unit8co/darts})}
 \newcommand{\deliveryloa}{PRIO-GRID cell (\texttt{pgm})}
@@ -149,12 +148,10 @@
 \newcommand{\deliverypartition}{Calibration --- trained Jan 1990 to Dec 2017, forecasting Jan 2018 to Dec 2021}
 \newcommand{\deliverybackend}{views-datafactory 1.13.0}
 \newcommand{\deliverytargets}{State-based, non-state and one-sided fatalities}
-
 % --- how it was produced ------------------------------------
 \newcommand{\deliveryframework}{views-pipeline-core 3.3.4}
 \newcommand{\deliverysha}{75cb68a7}
 \newcommand{\deliverycompute}{Rented cloud GPUs (RunPod)}
-
 % ------------------------------------------------------------
 % TITLE
 % ------------------------------------------------------------
@@ -206,16 +203,16 @@
         \textbf{Checksum}    & \texttt{\deliverychecksum} \\[0.35em]
         \textbf{Date}        & \deliverydate \\
         \textbf{Author}      & \deliveryauthor \\[0.9em]
-        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}}} \\[0.2em]
-        \textbf{Model library}      & \deliverylibrary \\
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Scope}} \quad\small\textit{what the data is}} \\[0.2em]
         \textbf{Unit of analysis}   & \deliveryloa \\
         \textbf{Spatial scope}      & \deliveryscope \\
         \textbf{Temporal resolution}& \deliveryresolution \\
         \textbf{Partition}          & \deliverypartition \\
-        \textbf{Targets}            & \deliverytargets \\
-        \textbf{Data backend}       & \deliverybackend \\[0.9em]
-        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}}} \\[0.2em]
+        \textbf{Targets}            & \deliverytargets \\[0.9em]
+        \multicolumn{2}{@{}l@{}}{\textbf{\textit{Provenance}} \quad\small\textit{what produced it}} \\[0.2em]
+        \textbf{Model library}      & \deliverylibrary \\
         \textbf{Framework}          & \deliveryframework \\
+        \textbf{Data backend}       & \deliverybackend \\
         \textbf{Source commit}      & \texttt{views-models@\deliverysha} \\
         \textbf{Computed on}        & \deliverycompute \\
     \end{tabular}
