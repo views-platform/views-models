@@ -3,8 +3,11 @@ library \textbf{Darts} (\texttt{unit8co/darts}). The architectures are the libra
 each is a published model used as Darts implements it. What we supply is the data, the
 configuration, and for six of the nine a loss function of our own (Section~\ref{sec:losses}).
 
-They are \textit{global} models in the forecasting sense: one model is fitted across all grid cells
-at once, rather than one model per cell.
+They are \textit{global} models in the forecasting sense: a single set of parameters is pooled
+across all 64,818 cells. The closest familiar analogue is a pooled panel estimator --- a cell with
+almost no conflict history is still forecast using structure learned from the whole grid. Each
+cell's own level and scale are restored separately, by the normalisation described in
+Section~\ref{sec:architectures}.
 
 \begin{table}[h!]
 \centering
