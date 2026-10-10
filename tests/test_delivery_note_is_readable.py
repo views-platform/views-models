@@ -168,3 +168,18 @@ def test_the_note_says_how_to_turn_a_priogrid_id_into_coordinates():
     assert "centre" in text, "it does not say the coordinates are cell centres"
     # The worked example is what lets a reader check they applied it correctly.
     assert "148759" in text and "13.25" in text and "39.25" in text
+
+
+def test_the_note_does_not_claim_one_commit_for_nine_runs():
+    """The nine ran at three successive commits, not one.
+
+    The title page carries a single `\\deliverysha`. That is defensible only
+    because the configuration files it links to are byte-identical across the
+    three — except brave_heart's, which changed at that very commit and which
+    brave_heart ran after. If the note asserts a single commit without saying
+    so, it is asserting something the manifests contradict.
+    """
+    text = (SECTIONS / "additional_notes.tex").read_text(encoding="utf-8")
+    assert "three successive commits" in text
+    assert "brave\\_heart" in text
+    assert "byte-identical" in text

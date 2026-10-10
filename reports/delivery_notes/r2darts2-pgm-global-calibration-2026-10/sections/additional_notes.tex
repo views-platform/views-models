@@ -36,6 +36,15 @@ it is better settled before the numbers are produced than explained afterwards.
 \textbf{The software is pinned; the data is not.} The title page records the three versions that
 determine the output --- the model library, the framework and the data backend --- along with the
 \texttt{views-models} commit the configurations were read at. Between them those fix the code.
+
+One detail the single commit on the title page hides: the nine runs were made over three days
+and read their configurations at three successive commits. The two files the title page links to
+for each model --- its hyperparameters and its feature set --- are byte-identical across all
+three, with one exception. \texttt{brave\_heart}'s hyperparameters changed at
+\texttt{\deliverysha}, which declared a target transform it had been missing; that model ran
+after the change, under the configuration the link shows. So every configuration linked from this
+note is the one its model actually ran with, which is the property that matters, and
+\texttt{\deliverysha} is the latest of the three.
 They do not fix the \textit{input}: the data backend served this run from a live store with no
 snapshot identifier, and the provenance record written beside the fetched data shows drift
 detection did not run. So re-running these nine models at these versions would reproduce the
