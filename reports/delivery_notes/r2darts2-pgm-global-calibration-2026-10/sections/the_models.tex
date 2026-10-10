@@ -58,58 +58,48 @@ single setting. Across blocks the architecture changes and the comparison is a d
           models: the third row of each block.
 \end{itemize}
 
-\subsection*{Where the Covariates Come From, and Who Accounts for Them}
+Note that the two splits are not the same split. Six models are outcomes-only and six use the
+Spotlight loss, but they are different sixes: \texttt{blue\_ocean}, \texttt{brave\_heart} and
+\texttt{golden\_eagle} have covariates \textit{and} Spotlight, while \texttt{dark\_river},
+\texttt{silent\_fox} and \texttt{red\_hawk} have neither.
 
-A covariate crosses one boundary on its way to a model, and the two sides of that boundary are not
-documented to the same standard.
+\textbf{There is no model combining MSE with the covariates.} Three configurations exist, not four.
 
-\textbf{Up to the datafactory: governed, and documented there.} Everything done to a covariate
-inside the datafactory is a deliberate design decision with a written record behind it, taken
-within an explicitly defined remit. Annual sources are extended across their twelve months by
-per-source rules; values outside a source's observed range are manufactured --- zero before the
-first observation, the last value held after it; missing coverage is zero-filled rather than
-null-filled; spatial handling attaches raster and polygon sources to grid cells by aggregation and
-spatial join. Feature engineering is deliberately \emph{excluded}: no lags, decay functions, ratios
-or derived indices, because cross-feature derivation is assigned to the model layer by design.
+\subsection*{Covariate Preparation}
 
-None of that is a shortcoming, and this note does not restate the reasoning. Each decision has its
-own architecture decision record in the datafactory repository --- ADR-014 for the interpolation
-policy and the responsibility boundary, ADR-052 for the held-value extrapolation, ADR-047 for
-zero-fill over null-fill, ADR-042 for the one exception --- alongside a per-source documentation
-card. That is the authoritative account; read it there rather than here.
+Covariates are prepared in two stages, by different parties and to different standards.
 
-\textbf{After the datafactory: not accounted for anywhere I can point to.} What happens to a
-covariate once it has been fetched is decided in the model configuration, and has no equivalent
-record. For these nine, two such decisions: which covariates each model is given, and the
-\texttt{asinh} transform applied to all 72 columns --- the three outcomes and all 69 covariates
-alike --- before training. Both are visible in the configuration files linked in
-Table~\ref{tab:models}. Neither has a decision record, a review, or a written rationale.
+Within the datafactory, preparation is specified. Annual sources are extended across their twelve
+months by per-source rules; values outside a source's observed range are manufactured, zero before
+the first observation and the last value held after it; absent coverage is filled with zeros rather
+than nulls; raster and polygon sources are attached to grid cells by aggregation and spatial join.
+Feature engineering is excluded by design, cross-feature derivation being assigned to the model
+layer. Each of these is a recorded decision with an architecture decision record behind it ---
+ADR-014, ADR-042, ADR-047 and ADR-052 in the datafactory repository, with a documentation card per
+source. That is the authoritative account and this note does not restate it.
 
-That is the missing link, and it is worth naming plainly: the datafactory documents and governs
-everything within its remit, and the choices made downstream of it are not governed by anything I
-can identify. \textbf{Whether those downstream choices are appropriate --- the transform, the
-covariate selection --- is not something this note establishes, and it is not this note's
-responsibility to establish it.} It is recorded here so that someone evaluating these models knows
-what the models were given.
+Preparation after the fetch is set in the model configuration, and is documented only by the
+configuration itself. Two operations apply here: the selection of which covariates each model
+receives, and an \texttt{asinh} transform applied to all 72 columns, the three outcomes and the 69
+covariates alike, before training. Both are visible in the files linked in Table~\ref{tab:models}.
+Neither carries a decision record or a written rationale, and whether either is warranted is not
+established by this note.
 
-\subsection*{One Consequence: The ACLED Covariates Were Zero Throughout Training}
+\subsection*{Covariate Coverage}
 
-One case is concrete enough to state rather than leave to the reader, and it sits on the
-\emph{modelling} side of that boundary.
-
-The datafactory publishes, per source, the window in which observations are real; anything outside
-it is manufactured. For ACLED that window begins in \textbf{January 2020}. These models train on
-months 121--456, \textbf{January 1990 to December 2017}.
+The datafactory publishes, for each source, the month range in which its observations are real.
+Values outside that range exist but are manufactured. Checked against this delivery's partition,
+four of the five sources cover it fully and one does not.
 
 \begin{table}[h!]
 \centering
 \small
 \renewcommand{\arraystretch}{1.2}
-\caption{Source coverage against this delivery's partition.}
+\caption{Source coverage against the calibration partition.}
 \label{tab:coverage}
-\begin{tabular}{@{}p{3.6cm}p{3.2cm}p{3.8cm}p{3.2cm}@{}}
+\begin{tabular}{@{}p{3.4cm}p{2.7cm}p{3.5cm}p{3.6cm}@{}}
 \toprule
-\textbf{Source} & \textbf{Observed from} & \textbf{In training (1990--2017)} & \textbf{In test (2018--2021)} \\ \midrule
+\textbf{Source} & \textbf{Observed from} & \textbf{Training 1990--2017} & \textbf{Test 2018--2021} \\ \midrule
 ACLED (7 covariates) & January 2020 & \textbf{none --- all zeros} & real from January 2020 \\
 V-Dem                & January 1989 & real & real \\
 SHDI                 & January 1989 & real & real \\
@@ -119,23 +109,13 @@ Built-up surface     & January 1989 & real & real \\
 \end{tabular}
 \end{table}
 
-\noindent So the seven ACLED covariates were identically zero for every month these models were
-fitted on, and become non-zero partway through the forecast window. A feature that is constant in
-training and varies in test is worse than an absent one: the model has learned that it is always
-zero. And because missing coverage is filled with zeros by design, a manufactured zero cannot be
-told from an observed zero by looking at the data.
+\noindent The seven ACLED covariates are therefore zero for every month these models were fitted
+on, and become non-zero partway through the forecast window. This is a sharper problem than an
+absent feature: a predictor that is constant in training and varies in test is one the model has
+learned to disregard. Nor is it visible in the data, since manufactured and observed zeros are
+written identically.
 
-\textbf{This is not a datafactory defect.} The coverage bounds are published precisely so that
-manufactured values are identifiable, and they were available at the time these models were
-configured. The gap is that nothing on the modelling side checked them against the training window
---- which is the same missing link as above, in a form that happens to be measurable.
-
-It affects \texttt{blue\_ocean}, \texttt{brave\_heart} and \texttt{golden\_eagle} only. The other
-four sources cover the whole partition, and the six outcomes-only models use no covariates at all.
-
-Note that the two splits are not the same split. Six models are outcomes-only and six use the
-Spotlight loss, but they are different sixes: \texttt{blue\_ocean}, \texttt{brave\_heart} and
-\texttt{golden\_eagle} have covariates \textit{and} Spotlight, while \texttt{dark\_river},
-\texttt{silent\_fox} and \texttt{red\_hawk} have neither.
-
-\textbf{There is no model combining MSE with the covariates.} Three configurations exist, not four.
+The coverage bounds are published so that manufactured values can be identified, and were available
+when these models were configured; the omission is downstream of the datafactory, not within it.
+Three models are affected --- \texttt{blue\_ocean}, \texttt{brave\_heart} and
+\texttt{golden\_eagle}. The six outcomes-only models use no covariates.
