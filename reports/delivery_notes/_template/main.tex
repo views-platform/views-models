@@ -246,29 +246,38 @@
 % suggestions drawn from past deliveries, not a required spine.
 % ============================================================
 
-\section{What This Is}
-\input{sections/what_this_is}
+% The spine below is a starting point drawn from past deliveries, not a
+% required structure. Comment in, comment out, reorder, rename.
+%
+% Section 1 is the exception: a delivery note should always open with a
+% Context section stating what the document is, what it covers, what it
+% explicitly does NOT cover, and that the delivery is a fixed artefact
+% identified by its identifier and checksum. That shape is inherited
+% from the FAO release notes --- see ../README.md.
 
-\section{What Is in the Files}
+\section{Context}
+\input{sections/context}
+
+\section{The Models}\label{sec:models}
+\input{sections/the_models}
+
+% \section{Model Architectures}\label{sec:architectures}
+% \input{sections/model_types}
+
+% \section{Loss Functions}\label{sec:losses}
+% \input{sections/losses}
+
+\section{The Delivered Files}\label{sec:files}
 \input{sections/the_data}
 
-% \section{What Produced It}
-% \input{sections/the_models}
-
-% \section{Method}
-% \input{sections/method}
-
-\section{What Is Not Included}
-\input{sections/not_included}
-
-% \section{Handing It On}
+% \section{Consuming the Delivery}\label{sec:handover}
 % \input{sections/handover}
 
-% \section{Status}
-% \input{sections/status}
+\section{Not Included in This Delivery}\label{sec:excluded}
+\input{sections/not_included}
 
-% \section{What I Need From You}
-% \input{sections/questions}
+% \section{Caveats and Notes}\label{sec:caveats}
+% \input{sections/additional_notes}
 
 % ------------------------------------------------------------
 % BIBLIOGRAPHY --- uncomment ONLY if the note actually cites

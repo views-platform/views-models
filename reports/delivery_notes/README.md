@@ -29,6 +29,28 @@ $EDITOR sections/*.tex    # write the prose
 prose only and contain no `\section` commands. Reordering, renaming or dropping a section is
 therefore a single-file edit. Delete the stubs you do not use.
 
+### Section 1 is always Context
+
+Everything below it varies; the opening section does not. It takes its shape from the FAO release
+notes and makes five moves in order:
+
+1. what this document is, and which delivery it accompanies;
+2. its purpose, as a short list;
+3. what it covers, cross-referenced to the sections;
+4. **what it explicitly does *not* cover**; and
+5. a closing statement that the delivery is a fixed artefact, identified by its identifier and
+   checksum, not revised in place.
+
+The fourth move is the one that earns its keep. A reader will otherwise assume that anything
+plausibly related is in scope — that the folder contains the observed data, or that someone has
+already evaluated the models. Say what is out of scope before they find out by looking.
+
+### Naming sections
+
+Each title should say what is in the section, and no two should overlap. An earlier draft of the
+darts note ran *What These Models Are* / *The Models* / *The Model Types* as three consecutive
+headings, which told a reader nothing about where to look for what.
+
 ## The identifier
 
 Every delivery note carries an identifier, composed from the facts on its own title page rather

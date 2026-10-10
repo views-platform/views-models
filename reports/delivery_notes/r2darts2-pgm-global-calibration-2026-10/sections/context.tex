@@ -1,0 +1,41 @@
+This Delivery Note accompanies \texttt{\deliveryid}, a set of conflict forecasts produced by nine
+deep-learning models on the calibration partition at global PRIO-GRID month. It is the
+authoritative description of what was handed over: the data itself carries no documentation, and
+the folder is not self-explanatory.
+
+The purpose of this note is to:
+\begin{itemize}
+    \item record what was delivered, in enough detail to identify it again later;
+    \item describe the models that produced it, and what distinguishes them from one another;
+    \item state how the files are organised and how they are intended to be consumed; and
+    \item set out what is \emph{not} in the delivery, and what is not yet known about it.
+\end{itemize}
+
+\noindent This note covers:
+\begin{itemize}
+    \item the nine models, their architectures, and the published work they come from
+          (Sections~\ref{sec:models}--\ref{sec:architectures});
+    \item the objective functions they were trained on, including one written in-house
+          (Section~\ref{sec:losses});
+    \item the file layout, schema and units of the delivered forecasts
+          (Section~\ref{sec:files});
+    \item how the delivery is consumed, by the ensemble-construction tool or by hand
+          (Section~\ref{sec:handover}); and
+    \item what the delivery excludes, and the caveats that bear on using it
+          (Sections~\ref{sec:excluded}--\ref{sec:caveats}).
+\end{itemize}
+
+\noindent This note explicitly does \emph{not} cover:
+\begin{itemize}
+    \item \textbf{any evaluation of the models.} Nothing here has been scored, ranked or compared.
+          No metric has been computed beyond a check that the files are not corrupt;
+    \item any recommendation as to which models to prefer, or whether to use them at all;
+    \item the validation or forecasting partitions, or any live forecast; and
+    \item the internal machinery that produced the run --- what it took to compute these
+          forecasts is recorded separately, in
+          \texttt{reports/postmortem\_darts\_calibration\_2026-10.md}.
+\end{itemize}
+
+\noindent The delivery is a fixed artefact. It is identified by the identifier and checksum on
+the title page --- quote both --- and is not revised in place: any correction is issued as a new
+delivery with a new identifier and a new checksum.
