@@ -10,37 +10,37 @@ in cells where the observation or the forecast exceeds one fatality; separately 
 forecasting conflict in cells that stayed below it. It uses \texttt{log cosh} rather than squared
 error, so a single very large observation does not dominate the gradient. Used by the other six.
 
-\subsection*{What You Should Know About Spotlight}
+\subsection*{Development and Validation Status}
 
-It is an in-house construction (author: Dylan), developed since March 2026; the variant used here dates from April
-and is the fifth iteration of a family of related objectives. He has written a detailed account of
-how it works. One of its two parameters is derived rather than tuned --- the threshold separating
-``event'' from ``quiet'' cells is $\mathrm{asinh}(1) \approx 0.88$, exactly one fatality on the
-transformed scale. The other, a weight on a spectral term, was chosen by hyperparameter sweep.
+Spotlight is not a one-off function but the production member of a sustained line of work. The
+first variant was committed in March 2026 and the one used here at the end of April; development
+continued into late August. The family now comprises six Spotlight variants and three related
+objectives --- roughly 2,250 lines across nine modules --- attracting some 216 commits over six
+months. The library's own documentation sets out five earlier generations of the design, recording
+for each what it addressed and what it exposed. By any ordinary measure this represents a
+considerable investment of development effort.
 
-\textbf{What does not exist is any verification of it.}
+Of the objective's two parameters, one is derived rather than fitted: the threshold separating
+event from quiet cells is $\mathrm{asinh}(1) \approx 0.88$, exactly one fatality on the transformed
+scale. The other, a weight on a spectral term, is set by hyperparameter sweep.
 
-\begin{itemize}
-    \item \textbf{No citation.} I searched the source files, their documentation, the commit
-          history and the architecture decision records. Two of the other objectives in that same
-          in-house library do carry references to published papers, so this is not a codebase that
-          never cites anything.
-    \item \textbf{No tests.} The library's test suite covers eight of its objectives and this is
-          not among them. Nothing checks its gradients, nothing compares it against a reference
-          implementation, and nothing establishes that the code computes what the written account
-          says it computes.
-\end{itemize}
+What the record does not contain is any formal account of it. No citation appears in the source,
+its documentation, the commit history or the architecture decision records; two other objectives in
+the same library do cite published work, so the omission is particular to this family rather than a
+habit of the codebase. Neither is it covered by tests. The library's suite exercises eight of its
+objectives and this is not among them, so nothing checks its gradients, compares it against a
+reference implementation, or establishes that the code computes what the written account describes
+--- this for the objective on which 37 of the platform's 42 darts models are trained.
 
-That verification belongs with the author in the first instance. Tests pinning the gradients and a
-derivation someone else can follow line by line are what make a bespoke objective reviewable;
-absent those, an outside review means reconstructing the intended design before you can judge the
-built one. I have not spent my time that way, and I think the order matters: tests and derivation
-first, review after. So I am not in a position to vouch for this objective, and I would rather say
-so than imply an assurance I have not earned.
+Six months of concentrated development across five successive generations is not the profile of an
+untried design, and the written account of its construction is detailed. It is reasonable to infer
+that the objective has been exercised extensively, if informally, during that period. Informal
+exercise is not validation, however, and the distinction is what this note is obliged to record:
+what is absent is not the work but the evidence of it. A derivation a third party can follow, and
+tests that fail when the implementation is wrong, remain outstanding and should be produced for an
+objective in production use at this scale.
 
-\textbf{In practice: it could be excellent, adequate, or quietly wrong, and nothing available to me
-distinguishes those three.} That bears on how much weight a comparison between the Spotlight models
-and the three MSE ones can carry.
-
-Dylan can explain the design. If the evaluation turns on it, the next step is tests and a written
-derivation from him, after which someone with the relevant background can review it.
+On that basis this note takes no position on whether the objective is sound. It may be excellent,
+adequate, or quietly wrong, and nothing in the available record distinguishes those possibilities.
+Six of the nine delivered models were trained on it and three on ordinary squared error, which
+bears on how much weight a comparison between those two groups can carry.
