@@ -1,5 +1,15 @@
 # amber_kestrel
 
+<!-- manual -->
+<!--
+  These markers are load-bearing, not decoration. `tools/catalogs/update_readme.py`
+  rebuilds EVERY model README from a scaffold and discards anything outside a manual
+  block; `.github/workflows/update_catalogs.yml` runs it on every push to development
+  that touches models/*/configs/config_*.py and commits the result back. Without these
+  markers everything below would be deleted by CI on the merge that adds it, which is
+  what happened to synthetic_chant's evaluation-semantics docs on 2026-06-04 (C-77/C-78).
+-->
+
 One arm of the composition experiment that **views-hydranet#396** ends in. Not a roster
 member, not an ensemble constituent, maturity `candidate`.
 
@@ -40,3 +50,4 @@ on record (`C-228`: gate AP 0.31 → 0.13; M45: −0.238). Not "any AP loss": a 
 against the existing vehicle cannot resolve the ~0.019 seed standard deviation, and
 `C-119`/`C-184` record ~20% training variance and BatchNorm seed-bimodality. A guard set
 at any-loss would fire on noise.
+<!-- /manual -->

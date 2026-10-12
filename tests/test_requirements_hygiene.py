@@ -26,6 +26,7 @@ declaration and the environment it names disagree in both directions in this rep
 (**C-116**) and no test over these files can see that.
 """
 
+import re
 from pathlib import Path
 import subprocess
 
@@ -78,7 +79,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # 1.13.0 — both postprocessor requirement files and the pod install in
 # tools/podrun/pod_run_model.sh (not a requirements file, so invisible to this rule).
 #
-# The other 34 declarations are model requirements at >=1.9.0. They are NOT floored here, for
+# The other 35 declarations are model requirements at >=1.9.0. They are NOT floored here, for
 # two reasons. They are unrelated to the delivery legs, so raising them belongs to #509 rather
 # than to a delivery PR; and one of them is `models/violet_visitor/requirements.txt`, whose
 # contents another session owns and which this session is instructed not to edit.
@@ -95,14 +96,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # tests/test_falsification_40_lesson_run_readiness.py::test_every_datafactory_declaration_
 # keeps_its_upper_bound, which is narrower than this rule and survives the deferral.
 #
-# REMOVE THIS ENTRY when #509 floors the remaining 34 — that is the whole of the trigger.
+# REMOVE THIS ENTRY when #509 floors the remaining 35 — that is the whole of the trigger.
+#
+# The count in that sentence is a TRIGGER, not decoration: acting on a stale one deletes a
+# live exemption. It said 34 and was right until amber_kestrel's requirements.txt made it
+# 36 declarations, 35 of them unfloored — the kind of drift that is only ever found by
+# someone reading carefully. It is now asserted against the measured count below, so it
+# cannot go stale silently again.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 34 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 35 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 34 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 35 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }
@@ -227,3 +234,43 @@ def test_the_deferred_list_stays_small_enough_to_be_honest():
             f"{package} is deferred without a named trigger for revisiting it. "
             "CLAUDE.md: defer behind a named trigger, never a vague 'later'."
         )
+
+
+def test_the_deferral_trigger_counts_the_declarations_it_actually_describes():
+    """The number in the #509 trigger is load-bearing, so it is measured, not typed.
+
+    `DEFERRED_PACKAGES["views-datafactory"]` says "the N model declarations stay at >=1.9.0"
+    and "TRIGGER: #509 raising the remaining N". Whoever acts on that trigger floors N
+    declarations and deletes the entry — and the entry also suppresses the upper-bound rule,
+    so a declaration left behind loses two protections at once while the suite stays green.
+
+    The count said 34 and was correct until a new model directory arrived carrying its own
+    `views-datafactory>=1.9.0`. Nothing noticed, because prose does not fail.
+    """
+    def declares_unfloored(path: Path) -> bool:
+        # Parsed per line with comments stripped. Matching the raw text counted
+        # postprocessors/un_fao/requirements.txt, which is floored at >=1.13.0 on its
+        # requirement line and mentions >=1.9.0 twice in comments explaining the history.
+        # A guard that reads prose about the code instead of the code reports the wrong
+        # number with total confidence.
+        for line in path.read_text(encoding="utf-8").splitlines():
+            spec = line.split("#", 1)[0].strip()
+            if spec.startswith("views-datafactory") and ">=1.9.0" in spec:
+                return True
+        return False
+
+    unfloored = sorted(
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in REPO_ROOT.glob("*/*/requirements.txt")
+        if declares_unfloored(path)
+    )
+    note = DEFERRED_PACKAGES["views-datafactory"]
+    claimed = {int(m) for m in re.findall(r"(?:the|remaining) (\d+)", note)}
+    assert claimed == {len(unfloored)}, (
+        f"the views-datafactory deferral claims {sorted(claimed)} unfloored model "
+        f"declaration(s); there are {len(unfloored)}:\n  "
+        + "\n  ".join(unfloored)
+        + "\n\nUpdate the note, in BOTH sentences. Someone will act on this trigger by "
+        "flooring exactly that many files and deleting the entry; a file left behind loses "
+        "the upper-bound rule too, because this entry suppresses it."
+    )

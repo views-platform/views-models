@@ -80,45 +80,77 @@ def test_the_tracked_config_can_be_constructed(model):
         )
 
 
-def test_both_categories_of_tracked_config_are_in_scope():
+@pytest.mark.parametrize("model", TRACKED_MODELS)
+def test_scheduled_sampling_declares_its_feedback(model):
+    """The specific defect, pinned so it cannot return by a different route.
+
+    A model with scheduled sampling ACTIVE must say what it feeds back. Inactive (`eps_max == 0`)
+    is fine unset — that is `violet_visitor`, and it is a legitimate difference, not an oversight.
+
+    Parametrized rather than looping internally so that its scope is declared in the same
+    place, and in the same form, as the construction test's — which is what
+    `test_both_categories_of_tracked_config_are_in_scope` is able to read.
+    """
+    cfg = _assemble(model)
+    active = cfg.get("ss_schedule") and (cfg.get("ss_epsilon_max") or 0) > 0
+    assert not (active and not cfg.get("ss_feedback")), (
+        f"scheduled sampling is active in {model} but ss_feedback is unset. It defaults to "
+        "'mean', which contradicts rollout_feedback='sample' and makes the config unloadable "
+        "(C-259, views-hydranet#295)."
+    )
+
+
+def _parametrized_scope(func) -> set[str]:
+    """The model names pytest will actually collect for `func`.
+
+    This reads the `parametrize` decorator, not the module-level list the decorator happens
+    to be given today. The distinction is the whole point of the test below: the previous
+    version of that test compared `TRACKED_MODELS` against the two declarations, so it
+    could not see
+
+        -@pytest.mark.parametrize("model", TRACKED_MODELS)
+        +@pytest.mark.parametrize("model", ROSTER_MODELS)
+
+    which leaves the arm unconstructed with the full suite green. The only trace that edit
+    leaves anywhere is one fewer SKIP, and nobody reads the skip count.
+    """
+    marks = [m for m in getattr(func, "pytestmark", []) if m.name == "parametrize"]
+    assert len(marks) == 1, (
+        f"{func.__name__} is no longer parametrized exactly once, so its real scope cannot "
+        f"be read here and this guard cannot do its job"
+    )
+    _argnames, argvalues = marks[0].args
+    return set(argvalues)
+
+
+@pytest.mark.parametrize(
+    "func",
+    [test_the_tracked_config_can_be_constructed, test_scheduled_sampling_declares_its_feedback],
+    ids=lambda f: f.__name__,
+)
+def test_both_categories_of_tracked_config_are_in_scope(func):
     """The guard on this file's own scope, which is where it failed before.
 
-    Narrowing `TRACKED_MODELS` back to the roster is a one-line edit that leaves every other
-    test in the repository green -- the construction test simply stops being parametrized on
-    the arm, and a smaller parametrization is not a failure. That is how `amber_kestrel` came
-    to be pinned by four tests and constructed by none (views-models#552), and nothing stopped
-    it recurring until this assertion existed.
+    Narrowing a parametrization back to the roster is a one-line edit that leaves every
+    other test in the repository green — a smaller parametrization is not a failure. That is
+    how `amber_kestrel` came to be pinned by four tests and constructed by none
+    (views-models#552), and the first attempt at this guard did not close it: it asserted on
+    the list, and the cheaper mutation edits the decorator.
 
-    It reads the two source-of-truth declarations directly rather than the list built from
-    them, so it fails on the narrowing rather than restating it.
+    So this asserts on the collected scope, for every test in this file that has one, and
+    compares it against the two source-of-truth declarations read independently.
     """
-    missing = (set(ROSTER_MODELS) | set(EXPERIMENT_ARMS)) - set(TRACKED_MODELS)
-    assert not missing, (
-        f"these tracked configs are declared but never constructed: {sorted(missing)}. Every "
-        "model in ROSTER and every experiment arm must be built through HydraNetConfig here; "
-        "a value pin elsewhere is not a substitute (C-259, views-hydranet#295)."
+    declared = set(ROSTER_MODELS) | set(EXPERIMENT_ARMS)
+    scope = _parametrized_scope(func)
+    assert scope == declared, (
+        f"{func.__name__} runs over {sorted(scope)}, but the tracked configs are "
+        f"{sorted(declared)}. Missing: {sorted(declared - scope)}; unexpected: "
+        f"{sorted(scope - declared)}. Every model in ROSTER and every experiment arm must be "
+        f"built through HydraNetConfig here; a value pin elsewhere is not a substitute "
+        f"(C-259, views-hydranet#295)."
     )
     assert EXPERIMENT_ARMS, (
         "EXPERIMENT_ARMS is empty, so this file is covering the roster only. If the last arm "
         "was genuinely retired, delete this assertion deliberately rather than letting the "
         "next arm arrive unconstructed."
-    )
-
-
-def test_scheduled_sampling_declares_its_feedback():
-    """The specific defect, pinned so it cannot return by a different route.
-
-    A model with scheduled sampling ACTIVE must say what it feeds back. Inactive (`eps_max == 0`)
-    is fine unset — that is `violet_visitor`, and it is a legitimate difference, not an oversight.
-    """
-    offenders = []
-    for model in TRACKED_MODELS:
-        cfg = _assemble(model)
-        active = cfg.get("ss_schedule") and (cfg.get("ss_epsilon_max") or 0) > 0
-        if active and not cfg.get("ss_feedback"):
-            offenders.append(model)
-    assert not offenders, (
-        f"scheduled sampling is active but ss_feedback is unset in: {offenders}. It defaults to "
-        "'mean', which contradicts rollout_feedback='sample' and makes the config unloadable "
-        "(C-259, views-hydranet#295)."
     )

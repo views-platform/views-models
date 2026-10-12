@@ -35,6 +35,7 @@ rewiring waits on violet_visitor settling; see the note at the foot of this file
 """
 
 import ast
+import difflib
 import importlib.util
 from pathlib import Path
 
@@ -128,7 +129,54 @@ EXPERIMENT_ARMS = {
 
 #: The hyperparameter keys an arm may differ from its control on. Anything else differing
 #: means it is no longer a one-variable contrast.
+#:
+#: Pinned as an exact set below, in both directions, for the same reason KNOWN_GATELESS is:
+#: this is an ESCAPE HATCH, and the assertion that uses it tells the reader to widen it. One
+#: word here plus one config edit turns a 300-lesson arm into a 160-lesson one against a
+#: 300-lesson control, with every test in the repository green. Widening it must be a visible
+#: act, not a quiet one.
 ARM_FREE_KEYS = {"output_distribution", "forecast_composition", "gate_threshold"}
+
+#: Config files that must be BYTE-IDENTICAL between an arm and its control.
+#:
+#: Byte identity rather than a value diff, and that is deliberate. These four files are
+#: model-agnostic — they resolve their own model name from the path — so the arm's copies
+#: were already identical, and the hazard is not a wrong value but ANY divergence: the
+#: control is an artefact that was already trained from the control's copy of these files.
+#: `config_queryset.py` is the dangerous one. `REGION = "land"` -> `"africa_me_legacy"` is a
+#: one-word edit that trains the arm on 13,110 cells against a control trained on 64,818,
+#: and a value-level diff of hyperparameters cannot see it.
+#:
+#: The arm's own model name is normalised to the control's before comparing, because these
+#: files name their model in a docstring. Nothing else is exempt.
+#:
+#: The cost of byte identity is that a comment fix to the CONTROL's copy turns this red. That
+#: is the intended behaviour, not a wart: the arm must then be brought back into step, which
+#: is the only way the pair stays comparable. The arm's copies therefore also carry the
+#: control's stale docstrings verbatim (`config_queryset.py` describes a viewser migration
+#: that is the control's history, not the arm's). Fixing them in the arm alone would break
+#: the identity this guard exists to assert, and the control's own files are not ours to edit.
+#:
+#: Paths are relative to the MODEL directory, so this covers the model root as well as
+#: configs/. `requirements.txt` is in here because it carries the views-datafactory floor,
+#: and `run.sh` because it is the launcher; neither is a hyperparameter, and a value-level
+#: diff of hyperparameters sees neither. All six are identical today after the arm's own
+#: name is normalised out, which is what makes byte identity the right assertion rather
+#: than an aspiration.
+ARM_IDENTICAL_FILES = (
+    "configs/config_queryset.py",
+    "configs/config_partitions.py",
+    "configs/config_sweep.py",
+    "main.py",
+    "run.sh",
+    "requirements.txt",
+)
+
+#: Keys an arm's `config_meta` may differ from its control's on. `name` is the model's
+#: identity; everything else — level, algorithm, targets, evaluation profile — is the
+#: experimental setting and must match. `evaluation_profile` is the one that matters:
+#: 'hydranet_ucdp' -> 'default' scores the two runs with different metrics.
+ARM_FREE_META_KEYS = {"name"}
 
 # --- The shared v2 gated_NB foundation every pinned member holds fixed. Values that
 #     differ per member (family, composition, seed) live in ROSTER, not here.
@@ -650,6 +698,16 @@ def test_the_known_gateless_set_only_shrinks():
 _ARM_KEY_ABSENT = object()
 
 
+def _manual_blocks(text):
+    """The `<!-- manual -->` … `<!-- /manual -->` bodies, read the way the tool reads them.
+
+    Re-implemented here rather than imported: `tools/catalogs/readme_preserve.py` is
+    importable, but keeping the markers' literal spelling in this file means a change to
+    either side has to be deliberate on both.
+    """
+    return re.findall(r"<!-- manual -->(.*?)<!-- /manual -->", text, flags=re.DOTALL)
+
+
 class TestExperimentArmConformance:
     """An arm is its declared values, and differs from its control ONLY on composition.
 
@@ -673,12 +731,19 @@ class TestExperimentArmConformance:
             f"{arm}: forecast_composition {hp['forecast_composition']!r} != declared {composition!r}"
         )
         if threshold is None:
-            # Absent, not None: config_initializer refuses a soft_gate config that carries a
-            # gate_threshold key at all, so a None here raises at config load rather than
-            # being ignored.
+            # Stricter than the engine, deliberately. ADR-069's rule is
+            # `elif self.gate_threshold is not None:` — so a soft_gate config carrying
+            # `gate_threshold = None` loads fine and only a non-None value raises. This
+            # assertion requires the key to be ABSENT anyway, because an arm's config is
+            # read by people deciding what the experiment was: a `None` sitting next to
+            # `soft_gate` invites someone to fill it in.
+            #
+            # An earlier version of this comment claimed the engine refuses the key at all.
+            # It does not. Checked by constructing both against the pinned engine version.
             assert "gate_threshold" not in hp, (
-                f"{arm}: soft_gate must not carry a gate_threshold key "
-                f"(got {hp.get('gate_threshold')!r}) — it raises at config load"
+                f"{arm}: soft_gate must not carry a gate_threshold key at all "
+                f"(got {hp.get('gate_threshold')!r}); a non-None value would also be "
+                f"refused by the engine (ADR-069)"
             )
         else:
             assert hp.get("gate_threshold") == threshold, (
@@ -707,6 +772,99 @@ class TestExperimentArmConformance:
         # And the inverse, so this cannot pass on an arm that is merely a copy of its control.
         assert differing, f"{arm} is identical to its control {control}: there is no arm to run"
 
+    def test_the_escape_hatch_is_pinned_in_both_directions(self):
+        """`ARM_FREE_KEYS` is the one thing that can widen the guard above.
+
+        The assertion above names widening it as the documented route ("add it to
+        ARM_FREE_KEYS and say in the commit why the contrast survives"), which is correct
+        advice and a silent one-word hole. Adding `total_lessons` here plus the config edit
+        it licenses makes the arm a 160-lesson run against a 300-lesson control, with the
+        full suite green — the config edit alone fails loudly, so the hatch is the whole
+        attack surface.
+
+        Pinned exactly, like KNOWN_GATELESS: both adding and removing a key is then a
+        reviewed edit to this literal rather than a side effect.
+        """
+        assert ARM_FREE_KEYS == {
+            "output_distribution",
+            "forecast_composition",
+            "gate_threshold",
+        }, (
+            f"ARM_FREE_KEYS is {sorted(ARM_FREE_KEYS)}. Widening it licenses a second "
+            f"variable in a one-variable experiment whose control is already trained and "
+            f"cannot be retrained (C-317). If the arm genuinely needs another free key, "
+            f"change this literal too and say in the commit why the contrast survives."
+        )
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("filename", ARM_IDENTICAL_FILES)
+    def test_the_arm_shares_its_controls_data_configuration_byte_for_byte(self, arm, filename):
+        """The confound the hyperparameter diff cannot see.
+
+        `test_the_arm_differs_from_its_control_only_on_composition` reads
+        `config_hyperparameters.py` and nothing else, while the arm's README claims
+        *everything* else is copied unchanged. So `REGION = "land"` -> `"africa_me_legacy"`
+        in the arm's queryset — one word — trains it on 13,110 Africa/ME cells against a
+        control trained on 64,818 global land cells, makes the comparison meaningless, and
+        leaves every test in the repository green.
+
+        These files are model-agnostic (they resolve their own name from the path), so byte
+        identity is achievable and anything less is a divergence. `run.sh` is asserted here,
+        never edited — it is production infrastructure.
+        """
+        control, _declared = EXPERIMENT_ARMS[arm]
+        arm_path = MODELS_DIR / arm / filename
+        control_path = MODELS_DIR / control / filename
+        for path in (arm_path, control_path):
+            assert path.exists(), f"{path.relative_to(REPO_ROOT)} does not exist"
+        # The arm's own name is the ONE permitted substitution: these files name the model
+        # they belong to in a docstring. Normalised rather than exempted by line number, so
+        # a second difference on the same line is still caught.
+        arm_text = arm_path.read_text(encoding="utf-8").replace(arm, control)
+        control_text = control_path.read_text(encoding="utf-8")
+        if arm_text == control_text:
+            return
+        diff = "\n".join(
+            difflib.unified_diff(
+                control_text.splitlines(),
+                arm_text.splitlines(),
+                fromfile=str(control_path.relative_to(REPO_ROOT)),
+                tofile=str(arm_path.relative_to(REPO_ROOT)),
+                lineterm="",
+            )
+        )
+        pytest.fail(
+            f"{arm}'s {filename} differs from its control {control}'s. These files set the "
+            f"DATA the two runs see — region, grid, features, partition windows — and the "
+            f"control is an artefact that has already been trained and cannot be retrained "
+            f"(C-317). Any difference here confounds the experiment rather than varying it."
+            f"\n\nThe arm's own name has already been normalised to the control's, so what "
+            f"follows is a real divergence:\n\n{diff}"
+        )
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arm_is_evaluated_the_same_way_as_its_control(self, arm):
+        """`config_meta` is documentation except for the parts that are not.
+
+        `evaluation_profile` selects the metric set. 'hydranet_ucdp' -> 'default' scores the
+        arm and its control with different metrics, which is a confound that looks like a
+        result. Nothing covered this file before.
+        """
+        control, _declared = EXPERIMENT_ARMS[arm]
+        arm_meta = _load_meta(arm, MODELS_DIR)
+        control_meta = _load_meta(control, MODELS_DIR)
+        differing = {
+            key
+            for key in set(arm_meta) | set(control_meta)
+            if arm_meta.get(key, _ARM_KEY_ABSENT) != control_meta.get(key, _ARM_KEY_ABSENT)
+        }
+        assert differing <= ARM_FREE_META_KEYS, (
+            f"{arm}'s config_meta differs from its control {control}'s on "
+            f"{sorted(differing - ARM_FREE_META_KEYS)}. Only {sorted(ARM_FREE_META_KEYS)} "
+            f"may differ — everything else is the experimental setting, and the control has "
+            f"already been trained under it."
+        )
+
     @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
     def test_an_arm_is_neither_a_roster_member_nor_an_ensemble_constituent(self, arm):
         """The separation this structure exists for, asserted rather than assumed."""
@@ -717,6 +875,44 @@ class TestExperimentArmConformance:
         assert arm not in _load_modelset(ENSEMBLE)["models"], (
             f"{arm} is pooled into {ENSEMBLE}; an arm is trained to be measured against a "
             f"control, not shipped"
+        )
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arms_rationale_survives_readme_regeneration(self, arm):
+        """An arm's README is the only place its reasoning lives, and CI deletes READMEs.
+
+        `tools/catalogs/update_readme.py` rebuilds every model README from a scaffold and
+        discards anything outside a `<!-- manual -->` block, and
+        `.github/workflows/update_catalogs.yml` runs it on every push to development that
+        touches `models/*/configs/config_*.py` — which is every push that adds an arm. So an
+        unmarked README is deleted by the merge that introduces it, silently, and the answer
+        to "why is this a directory rather than an edit, and why is the kill one-sided"
+        survives only in git history.
+
+        Not hypothetical: it is C-77/C-78, and it took synthetic_chant's evaluation-semantics
+        documentation on 2026-06-04. That is why the preservation mechanism exists; this test
+        is what makes an arm use it.
+        """
+        readme = MODELS_DIR / arm / "README.md"
+        assert readme.exists(), f"{arm} has no README.md, so it documents nothing"
+        text = readme.read_text(encoding="utf-8")
+        blocks = _manual_blocks(text)
+        assert blocks, (
+            f"{arm}/README.md has no <!-- manual --> block, so update_readme.py will discard "
+            f"all of it on the next push to development that touches its configs (C-77/C-78)."
+        )
+        # Not merely "a block exists": the content has to be INSIDE one. Headings are the
+        # cheap proxy for the hand-written body — a marker pair wrapped round nothing would
+        # satisfy the assertion above.
+        preserved = "\n".join(blocks)
+        orphaned = [
+            line
+            for line in text.splitlines()
+            if line.startswith("## ") and line not in preserved
+        ]
+        assert not orphaned, (
+            f"{arm}/README.md has sections outside its manual block(s), which CI will "
+            f"delete: {orphaned}"
         )
 
     @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
