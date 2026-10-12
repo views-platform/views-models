@@ -40,8 +40,16 @@ def get_hp_config():
     `loss_reg` stays 'mse' and is dead: utils.py takes the `resolve_family is not None`
     branch, so it is not consulted under a family, exactly as for `nb`.
 
-    `gate_threshold` is ABSENT, not set to None. config_initializer.py:1176 raises if a
-    soft_gate config carries one.
+    `gate_threshold` is ABSENT rather than set to None, and that is OUR choice, not the
+    engine's requirement. ADR-069's rule is `elif self.gate_threshold is not None:`
+    (https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/utils/config_initializer.py#L1183-L1190
+    at views-hydranet v0.1.1, the version the CI load job pins), so a soft_gate config
+    carrying `gate_threshold = None` loads without complaint and only a non-None value
+    raises. The key is left out anyway, because a `None` sitting beside `soft_gate` reads
+    like something waiting to be filled in — and filling it in WOULD raise.
+
+    An earlier version of this comment said the engine refuses the key at all, and cited
+    `:1176`. Both were wrong; checked by constructing each case against v0.1.1.
 
     ⛔ PRE-REGISTERED READOUT, fixed before the run: (mu, theta) and P(Y=0) on the 100-cell
     set, plus gate AP as a one-sided kill at a threshold sized to the collapses on record
@@ -81,10 +89,15 @@ def get_hp_config():
         #
         # THE ARM. These two values, and the absence of a third, are the whole difference
         # from violet_visitor. `truncated_nb` is a registered family and is not
-        # self-zeroed, which is what lets composition rule (2) at
-        # config_initializer.py:1145 accept `soft_gate`; rule (4) at :1176 then REFUSES a
-        # `gate_threshold`, so there is deliberately none below. Do not add one back to
-        # "match violet_visitor" — it raises at config load.
+        # self-zeroed (SELF_ZEROED_FAMILIES == {"zinb"}), which is what lets composition
+        # rule (2) accept `soft_gate`:
+        #   https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/utils/config_initializer.py#L1145-L1152
+        # There is deliberately no `gate_threshold` below. Do not add one back to "match
+        # violet_visitor" — a non-None value raises under any composition but
+        # `threshold_gate`:
+        #   https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/utils/config_initializer.py#L1183-L1190
+        # (Pinned at v0.1.1, the version the roster-configs-load CI job installs. A bare
+        # file:line drifts with the other repo; this does not.)
         'output_distribution': 'truncated_nb',
         'forecast_composition': 'soft_gate',
         'freeze_recurrent': 'cell',
