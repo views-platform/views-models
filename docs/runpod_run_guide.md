@@ -146,13 +146,46 @@ you have spent pennies.
 apt-get update -qq && apt-get install -y -qq libpq-dev build-essential zstd rsync
 cd /workspace && git clone --depth 1 -b development \
     https://github.com/views-platform/views-models.git
+```
+
+> ### ⛔ Do not build the venv by hand if you are going to use `pod_run_model.sh`
+>
+> **Stop here and go to Phase 3.** The runner builds `/workspace/venv` itself, in an order
+> that matters (below), and it **refuses a venv it did not build** — so a hand-built one
+> costs you the time you spent on it plus a `rm -rf` before the run can start.
+>
+> This is not a style preference. On **2026-10-12** a venv built from the commands that used
+> to be printed here was reused by the runner, the ordered install was skipped, and the
+> launch was lost before training began. The commands below omitted
+> `views-pipeline-core[appwrite]`, which is what carries the Appwrite SDK the publish path
+> needs. See **views-models #517**.
+>
+> The runner writes `/workspace/venv/.built-by-pod-run-model` as the last step of its install
+> block. That marker is the only evidence the order held, which is why nothing else may
+> create it — **do not `touch` it by hand.** Doing so tells the runner a lie it has no way to
+> check, and the failure surfaces as a broken datafactory fetch hours later.
+>
+> `pod_run_fao_delivery.sh --preflight` checks for the marker too, so a delivery run tells
+> you about this in seconds rather than at model 1 of 8.
+
+**Only if you are running something other than `pod_run_model.sh`** — a bare `main.py`, a
+notebook, a one-off — build it yourself:
+
+```bash
 uv venv --python 3.11 /workspace/venv
 uv pip install --python /workspace/venv/bin/python \
-    "views-hydranet~=0.1.1" "views-datafactory>=1.13.0,<2.0.0"
+    "views-hydranet~=0.1.1" "views-datafactory>=1.13.0,<2.0.0" \
+    "views-pipeline-core[appwrite]"
 uv pip install --python /workspace/venv/bin/python "toolz>=0.12.1"
 ```
 
-Three of those lines are not obvious and each cost a failed install:
+Four of those lines are not obvious and each cost a failed install:
+
+- **`views-pipeline-core[appwrite]`, requested explicitly and before the toolz override.** The
+  extra carries the Appwrite SDK; without it `_build_datastore` raises at publish time, which
+  is *after* the full training run. That is how the first FAO delivery attempt failed on
+  2026-09-29 (**#517**). No version is given, so `views-hydranet`'s own range still decides
+  which `views-pipeline-core` is installed.
 
 - **`libpq-dev`** — `views-hydranet` still pulls in `viewser`, which needs Postgres headers to
   build `psycopg2`. Without it the install dies partway.

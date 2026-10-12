@@ -22,6 +22,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "tools" / "podrun" / "pod_run_model.sh"
 
@@ -83,6 +85,11 @@ def _run(
     adir.mkdir(parents=True)
     out.mkdir(parents=True)
     (out / ".lessons").write_text("300" if not rehearsal else rehearsal, encoding="utf-8")
+    # check_config writes this on the line after the REGION gate passes. PROVENANCE used to
+    # print `region: land` as a LITERAL, which no mutation of the gate could falsify — the
+    # assertion below was sound only because a test in another file pinned the gate, a
+    # coupling no reader of this file could see. Planted here so the line is a read value.
+    (out / ".region").write_text("land", encoding="utf-8")
     # The block runs `git -C $REPO rev-parse --short HEAD`, and that needs an actual
     # COMMIT. An empty repo returns nothing, the script falls back to "unknown", and a
     # PROVENANCE assertion against the fallback cannot tell a real sha from a hardcoded
@@ -365,11 +372,17 @@ def test_inference_reads_the_dataframe_training_fetched_rather_than_a_fresh_one(
     edits both. A guard that fires on a correct change gets edited out of the way.
     """
     src = SCRIPT.read_text(encoding="utf-8")
+    # Scoped to lines that INVOKE the interpreter. "main.py" appears in comments (already
+    # excluded) and now also inside a `die` message that names the command that failed —
+    # which made this guard count three inference calls and fail on a correct change. That
+    # is the third time on this branch an assertion has fired on prose about the code
+    # rather than the code; the fix each time is to key on what executes.
     inference = [
         ln.strip()
         for ln in src.splitlines()
         if "main.py" in ln
         and not ln.lstrip().startswith("#")
+        and ln.lstrip().startswith('"$VENV/bin/python"')
         and ({"-e", "-f"} & set(ln.split()))
     ]
     assert len(inference) == 2, f"expected one evaluation and one forecast call, got {inference}"
@@ -459,7 +472,14 @@ def test_a_venv_this_script_did_not_build_is_refused_rather_than_reused():
         marked = run()
 
     assert unmarked.returncode == 1, "a venv built by hand was accepted"
-    assert "was not built by this script" in unmarked.stdout, unmarked.stdout
+    # Asserted on the marker and the remedy, not on a diagnosis. The message deliberately
+    # stopped saying "was not built by this script": the marker establishes provenance, not
+    # cause, and a venv built correctly by an OLDER version of this script is unmarked too.
+    # An operator told a false cause debugs the wrong thing.
+    assert ".built-by-pod-run-model" in unmarked.stdout, unmarked.stdout
+    assert "rm -rf" in unmarked.stdout, (
+        f"the refusal does not say what to do about it\n{unmarked.stdout}"
+    )
     # The inverse, which is what makes the guard a guard rather than a refusal to run.
     assert marked.returncode == 0, marked.stdout + marked.stderr
 
@@ -720,3 +740,274 @@ def test_a_production_run_writes_no_rehearsal_marker():
     with tempfile.TemporaryDirectory() as td:
         proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
     assert "REHEARSAL" not in proc.collected, "a production artefact was marked a rehearsal"
+
+
+# ─── the failure handlers nobody was pinning ─────────────────────────────────────────
+#
+# A review of this branch replaced `|| die` with `|| true` on ALL THREE `main.py`
+# invocations and the whole suite stayed green: 67 passed. Every test above runs the
+# section against a stub that SUCCEEDS, so none of them could see it.
+#
+# What that mutation buys an attacker, or a careless editor: training exits non-zero, the
+# script proceeds to collection, finds no .pt and dies — which is survivable. But on the
+# forecast leg, inference exits non-zero and the script proceeds to write a MANIFEST and
+# `OK`, and pod_run_fao_delivery.sh pools the roster on OK. So the FAO delivery path could
+# report success for a forecast that never ran.
+#
+# These tests make the failing stub the subject. A source grep would not do: `|| die`,
+# `|| { echo; exit 1; }` and an `if ! ...; then die` are three spellings of one behaviour,
+# and a guard that only knows the first one fires on correct edits and misses the rest
+# (two guards on this branch already did exactly that).
+
+
+def _trace_failing(
+    tmp_path: Path, fail_on: str, *, forecast: str = "0"
+) -> subprocess.CompletedProcess:
+    """Run the section with the stub exiting 1 on the call carrying `fail_on`.
+
+    `fail_on` is a flag: `-t` for the training call, `-e` or `-f` for inference.
+    """
+    root = tmp_path / "workspace"
+    model = "violet_visitor"
+    repo = root / "views-models"
+    adir = repo / "models" / model / "artifacts"
+    out = root / "deliver" / model
+    adir.mkdir(parents=True)
+    out.mkdir(parents=True)
+    (out / ".lessons").write_text("300", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    _commit_something(repo)
+
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    stub = venv_bin / "python"
+    stub.write_text(
+        "#!/usr/bin/env bash\n"
+        f'ARTEFACTS="{adir}"\nFAIL_ON="{fail_on}"\n'
+        # Train successfully even when the failing call is a later one, so the forecast and
+        # evaluate cases reach inference with a real artefact already collected.
+        'for a in "$@"; do if [ "$a" = "-t" ]; then\n'
+        '  PT=$ARTEFACTS/calibration_model_20261012_220000.pt\n'
+        '  echo weights > "$PT"; echo "{}" > "$PT.config.json"; echo deadbeef > "$PT.sha256"\n'
+        'fi; done\n'
+        'for a in "$@"; do if [ "$a" = "$FAIL_ON" ]; then\n'
+        '  echo "stub: exiting 1 on $FAIL_ON" >&2; exit 1\n'
+        'fi; done\n'
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+    harness = tmp_path / "failing.sh"
+    harness.write_text(
+        "set -uo pipefail\n"
+        f'ROOT="{root}"\nREPO=$ROOT/views-models\nMODEL="{model}"\nOUT=$ROOT/deliver/$MODEL\n'
+        f'VENV="{tmp_path / "venv"}"\nFORECAST="{forecast}"\nREHEARSAL_LESSONS=""\n'
+        'stage() { echo "STAGE:$1"; }\n'
+        'die()   { echo "DIE:$1"; exit 1; }\n' + _run_section() + "\n"
+        'echo "REACHED THE CODE AFTER INFERENCE"\n',
+        encoding="utf-8",
+    )
+    return subprocess.run(
+        ["bash", str(harness)], capture_output=True, text=True, timeout=120
+    )
+
+
+@pytest.mark.parametrize(
+    ("fail_on", "forecast", "what"),
+    [
+        ("-t", "0", "training"),
+        ("-e", "0", "evaluation"),
+        ("-f", "1", "forecasting"),
+    ],
+)
+def test_a_main_py_that_exits_non_zero_stops_the_run(fail_on, forecast, what):
+    """Each invocation separately, because each has its own handler to lose."""
+    with tempfile.TemporaryDirectory() as td:
+        proc = _trace_failing(Path(td), fail_on, forecast=forecast)
+
+    out = proc.stdout + proc.stderr
+    assert proc.returncode != 0, (
+        f"main.py failed during {what} and the script carried on with exit 0\n{out}"
+    )
+    assert "REACHED THE CODE AFTER INFERENCE" not in proc.stdout, (
+        f"a failed {what} did not stop the script — it ran on to the stages that write "
+        f"MANIFEST and STATUS\n{out}"
+    )
+    assert "DIE:" in proc.stdout, (
+        f"the script exited non-zero on a failed {what} without calling die, so nothing "
+        f"was written to $OUT/FAILURE and $OUT/STATUS keeps whatever it held\n{out}"
+    )
+
+
+def test_the_environment_verification_is_fatal_when_the_imports_fail():
+    """Executed, replacing a `"|| die" in opening` source grep.
+
+    That grep knew one of the two idioms this file uses for a fatal check, so it would
+    have fired on a behaviour-preserving rewrite to `|| { echo ...; exit 1; }` while
+    passing on any check that was already written the other way. The sibling test for the
+    Appwrite demotion runs its block; this one is its inverse and must too.
+
+    Demoting the Appwrite import was a statement about one capability this script does not
+    use. It was not a statement about CUDA, torch, tlz or the pipeline packages, whose
+    absence means the run cannot work at all.
+    """
+    src = SCRIPT.read_text(encoding="utf-8")
+    verify = src[src.index("stage verify_env") :]
+    # Through the heredoc terminator, so the block is whole and runnable.
+    end = verify.index("\nPY\n") + len("\nPY\n")
+    block = verify[:end]
+
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td)
+        venv_bin = tmp_path / "venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        # A python that fails every import, which is what a venv missing torch looks like.
+        stub = venv_bin / "python"
+        stub.write_text(
+            "#!/usr/bin/env bash\ncat >/dev/null\n"
+            'echo "ModuleNotFoundError: No module named \'torch\'" >&2\nexit 1\n',
+            encoding="utf-8",
+        )
+        stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+        harness = tmp_path / "verify.sh"
+        harness.write_text(
+            "set -uo pipefail\n"
+            f'VENV="{tmp_path / "venv"}"\n'
+            'stage() { echo "STAGE:$1"; }\n'
+            'die()   { echo "DIE:$1"; exit 1; }\n'
+            + block
+            + '\necho "REACHED THE NEXT STAGE"\n',
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            ["bash", str(harness)], capture_output=True, text=True, timeout=60
+        )
+
+    out = proc.stdout + proc.stderr
+    assert proc.returncode != 0, f"a venv that cannot import torch was accepted\n{out}"
+    assert "REACHED THE NEXT STAGE" not in proc.stdout, (
+        f"verify_env reported the failure and continued to training anyway\n{out}"
+    )
+    assert "DIE:" in proc.stdout, f"verify_env failed without calling die\n{out}"
+
+
+# ─── the forecast leg's OK ───────────────────────────────────────────────────────────
+
+
+def _forecast_verify(tmp_path: Path, plant: dict[str, str | None]) -> subprocess.CompletedProcess:
+    """Run the forecast leg's verification block against a planted generated/ directory.
+
+    `plant` maps a name under data/generated/ to its contents; None makes it an empty
+    DIRECTORY, which is the case that matters — pipeline-core creates the PredictionFrame
+    directory before it writes into it, so "the directory exists" is not "the forecast
+    exists".
+    """
+    src = SCRIPT.read_text(encoding="utf-8")
+    lines = src.splitlines()
+    starts = [i for i, ln in enumerate(lines) if ln.strip() == "stage verify_forecast"]
+    assert len(starts) == 1, (
+        f"expected exactly one 'stage verify_forecast', found {len(starts)}. The forecast "
+        f"leg's verification was renamed or removed."
+    )
+    ends = [i for i, ln in enumerate(lines) if "forecast outputs found" in ln]
+    assert len(ends) == 1, "the verification's closing echo moved or multiplied"
+    assert ends[0] > starts[0]
+    block = "\n".join(lines[starts[0] : ends[0] + 1])
+
+    root = tmp_path / "workspace"
+    model = "violet_visitor"
+    gen = root / "views-models" / "models" / model / "data" / "generated"
+    gen.mkdir(parents=True)
+    for name, contents in plant.items():
+        if contents is None:
+            (gen / name).mkdir()
+        elif contents.startswith("DIR:"):
+            d = gen / name
+            d.mkdir()
+            (d / "part-0.parquet").write_text(contents[4:], encoding="utf-8")
+        else:
+            (gen / name).write_text(contents, encoding="utf-8")
+
+    harness = tmp_path / "verify_forecast.sh"
+    harness.write_text(
+        "set -uo pipefail\n"
+        f'ROOT="{root}"\nREPO=$ROOT/views-models\nMODEL="{model}"\n'
+        'stage() { echo "STAGE:$1"; }\n'
+        'die()   { echo "DIE:$1"; exit 1; }\n' + block + "\n",
+        encoding="utf-8",
+    )
+    return subprocess.run(
+        ["bash", str(harness)], capture_output=True, text=True, timeout=60
+    )
+
+
+def test_the_forecast_leg_refuses_to_report_ok_with_no_forecast():
+    """The C-94 shape on the path that ships.
+
+    Before this check, the forecast leg wrote `echo OK > $OUT/STATUS` without opening the
+    directory its own MANIFEST claimed the forecast was in, while the calibration leg
+    gated OK on 13 parquets and an archived-vs-found draw count. `main.py` exiting 0
+    having written nothing is not hypothetical here — it is the same class as the Appwrite
+    upload that returned success having written nothing and broke the first FAO delivery
+    (C-155), and pod_run_fao_delivery.sh pools the roster on this STATUS.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _forecast_verify(Path(td), {})
+    assert proc.returncode != 0, (
+        f"the forecast leg accepted an empty generated/ directory\n{proc.stdout}"
+    )
+    assert "DIE:" in proc.stdout and "no non-empty predictions_forecasting_*" in proc.stdout, (
+        proc.stdout + proc.stderr
+    )
+
+
+def test_a_forecast_directory_that_exists_but_is_empty_is_not_a_forecast():
+    """The near-miss, and the reason the check counts contents rather than names.
+
+    pipeline-core's PredictionFrame writer creates the directory and then writes into it.
+    An interrupted or declined write leaves the directory behind, so a `[ -d ]` test would
+    pass on exactly the state this check exists to catch.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _forecast_verify(Path(td), {"predictions_forecasting_20261012_000000": None})
+    assert proc.returncode != 0, (
+        f"an empty forecast directory was counted as a forecast\n{proc.stdout}"
+    )
+
+
+def test_an_underscore_prefixed_directory_is_not_counted():
+    """Matching pipeline-core's own resolver, which excludes them.
+
+    _get_generated_pf_prediction_paths skips names starting with `_`, so counting one here
+    would report a forecast the consumer will not read.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _forecast_verify(Path(td), {"_predictions_forecasting_20261012_000000": "DIR:x"})
+    assert proc.returncode != 0, (
+        f"a _-prefixed directory was counted, but rusty_bucket will not read it\n{proc.stdout}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "contents", "shape"),
+    [
+        ("predictions_forecasting_20261012_000000", "DIR:rows", "PredictionFrame directory"),
+        ("predictions_forecasting_20261012_000000.parquet", "rows", "parquet file"),
+    ],
+)
+def test_both_real_output_shapes_are_accepted(name, contents, shape):
+    """Both exist upstream, so refusing either would refuse a correct run.
+
+    pipeline-core resolves `predictions_<run_type>_*` as files
+    (_get_generated_predictions_data_file_paths) and as directories
+    (_get_generated_pf_prediction_paths). A check that knew only one would turn a good
+    delivery into a failed one — the kind of guard that gets edited out of the way.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _forecast_verify(Path(td), {name: contents})
+    assert proc.returncode == 0, (
+        f"a forecast delivered as a {shape} was refused\n{proc.stdout}{proc.stderr}"
+    )
+    assert "forecast outputs found: 1" in proc.stdout, proc.stdout

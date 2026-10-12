@@ -19,11 +19,18 @@
 #   /workspace/deliver/<model>/artifact/   the trained state dict + its two sidecars (~4 MB)
 #                                          + PROVENANCE, and REHEARSAL on a rehearsal run
 #   /workspace/deliver/<model>/parquet/    13 point-prediction parquets  (~9 MB)
-#   /workspace/deliver/<model>/draws/      the lr_* posterior, zstd      (~25 MB)
+#   /workspace/deliver/<model>/draws/      the lr_* posterior, zstd      (~7 MB)
 #   /workspace/deliver/<model>/STATUS      OK or FAILED:<stage>
 #   /workspace/deliver/<model>/FAILURE     the reason, on failure only (written directly)
 #   /workspace/deliver/<model>/run.log     the whole transcript
 #   /workspace/deliver/<model>/REHEARSAL   present ONLY on a --rehearsal run
+#   /workspace/deliver/<model>/INCOMPLETE  present when the deliverable is short of its
+#                                          declared shape but the run otherwise succeeded
+#
+# Sizes are from the 2026-10-12 violet_visitor run, measured. Keep them in step with the
+# guide's transfer figure (docs/runpod_run_guide.md, Phase 5) — an operator who is told to
+# abort if rsync "is trying to move gigabytes" needs the two documents to agree on what
+# normal looks like.
 #
 # TWO MODES.
 #   (default)          production. total_lessons must be >= 300, and the run refuses otherwise.
@@ -91,21 +98,6 @@ OUT=$ROOT/deliver/$MODEL
 LOG=$OUT/run.log
 
 mkdir -p "$OUT"
-# A previous attempt on this pod may have left FAILED here. Clear it before anything else,
-# or `cat STATUS` reports that old failure for the whole of this run -- and the header
-# advertises STATUS/STAGE as the way to watch from outside, so a stale one actively misleads.
-rm -f "$OUT/STATUS"
-# Same reasoning for the rehearsal marker: a production run in a directory left behind by an
-# earlier rehearsal must not inherit its "undeliverable" mark, and — far worse — a rehearsal
-# must not inherit a previous production run's ABSENCE of one.
-rm -f "$OUT/REHEARSAL" "$OUT/.lessons"
-# And FAILURE, for the same reason as STATUS and with one extra consequence. STATUS is
-# overwritten by the next `die`, so a stale one is at least replaced on the next failure;
-# FAILURE is only ever written BY a `die`, so a successful rerun leaves the previous
-# attempt's reason sitting beside `STATUS: OK`. That is the state the 2026-10-12 vehicle
-# came home in: an appwrite import error in FAILURE, a clean run in STATUS, and nothing on
-# disk to say which one described the artefact next to them.
-rm -f "$OUT/FAILURE"
 exec > >(tee -a "$LOG") 2>&1
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
@@ -124,6 +116,32 @@ if ! mkdir "$OUT/.lock" 2>/dev/null; then
     exit 1
 fi
 trap 'rmdir "$OUT/.lock" 2>/dev/null' EXIT
+
+# ── 0a. clear the previous attempt's markers — AFTER the lock, never before ───────
+# These deletions sit below the lock deliberately. They used to sit above it, which meant a
+# second invocation for the same model deleted the LIVE run's STATUS, FAILURE and .lessons on
+# its way to discovering the lock and exiting. The live run then reported `lessons: unknown`
+# in its own MANIFEST and PROVENANCE, having been quietly robbed by a process that did no
+# work. An invocation that is about to lose the lock must touch nothing.
+#
+# A previous attempt on this pod may have left FAILED here. Clear it before anything else,
+# or `cat STATUS` reports that old failure for the whole of this run -- and the header
+# advertises STATUS/STAGE as the way to watch from outside, so a stale one actively misleads.
+rm -f "$OUT/STATUS"
+# Same reasoning for the rehearsal marker: a production run in a directory left behind by an
+# earlier rehearsal must not inherit its "undeliverable" mark, and — far worse — a rehearsal
+# must not inherit a previous production run's ABSENCE of one.
+rm -f "$OUT/REHEARSAL" "$OUT/.lessons"
+# And the region the run was gated on, for the same reason: PROVENANCE must report THIS run's
+# gate, not the one a previous attempt in this directory happened to pass.
+rm -f "$OUT/.region"
+# And FAILURE, for the same reason as STATUS and with one extra consequence. STATUS is
+# overwritten by the next `die`, so a stale one is at least replaced on the next failure;
+# FAILURE is only ever written BY a `die`, so a successful rerun leaves the previous
+# attempt's reason sitting beside `STATUS: OK`. That is the state the 2026-10-12 vehicle
+# came home in: an appwrite import error in FAILURE, a clean run in STATUS, and nothing on
+# disk to say which one described the artefact next to them.
+rm -f "$OUT/FAILURE"
 
 echo "### $MODEL — started $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -163,7 +181,11 @@ if [ ! -x "$VENV/bin/python" ]; then
   uv pip install --python "$VENV/bin/python" "toolz>=0.12.1" || die "toolz override failed"
   # Written LAST, after the toolz override, so its presence means the whole block ran in
   # the order above and not merely that a venv exists.
-  touch "$VENV/.built-by-pod-run-model"
+  #
+  # `|| die` because this is the one command in the block whose silent failure is invisible
+  # and expensive: every later run on this pod would refuse a perfectly good venv, and the
+  # refusal would name a cause ("not built by this script") that is false.
+  touch "$VENV/.built-by-pod-run-model" || die "cannot write $VENV/.built-by-pod-run-model"
 else
   # A venv built by hand is refused rather than reused. The install block above is ordered
   # — the appwrite extra before the toolz override, because reversing them silently
@@ -172,8 +194,15 @@ else
   # runbook's own Step 2.2, which omits the appwrite extra, was reused here; the block was
   # skipped, verify_env then checked an import that block provides, and the launch was lost
   # before training began. `rm -rf` is cheap: the install takes about two minutes.
+  #
+  # The marker is a PROVENANCE check, not a diagnosis. What it establishes is "this script
+  # wrote the venv and reached the end of the install block"; what it cannot establish is why
+  # an unmarked venv is unmarked. A venv built correctly by an older version of this script
+  # has no marker either, and is refused too. That is deliberate — refusing a good venv costs
+  # one reinstall, reusing a bad one costs the run — but the message must not claim to know
+  # which case it is looking at, because an operator told a false cause debugs the wrong thing.
   [ -f "$VENV/.built-by-pod-run-model" ] \
-      || die "$VENV exists but was not built by this script -- rm -rf it and re-run, so the install happens in the order install_python pins (C-151, #517)"
+      || die "$VENV exists but carries no .built-by-pod-run-model marker, so this script cannot establish the order it was installed in -- rm -rf it and re-run. It may be fine; the point is that nothing here can tell (C-151, #517). The reinstall is ~2 minutes with a warm torch cache."
   echo "venv already present and built by this script — reusing"
 fi
 
@@ -306,6 +335,11 @@ region = getattr(load("config_queryset"), "REGION", None)
 print("REGION:", region)
 if region != "land":
     sys.exit("REGION is %r, expected 'land' - this would not be a global-land run" % region)
+# Recorded for PROVENANCE for the same reason as .lessons above, and for one more: a
+# PROVENANCE line that is a hardcoded literal cannot be falsified by deleting the gate it
+# describes. Written only on the line AFTER the gate passed, so its presence is the gate's
+# own evidence rather than a sentence about it.
+Path(os.environ["OUT"], ".region").write_text(str(region))
 CFGCHECK
 
 # ── 3. training ───────────────────────────────────────────────────────────────────
@@ -414,7 +448,7 @@ PROV=$OUT/artifact/PROVENANCE
     echo "artefact:    $(basename "$PT")"
     echo "sha256:      $(cat "$PT.sha256" 2>/dev/null || echo 'not recorded')"
     echo "lessons:     $(cat "$OUT/.lessons" 2>/dev/null || echo unknown)"
-    echo "region:      land (enforced at check_config -- the run refuses any other)"
+    echo "region:      $(cat "$OUT/.region" 2>/dev/null || echo unknown) (enforced at check_config -- the run refuses any other)"
     echo "run_type:    $([ "$FORECAST" = "1" ] && echo forecasting || echo calibration)"
     echo "git:         $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown)"
     echo "trained:     $(date -u -d "@$START" +%Y-%m-%dT%H:%M:%SZ) to $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -473,6 +507,39 @@ if [ "$FORECAST" = "1" ]; then
   # reasoning as the `rm -rf` guards in sections 4 and 5 — stale artefacts must not be
   # countable as the current run's — applied to the case where the current run produces none.
   rm -rf "$OUT/parquet" "$OUT/draws"
+
+  # ── 4f. the forecast leg earns its OK ──────────────────────────────────────────
+  # Until this check existed, the forecast leg wrote `OK` without looking at anything. The
+  # calibration leg below gates OK on 13 parquets and an archived-vs-found draw count; the
+  # forecast leg asserted in its own MANIFEST that the forecast was "under
+  # models/<model>/data/generated/" and never opened the directory.
+  #
+  # That is the C-94 shape, and it is on the path that ships: pod_run_fao_delivery.sh reads
+  # this STATUS and pools the roster on OK. A forecast that main.py declined to write, or
+  # wrote somewhere else, would be pooled as an absent model rather than reported as a
+  # failure. ADR-024 section 1 defines OK as "the deliverable exists AND has been verified",
+  # so an unverified OK is out of contract whatever the exit code said.
+  #
+  # Both output shapes are accepted because both are real: pipeline-core resolves
+  # predictions_<run_type>_* as FILES (_get_generated_predictions_data_file_paths) and as
+  # PredictionFrame DIRECTORIES (_get_generated_pf_prediction_paths), and rusty_bucket pools
+  # the directory form. `_`-prefixed names are excluded exactly as that resolver excludes
+  # them. A directory that exists but holds nothing is not a forecast, so it is counted too.
+  stage verify_forecast
+  GEN="$REPO/models/$MODEL/data/generated"
+  FC_COUNT=0
+  for f in "$GEN"/predictions_forecasting_*; do
+      [ -e "$f" ] || continue
+      case "$(basename "$f")" in _*) continue ;; esac
+      if [ -d "$f" ]; then
+          [ -n "$(ls -A "$f" 2>/dev/null)" ] && FC_COUNT=$((FC_COUNT + 1))
+      else
+          [ -s "$f" ] && FC_COUNT=$((FC_COUNT + 1))
+      fi
+  done
+  [ "$FC_COUNT" -gt 0 ] || die "main.py -r forecasting -f exited 0 but wrote no non-empty predictions_forecasting_* under $GEN -- refusing to report OK for a forecast that is not there (ADR-024 s1, C-94)"
+  echo "forecast outputs found: $FC_COUNT"
+
   stage manifest
   {
     echo "model:        $MODEL"
@@ -487,7 +554,7 @@ if [ "$FORECAST" = "1" ]; then
       echo "mode:         production"
       echo "config:       as committed at the git sha above"
     fi
-    echo "forecast:     under $REPO/models/$MODEL/data/generated/ (pooled by rusty_bucket)"
+    echo "forecast:     $FC_COUNT non-empty predictions_forecasting_* under $REPO/models/$MODEL/data/generated/ (pooled by rusty_bucket)"
   } > "$OUT/MANIFEST"
   cat "$OUT/MANIFEST"
   if [ -n "$REHEARSAL_LESSONS" ]; then
