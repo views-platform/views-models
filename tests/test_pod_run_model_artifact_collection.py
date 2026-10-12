@@ -42,6 +42,32 @@ def _block() -> str:
     assert ends[0] > starts[0], "the INCOMPLETE branch precedes the stage it belongs to"
     return "\n".join(lines[starts[0] : ends[0] + 2])
 
+def _planted_contents(name: str) -> str:
+    """Fixture bytes that differ per file, so reading the wrong one is detectable."""
+    if name.endswith(".sha256"):
+        return "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\n"
+    if name.endswith(".config.json"):
+        return '{"model": "HydraBNUNet06_LSTM4"}\n'
+    return "not really a tensor\n"
+
+
+def _commit_something(repo: Path) -> str:
+    """Give the fixture repo a HEAD, and return its short sha."""
+    (repo / "README").write_text("fixture\n", encoding="utf-8")
+    env = {
+        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+        "PATH": os.environ.get("PATH", ""), "HOME": str(repo),
+    }
+    subprocess.run(["git", "-C", str(repo), "add", "README"], check=True, env=env)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "fixture"],
+                   check=True, env=env)
+    return subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
+        capture_output=True, text=True, check=True, env=env,
+    ).stdout.strip()
+
+
 def _run(
     tmp_path: Path,
     artefacts: dict[str, int | None],
@@ -57,13 +83,20 @@ def _run(
     adir.mkdir(parents=True)
     out.mkdir(parents=True)
     (out / ".lessons").write_text("300" if not rehearsal else rehearsal, encoding="utf-8")
-    # the block runs `git -C $REPO rev-parse`; an empty repo is enough for it not to hang
-    subprocess.run(['git', 'init', '-q', str(root / 'views-models')], check=True)
+    # The block runs `git -C $REPO rev-parse --short HEAD`, and that needs an actual
+    # COMMIT. An empty repo returns nothing, the script falls back to "unknown", and a
+    # PROVENANCE assertion against the fallback cannot tell a real sha from a hardcoded
+    # one — which is how `git: unknown` survived mutation once already.
+    repo = root / "views-models"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    _commit_something(repo)
 
     start = int(time.time())
     for name, offset in artefacts.items():
         f = adir / name
-        f.write_bytes(b"not really a tensor")
+        # DISTINCT per file. Identical bytes everywhere meant PROVENANCE could read its
+        # sha256 from `.config.json` and still print the right string.
+        f.write_text(_planted_contents(name), encoding="utf-8")
         if offset is not None:
             os.utime(f, (start + offset, start + offset))
 
@@ -659,26 +692,24 @@ def test_provenance_records_the_artefacts_own_checksum_and_commit():
         repo = Path(td) / "workspace" / "views-models"
         head = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, check=True,
         ).stdout.strip()
         planted = (
-            Path(td) / "workspace" / "views-models" / "models" / "violet_visitor"
-            / "artifacts" / f"{PT}.sha256"
+            repo / "models" / "violet_visitor" / "artifacts" / f"{PT}.sha256"
         ).read_text(encoding="utf-8").strip()
         prov = proc.provenance
 
-    assert f"sha256:      {planted}" in prov, (
-        f"PROVENANCE does not carry the artefact's own recorded checksum\n{prov}"
-    )
+    assert head, "the fixture repo has no HEAD, so the git: assertion below proves nothing"
     assert f"artefact:    {PT}" in prov, prov
-    # An empty fixture repo has no HEAD, so the script's own fallback is what is asserted
-    # there; where there IS a commit, PROVENANCE must carry it and not the fallback.
-    if head:
-        assert f"git:         {head}" in prov, (
-            f"PROVENANCE does not carry the commit it was built at (expected {head})\n{prov}"
-        )
-    else:
-        assert "git:         unknown" in prov, prov
+    assert f"sha256:      {planted}" in prov, (
+        f"PROVENANCE does not carry the artefact's own recorded checksum — it is reading "
+        f"the wrong file, or none\n{prov}"
+    )
+    assert f"git:         {head}" in prov, (
+        f"PROVENANCE does not carry the commit it was built at (expected {head}). This is "
+        f"the one field artifact/INCOMPLETE depends on: it tells the reader to rebuild the "
+        f"architecture from the config at that sha.\n{prov}"
+    )
 
 
 def test_a_production_run_writes_no_rehearsal_marker():
