@@ -313,13 +313,34 @@ def test_the_note_names_the_column_convention_difference():
 
 
 def test_the_authorship_is_stated_as_settled_not_claimed():
-    """Conceded in writing on 2026-10-01. A hedge invites it to be reopened."""
+    """Conceded in writing on 2026-10-01. A hedge invites it to be reopened.
+
+    Stated once, as a fact about the work, and not repeated. An earlier version
+    asserted it three times in four sentences, which reads as insistence rather
+    than as settlement.
+    """
     text = _flat("the_model.tex")
     assert (
-        "It is my own work: the design, the implementation and the paper describing it "
-        "\\citep{maase_hydranet} are mine." in text
+        "in-house work with no upstream: the design, the implementation and the "
+        "paper describing it \\citep{maase_hydranet}." in text
     ), "the authorship statement has been reworded"
-    assert "It is not a library model and has no upstream." in text
+
+
+def test_the_architecture_is_pinned_to_a_commit_not_to_a_class_name():
+    """A class name is not a version.
+
+    `HydraBNUNet06_LSTM4` does not change when the architecture it names does,
+    so it identifies nothing. The pin is a commit: the file defining the
+    architecture last changed at ebe08aa (2026-09-15) and its blob is identical
+    at v0.1.1 and v0.1.2, so the unrecorded release does not make it ambiguous.
+    """
+    assert "\\texttt{views-hydranet@e3a039f}" in _flat("the_model.tex"), (
+        "the architecture is no longer pinned to a commit"
+    )
+    for name in ("the_model.tex", "the_eight_models.tex"):
+        assert "HydraBNUNet06" not in _flat(name), (
+            f"{name} identifies the architecture by class name again"
+        )
 
 
 def test_the_confounded_comparison_is_flagged_where_it_is_invited():

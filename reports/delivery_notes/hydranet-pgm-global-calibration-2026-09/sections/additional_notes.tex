@@ -20,7 +20,10 @@ is exact, and the run logs record the CUDA build. The engine versions are not re
 the models pinned \texttt{views-hydranet~}$\sim$\texttt{=0.1.1} and
 \texttt{views-datafactory>=1.9.0,<2.0.0}, the environment that resolved those pins existed only on
 the rented machines, and no version line was captured before they were destroyed. So the code is
-identified to a repository state but not to a release. A later delivery should record the resolved
+identified to a repository state but not to a release. For the architecture itself that ambiguity is
+immaterial: the \texttt{\textasciitilde{}=0.1.1} pin admits only v0.1.1 and v0.1.2, the file
+defining the architecture last changed on 15 September 2026, and its contents are identical in both
+--- which is why the title page can name a commit. A later delivery should record the resolved
 versions in a manifest beside the data.
 
 \textbf{Pinning the code does not pin the input.} The predictors were fetched live from the data
