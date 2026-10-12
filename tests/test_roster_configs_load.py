@@ -80,6 +80,31 @@ def test_the_tracked_config_can_be_constructed(model):
         )
 
 
+def test_both_categories_of_tracked_config_are_in_scope():
+    """The guard on this file's own scope, which is where it failed before.
+
+    Narrowing `TRACKED_MODELS` back to the roster is a one-line edit that leaves every other
+    test in the repository green -- the construction test simply stops being parametrized on
+    the arm, and a smaller parametrization is not a failure. That is how `amber_kestrel` came
+    to be pinned by four tests and constructed by none (views-models#552), and nothing stopped
+    it recurring until this assertion existed.
+
+    It reads the two source-of-truth declarations directly rather than the list built from
+    them, so it fails on the narrowing rather than restating it.
+    """
+    missing = (set(ROSTER_MODELS) | set(EXPERIMENT_ARMS)) - set(TRACKED_MODELS)
+    assert not missing, (
+        f"these tracked configs are declared but never constructed: {sorted(missing)}. Every "
+        "model in ROSTER and every experiment arm must be built through HydraNetConfig here; "
+        "a value pin elsewhere is not a substitute (C-259, views-hydranet#295)."
+    )
+    assert EXPERIMENT_ARMS, (
+        "EXPERIMENT_ARMS is empty, so this file is covering the roster only. If the last arm "
+        "was genuinely retired, delete this assertion deliberately rather than letting the "
+        "next arm arrive unconstructed."
+    )
+
+
 def test_scheduled_sampling_declares_its_feedback():
     """The specific defect, pinned so it cannot return by a different route.
 
