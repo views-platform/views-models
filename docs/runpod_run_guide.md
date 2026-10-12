@@ -146,13 +146,46 @@ you have spent pennies.
 apt-get update -qq && apt-get install -y -qq libpq-dev build-essential zstd rsync
 cd /workspace && git clone --depth 1 -b development \
     https://github.com/views-platform/views-models.git
+```
+
+> ### ⛔ Do not build the venv by hand if you are going to use `pod_run_model.sh`
+>
+> **Stop here and go to Phase 3.** The runner builds `/workspace/venv` itself, in an order
+> that matters (below), and it **refuses a venv it did not build** — so a hand-built one
+> costs you the time you spent on it plus a `rm -rf` before the run can start.
+>
+> This is not a style preference. On **2026-10-12** a venv built from the commands that used
+> to be printed here was reused by the runner, the ordered install was skipped, and the
+> launch was lost before training began. The commands below omitted
+> `views-pipeline-core[appwrite]`, which is what carries the Appwrite SDK the publish path
+> needs. See **views-models #517**.
+>
+> The runner writes `/workspace/venv/.built-by-pod-run-model` as the last step of its install
+> block. That marker is the only evidence the order held, which is why nothing else may
+> create it — **do not `touch` it by hand.** Doing so tells the runner a lie it has no way to
+> check, and the failure surfaces as a broken datafactory fetch hours later.
+>
+> `pod_run_fao_delivery.sh --preflight` checks for the marker too, so a delivery run tells
+> you about this in seconds rather than at model 1 of 8.
+
+**Only if you are running something other than `pod_run_model.sh`** — a bare `main.py`, a
+notebook, a one-off — build it yourself:
+
+```bash
 uv venv --python 3.11 /workspace/venv
 uv pip install --python /workspace/venv/bin/python \
-    "views-hydranet~=0.1.1" "views-datafactory>=1.13.0,<2.0.0"
+    "views-hydranet~=0.1.1" "views-datafactory>=1.13.0,<2.0.0" \
+    "views-pipeline-core[appwrite]"
 uv pip install --python /workspace/venv/bin/python "toolz>=0.12.1"
 ```
 
-Three of those lines are not obvious and each cost a failed install:
+Four of those lines are not obvious and each cost a failed install:
+
+- **`views-pipeline-core[appwrite]`, requested explicitly and before the toolz override.** The
+  extra carries the Appwrite SDK; without it `_build_datastore` raises at publish time, which
+  is *after* the full training run. That is how the first FAO delivery attempt failed on
+  2026-09-29 (**#517**). No version is given, so `views-hydranet`'s own range still decides
+  which `views-pipeline-core` is installed.
 
 - **`libpq-dev`** — `views-hydranet` still pulls in `viewser`, which needs Postgres headers to
   build `psycopg2`. Without it the install dies partway.
@@ -349,11 +382,20 @@ The runner already does both. Its output is in `/workspace/deliver/<model>/`:
 
 | | |
 |---|---|
+| `artifact/` | the trained state dict, its two sidecars, and `PROVENANCE` — ~4 MB |
 | `parquet/` | 13 files, one per origin, 2,333,448 rows each |
 | `draws/` | the full posterior, zstd — ~236× smaller than raw |
 | `MANIFEST` | sizes, timestamps, git sha, lesson count, and `mode:` |
 | `STATUS` | `OK`, or `FAILED:<stage>` |
 | `REHEARSAL` | present **only** after `--rehearsal` — this output is not fit to deliver |
+
+⛔ **`artifact/` is the one that cannot be remade.** HydraNet training is not bit-reproducible
+(C-317), so a lost state dict is lost for good: on 2026-09-28 eight models trained, delivered
+their parquets, reported `OK`, and their weights died with the pods — there is no second copy,
+because nothing in this platform calls `wandb log_artifact` outside tests (views-models#549).
+The parquets can be recomputed from the weights. The weights cannot be recomputed from
+anything. `PROVENANCE` inside it records the lesson count, region, commit and digest, since
+nothing in the tensors does.
 
 From your laptop:
 
@@ -363,8 +405,10 @@ rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
     models/<model>/data/generated/calibration_delivery_<date>/
 ```
 
-Must transfer **~18 MB**. If it is trying to move gigabytes, you are copying raw predictions
-rather than the deliverable — check the path.
+Must transfer **~22 MB** — measured end to end on 2026-10-12, of which ~4 MB is `artifact/`
+and 6.5 MiB the posterior archive. (It was ~18 MB before the runner collected the artefact.)
+If it is trying to move gigabytes, you are copying raw predictions rather than the deliverable
+— check the path.
 
 Verify before trusting it:
 
@@ -420,6 +464,36 @@ leg. That failure lands *after* all the training.
   not leave them there**: supersede or remove them before anyone reads them as a forecast.
 - A rehearsal proves the **chain**, not the **capacity**. 40 lessons has a different duration
   and memory profile from 300, and memory is where this platform has failed before.
+
+### ⛔ Bring the eight artefacts home before teardown
+
+This phase has no rsync step above, because the forecasts leave by being **published** to the
+shelf rather than by being copied. The weights do not. Step 1 of the chain is eight delegated
+`pod_run_model.sh --forecast` runs, so after a successful delivery there are eight trained
+forecasting models sitting in `/workspace/deliver/<model>/artifact/` that nothing retrieves —
+and `deliver/_fao/MANIFEST` names the models but not their artefacts.
+
+That is the 2026-09-28 loss on the delivery path rather than the research path: same models,
+same non-reproducibility (C-317), published forecasts whose weights no longer exist.
+
+```bash
+for m in violet_visitor bold_comet blazing_meteor blue_stranger \
+         heavy_freighter pink_pirate bright_starship purple_alien; do
+    rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
+        root@<ip>:/workspace/deliver/$m/artifact/ \
+        models/$m/artifacts/forecasting_delivery_<date>/
+done
+```
+
+~30 MB in all. Check each `PROVENANCE` says `mode: production` before you keep it, and that
+`git:` is a sha rather than `unknown` — an artefact that cannot name the commit it trained at
+cannot be compared to a later one, which for a non-reproducible model (C-317) is the whole of
+what it could have been used for.
+
+⚠️ This step is an instruction to a person at the end of a sixteen-GPU-hour run, which is the
+weakest place to put it. **views-models#551** proposes recording the eight artefacts in
+`deliver/_fao/MANIFEST` and refusing to report success without them, so that forgetting this
+is visible rather than silent.
 
 ## Phase 4c — The darts models (r2darts2), calibration
 

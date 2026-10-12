@@ -68,6 +68,47 @@ HYDRANETS = (
 )
 
 
+def _rehearsal_branches(lines, needle):
+    """Group every line containing `needle` by the rehearsal branch that encloses it.
+
+    Returns {if_line_index: {"rehearsal": line, "production": line}}.
+
+    Walks outward from each hit through the nesting to find its OWN enclosing `if`, rather
+    than pairing an `if` with the next `else` anywhere below it. A non-greedy
+    `if ... then(.*?)else(.*?)fi` regex once matched a hundred-line span from the
+    forecast-leg REHEARSAL writer through `stage collapse` to the calibration MANIFEST's
+    production branch, and still returned a plausible count — see
+    TestARehearsalIsMarkedInTheOutput.
+    """
+    out = {}
+    for index, line in enumerate(lines):
+        if needle not in line:
+            continue
+        depth = 0
+        in_else = False
+        enclosing = None
+        for i in range(index - 1, -1, -1):
+            token = lines[i].strip()
+            if token == "fi" or token.endswith(" fi"):
+                depth += 1
+            elif token.startswith("if ") or token.startswith("elif "):
+                if depth == 0:
+                    enclosing = i
+                    break
+                depth -= 1
+            elif token == "else" and depth == 0:
+                in_else = True
+        assert enclosing is not None, (
+            f"a {needle!r} line is written unconditionally, so a rehearsal and a "
+            f"production run would report the same thing:\n  {line.strip()}"
+        )
+        assert "REHEARSAL_LESSONS" in lines[enclosing], (
+            f"a {needle!r} line's enclosing condition is not the rehearsal test:\n"
+            f"  {lines[enclosing].strip()}\n  {line.strip()}"
+        )
+        out.setdefault(enclosing, {})["production" if in_else else "rehearsal"] = line.strip()
+    return out
+
 def _code_only(src: str) -> str:
     """Shell source with comments removed.
 
@@ -542,22 +583,155 @@ class TestARehearsalIsMarkedInTheOutput:
                 "about where deliver/<model>/STATUS lives"
             )
 
-    def test_the_manifest_reports_the_mode_on_the_correct_branch(self):
-        """Swapping the two MANIFEST branches made production runs claim PATCHED and
-        rehearsals claim as-committed. The old guard checked only that the string existed."""
-        code = _code_only(PODRUN.read_text())
-        m = re.search(
-            r'if \[ -n "\$REHEARSAL_LESSONS" \]; then(.*?)else(.*?)fi',
-            code, re.S,
+    def test_every_mode_line_reports_the_mode_on_the_correct_branch(self):
+        """Swapping the two branches made production runs claim PATCHED and rehearsals
+        claim as-committed. The old guard checked only that the string existed.
+
+        It then checked only the FIRST such branch in the file, which is a second hole of
+        the same kind: the script writes a `mode:` line from three places — the forecast
+        MANIFEST, the calibration MANIFEST and `artifact/PROVENANCE` — and a swap in any
+        one of them is the same defect. When PROVENANCE was added ahead of the manifests
+        it became the only branch under test, and both MANIFESTs stopped being guarded
+        without any assertion changing.
+
+        And the regex that replaced it was no better than its luck. A non-greedy
+        `if ... then(.*?)else(.*?)fi` pairs each `if` with the next `else` ANYWHERE below
+        it, so one of its matches spanned a hundred lines from the forecast-leg REHEARSAL
+        writer through `stage collapse` to the calibration MANIFEST's production branch,
+        and the count came to three only because a fourth match happened to contain no
+        `mode:`. It passed by accident, and the accident is one inserted `else` away from
+        ending. So each line's own enclosing branch is found by walking the nesting.
+        """
+        lines = _code_only(PODRUN.read_text()).splitlines()
+        mode_lines = [ln for ln in lines if 'echo "mode:' in ln]
+        assert len(mode_lines) == 6, (
+            "expected six mode: lines — a rehearsal and a production one in each of the "
+            "forecast MANIFEST, the calibration MANIFEST and artifact/PROVENANCE — found "
+            f"{len(mode_lines)}. A new writer must be added to this test deliberately "
+            "rather than inherit silence."
         )
-        assert m, "the MANIFEST mode branch is not in the expected shape; re-read it"
-        rehearsal_branch, production_branch = m.group(1), m.group(2)
-        assert "NOT FIT TO DELIVER" in rehearsal_branch and "PATCHED after checkout" in rehearsal_branch
-        assert "NOT FIT TO DELIVER" not in production_branch, (
-            "the production branch of the MANIFEST claims the output is unfit to deliver"
+
+        writers = _rehearsal_branches(lines, 'echo "mode:')
+        assert len(writers) == 3, (
+            f"expected three mode: writers, found {len(writers)} — "
+            f"{[sorted(v) for v in writers.values()]}"
         )
-        assert "PATCHED" not in production_branch, (
-            "the production branch claims the config was patched after checkout"
+
+        for if_index, branches in sorted(writers.items()):
+            assert set(branches) == {"rehearsal", "production"}, (
+                f"the writer at line {if_index + 1} has only {sorted(branches)}; a mode: "
+                f"line on one branch alone means the other run type reports nothing"
+            )
+            assert "NOT FIT" in branches["rehearsal"], (
+                f"a rehearsal mode: line does not mark the output unfit:\n"
+                f"  {branches['rehearsal']}"
+            )
+            assert "NOT FIT" not in branches["production"], (
+                f"a production mode: line claims the output is unfit to deliver:\n"
+                f"  {branches['production']}"
+            )
+            assert "PATCHED" not in branches["production"], (
+                f"a production mode: line claims the config was patched after checkout:\n"
+                f"  {branches['production']}"
+            )
+
+    def test_the_manifests_say_the_config_was_patched_on_the_rehearsal_branch(self):
+        """The companion claim, tied to the lines that actually carry it.
+
+        Only the MANIFESTs record the config patch; `artifact/PROVENANCE` carries
+        architecture provenance and writes no `config:` line. Asserting "PATCHED" against
+        whichever branch happens to be first is how the old guard came to be checking one
+        writer out of three.
+        """
+        lines = _code_only(PODRUN.read_text()).splitlines()
+        writers = _rehearsal_branches(lines, 'echo "config:')
+        assert len(writers) == 2, (
+            f"expected the two MANIFESTs to write a config: line, found {len(writers)} "
+            f"writer(s): {[sorted(v) for v in writers.values()]}"
+        )
+        for if_index, branches in sorted(writers.items()):
+            assert set(branches) == {"rehearsal", "production"}, (
+                f"the config: writer at line {if_index + 1} has only {sorted(branches)}"
+            )
+            assert "PATCHED after checkout" in branches["rehearsal"], (
+                f"a rehearsal config: line does not say the config was patched:\n"
+                f"  {branches['rehearsal']}"
+            )
+            assert "REHEARSAL_LESSONS" in branches["rehearsal"], (
+                f"a rehearsal config: line does not name the lesson count it was forced "
+                f"to:\n  {branches['rehearsal']}"
+            )
+            assert "PATCHED" not in branches["production"], (
+                f"a production config: line claims the config was patched:\n"
+                f"  {branches['production']}"
+            )
+
+class TestTheGuideSaysHowToRetrieveTheArtefact:
+    """The runner collecting the artefact is half the fix; retrieving it is the other half.
+
+    `pod_run_model.sh` now puts the trained weights in `/workspace/deliver/<model>/artifact/`,
+    and on the research path Phase 5's rsync copies the whole directory, so they come home by
+    accident of the path. On the FAO delivery path they do not: that phase has no rsync step at
+    all, because the forecasts leave by being PUBLISHED. So after a successful delivery there
+    are eight trained forecasting models on a pod that is about to be destroyed, which is the
+    2026-09-28 loss again with a different partition.
+
+    Asserted on bounded windows and against the model list the FAO script actually uses, not
+    on two words appearing somewhere in a 600-line file — the mistake
+    TestTheGuideDocumentsTheChmodTrap exists to record.
+    """
+
+    GUIDE = REPO / "docs" / "runpod_run_guide.md"
+    FAO = REPO / "tools" / "podrun" / "pod_run_fao_delivery.sh"
+
+    def test_the_research_path_lists_the_artefact_among_what_comes_home(self):
+        text = self.GUIDE.read_text()
+        heading = text.index("## Phase 5")
+        phase5 = text[heading : text.index("## Phase", heading + 10)]
+        # The TABLE ROW, not the word anywhere in the phase. The paragraph below the table
+        # also says `artifact/`, so a looser check would pass with the row deleted — which
+        # is the row an operator actually reads to know what they are copying.
+        rows = [ln for ln in phase5.splitlines() if ln.startswith("| `")]
+        assert any("`artifact/`" in ln for ln in rows), (
+            "Phase 5's what-comes-home table has no artifact/ row. The rsync copies it "
+            "either way, so this is the operator not knowing they hold the one file that "
+            f"cannot be remade.\n  rows: {rows}"
+        )
+        assert re.search(r"C-317|not bit-reproducible|cannot be recomputed", phase5), (
+            "Phase 5 does not say the weights are the irreplaceable part. The parquets can be "
+            "recomputed from the weights; the weights cannot be recomputed from anything."
+        )
+
+    def test_the_fao_path_says_to_retrieve_the_eight_artefacts(self):
+        text = self.GUIDE.read_text()
+        start = text.index("## Phase 4b")
+        phase4b = text[start : text.index("## Phase 4c", start)]
+
+        assert "artifact/" in phase4b, (
+            "Phase 4b never mentions the artefacts. Its step 1 is eight delegated "
+            "`pod_run_model.sh --forecast` runs, each of which now collects a trained model "
+            "into /workspace/deliver/<model>/artifact/, and this phase has no retrieval step — "
+            "so they are destroyed with the pod."
+        )
+        # In a RUNNABLE command, not in the prose. The paragraph above the command says
+        # "this phase has no rsync step", so `"rsync" in phase4b` passed with the command
+        # deleted — the same shape of hole this class's docstring is about, found by
+        # mutating this very assertion.
+        fenced = re.findall(r"```bash\n(.*?)```", phase4b, re.S)
+        assert any("rsync" in block for block in fenced), (
+            "Phase 4b has no rsync COMMAND for getting the artefacts off the pod — only "
+            f"prose about one. Code blocks found: {len(fenced)}"
+        )
+
+        # The eight the script actually forecasts, read from the script rather than retyped:
+        # a roster change must break this, not silently leave a model out of the instruction.
+        line = next(ln for ln in self.FAO.read_text().splitlines() if ln.startswith("MODELS="))
+        models = line.split("=", 1)[1].strip().strip('"').split()
+        assert len(models) == 8, f"the FAO roster is no longer eight models: {models}"
+        missing = [m for m in models if m not in phase4b]
+        assert not missing, (
+            f"Phase 4b's retrieval step omits {missing}; those models' weights would be left "
+            f"on the pod while the other {len(models) - len(missing)} came home"
         )
 
 

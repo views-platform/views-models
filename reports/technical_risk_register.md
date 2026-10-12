@@ -1,10 +1,10 @@
 # Technical Risk Register — views-models
 
-**Last updated:** 2026-09-28  
+**Last updated:** 2026-10-12  
 **Governing ADR:** [ADR-010](../docs/ADRs/010_technical_risk_register.md)  
-**Total entries:** 166 (157 concerns + 9 disagreements)  
-**Concerns:** Open 75 | Mitigated 25 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
-**Concerns by tier:** T1 6 | T2 53 | T3 65 | T4 25 (4 merge stubs carry no tier)  
+**Total entries:** 167 (158 concerns + 9 disagreements)  
+**Concerns:** Open 76 | Mitigated 25 | Resolved 46 | Accepted 5 | Partially Resolved 1 | Subsumed 1 | Merged 4  
+**Concerns by tier:** T1 6 | T2 54 | T3 65 | T4 25 (4 merge stubs carry no tier)  
 **Disagreements:** Open 7 | Resolved 1 | Subsumed 1  
 **Last curated:** 2026-07-31 (`review-rr strategic`, first full pass — tier recalibration, 4 merges, 6 causal clusters identified)
 
@@ -1974,6 +1974,19 @@
 | **Status** | Open |
 | **Location** | `models/mister_bluesky` (= `dancing_monkey`), `models/little_talks` (= `dark_necessities`) |
 | **Notes** | #536 set `num_samples: 100 -> 1` and `mc_dropout: True -> False` on two models so they could run at all (the 100-sample path needs ~303 GB, C-155). Those two keys were the **entire** functional difference between each and an existing sibling: same architecture, same queryset, same hyperparameters, same seed — verified by diff, and then by the output, which is **byte-identical** (`corr = 1.0000`, identical sums and non-zero fractions, produced on two different pods). They were never independent models; they were the probabilistic variants of `dancing_monkey` and `dark_necessities`, and removing the probabilistic part removed the model. **Consequence beyond the count:** the consumer is ensemble-diversity work, where shipping one model twice double-weights an architecture and corrupts the measurement — worse than shipping nine instead of eleven. **What did not catch it:** the guard added in #536 asserted the delivery batch was internally *comparable*, and identical is maximally comparable. A test can be true and measure the wrong property. **The fix is not to re-split them by hand** but views-models#492, which removes the memory ceiling so they can run at 100 samples and be themselves again. Until then the delivery is 8 distinct models, and saying "eleven files" would be false. Cross-refs: **C-155**, **C-157**. |
+
+---
+
+### C-159 — A mutation that silently fails to apply reads as a RESULT, so the procedure we use to validate guards can report either kind of false answer
+
+| Field | Value |
+|---|---|
+| **Tier** | 2 |
+| **Trigger** | Running a guard audit (`falsify guard`, `ship-it` Step 5.5, or any by-hand mutation pass) where a mutation is applied by string replacement, `sed`, or a patch script rather than by an edit whose effect is read back. |
+| **Source** | Observed twice in one session, 2026-10-12, during the #549/#552 guard audits |
+| **Status** | Open |
+| **Location** | The audit procedure itself, not a file. Nearest code: `~/.claude/skills/falsify/references/guard_mutations.md` (normative for guard mode, requires every mutation be *applied and executed*, does not require its application be *verified*). |
+| **Notes** | Mutation testing is the only instrument we have for the question "can this guard fire?", and the repository relies on it heavily — guards that cannot fire were recorded in **9 of 18 repositories** (`reports/measurements/2026-08-23_agent_failure_pattern_prevalence.md`). That instrument has no check on its own input. A mutation is a textual edit; if the edit does not land, or lands somewhere else, the test run still produces a clean pass/fail that is then recorded as a verdict about the guard. **Both directions are wrong, and they are not equally dangerous. (1) FALSE SURVIVOR — the mutation does not apply, the suite passes, and that is recorded as "the guard did not fire".** Measured instance: injecting the C-259 defect into `models/amber_kestrel/configs/config_hyperparameters.py` by inserting `'ss_epsilon_max': 0.5` *earlier* in the same dict literal. Python takes the last key, the file already declared `'ss_epsilon_max': 0.0` further down, so the arm was unchanged. Reported as a survivor until the config was re-read. Cost is wasted hardening of something already sound — annoying, self-limiting. **(2) FALSE CAUGHT — the mutation applies but breaks something unrelated, the suite fails for that reason, and that is recorded as "the guard holds".** This is the one that makes an audit lie, and it needs no exotic mistake: a `sed` that mangles quoting, or an edit that leaves a shell script failing `bash -n`, turns every test in the file red. A decorative guard then passes its audit, and the repository starts believing in protection it does not have — which is precisely the belief `ship-it` Step 5.5 exists to prevent forming. **Why it is not merely operator error:** the same session also had four separate instances of an *assertion* matching prose about the code instead of the code (a comment containing `-t -e`; a paragraph saying "this phase has no rsync step"; a `die` message naming `main.py`; a comment in `requirements.txt` quoting `>=1.9.0`). The common root is a textual operation whose effect on the thing that executes was never read back. Mutation application is the same operation performed by the auditor, with the verdict as its output. **The cheap fix is a precondition, not a tool:** after applying a mutation, assert that the subject changed in the intended direction and in no other — re-read the value through the loader the code uses, or diff the file and check the diff is the one intended — and record `UNRUN` when it did not. A syntax check on the mutated artefact (`bash -n`, an import) separates "the guard fired" from "I broke the file". **Not fixed here.** Both instances above were caught by re-reading, which is not a mechanism. Cross-refs: **C-156** (a check that cannot see what it claims to — the same failure one layer down, in the loader rather than in the auditor), **C-61** (a regex config edit that matched a *commented* line — the same textual-edit-not-read-back root, in tooling rather than in an audit), **C-157** (a key that is misspelt, dead or merely adjacent behaves identically: silently). |
 
 ---
 

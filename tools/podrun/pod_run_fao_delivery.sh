@@ -118,6 +118,18 @@ note() { echo "  MISSING: $*"; FAIL=1; }
 
 [ -d "$REPO/.git" ] || note "$REPO is not a checkout — clone views-models first (see docs/runpod_run_guide.md Phase 2)"
 [ -x "$VENV/bin/python" ] || note "$VENV does not exist — run pod_run_model.sh once to build it, or follow Phase 2"
+# A venv that EXISTS is not enough, because this script does not use it directly: it
+# delegates all eight models to pod_run_model.sh, which refuses any venv it cannot establish
+# the install order of (C-151, views-models#517). Without this line --preflight reports clean
+# and the chain then dies at model 1 of 8, after the fetch, on a condition that was knowable
+# here for free. That is the opposite of what --preflight is for.
+#
+# Worse than merely late: an operator whose preflight failed on the publish-path check has an
+# obvious-looking fix — hand-install views-pipeline-core[appwrite] — and that is precisely the
+# toolz reversion the ordered install block exists to prevent. Catch it before they get there.
+if [ -x "$VENV/bin/python" ] && [ ! -f "$VENV/.built-by-pod-run-model" ]; then
+    note "$VENV carries no .built-by-pod-run-model marker, so pod_run_model.sh will refuse it at model 1 of 8 — rm -rf $VENV and let the first delegated run rebuild it (~2 min)"
+fi
 
 # The datafactory credential, for the fetch.
 [ -s /root/.netrc ] || note "/root/.netrc — the datafactory fetch needs it (guide Step 2.3)"
