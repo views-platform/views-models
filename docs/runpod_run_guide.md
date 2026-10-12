@@ -452,9 +452,15 @@ for m in violet_visitor bold_comet blazing_meteor blue_stranger \
 done
 ```
 
-~30 MB in all. Check each `PROVENANCE` says `mode: production` before you keep it, and
-`git:` — an artefact that cannot name the commit it trained at cannot be compared to anything
-later (views-models#551).
+~30 MB in all. Check each `PROVENANCE` says `mode: production` before you keep it, and that
+`git:` is a sha rather than `unknown` — an artefact that cannot name the commit it trained at
+cannot be compared to a later one, which for a non-reproducible model (C-317) is the whole of
+what it could have been used for.
+
+⚠️ This step is an instruction to a person at the end of a sixteen-GPU-hour run, which is the
+weakest place to put it. **views-models#551** proposes recording the eight artefacts in
+`deliver/_fao/MANIFEST` and refusing to report success without them, so that forgetting this
+is visible rather than silent.
 
 ## Phase 4c — The darts models (r2darts2), calibration
 
