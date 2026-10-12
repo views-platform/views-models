@@ -901,18 +901,52 @@ class TestExperimentArmConformance:
             f"{arm}/README.md has no <!-- manual --> block, so update_readme.py will discard "
             f"all of it on the next push to development that touches its configs (C-77/C-78)."
         )
-        # Not merely "a block exists": the content has to be INSIDE one. Headings are the
-        # cheap proxy for the hand-written body — a marker pair wrapped round nothing would
-        # satisfy the assertion above.
+        # Not merely "a block exists": the hand-written content has to be INSIDE one, because
+        # a marker pair wrapped round nothing satisfies the assertion above.
+        #
+        # The first version of this compared every `## ` heading against the block and
+        # required none outside it. That was true of the README as committed and FALSE the
+        # moment CI regenerated it: the scaffold's own headings are supposed to sit outside
+        # the block. So it passed pre-merge, turned `development` red on the regeneration
+        # commit, and reported a correct file as broken. A guard that fires on the correct
+        # state is worse than no guard — it gets edited out of the way.
+        #
+        # The baseline is DERIVED rather than typed: the control's README is produced by the
+        # same generator and carries no manual block, so its headings are exactly what the
+        # scaffold emits. Anything outside the arm's block that the control does not also
+        # have is hand-written text standing where CI will delete it.
+        control, _declared = EXPERIMENT_ARMS[arm]
+        control_readme = MODELS_DIR / control / "README.md"
+        control_text = control_readme.read_text(encoding="utf-8")
+        assert not _manual_blocks(control_text), (
+            f"{control}/README.md now has a manual block, so it is no longer a pure "
+            f"generated baseline and cannot be used as one here. Pick a model whose README "
+            f"is still fully generated, or pin the scaffold's heading set explicitly."
+        )
+        generated_headings = {
+            line.strip() for line in control_text.splitlines() if line.startswith("## ")
+        }
+        assert generated_headings, (
+            f"no `## ` headings found in {control}/README.md, so the baseline is empty and "
+            f"this check would pass on anything"
+        )
+
         preserved = "\n".join(blocks)
         orphaned = [
-            line
+            line.strip()
             for line in text.splitlines()
-            if line.startswith("## ") and line not in preserved
+            if line.startswith("## ")
+            and line.strip() not in generated_headings
+            and line not in preserved
         ]
         assert not orphaned, (
-            f"{arm}/README.md has sections outside its manual block(s), which CI will "
-            f"delete: {orphaned}"
+            f"{arm}/README.md has hand-written sections outside its manual block(s), which "
+            f"update_readme.py will delete on the next regeneration: {orphaned}. Move them "
+            f"inside <!-- manual --> … <!-- /manual -->."
+        )
+        # And the block must hold something, not just exist.
+        assert preserved.strip(), (
+            f"{arm}/README.md has an EMPTY manual block, which preserves nothing"
         )
 
     @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
