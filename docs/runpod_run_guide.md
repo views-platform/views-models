@@ -349,11 +349,20 @@ The runner already does both. Its output is in `/workspace/deliver/<model>/`:
 
 | | |
 |---|---|
+| `artifact/` | the trained state dict, its two sidecars, and `PROVENANCE` — ~4 MB |
 | `parquet/` | 13 files, one per origin, 2,333,448 rows each |
 | `draws/` | the full posterior, zstd — ~236× smaller than raw |
 | `MANIFEST` | sizes, timestamps, git sha, lesson count, and `mode:` |
 | `STATUS` | `OK`, or `FAILED:<stage>` |
 | `REHEARSAL` | present **only** after `--rehearsal` — this output is not fit to deliver |
+
+⛔ **`artifact/` is the one that cannot be remade.** HydraNet training is not bit-reproducible
+(C-317), so a lost state dict is lost for good: on 2026-09-28 eight models trained, delivered
+their parquets, reported `OK`, and their weights died with the pods — there is no second copy,
+because nothing in this platform calls `wandb log_artifact` outside tests (views-models#549).
+The parquets can be recomputed from the weights. The weights cannot be recomputed from
+anything. `PROVENANCE` inside it records the lesson count, region, commit and digest, since
+nothing in the tensors does.
 
 From your laptop:
 
@@ -363,8 +372,10 @@ rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
     models/<model>/data/generated/calibration_delivery_<date>/
 ```
 
-Must transfer **~18 MB**. If it is trying to move gigabytes, you are copying raw predictions
-rather than the deliverable — check the path.
+Must transfer **~22 MB** — measured end to end on 2026-10-12, of which ~4 MB is `artifact/`
+and 6.5 MiB the posterior archive. (It was ~18 MB before the runner collected the artefact.)
+If it is trying to move gigabytes, you are copying raw predictions rather than the deliverable
+— check the path.
 
 Verify before trusting it:
 
@@ -420,6 +431,30 @@ leg. That failure lands *after* all the training.
   not leave them there**: supersede or remove them before anyone reads them as a forecast.
 - A rehearsal proves the **chain**, not the **capacity**. 40 lessons has a different duration
   and memory profile from 300, and memory is where this platform has failed before.
+
+### ⛔ Bring the eight artefacts home before teardown
+
+This phase has no rsync step above, because the forecasts leave by being **published** to the
+shelf rather than by being copied. The weights do not. Step 1 of the chain is eight delegated
+`pod_run_model.sh --forecast` runs, so after a successful delivery there are eight trained
+forecasting models sitting in `/workspace/deliver/<model>/artifact/` that nothing retrieves —
+and `deliver/_fao/MANIFEST` names the models but not their artefacts.
+
+That is the 2026-09-28 loss on the delivery path rather than the research path: same models,
+same non-reproducibility (C-317), published forecasts whose weights no longer exist.
+
+```bash
+for m in violet_visitor bold_comet blazing_meteor blue_stranger \
+         heavy_freighter pink_pirate bright_starship purple_alien; do
+    rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
+        root@<ip>:/workspace/deliver/$m/artifact/ \
+        models/$m/artifacts/forecasting_delivery_<date>/
+done
+```
+
+~30 MB in all. Check each `PROVENANCE` says `mode: production` before you keep it, and
+`git:` — an artefact that cannot name the commit it trained at cannot be compared to anything
+later (views-models#551).
 
 ## Phase 4c — The darts models (r2darts2), calibration
 

@@ -666,6 +666,67 @@ class TestARehearsalIsMarkedInTheOutput:
                 f"  {branches['production']}"
             )
 
+class TestTheGuideSaysHowToRetrieveTheArtefact:
+    """The runner collecting the artefact is half the fix; retrieving it is the other half.
+
+    `pod_run_model.sh` now puts the trained weights in `/workspace/deliver/<model>/artifact/`,
+    and on the research path Phase 5's rsync copies the whole directory, so they come home by
+    accident of the path. On the FAO delivery path they do not: that phase has no rsync step at
+    all, because the forecasts leave by being PUBLISHED. So after a successful delivery there
+    are eight trained forecasting models on a pod that is about to be destroyed, which is the
+    2026-09-28 loss again with a different partition.
+
+    Asserted on bounded windows and against the model list the FAO script actually uses, not
+    on two words appearing somewhere in a 600-line file — the mistake
+    TestTheGuideDocumentsTheChmodTrap exists to record.
+    """
+
+    GUIDE = REPO / "docs" / "runpod_run_guide.md"
+    FAO = REPO / "tools" / "podrun" / "pod_run_fao_delivery.sh"
+
+    def test_the_research_path_lists_the_artefact_among_what_comes_home(self):
+        text = self.GUIDE.read_text()
+        heading = text.index("## Phase 5")
+        phase5 = text[heading : text.index("## Phase", heading + 10)]
+        # The TABLE ROW, not the word anywhere in the phase. The paragraph below the table
+        # also says `artifact/`, so a looser check would pass with the row deleted — which
+        # is the row an operator actually reads to know what they are copying.
+        rows = [ln for ln in phase5.splitlines() if ln.startswith("| `")]
+        assert any("`artifact/`" in ln for ln in rows), (
+            "Phase 5's what-comes-home table has no artifact/ row. The rsync copies it "
+            "either way, so this is the operator not knowing they hold the one file that "
+            f"cannot be remade.\n  rows: {rows}"
+        )
+        assert re.search(r"C-317|not bit-reproducible|cannot be recomputed", phase5), (
+            "Phase 5 does not say the weights are the irreplaceable part. The parquets can be "
+            "recomputed from the weights; the weights cannot be recomputed from anything."
+        )
+
+    def test_the_fao_path_says_to_retrieve_the_eight_artefacts(self):
+        text = self.GUIDE.read_text()
+        start = text.index("## Phase 4b")
+        phase4b = text[start : text.index("## Phase 4c", start)]
+
+        assert "artifact/" in phase4b, (
+            "Phase 4b never mentions the artefacts. Its step 1 is eight delegated "
+            "`pod_run_model.sh --forecast` runs, each of which now collects a trained model "
+            "into /workspace/deliver/<model>/artifact/, and this phase has no retrieval step — "
+            "so they are destroyed with the pod."
+        )
+        assert "rsync" in phase4b, "Phase 4b gives no command for getting the artefacts off the pod"
+
+        # The eight the script actually forecasts, read from the script rather than retyped:
+        # a roster change must break this, not silently leave a model out of the instruction.
+        line = next(ln for ln in self.FAO.read_text().splitlines() if ln.startswith("MODELS="))
+        models = line.split("=", 1)[1].strip().strip('"').split()
+        assert len(models) == 8, f"the FAO roster is no longer eight models: {models}"
+        missing = [m for m in models if m not in phase4b]
+        assert not missing, (
+            f"Phase 4b's retrieval step omits {missing}; those models' weights would be left "
+            f"on the pod while the other {len(models) - len(missing)} came home"
+        )
+
+
 class TestTheGuideDocumentsTheChmodTrap:
     """C-154 / #518. This property DID NOT EXIST when it was first asserted.
 
