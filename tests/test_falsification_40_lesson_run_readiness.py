@@ -68,6 +68,47 @@ HYDRANETS = (
 )
 
 
+def _rehearsal_branches(lines, needle):
+    """Group every line containing `needle` by the rehearsal branch that encloses it.
+
+    Returns {if_line_index: {"rehearsal": line, "production": line}}.
+
+    Walks outward from each hit through the nesting to find its OWN enclosing `if`, rather
+    than pairing an `if` with the next `else` anywhere below it. A non-greedy
+    `if ... then(.*?)else(.*?)fi` regex once matched a hundred-line span from the
+    forecast-leg REHEARSAL writer through `stage collapse` to the calibration MANIFEST's
+    production branch, and still returned a plausible count — see
+    TestARehearsalIsMarkedInTheOutput.
+    """
+    out = {}
+    for index, line in enumerate(lines):
+        if needle not in line:
+            continue
+        depth = 0
+        in_else = False
+        enclosing = None
+        for i in range(index - 1, -1, -1):
+            token = lines[i].strip()
+            if token == "fi" or token.endswith(" fi"):
+                depth += 1
+            elif token.startswith("if ") or token.startswith("elif "):
+                if depth == 0:
+                    enclosing = i
+                    break
+                depth -= 1
+            elif token == "else" and depth == 0:
+                in_else = True
+        assert enclosing is not None, (
+            f"a {needle!r} line is written unconditionally, so a rehearsal and a "
+            f"production run would report the same thing:\n  {line.strip()}"
+        )
+        assert "REHEARSAL_LESSONS" in lines[enclosing], (
+            f"a {needle!r} line's enclosing condition is not the rehearsal test:\n"
+            f"  {lines[enclosing].strip()}\n  {line.strip()}"
+        )
+        out.setdefault(enclosing, {})["production" if in_else else "rehearsal"] = line.strip()
+    return out
+
 def _code_only(src: str) -> str:
     """Shell source with comments removed.
 
@@ -543,51 +584,87 @@ class TestARehearsalIsMarkedInTheOutput:
             )
 
     def test_every_mode_line_reports_the_mode_on_the_correct_branch(self):
-        """Swapping the two MANIFEST branches made production runs claim PATCHED and
-        rehearsals claim as-committed. The old guard checked only that the string existed.
+        """Swapping the two branches made production runs claim PATCHED and rehearsals
+        claim as-committed. The old guard checked only that the string existed.
 
         It then checked only the FIRST such branch in the file, which is a second hole of
         the same kind: the script writes a `mode:` line from three places — the forecast
-        MANIFEST, the calibration MANIFEST, and `artifact/PROVENANCE` — and a swap in any
-        one of them is the same defect. When PROVENANCE was added ahead of the manifests it
-        became the only branch under test, and both MANIFESTs stopped being guarded without
-        any assertion changing. So every branch is checked, and the count is asserted: a
-        fourth `mode:` writer must be added to this test deliberately rather than inherit
-        silence.
+        MANIFEST, the calibration MANIFEST and `artifact/PROVENANCE` — and a swap in any
+        one of them is the same defect. When PROVENANCE was added ahead of the manifests
+        it became the only branch under test, and both MANIFESTs stopped being guarded
+        without any assertion changing.
+
+        And the regex that replaced it was no better than its luck. A non-greedy
+        `if ... then(.*?)else(.*?)fi` pairs each `if` with the next `else` ANYWHERE below
+        it, so one of its matches spanned a hundred lines from the forecast-leg REHEARSAL
+        writer through `stage collapse` to the calibration MANIFEST's production branch,
+        and the count came to three only because a fourth match happened to contain no
+        `mode:`. It passed by accident, and the accident is one inserted `else` away from
+        ending. So each line's own enclosing branch is found by walking the nesting.
         """
-        code = _code_only(PODRUN.read_text())
-        branches = re.findall(
-            r'if \[ -n "\$REHEARSAL_LESSONS" \]; then(.*?)else(.*?)fi',
-            code, re.S,
-        )
-        mode_branches = [
-            (rehearsal, production)
-            for rehearsal, production in branches
-            if "mode:" in rehearsal or "mode:" in production
-        ]
-        assert len(mode_branches) == 3, (
-            "expected three places that write a mode: line — the forecast MANIFEST, the "
-            f"calibration MANIFEST and artifact/PROVENANCE — found {len(mode_branches)}"
+        lines = _code_only(PODRUN.read_text()).splitlines()
+        mode_lines = [ln for ln in lines if 'echo "mode:' in ln]
+        assert len(mode_lines) == 6, (
+            "expected six mode: lines — a rehearsal and a production one in each of the "
+            "forecast MANIFEST, the calibration MANIFEST and artifact/PROVENANCE — found "
+            f"{len(mode_lines)}. A new writer must be added to this test deliberately "
+            "rather than inherit silence."
         )
 
-        for rehearsal_branch, production_branch in mode_branches:
-            assert "NOT FIT" in rehearsal_branch, (
-                "a rehearsal mode: line does not mark the output unfit"
-            )
-            assert "NOT FIT" not in production_branch, (
-                "a production mode: line claims the output is unfit to deliver"
-            )
-            assert "PATCHED" not in production_branch, (
-                "a production branch claims the config was patched after checkout"
-            )
-            # Only the MANIFEST branches record the config patch; PROVENANCE carries
-            # architecture provenance and no config: line. Tied to the line that is actually
-            # written rather than to which branch this is.
-            if "config:" in rehearsal_branch:
-                assert "PATCHED after checkout" in rehearsal_branch, (
-                    "a rehearsal branch writes a config: line that does not say it was patched"
-                )
+        writers = _rehearsal_branches(lines, 'echo "mode:')
+        assert len(writers) == 3, (
+            f"expected three mode: writers, found {len(writers)} — "
+            f"{[sorted(v) for v in writers.values()]}"
+        )
 
+        for if_index, branches in sorted(writers.items()):
+            assert set(branches) == {"rehearsal", "production"}, (
+                f"the writer at line {if_index + 1} has only {sorted(branches)}; a mode: "
+                f"line on one branch alone means the other run type reports nothing"
+            )
+            assert "NOT FIT" in branches["rehearsal"], (
+                f"a rehearsal mode: line does not mark the output unfit:\n"
+                f"  {branches['rehearsal']}"
+            )
+            assert "NOT FIT" not in branches["production"], (
+                f"a production mode: line claims the output is unfit to deliver:\n"
+                f"  {branches['production']}"
+            )
+            assert "PATCHED" not in branches["production"], (
+                f"a production mode: line claims the config was patched after checkout:\n"
+                f"  {branches['production']}"
+            )
+
+    def test_the_manifests_say_the_config_was_patched_on_the_rehearsal_branch(self):
+        """The companion claim, tied to the lines that actually carry it.
+
+        Only the MANIFESTs record the config patch; `artifact/PROVENANCE` carries
+        architecture provenance and writes no `config:` line. Asserting "PATCHED" against
+        whichever branch happens to be first is how the old guard came to be checking one
+        writer out of three.
+        """
+        lines = _code_only(PODRUN.read_text()).splitlines()
+        writers = _rehearsal_branches(lines, 'echo "config:')
+        assert len(writers) == 2, (
+            f"expected the two MANIFESTs to write a config: line, found {len(writers)} "
+            f"writer(s): {[sorted(v) for v in writers.values()]}"
+        )
+        for if_index, branches in sorted(writers.items()):
+            assert set(branches) == {"rehearsal", "production"}, (
+                f"the config: writer at line {if_index + 1} has only {sorted(branches)}"
+            )
+            assert "PATCHED after checkout" in branches["rehearsal"], (
+                f"a rehearsal config: line does not say the config was patched:\n"
+                f"  {branches['rehearsal']}"
+            )
+            assert "REHEARSAL_LESSONS" in branches["rehearsal"], (
+                f"a rehearsal config: line does not name the lesson count it was forced "
+                f"to:\n  {branches['rehearsal']}"
+            )
+            assert "PATCHED" not in branches["production"], (
+                f"a production config: line claims the config was patched:\n"
+                f"  {branches['production']}"
+            )
 
 class TestTheGuideDocumentsTheChmodTrap:
     """C-154 / #518. This property DID NOT EXIST when it was first asserted.

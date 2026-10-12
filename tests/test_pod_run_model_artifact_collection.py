@@ -67,6 +67,15 @@ def _run(
         if offset is not None:
             os.utime(f, (start + offset, start + offset))
 
+    # A previous attempt's output, planted in the directory the operator rsyncs. Every
+    # fixture used to start from an empty artifact/, so `rm -rf "$OUT/artifact"` could be
+    # deleted with the suite green — leaving a stale .pt, its sidecars and a stale
+    # INCOMPLETE beside a PROVENANCE that describes only one of them.
+    stale_dir = out / "artifact"
+    stale_dir.mkdir()
+    (stale_dir / "calibration_model_19990101_000000.pt").write_bytes(b"a previous attempt")
+    (stale_dir / "INCOMPLETE").write_text("from a previous attempt", encoding="utf-8")
+
     harness = tmp_path / "harness.sh"
     harness.write_text(
         "set -uo pipefail\n"
@@ -152,35 +161,148 @@ def test_a_missing_sha256_alone_is_not_flagged_as_incomplete():
     assert proc.returncode == 0
     assert "INCOMPLETE" not in proc.collected, "a missing .sha256 was treated as fatal metadata"
 
-def test_the_collection_runs_before_inference_not_merely_before_the_parquets():
-    """Position — and the assertion that the first version of this test got wrong.
+SECTION_START = "stage train"
+SECTION_END = 'echo "train + inference took'
 
-    Training is the cheap-to-survive part. The 25x posterior-sampling collapse
-    (postmortem 2.3) and the OOM the memory guard cannot see (2.5) both strike
-    during INFERENCE, after the weights exist.
 
-    This test used to assert only that collection preceded `stage collapse`.
-    That was true of the version of the script that ran `main.py -t -e` as one
-    invocation and collected afterwards — which left the weights unprotected for
-    the 54 minutes between `.pt` written at 03:31:12 and collection at 04:25:10
-    on the 2026-10-12 run. The guard passed on the defect it was written for, so
-    it is replaced with one that fails on it: collection must precede the
-    invocation that runs inference, and no invocation may combine training with
-    it.
+def _run_section() -> str:
+    """The script from `stage train` through the end of inference, lifted out verbatim.
+
+    Wider than `_block()` on purpose. The question these tests answer is not what the
+    collection block does — that is covered above — but whether it is REACHED, between
+    the right two things, on BOTH legs. That is a question about control flow, so the
+    control flow has to run: an `if [ "$FORECAST" != "1" ]` wrapper around the collection
+    block moves no string offset, and a guard built on `src.index(a) < src.index(b)`
+    cannot see it.
+    """
+    lines = SCRIPT.read_text(encoding="utf-8").splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() == SECTION_START]
+    assert len(starts) == 1, f"expected exactly one {SECTION_START!r}, found {len(starts)}"
+    ends = [i for i, line in enumerate(lines) if SECTION_END in line]
+    assert len(ends) == 1, "the inference section's closing timing line moved or multiplied"
+    assert ends[0] > starts[0], "inference precedes training"
+    return "\n".join(lines[starts[0] : ends[0] + 1])
+
+
+def _trace_section(tmp_path: Path, *, forecast: str = "0", rehearsal: str = "") -> list[str]:
+    """Run the section with main.py stubbed, and return what happened, in order.
+
+    The stub stands in for `$VENV/bin/python`. On a `-t` call it creates the artefact
+    triple in the pod's repo tree, exactly where train_model.py puts it. On every call it
+    records its own flags AND whether the collected artefact is already sitting in
+    `$OUT/artifact` at that moment — which is the property under test, stated as the
+    script's own invariant rather than as a position in a file.
+    """
+    root = tmp_path / "workspace"
+    model = "violet_visitor"
+    repo = root / "views-models"
+    adir = repo / "models" / model / "artifacts"
+    out = root / "deliver" / model
+    adir.mkdir(parents=True)
+    out.mkdir(parents=True)
+    (out / ".lessons").write_text(rehearsal or "300", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+
+    trace = tmp_path / "trace"
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    stub = venv_bin / "python"
+    stub.write_text(
+        "#!/usr/bin/env bash\n"
+        f'TRACE="{trace}"\nOUT="{out}"\nARTEFACTS="{adir}"\n'
+        # What the collection stage is for: at the moment inference starts, the weights
+        # must already be out of the repo tree and in the directory that comes home.
+        'if ls "$OUT"/artifact/*.pt >/dev/null 2>&1; then P=collected; else P=absent; fi\n'
+        'echo "python $* | artefact_in_OUT=$P" >> "$TRACE"\n'
+        # Mimic train_model.py: the state dict and its two sidecars, in the repo tree.
+        'for a in "$@"; do if [ "$a" = "-t" ]; then\n'
+        '  PT=$ARTEFACTS/calibration_model_20261012_220000.pt\n'
+        '  echo weights > "$PT"; echo "{}" > "$PT.config.json"; echo deadbeef > "$PT.sha256"\n'
+        'fi; done\n',
+        encoding="utf-8",
+    )
+    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+    harness = tmp_path / "section.sh"
+    harness.write_text(
+        "set -uo pipefail\n"
+        f'ROOT="{root}"\nREPO=$ROOT/views-models\nMODEL="{model}"\nOUT=$ROOT/deliver/$MODEL\n'
+        f'VENV="{tmp_path / "venv"}"\nFORECAST="{forecast}"\nREHEARSAL_LESSONS="{rehearsal}"\n'
+        'stage() { echo "stage $1" >> ' + f'"{trace}"' + '; }\n'
+        'die()   { echo "die $1" >> ' + f'"{trace}"' + '; exit 1; }\n' + _run_section() + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["bash", str(harness)], capture_output=True, text=True, timeout=120
+    )
+    recorded = trace.read_text(encoding="utf-8").splitlines() if trace.is_file() else []
+    assert proc.returncode == 0, "\n".join(recorded) + "\n" + proc.stdout + proc.stderr
+    return recorded
+
+
+def test_the_calibration_leg_collects_between_training_and_evaluation():
+    """Executed control flow, not a string offset — and this is the regression.
+
+    The previous version of this guard asserted only that `stage collect_artifact`
+    appeared before `stage collapse` in the file. That was TRUE of the script that ran
+    `main.py -t -e` as one invocation and collected afterwards, which left the weights
+    unprotected for the 54 minutes between `.pt` written at 03:31:12 and collection at
+    04:25:10 on the 2026-10-12 run. The guard passed on the defect it was written for.
+
+    What is asserted now is the property itself: when the invocation that runs inference
+    starts, the artefact is already in the directory that comes home.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        trace = _trace_section(Path(td))
+
+    assert "stage train" in trace, trace
+    assert "stage collect_artifact" in trace, trace
+    assert "stage evaluate" in trace, trace
+    assert trace.index("stage train") < trace.index("stage collect_artifact") \
+        < trace.index("stage evaluate"), trace
+
+    calls = [line for line in trace if line.startswith("python ")]
+    assert len(calls) == 2, f"expected a training call and an inference call, got {calls}"
+    training, inference = calls
+    assert " -t" in training and "artefact_in_OUT=absent" in training, training
+    assert "artefact_in_OUT=collected" in inference, (
+        "inference began with no artefact in $OUT/artifact — a crash in it destroys the "
+        f"trained model, which is views-models#549\n  {inference}"
+    )
+
+
+def test_the_forecast_leg_collects_too():
+    """The leg the position guard claimed to cover and could not.
+
+    Wrapping the collection block in `if [ "$FORECAST" != "1" ]` moves no string offset,
+    so the old assertion `collect < src.index('exit 0')` stayed green while the forecast
+    leg trained a model and never collected it — the #549 loss, on one of two legs,
+    silently. Both legs train, so both must collect.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        trace = _trace_section(Path(td), forecast="1")
+
+    assert "stage collect_artifact" in trace, (
+        f"the forecast leg never reached the collection stage\n  {trace}"
+    )
+    assert trace.index("stage train") < trace.index("stage collect_artifact") \
+        < trace.index("stage forecast"), trace
+
+    calls = [line for line in trace if line.startswith("python ")]
+    assert len(calls) == 2, f"expected a training call and a forecast call, got {calls}"
+    assert "artefact_in_OUT=collected" in calls[1], (
+        f"the forecast leg began forecasting with no artefact collected\n  {calls[1]}"
+    )
+
+
+def test_training_and_inference_are_never_one_invocation():
+    """The flag combination the split exists to prevent.
+
+    A combined invocation puts inference INSIDE the training call, so no amount of
+    reordering stages can protect the artefact. Checked on the invocation lines; the
+    prose above them has to be free to name `-t -e` as the thing that was wrong.
     """
     src = SCRIPT.read_text(encoding="utf-8")
-    collect = src.index(STAGE_MARKER)
-
-    for invocation in ("main.py -r calibration -e", "main.py -r forecasting -f"):
-        assert invocation in src, f"{invocation!r} is gone — inference is launched some other way"
-        assert collect < src.index(invocation), (
-            f"collection runs after {invocation!r}; a crash in inference destroys the weights"
-        )
-
-    # The other half, and the one that actually regressed: a combined invocation puts
-    # inference *inside* the training call, so no amount of reordering stages can protect
-    # the artefact. Checked on the invocations themselves — the prose above them has to be
-    # free to name `-t -e` as the thing that was wrong.
     invocations = [
         ln.strip()
         for ln in src.splitlines()
@@ -188,40 +310,41 @@ def test_the_collection_runs_before_inference_not_merely_before_the_parquets():
     ]
     assert invocations, "no main.py invocation found — the run is launched some other way"
     for line in invocations:
-        for combined in ("-t -e", "-e -t", "-t -f", "-f -t"):
-            assert combined not in line, (
-                f"main.py is invoked with {combined!r}: training and inference are one "
-                f"process again, and the collection stage cannot sit between them\n  {line}"
-            )
-
-    assert collect < src.index("stage collapse"), "collection moved after the collapse stage"
-    assert collect < src.index('rm -rf "$OUT/parquet"'), "collection moved after the parquet stage"
-    # Both legs train, so both must collect: the forecast leg exits early, and that exit
-    # must come after the collection rather than before it.
-    assert collect < src.index('exit 0'), "the forecast leg exits before the artefact is collected"
+        flags = set(line.split())
+        assert not ({"-t"} & flags) or not ({"-e", "-f"} & flags), (
+            f"training and inference are one invocation again, so the collection stage "
+            f"cannot sit between them\n  {line}"
+        )
 
 
 def test_inference_reads_the_dataframe_training_fetched_rather_than_a_fresh_one():
-    """`-sa` is a correctness flag here, not a speed one.
+    """`--saved` is a correctness flag here, not a speed one.
 
-    Splitting the run means the second invocation fetches its own data unless
-    told not to. Evaluating a different viewser snapshot than was trained on
-    would be a silent mismatch: both halves succeed, the parquets are
-    well-formed, and nothing records that the model never saw this data.
-    pipeline-core also refuses a non-training run without it
-    (`cli/args.py:414-417`), so dropping the flag fails loudly — but it fails
-    AFTER training, which is an hour of GPU time to learn it.
+    Splitting the run means the second invocation fetches its own data unless told not
+    to. Evaluating a different viewser snapshot than was trained on would be a silent
+    mismatch: both halves succeed, the parquets are well-formed, and nothing records that
+    the model never saw this data. pipeline-core also refuses a non-training run without
+    it (`cli/args.py:414-417`), so dropping the flag fails loudly — but AFTER training,
+    which is an hour of GPU time to learn it.
 
-    Source-level deliberately: executing pipeline-core's own validator would
-    pin this repo's test suite to unreleased upstream internals, and CI installs
-    the published package.
+    Both spellings are accepted. The first version of this guard required the literal
+    `-sa`, which would have failed on the long form and on `-r "$RUN_TYPE"` — correct
+    edits both. A guard that fires on a correct change gets edited out of the way.
     """
     src = SCRIPT.read_text(encoding="utf-8")
-    for invocation in ("main.py -r calibration -e", "main.py -r forecasting -f"):
-        line = next(ln for ln in src.splitlines() if invocation in ln)
-        assert " -sa" in line, (
-            f"{invocation!r} runs without --saved: it will fetch a fresh snapshot and "
-            f"evaluate a model on data it was not trained on\n  {line.strip()}"
+    inference = [
+        ln.strip()
+        for ln in src.splitlines()
+        if "main.py" in ln
+        and not ln.lstrip().startswith("#")
+        and ({"-e", "-f"} & set(ln.split()))
+    ]
+    assert len(inference) == 2, f"expected one evaluation and one forecast call, got {inference}"
+    for line in inference:
+        flags = set(line.split())
+        assert flags & {"-sa", "--saved"}, (
+            f"an inference invocation runs without --saved: it will fetch a fresh snapshot "
+            f"and evaluate a model on data it was not trained on\n  {line}"
         )
 
 
@@ -308,28 +431,120 @@ def test_a_venv_this_script_did_not_build_is_refused_rather_than_reused():
     assert marked.returncode == 0, marked.stdout + marked.stderr
 
 
-def test_the_publish_path_check_cannot_stop_a_run_that_publishes_nothing():
-    """Advisory here, fatal where a publish follows.
+def test_the_venv_refusal_sits_where_it_can_actually_fire():
+    """Behaviour is not enough for this one: placement IS the guarantee.
 
-    The header promises at :8 that this script uploads nothing, and no stage in
-    it reaches a datastore. An import check for the Appwrite SDK is still worth
-    running — missing it is how the first FAO delivery failed after hours of
-    training (#517) — but making it fatal means a calibration run that needs no
-    credentials refuses to start over a capability it never uses.
+    The line is extracted and run in isolation above, which proves what it does and
+    nothing about whether it is reached. Two placements leave it correct and useless:
+    moved into the branch that BUILDS the venv, it fires on every fresh pod (the marker
+    does not exist yet) and never on the reuse path it exists for; moved to the end of
+    the script, a hand-built venv is reused through training and inference and the
+    refusal arrives after the money is spent. Both left the extracted-line test green.
+
+    So the refusal must sit inside the `else` of the venv-exists branch, and before
+    anything is verified or trained.
     """
     src = SCRIPT.read_text(encoding="utf-8")
-    appwrite_heredoc = next(
-        ln for ln in src.splitlines() if "<<'PY'" in ln and "Appwrite SDK is not importable" in ln
+    marker = '[ -f "$VENV/.built-by-pod-run-model" ]'
+    assert src.count(marker) == 1, "the venv-provenance guard moved or multiplied"
+    refusal = src.index(marker)
+
+    reuse_branch = src.index('echo "venv already present')
+    install_block = src.index('touch "$VENV/.built-by-pod-run-model"')
+    assert install_block < refusal < reuse_branch, (
+        "the venv refusal is not in the reuse branch: it must follow the install block's "
+        "marker write and precede the 'reusing' message, or it fires on fresh pods and "
+        "not on the path it exists for"
     )
-    assert "die" not in appwrite_heredoc, (
-        "the Appwrite import is fatal again; a run that publishes nothing cannot start "
-        "without the SDK"
+    assert refusal < src.index("stage verify_env"), (
+        "the venv refusal comes after verify_env; a hand-built venv is already in use "
+        "by then, and after the run it is after the money is spent"
     )
-    # And the checks that ARE load-bearing stay fatal, or this test would pass on a script
-    # whose whole environment verification had been demoted to a warning.
-    assert 'PY || die "environment verification failed"' in src.replace(
-        "<<'PY' || die", "PY || die"
-    ), "verify_env's own failure is no longer fatal"
+    # Reached unconditionally within that branch, not nested behind a further condition.
+    line = next(ln for ln in src.splitlines() if marker in ln)
+    assert line.startswith("  ["), (
+        f"the venv refusal is nested deeper than the reuse branch itself\n  {line!r}"
+    )
+
+
+def _appwrite_check() -> str:
+    """The Appwrite import check and its fallback, lifted out of the real script."""
+    lines = SCRIPT.read_text(encoding="utf-8").splitlines()
+    starts = [
+        i for i, ln in enumerate(lines)
+        if "Appwrite SDK is not importable" in ln and "<<'PY'" in ln
+    ]
+    assert len(starts) == 1, "the Appwrite check's opening line moved or multiplied"
+    ends = [i for i, ln in enumerate(lines) if ln.strip() == "PY" and i > starts[0]]
+    assert ends, "the Appwrite heredoc is unterminated"
+    return "\n".join(lines[starts[0] : ends[0] + 1])
+
+
+def test_the_publish_path_check_cannot_stop_a_run_that_publishes_nothing():
+    """Advisory here, fatal where a publish follows — and EXECUTED, not spell-checked.
+
+    The header promises at :8 that this script uploads nothing and no stage in it reaches
+    a datastore. The import check is still worth running — missing it is how the first FAO
+    delivery failed after hours of training (#517) — but making it fatal means a
+    calibration run that needs no credentials refuses to start over a capability it never
+    uses, which cost a launch on 2026-10-12.
+
+    The first version of this guard grepped the line for the substring "die". That made it
+    a spell-checker for one failure idiom: `|| { echo "..."; exit 1; }` restored the
+    fatality with the guard green. So the check is run against a python that fails the
+    import, and judged on its exit status.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td)
+        venv_bin = tmp_path / "venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        stub = venv_bin / "python"
+        # Stands in for a venv without the appwrite extra: every import fails.
+        stub.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "ModuleNotFoundError: No module named \'appwrite\'" >&2\n'
+            "cat > /dev/null\nexit 1\n",
+            encoding="utf-8",
+        )
+        stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+        harness = tmp_path / "appwrite.sh"
+        harness.write_text(
+            "set -uo pipefail\n"
+            f'VENV="{tmp_path / "venv"}"\n'
+            'die() { echo "DIE:$1"; exit 1; }\n'
+            + _appwrite_check()
+            + '\necho "REACHED THE NEXT STAGE"\n',
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            ["bash", str(harness)], capture_output=True, text=True, timeout=60
+        )
+
+    assert proc.returncode == 0, (
+        "a missing Appwrite SDK stopped a run that publishes nothing\n"
+        + proc.stdout + proc.stderr
+    )
+    assert "REACHED THE NEXT STAGE" in proc.stdout, (
+        "the Appwrite check exited the script rather than continuing\n"
+        + proc.stdout + proc.stderr
+    )
+    assert "NOTE" in proc.stdout, "the missing SDK was not reported at all"
+
+
+def test_the_environment_verification_itself_stays_fatal():
+    """The inverse of the test above, or it would pass on a script with no checks left.
+
+    Demoting the Appwrite import is a statement about one capability this script does not
+    use. It is not a statement about CUDA, torch, tlz or the pipeline packages, whose
+    absence means the run cannot work at all.
+    """
+    src = SCRIPT.read_text(encoding="utf-8")
+    verify = src[src.index("stage verify_env") :]
+    opening = verify.splitlines()[1]
+    assert "<<'PY'" in opening and "|| die" in opening, (
+        f"verify_env's own failure is no longer fatal\n  {opening}"
+    )
 
 def test_the_header_contract_lists_the_artefact():
     """The header block is what an operator reads to know what comes home."""
@@ -378,6 +593,92 @@ def test_a_rehearsal_artefact_says_so_in_the_directory_that_travels():
     assert "mode:        REHEARSAL -- NOT FIT FOR MEASUREMENT OR DELIVERY" in prov, prov
     assert "lessons:     5" in prov, prov
     assert "DO NOT MEASURE OR DELIVER IT" in marker
+
+
+def test_a_stale_artefact_directory_is_cleared_rather_than_added_to():
+    """`rm -rf "$OUT/artifact"` is load-bearing, and nothing used to assert it.
+
+    A second run for the same model on the same pod inherits the previous attempt's
+    output in the directory the operator rsyncs. The exact-contents assertion in
+    test_the_state_dict_and_both_sidecars_are_collected says it exists so that "a new
+    file here is a deliberate decision" — but with every fixture starting from an empty
+    directory, no stale file could ever appear for it to catch.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "calibration_model_19990101_000000.pt" not in proc.collected, (
+        "a previous attempt's weights came home beside this run's, described by a "
+        f"PROVENANCE that names only one of them\n  {proc.collected}"
+    )
+    assert "INCOMPLETE" not in proc.collected, (
+        "a previous attempt's INCOMPLETE marker survived into a complete collection"
+    )
+
+
+def test_the_newest_artefact_is_the_one_collected():
+    """Which of two artefacts, not whether there is one.
+
+    The script picks with `ls -1t | head -1`. No fixture planted two `.pt` files, so
+    `head -1` could become `tail -1` with the suite green: the mtime check then refuses
+    the run with "newest artefact ... predates this run", which is both a failure where
+    there should be none AND a message that sends the operator looking for a missing
+    artefact that is in fact sitting right there.
+    """
+    older = "calibration_model_20261012_100000.pt"
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(
+            Path(td),
+            {
+                older: 10,
+                f"{older}.config.json": 10,
+                f"{older}.sha256": 10,
+                PT: 60,
+                f"{PT}.config.json": 60,
+                f"{PT}.sha256": 60,
+            },
+        )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert PT in proc.collected, f"the newest artefact was not collected: {proc.collected}"
+    assert older not in proc.collected, (
+        f"the older of two artefacts was collected as this run's: {proc.collected}"
+    )
+
+
+def test_provenance_records_the_artefacts_own_checksum_and_commit():
+    """The two fields the guard above is named for and never checked.
+
+    `sha256:` can be read from the wrong sidecar and `git:` can be hardcoded to
+    "unknown" with the suite green — and `git:` is the one field
+    `artifact/INCOMPLETE` depends on: it tells the reader to reconstruct the
+    architecture "from the model's own config at the git sha in PROVENANCE".
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        repo = Path(td) / "workspace" / "views-models"
+        head = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True,
+        ).stdout.strip()
+        planted = (
+            Path(td) / "workspace" / "views-models" / "models" / "violet_visitor"
+            / "artifacts" / f"{PT}.sha256"
+        ).read_text(encoding="utf-8").strip()
+        prov = proc.provenance
+
+    assert f"sha256:      {planted}" in prov, (
+        f"PROVENANCE does not carry the artefact's own recorded checksum\n{prov}"
+    )
+    assert f"artefact:    {PT}" in prov, prov
+    # An empty fixture repo has no HEAD, so the script's own fallback is what is asserted
+    # there; where there IS a commit, PROVENANCE must carry it and not the fallback.
+    if head:
+        assert f"git:         {head}" in prov, (
+            f"PROVENANCE does not carry the commit it was built at (expected {head})\n{prov}"
+        )
+    else:
+        assert "git:         unknown" in prov, prov
 
 
 def test_a_production_run_writes_no_rehearsal_marker():
