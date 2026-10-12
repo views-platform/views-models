@@ -16,6 +16,7 @@
 # seven hours of paid GPU time that a credential was missing or a disk was full.
 #
 # Leaves behind:
+#   /workspace/deliver/<model>/artifact/   the trained state dict + its two sidecars (~4 MB)
 #   /workspace/deliver/<model>/parquet/    13 point-prediction parquets  (~9 MB)
 #   /workspace/deliver/<model>/draws/      the lr_* posterior, zstd      (~25 MB)
 #   /workspace/deliver/<model>/STATUS      OK or FAILED:<stage>
@@ -300,6 +301,56 @@ else
   "$VENV/bin/python" main.py -r calibration -t -e || die "main.py exited non-zero"
 fi
 echo "run took $(( ($(date +%s) - START) / 60 )) minutes"
+
+# ── 3.5. the TRAINED ARTEFACT ────────────────────────────────────────────────────
+# Collected here, immediately after training and before the deliverable stages, for one
+# reason: the expensive failures on this hardware happen in EVALUATION, not in training —
+# the 25x posterior-sampling collapse and the OOM the memory guard cannot see
+# (postmortem_runpod_first_deployment_2026-09.md, 2.3 and 2.5). If the run dies after this
+# point the weights are already in $OUT and the GPU time bought something.
+#
+# Why this exists at all: train_model.py writes the state dict into the POD's repo tree,
+# models/<model>/artifacts/, which is NOT under deliver/ and is NOT what comes home. On
+# 2026-09-28 all eight models were trained, delivered their parquets, reported OK, and their
+# weights died with the pods. There is no second copy: nothing in views-hydranet or
+# views-models calls wandb log_artifact. views-models#549.
+stage collect_artifact
+rm -rf "$OUT/artifact"
+mkdir -p "$OUT/artifact"
+ARTIFACTS=$REPO/models/$MODEL/artifacts
+# Newest first. A second run for the same model on the same pod leaves the previous .pt in
+# place -- the source is the repo tree, which this script does not clear -- so "the newest
+# one" is not enough on its own and the mtime is checked against this run's start below.
+PT=$(ls -1t "$ARTIFACTS"/*.pt 2>/dev/null | head -1)
+[ -n "$PT" ] || die "no .pt in models/$MODEL/artifacts after a -t run -- training produced no artefact"
+# -ge rather than -gt: a run short enough to finish in the same second as it started is a
+# rehearsal at a handful of lessons, which is a case we deliberately support.
+[ "$(stat -c %Y "$PT")" -ge "$START" ] || die "newest artefact $(basename "$PT") predates this run -- it is a previous run's, and this run's is missing"
+# The two sidecars come with it. .pt.config.json is NOT optional: the fetcher rebuilds the
+# model from it (model_artifact_fetcher.py, choose_model(arch_config) then load_state_dict)
+# and without it falls through to torch.load(weights_only=False), which on a state-dict file
+# returns an OrderedDict and raises AttributeError on .to(). The .pt alone is not loadable
+# by our own code.
+cp "$PT"* "$OUT/artifact/" || die "cannot copy the artefact into $OUT/artifact"
+ls -l "$OUT/artifact/"
+# Degraded rather than fatal: the weights are worth having even if a sidecar is missing, and
+# refusing here would throw away a trained model over metadata. But it must not be SILENT --
+# a warning in a 4 MB log is not a signal, so it is recorded as a file, the way REHEARSAL is.
+if [ ! -f "$OUT/artifact/$(basename "$PT").config.json" ]; then
+    {
+        echo "THE COLLECTED ARTEFACT IS INCOMPLETE."
+        echo
+        echo "artefact: $(basename "$PT")"
+        echo "missing:  $(basename "$PT").config.json"
+        echo
+        echo "views-hydranet rebuilds the model from that sidecar before loading the state"
+        echo "dict. Without it, ModelArtifactFetcher falls through to a legacy full-object"
+        echo "load and raises AttributeError on an OrderedDict. The weights are here and are"
+        echo "intact; reconstruct the architecture from the model's own config at the git sha"
+        echo "in MANIFEST before loading them."
+    } > "$OUT/artifact/INCOMPLETE"
+    echo "### WROTE $OUT/artifact/INCOMPLETE -- the config sidecar is missing"
+fi
 
 # ── 4-5. the CALIBRATION deliverable (13-origin parquets + posterior archive) ─────
 # Skipped on the forecast leg: a forecast has one origin, so the 13-parquet count check
