@@ -1,9 +1,11 @@
 name: Roster Configs Load
 
-# C-259 exit: tests/test_roster_configs_load.py constructs each of the 8 HydraNet
-# roster configs through HydraNetConfig for real. test_roster_conformance.py compares
-# 184 config values against a reference dict and never builds the object — which is
-# how two production ensemble members sat unloadable from August to September while
+# C-259 exit: tests/test_roster_configs_load.py constructs every tracked HydraNet
+# config -- the 8 roster members AND each experiment arm -- through HydraNetConfig for
+# real. The arms were added to its scope at #552; the job name predates them.
+#
+# test_roster_conformance.py compares 184 config values against a reference dict and
+# never builds the object — which is how two production ensemble members sat unloadable from August to September while
 # every test passed (#404, #458 §1b). The load test is the guard for that, and it
 # `importorskip("views_hydranet")`, so in run_tests.yml — which installs only
 # pipeline-core — it has always SKIPPED. This job is where it runs.
@@ -12,7 +14,7 @@ name: Roster Configs Load
 #   * run_tests.yml's install is pinned on purpose (its header says why). Adding a
 #     package there is a change to what "the suite is green" means for every PR.
 #   * The dependency set here is tiny and different, and a red here means one thing:
-#     a roster config does not load.
+#     a tracked config does not load.
 #
 # What it installs, and why: views-hydranet --no-deps, plus torch from the CPU-only
 # index. Importing config_initializer is torch-free, but CONSTRUCTING a config is not —

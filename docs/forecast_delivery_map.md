@@ -158,16 +158,16 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 ## Where each config lives today
 
 - **A source's maturity:** `<source>/configs/config_maturity.py` → `maturity`, one of
-  `candidate | graduate | retired` (ADR-017 §3) — on the 92 sources whose engine runs pipeline-core
-  3.x: 29 baseline, 8 hydranet, 42 r2darts2 (31 cm renamed in #490 after #485 moved the engine to
+  `candidate | graduate | retired` (ADR-017 §3) — on the 93 sources whose engine runs pipeline-core
+  3.x: 29 baseline, 9 hydranet, 42 r2darts2 (31 cm renamed in #490 after #485 moved the engine to
   3.x; 11 pgm born with it in #491), 13 ensembles. The other 38 — the stepshifter family, whose
   engine is still pinned to pipeline-core 2.x, which requires the old file — still carry
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-09-19: **89 `candidate`, 3 `retired`, 0 `graduate`** across 92 `config_maturity.py`
-  files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py` files — 130 files in all.
-  131 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
+  *(Measured 2026-10-12: **90 `candidate`, 3 `retired`, 0 `graduate`** across 93 `config_maturity.py`
+  files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py` files — 131 files in all.
+  132 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
   (C-130). Both quote styles must be counted;
   see vmo_017 §2 and register C-127.
   Nothing is `graduate`: the rename was a script, and maturity is an author's sign-off (ADR-017 §3).

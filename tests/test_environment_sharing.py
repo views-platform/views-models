@@ -214,7 +214,11 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views_r2darts2": 33,
         "views_ensemble": 13,
         "views-r2darts2": 9,
-        "views-hydranet": 8,
+        # 8 -> 9: models/amber_kestrel, the truncated-body / soft-gate arm of the
+        # views-hydranet#396 composition experiment. It shares the roster's environment
+        # deliberately — an arm that installed a different stack would confound the
+        # composition change with the dependency change (C-116).
+        "views-hydranet": 9,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,
