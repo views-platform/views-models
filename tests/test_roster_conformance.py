@@ -102,6 +102,34 @@ EXPERIMENTS_IN_PROGRESS: set[str] = set()
 #: Roster members whose values ARE pinned — everything not mid-experiment.
 PINNED_MODELS = [m for m in ROSTER_MODELS if m not in EXPERIMENTS_IN_PROGRESS]
 
+# --- Experiment arms: pinned like the roster, but NOT roster members.
+#
+#     An arm is a tracked model directory that exists to be trained against one of the
+#     eight as a control. It is kept out of ROSTER on purpose: ROSTER is read as ensemble
+#     membership (`test_members_are_the_roster`), by the sample-count contract and by the
+#     family-head checks, and an arm is not an ensemble constituent, not a delivery and not
+#     part of the pre-registered eight. Putting one in ROSTER would change what the roster
+#     means in four places in order to get a value pin in one.
+#
+#     It must still be pinned. An arm's whole identity is the small set of values that
+#     differ from its control, and a config edit that quietly moved one of them would make
+#     the comparison measure something else while every test stayed green.
+#
+#     arm -> (control, (output_distribution, forecast_composition, gate_threshold, seed))
+#     gate_threshold is None where the composition is soft_gate.
+EXPERIMENT_ARMS = {
+    # views-hydranet#396. Occurrence moves from the body to the gate: a zero-truncated body
+    # (P(body>0) = 1 by construction) composed continuously, so emitted P(y>0) equals the
+    # gate. The control is NOT a second training run — it is the 2026-10-12 violet_visitor
+    # vehicle (calibration_model_20261012_033112.pt, sha256 4acbf4d3c2b457b0...), which is
+    # why every non-composition value has to stay identical.
+    "amber_kestrel": ("violet_visitor", ("truncated_nb", "soft_gate", None, 42)),
+}
+
+#: The hyperparameter keys an arm may differ from its control on. Anything else differing
+#: means it is no longer a one-variable contrast.
+ARM_FREE_KEYS = {"output_distribution", "forecast_composition", "gate_threshold"}
+
 # --- The shared v2 gated_NB foundation every pinned member holds fixed. Values that
 #     differ per member (family, composition, seed) live in ROSTER, not here.
 #     total_lessons is a RUN-TIME budget (160 during the window-constrained smoke runs, now
@@ -614,4 +642,89 @@ def test_the_known_gateless_set_only_shrinks():
         assert len(gate) != len(reg), (
             f"{name} now declares a 1:1 gate channel — good. Remove it from "
             f"KNOWN_GATELESS so the fleet guard covers it."
+        )
+
+
+# ── experiment arms ───────────────────────────────────────────────────
+
+_ARM_KEY_ABSENT = object()
+
+
+class TestExperimentArmConformance:
+    """An arm is its declared values, and differs from its control ONLY on composition.
+
+    The second half is the one that matters, and the one a roster-shaped pin would miss.
+    `amber_kestrel`'s control is a trained artefact that already exists, so the arm is a
+    valid contrast only while every value except the composition triple is identical to
+    `violet_visitor`'s. A well-meant edit — bumping lessons, changing a seed to "get an
+    independent draw", adding a static channel — would turn a one-variable experiment into
+    a two-variable one, and none of the roster pins above would notice, because an arm is
+    deliberately not in the roster.
+    """
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arm_is_its_declared_values(self, arm):
+        _control, (distribution, composition, threshold, seed) = EXPERIMENT_ARMS[arm]
+        hp = _load_hp(arm)
+        assert hp["output_distribution"] == distribution, (
+            f"{arm}: output_distribution {hp['output_distribution']!r} != declared {distribution!r}"
+        )
+        assert hp["forecast_composition"] == composition, (
+            f"{arm}: forecast_composition {hp['forecast_composition']!r} != declared {composition!r}"
+        )
+        if threshold is None:
+            # Absent, not None: config_initializer refuses a soft_gate config that carries a
+            # gate_threshold key at all, so a None here raises at config load rather than
+            # being ignored.
+            assert "gate_threshold" not in hp, (
+                f"{arm}: soft_gate must not carry a gate_threshold key "
+                f"(got {hp.get('gate_threshold')!r}) — it raises at config load"
+            )
+        else:
+            assert hp.get("gate_threshold") == threshold, (
+                f"{arm}: gate_threshold {hp.get('gate_threshold')!r} != declared {threshold!r}"
+            )
+        assert hp["torch_seed"] == seed and hp["np_seed"] == seed, (
+            f"{arm}: seeds torch={hp.get('torch_seed')} np={hp.get('np_seed')} != declared {seed}"
+        )
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arm_differs_from_its_control_only_on_composition(self, arm):
+        control, _declared = EXPERIMENT_ARMS[arm]
+        arm_hp, control_hp = _load_hp(arm), _load_hp(control)
+        differing = {
+            key
+            for key in set(arm_hp) | set(control_hp)
+            if arm_hp.get(key, _ARM_KEY_ABSENT) != control_hp.get(key, _ARM_KEY_ABSENT)
+        }
+        assert differing <= ARM_FREE_KEYS, (
+            f"{arm} differs from its control {control} on "
+            f"{sorted(differing - ARM_FREE_KEYS)}, which is outside the composition triple. "
+            f"The control for this arm is an artefact that has already been trained, so any "
+            f"other difference confounds the comparison — revert it, or add it to "
+            f"ARM_FREE_KEYS and say in the commit why the contrast survives."
+        )
+        # And the inverse, so this cannot pass on an arm that is merely a copy of its control.
+        assert differing, f"{arm} is identical to its control {control}: there is no arm to run"
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_an_arm_is_neither_a_roster_member_nor_an_ensemble_constituent(self, arm):
+        """The separation this structure exists for, asserted rather than assumed."""
+        assert arm not in ROSTER, (
+            f"{arm} is an experiment arm and a roster member at once; the roster is the "
+            f"pre-registered eight and is read as ensemble membership"
+        )
+        assert arm not in _load_modelset(ENSEMBLE)["models"], (
+            f"{arm} is pooled into {ENSEMBLE}; an arm is trained to be measured against a "
+            f"control, not shipped"
+        )
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_an_arm_is_a_candidate(self, arm):
+        """Maturity is a person's act (ADR-017). An arm has not earned anything yet."""
+        maturity = _load(
+            MODELS_DIR / arm / "configs" / "config_maturity.py", "get_maturity_config"
+        )
+        assert maturity["maturity"] == "candidate", (
+            f"{arm} declares maturity {maturity['maturity']!r}; an experiment arm is a candidate"
         )

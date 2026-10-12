@@ -55,4 +55,7 @@ def test_the_split_is_what_the_catalog_says():
     """Characterisation pin. When a model migrates, change the numbers here on purpose and
     say so in the commit (#473 §7-8 is the plan for the 77)."""
     counts = Counter(_fleet().values())
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 34, SYNTHETIC: 6}, dict(counts)
+    # 34 -> 35 datafactory on 2026-10-12: models/amber_kestrel, the truncated-body /
+    # soft-gate arm of the views-hydranet#396 composition experiment, copied from
+    # violet_visitor and therefore a datafactory consumer like it.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 35, SYNTHETIC: 6}, dict(counts)
