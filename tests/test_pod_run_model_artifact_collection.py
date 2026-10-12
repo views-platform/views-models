@@ -18,6 +18,7 @@ on presence.
 import os
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -977,16 +978,26 @@ def test_a_forecast_directory_that_exists_but_is_empty_is_not_a_forecast():
     )
 
 
-def test_an_underscore_prefixed_directory_is_not_counted():
-    """Matching pipeline-core's own resolver, which excludes them.
+def test_the_glob_is_anchored_so_working_directories_are_not_counted():
+    """pipeline-core's `_`-prefixed working directories must not count as a forecast.
 
-    _get_generated_pf_prediction_paths skips names starting with `_`, so counting one here
-    would report a forecast the consumer will not read.
+    This test was first written to cover an explicit `case ... in _*) continue` in the
+    script. Removing that line left the suite green, which is how the line was found to be
+    DEAD: a name cannot both start with `predictions_` and start with `_`. The exclusion was
+    always the glob's anchor, and the dead line was deleted.
+
+    So what this now pins is the anchor. Unanchoring the glob to `*predictions_forecasting_*`
+    is a plausible edit — it looks more permissive, and more permissive looks safer in a
+    check that refuses things — and it would count a half-written working directory as a
+    delivered forecast.
     """
     with tempfile.TemporaryDirectory() as td:
-        proc = _forecast_verify(Path(td), {"_predictions_forecasting_20261012_000000": "DIR:x"})
+        proc = _forecast_verify(
+            Path(td), {"_predictions_forecasting_20261012_000000": "DIR:rows"}
+        )
     assert proc.returncode != 0, (
-        f"a _-prefixed directory was counted, but rusty_bucket will not read it\n{proc.stdout}"
+        f"a _-prefixed working directory was counted as a forecast, but rusty_bucket will "
+        f"not read it — the glob is no longer anchored at `predictions_`\n{proc.stdout}"
     )
 
 
@@ -1011,3 +1022,146 @@ def test_both_real_output_shapes_are_accepted(name, contents, shape):
         f"a forecast delivered as a {shape} was refused\n{proc.stdout}{proc.stderr}"
     )
     assert "forecast outputs found: 1" in proc.stdout, proc.stdout
+
+
+def test_check_config_records_the_region_it_gated_on():
+    """The other half of PROVENANCE's region line, and it was unguarded.
+
+    PROVENANCE reads `$OUT/.region`. The fixture in `_run()` plants that file, so deleting
+    the line in check_config that WRITES it left the whole suite green — the assertion was
+    testing the fixture. Both halves have to be pinned or the pair proves nothing: this test
+    runs check_config's gate and asserts the file appears, with the gate's own value in it.
+    """
+    src = SCRIPT.read_text(encoding="utf-8")
+    start = src.index('region = getattr(load("config_queryset"), "REGION", None)')
+    end = src.index("\nCFGCHECK", start)
+    block = src[start:end]
+
+    with tempfile.TemporaryDirectory() as td:
+        tmp_path = Path(td)
+        out = tmp_path / "deliver"
+        out.mkdir()
+        cfg = tmp_path / "config_queryset.py"
+        cfg.write_text('REGION = "land"\n', encoding="utf-8")
+        runner = tmp_path / "gate.py"
+        runner.write_text(
+            "import importlib.util, os, sys\n"
+            "from pathlib import Path\n"
+            "def load(stem):\n"
+            f"    spec = importlib.util.spec_from_file_location(stem, r'{cfg}')\n"
+            "    mod = importlib.util.module_from_spec(spec)\n"
+            "    spec.loader.exec_module(mod)\n"
+            "    return mod\n" + block + "\n",
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [sys.executable, str(runner)],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "OUT": str(out)},
+        )
+        written = (out / ".region")
+        contents = written.read_text(encoding="utf-8").strip() if written.is_file() else ""
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert contents == "land", (
+        f"check_config passed its REGION gate without recording what it gated on, so "
+        f"PROVENANCE's region line falls back to `unknown` — or, worse, reports the region "
+        f"a previous attempt in this directory passed. Got {contents!r}.\n"
+        + proc.stdout + proc.stderr
+    )
+
+
+def _startup_region() -> str:
+    """From `mkdir -p "$OUT"` through the end of the clear block, runnable."""
+    lines = SCRIPT.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.strip() == 'mkdir -p "$OUT"')
+    end = next(i for i, ln in enumerate(lines) if ln.strip() == 'rm -f "$OUT/FAILURE"')
+    assert end > start, "the clear block no longer follows the directory creation"
+    region = "\n".join(lines[start : end + 1])
+    # The log redirection would swallow the harness's own output; the lock is the subject.
+    return region.replace('exec > >(tee -a "$LOG") 2>&1', ": # log redirection elided")
+
+
+def _run_startup(tmp_path: Path, *, lock_held: bool) -> tuple[subprocess.CompletedProcess, dict]:
+    """Run the startup region with a live run's markers planted, and report what survived."""
+    out = tmp_path / "deliver" / "violet_visitor"
+    out.mkdir(parents=True)
+    (out / ".lessons").write_text("300", encoding="utf-8")
+    (out / "STATUS").write_text("running", encoding="utf-8")
+    (out / "FAILURE").write_text("a reason from the live run", encoding="utf-8")
+    if lock_held:
+        # What a live run leaves while it works. Its own trap removes this on exit, so the
+        # directory itself is the only thing standing between two invocations.
+        (out / ".lock").mkdir()
+
+    harness = tmp_path / "startup.sh"
+    harness.write_text(
+        "set -uo pipefail\n"
+        f'OUT="{out}"\nLOG="{tmp_path / "run.log"}"\n'
+        'stage() { :; }\n'
+        'die()   { echo "DIE:$1"; exit 1; }\n' + _startup_region() + "\n"
+        'echo "PAST THE CLEARS"\n',
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        ["bash", str(harness)], capture_output=True, text=True, timeout=60
+    )
+    survived = {
+        name: (out / name).read_text(encoding="utf-8")
+        for name in (".lessons", "STATUS", "FAILURE")
+        if (out / name).is_file()
+    }
+    return proc, survived
+
+
+def test_an_invocation_that_loses_the_lock_cannot_clear_the_live_runs_markers():
+    """The clears must sit below the lock, and placement is the whole guarantee.
+
+    Asserted by running it rather than by comparing source offsets, because a position
+    guard cannot see a conditional wrapper and this branch has already had one such guard
+    fail for exactly that reason.
+
+    When the clears sat above the lock, an invocation that was about to discover the lock
+    and exit deleted the live run's STATUS, FAILURE and .lessons on its way out. The live
+    run then reported `lessons: unknown` in its own MANIFEST and PROVENANCE — robbed by a
+    process that did no work.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc, survived = _run_startup(Path(td), lock_held=True)
+
+    assert proc.returncode != 0, (
+        "an invocation ran on while another held the lock\n" + proc.stdout + proc.stderr
+    )
+    assert "PAST THE CLEARS" not in proc.stdout, (
+        "the loser reached the clears before discovering the lock\n" + proc.stdout
+    )
+    assert survived.get(".lessons") == "300", (
+        f"the live run's lesson count was deleted by an invocation that did no work, so its "
+        f"MANIFEST and PROVENANCE will say `lessons: unknown`. Survivors: {survived}"
+    )
+    assert survived.get("STATUS") == "running", (
+        f"the live run's STATUS was deleted by an invocation that did no work, and the "
+        f"header advertises STATUS as the way to watch from outside. Survivors: {survived}"
+    )
+    assert survived.get("FAILURE") == "a reason from the live run", (
+        f"the live run's FAILURE was deleted by an invocation that did no work. "
+        f"Survivors: {survived}"
+    )
+
+
+def test_an_invocation_that_takes_the_lock_does_still_clear_them():
+    """The inverse, or the test above would pass on a script with no clears at all.
+
+    Deleting the clear block entirely satisfies "the loser deleted nothing" perfectly, and
+    reintroduces the stale-STATUS defect the block exists for.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc, survived = _run_startup(Path(td), lock_held=False)
+
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "PAST THE CLEARS" in proc.stdout, proc.stdout
+    assert not survived, (
+        f"a previous attempt's markers survived into a run that owns the directory: "
+        f"{survived}. A stale STATUS or FAILURE sits beside this run's output describing a "
+        f"different one."
+    )

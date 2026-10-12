@@ -523,14 +523,20 @@ if [ "$FORECAST" = "1" ]; then
   # Both output shapes are accepted because both are real: pipeline-core resolves
   # predictions_<run_type>_* as FILES (_get_generated_predictions_data_file_paths) and as
   # PredictionFrame DIRECTORIES (_get_generated_pf_prediction_paths), and rusty_bucket pools
-  # the directory form. `_`-prefixed names are excluded exactly as that resolver excludes
-  # them. A directory that exists but holds nothing is not a forecast, so it is counted too.
+  # the directory form. A directory that exists but holds nothing is not a forecast, so the
+  # contents are counted rather than the name: the writer creates the directory before it
+  # writes into it, so `[ -d ]` alone would pass on exactly the state this exists to catch.
+  #
+  # The glob is ANCHORED at `predictions_`, which is what excludes pipeline-core's
+  # `_`-prefixed working directories. It had an explicit `case ... in _*) continue` as well;
+  # that line was dead -- a name cannot both start with `predictions_` and start with `_` --
+  # and removing it changed nothing in the suite, which is how it was found. The anchor is
+  # the real guard and is pinned as such.
   stage verify_forecast
   GEN="$REPO/models/$MODEL/data/generated"
   FC_COUNT=0
   for f in "$GEN"/predictions_forecasting_*; do
       [ -e "$f" ] || continue
-      case "$(basename "$f")" in _*) continue ;; esac
       if [ -d "$f" ]; then
           [ -n "$(ls -A "$f" 2>/dev/null)" ] && FC_COUNT=$((FC_COUNT + 1))
       else
