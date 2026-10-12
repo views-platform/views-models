@@ -17,6 +17,7 @@
 #
 # Leaves behind:
 #   /workspace/deliver/<model>/artifact/   the trained state dict + its two sidecars (~4 MB)
+#                                          + PROVENANCE, and REHEARSAL on a rehearsal run
 #   /workspace/deliver/<model>/parquet/    13 point-prediction parquets  (~9 MB)
 #   /workspace/deliver/<model>/draws/      the lr_* posterior, zstd      (~25 MB)
 #   /workspace/deliver/<model>/STATUS      OK or FAILED:<stage>
@@ -350,6 +351,53 @@ if [ ! -f "$OUT/artifact/$(basename "$PT").config.json" ]; then
         echo "in MANIFEST before loading them."
     } > "$OUT/artifact/INCOMPLETE"
     echo "### WROTE $OUT/artifact/INCOMPLETE -- the config sidecar is missing"
+fi
+
+# artifact/ is the directory the operator is told to rsync, so it has to be self-describing.
+# Nothing inside the artefact records how long it trained, on what region, or at which commit:
+# the config sidecar carries architecture only -- model, channels, dropout, seeds,
+# output_distribution, reg_activation, n_head_samples, and nothing else. So a --rehearsal 5
+# artefact and a 300-lesson artefact are byte-indistinguishable once separated from this
+# directory, and an africa-trained artefact is indistinguishable from a global-land one because
+# the net is fully convolutional. The script already guards the first hazard with
+# $OUT/REHEARSAL -- but that is written at the END of the run, after this stage, and is not
+# under artifact/, so it neither exists yet nor travels with what it describes.
+#
+# Written here rather than copied at the end, because the values are all known HERE and the
+# artefact must not be able to leave without them.
+PROV=$OUT/artifact/PROVENANCE
+{
+    echo "model:       $MODEL"
+    echo "artefact:    $(basename "$PT")"
+    echo "sha256:      $(cat "$PT.sha256" 2>/dev/null || echo 'not recorded')"
+    echo "lessons:     $(cat "$OUT/.lessons" 2>/dev/null || echo unknown)"
+    echo "region:      land (enforced at check_config -- the run refuses any other)"
+    echo "run_type:    $([ "$FORECAST" = "1" ] && echo forecasting || echo calibration)"
+    echo "git:         $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "trained:     $(date -u -d "@$START" +%Y-%m-%dT%H:%M:%SZ) to $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    if [ -n "$REHEARSAL_LESSONS" ]; then
+        echo "mode:        REHEARSAL -- NOT FIT FOR MEASUREMENT OR DELIVERY"
+    else
+        echo "mode:        production"
+    fi
+} > "$PROV"
+cat "$PROV"
+# The rehearsal marker, in artifact/ and written at the same time as the thing it marks. A
+# consumer that pulls artifact/ alone would otherwise receive a deliberately undertrained model
+# with nothing on disk to say so -- which is the hazard this script names at :38 and then
+# guards in a directory that does not travel.
+if [ -n "$REHEARSAL_LESSONS" ]; then
+    {
+        echo "THIS ARTEFACT IS FROM A REHEARSAL. DO NOT MEASURE OR DELIVER IT."
+        echo
+        echo "artefact: $(basename "$PT")"
+        echo "lessons:  $(cat "$OUT/.lessons" 2>/dev/null || echo unknown)"
+        echo
+        echo "Trained at a deliberately low lesson count to exercise the chain. The weights are"
+        echo "well-formed and will load, score and plot exactly like a real model. Nothing in"
+        echo "the tensors will tell you. See PROVENANCE beside this file."
+    } > "$OUT/artifact/REHEARSAL"
+    echo "### WROTE $OUT/artifact/REHEARSAL -- these weights are NOT fit to measure"
 fi
 
 # ── 4-5. the CALIBRATION deliverable (13-origin parquets + posterior archive) ─────

@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / "tools" / "podrun" / "pod_run_model.sh"
 
 STAGE_MARKER = "stage collect_artifact"
-BLOCK_END = "config sidecar is missing"
+BLOCK_END = "these weights are NOT fit to measure"
 
 def _block() -> str:
     """The collection block, lifted out of the real script.
@@ -38,11 +38,17 @@ def _block() -> str:
     starts = [i for i, line in enumerate(lines) if line.strip() == STAGE_MARKER]
     assert len(starts) == 1, f"expected exactly one {STAGE_MARKER!r}, found {len(starts)}"
     ends = [i for i, line in enumerate(lines) if BLOCK_END in line]
-    assert len(ends) == 1, "the INCOMPLETE branch's closing echo moved or multiplied"
+    assert len(ends) == 1, "the rehearsal branch's closing echo moved or multiplied"
     assert ends[0] > starts[0], "the INCOMPLETE branch precedes the stage it belongs to"
     return "\n".join(lines[starts[0] : ends[0] + 2])
 
-def _run(tmp_path: Path, artefacts: dict[str, int | None]) -> subprocess.CompletedProcess:
+def _run(
+    tmp_path: Path,
+    artefacts: dict[str, int | None],
+    *,
+    rehearsal: str = "",
+    forecast: str = "0",
+) -> subprocess.CompletedProcess:
     """Run the block with `artefacts` planted. Values are mtime offsets from START."""
     root = tmp_path / "workspace"
     model = "violet_visitor"
@@ -50,6 +56,9 @@ def _run(tmp_path: Path, artefacts: dict[str, int | None]) -> subprocess.Complet
     out = root / "deliver" / model
     adir.mkdir(parents=True)
     out.mkdir(parents=True)
+    (out / ".lessons").write_text("300" if not rehearsal else rehearsal, encoding="utf-8")
+    # the block runs `git -C $REPO rev-parse`; an empty repo is enough for it not to hang
+    subprocess.run(['git', 'init', '-q', str(root / 'views-models')], check=True)
 
     start = int(time.time())
     for name, offset in artefacts.items():
@@ -63,6 +72,7 @@ def _run(tmp_path: Path, artefacts: dict[str, int | None]) -> subprocess.Complet
         "set -uo pipefail\n"
         f'ROOT="{root}"\nREPO=$ROOT/views-models\nMODEL="{model}"\nOUT=$ROOT/deliver/$MODEL\n'
         f"START={start}\n"
+        f'FORECAST="{forecast}"\nREHEARSAL_LESSONS="{rehearsal}"\n'
         'stage() { echo "STAGE:$1"; }\n'
         'die()   { echo "DIE:$1"; exit 1; }\n' + _block() + "\n",
         encoding="utf-8",
@@ -71,9 +81,10 @@ def _run(tmp_path: Path, artefacts: dict[str, int | None]) -> subprocess.Complet
     proc = subprocess.run(
         ["bash", str(harness)], capture_output=True, text=True, timeout=60
     )
-    proc.collected = sorted(p.name for p in out.joinpath("artifact").iterdir()) if (
-        out / "artifact"
-    ).is_dir() else []
+    adir_out = out / "artifact"
+    proc.collected = sorted(p.name for p in adir_out.iterdir()) if adir_out.is_dir() else []
+    prov = adir_out / "PROVENANCE"
+    proc.provenance = prov.read_text(encoding="utf-8") if prov.is_file() else ""
     return proc
 
 PT = "calibration_model_20261012_220000.pt"
@@ -83,7 +94,14 @@ def test_the_state_dict_and_both_sidecars_are_collected():
     with tempfile.TemporaryDirectory() as td:
         proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
     assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert proc.collected == [PT, f"{PT}.config.json", f"{PT}.sha256"], proc.collected
+    # Exact, not a subset: anything extra arriving in the directory the operator rsyncs is a
+    # thing the consumer has to interpret, so a new file here is a deliberate decision.
+    assert proc.collected == [
+        "PROVENANCE",
+        PT,
+        f"{PT}.config.json",
+        f"{PT}.sha256",
+    ], proc.collected
 
 def test_a_training_run_that_produced_no_artefact_fails_loudly():
     """The 2026-09-28 defect: eight models trained, STATUS said OK, weights gone.
@@ -158,3 +176,53 @@ def test_the_header_contract_lists_the_artefact():
     assert "/workspace/deliver/<model>/artifact/" in header, (
         "the script collects the artefact without promising it"
     )
+
+
+def test_the_artefact_carries_its_own_lesson_count_and_commit():
+    """artifact/ is what the operator rsyncs, so it must describe itself.
+
+    The config sidecar records architecture and nothing else — no lessons, no
+    region, no commit. Separated from $OUT, a 5-lesson artefact and a 300-lesson
+    one are byte-indistinguishable, which is the hazard the script names at :38
+    and then guards in $OUT/REHEARSAL, a file that does not travel.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert "PROVENANCE" in proc.collected
+        prov = proc.provenance
+    assert "lessons:     300" in prov, prov
+    assert "mode:        production" in prov, prov
+    assert "region:      land" in prov, prov
+
+
+def test_a_rehearsal_artefact_says_so_in_the_directory_that_travels():
+    """The one that matters: a rehearsal must not arrive looking real.
+
+    $OUT/REHEARSAL is written at the END of the run — after this stage — and
+    lives outside artifact/, so copying it here would have copied nothing. The
+    marker is generated instead, from $REHEARSAL_LESSONS, which is known here.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(
+            Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0}, rehearsal="5"
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert "REHEARSAL" in proc.collected, "a rehearsal artefact travels unmarked"
+        prov = proc.provenance
+        marker = (
+            Path(td) / "workspace" / "deliver" / "violet_visitor" / "artifact" / "REHEARSAL"
+        ).read_text(encoding="utf-8")
+    assert "mode:        REHEARSAL -- NOT FIT FOR MEASUREMENT OR DELIVERY" in prov, prov
+    assert "lessons:     5" in prov, prov
+    assert "DO NOT MEASURE OR DELIVER IT" in marker
+
+
+def test_a_production_run_writes_no_rehearsal_marker():
+    """The inverse, which is the half that makes the marker mean anything.
+
+    A marker present on every run would be ignored on every run.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        proc = _run(Path(td), {PT: 0, f"{PT}.config.json": 0, f"{PT}.sha256": 0})
+    assert "REHEARSAL" not in proc.collected, "a production artefact was marked a rehearsal"
