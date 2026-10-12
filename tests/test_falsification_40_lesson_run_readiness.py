@@ -542,23 +542,51 @@ class TestARehearsalIsMarkedInTheOutput:
                 "about where deliver/<model>/STATUS lives"
             )
 
-    def test_the_manifest_reports_the_mode_on_the_correct_branch(self):
+    def test_every_mode_line_reports_the_mode_on_the_correct_branch(self):
         """Swapping the two MANIFEST branches made production runs claim PATCHED and
-        rehearsals claim as-committed. The old guard checked only that the string existed."""
+        rehearsals claim as-committed. The old guard checked only that the string existed.
+
+        It then checked only the FIRST such branch in the file, which is a second hole of
+        the same kind: the script writes a `mode:` line from three places — the forecast
+        MANIFEST, the calibration MANIFEST, and `artifact/PROVENANCE` — and a swap in any
+        one of them is the same defect. When PROVENANCE was added ahead of the manifests it
+        became the only branch under test, and both MANIFESTs stopped being guarded without
+        any assertion changing. So every branch is checked, and the count is asserted: a
+        fourth `mode:` writer must be added to this test deliberately rather than inherit
+        silence.
+        """
         code = _code_only(PODRUN.read_text())
-        m = re.search(
+        branches = re.findall(
             r'if \[ -n "\$REHEARSAL_LESSONS" \]; then(.*?)else(.*?)fi',
             code, re.S,
         )
-        assert m, "the MANIFEST mode branch is not in the expected shape; re-read it"
-        rehearsal_branch, production_branch = m.group(1), m.group(2)
-        assert "NOT FIT TO DELIVER" in rehearsal_branch and "PATCHED after checkout" in rehearsal_branch
-        assert "NOT FIT TO DELIVER" not in production_branch, (
-            "the production branch of the MANIFEST claims the output is unfit to deliver"
+        mode_branches = [
+            (rehearsal, production)
+            for rehearsal, production in branches
+            if "mode:" in rehearsal or "mode:" in production
+        ]
+        assert len(mode_branches) == 3, (
+            "expected three places that write a mode: line — the forecast MANIFEST, the "
+            f"calibration MANIFEST and artifact/PROVENANCE — found {len(mode_branches)}"
         )
-        assert "PATCHED" not in production_branch, (
-            "the production branch claims the config was patched after checkout"
-        )
+
+        for rehearsal_branch, production_branch in mode_branches:
+            assert "NOT FIT" in rehearsal_branch, (
+                "a rehearsal mode: line does not mark the output unfit"
+            )
+            assert "NOT FIT" not in production_branch, (
+                "a production mode: line claims the output is unfit to deliver"
+            )
+            assert "PATCHED" not in production_branch, (
+                "a production branch claims the config was patched after checkout"
+            )
+            # Only the MANIFEST branches record the config patch; PROVENANCE carries
+            # architecture provenance and no config: line. Tied to the line that is actually
+            # written rather than to which branch this is.
+            if "config:" in rehearsal_branch:
+                assert "PATCHED after checkout" in rehearsal_branch, (
+                    "a rehearsal branch writes a config: line that does not say it was patched"
+                )
 
 
 class TestTheGuideDocumentsTheChmodTrap:

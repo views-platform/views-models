@@ -99,6 +99,13 @@ rm -f "$OUT/STATUS"
 # earlier rehearsal must not inherit its "undeliverable" mark, and — far worse — a rehearsal
 # must not inherit a previous production run's ABSENCE of one.
 rm -f "$OUT/REHEARSAL" "$OUT/.lessons"
+# And FAILURE, for the same reason as STATUS and with one extra consequence. STATUS is
+# overwritten by the next `die`, so a stale one is at least replaced on the next failure;
+# FAILURE is only ever written BY a `die`, so a successful rerun leaves the previous
+# attempt's reason sitting beside `STATUS: OK`. That is the state the 2026-10-12 vehicle
+# came home in: an appwrite import error in FAILURE, a clean run in STATUS, and nothing on
+# disk to say which one described the artefact next to them.
+rm -f "$OUT/FAILURE"
 exec > >(tee -a "$LOG") 2>&1
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
@@ -154,8 +161,20 @@ if [ ! -x "$VENV/bin/python" ]; then
   # 2026-09-29, when installing the appwrite extra by hand reverted it 1.1.0 -> 0.11.2 with
   # no error. Pinned by tests/test_falsification_40_lesson_run_readiness.py.
   uv pip install --python "$VENV/bin/python" "toolz>=0.12.1" || die "toolz override failed"
+  # Written LAST, after the toolz override, so its presence means the whole block ran in
+  # the order above and not merely that a venv exists.
+  touch "$VENV/.built-by-pod-run-model"
 else
-  echo "venv already present — reusing"
+  # A venv built by hand is refused rather than reused. The install block above is ordered
+  # — the appwrite extra before the toolz override, because reversing them silently
+  # downgrades toolz to a version that breaks every datafactory fetch (C-151) — and the
+  # order is not recoverable by inspecting the result. On 2026-10-12 a venv built from the
+  # runbook's own Step 2.2, which omits the appwrite extra, was reused here; the block was
+  # skipped, verify_env then checked an import that block provides, and the launch was lost
+  # before training began. `rm -rf` is cheap: the install takes about two minutes.
+  [ -f "$VENV/.built-by-pod-run-model" ] \
+      || die "$VENV exists but was not built by this script -- rm -rf it and re-run, so the install happens in the order install_python pins (C-151, #517)"
+  echo "venv already present and built by this script — reusing"
 fi
 
 stage verify_env
@@ -164,17 +183,22 @@ import torch, tlz.curried, views_hydranet, views_pipeline_core, datafactory_quer
 assert torch.cuda.is_available(), "CUDA not available"
 print("torch", torch.__version__, "cap", torch.cuda.get_device_capability())
 
-# The publish path is verified HERE, in preflight, not discovered at publish time. Without
-# the appwrite extra this import is the only thing between a green-looking pod and a run
-# that trains for hours and then cannot hand over its forecasts (#517). Importing the
-# client is a weaker check than publishing, but it is the strongest one available before
-# there is anything to publish — and it is the check whose absence cost the first delivery.
+import pandas, numpy
+print("pandas", pandas.__version__, "numpy", numpy.__version__)
+PY
+
+# The publish path, checked but NOT required. The check belongs in preflight rather than at
+# publish time — without the appwrite extra, `_build_datastore` raises after hours of
+# training, which is how the first FAO delivery attempt failed (#517). But THIS script
+# publishes nothing: its header says so at :8, no stage in it reaches a datastore, and the
+# forecasts it produces come home by rsync. Making the import fatal here means a calibration
+# run that needs no credentials and writes nothing to the shelf refuses to start over a
+# capability it will never use — which is what happened on 2026-10-12, costing a launch.
+# Fatal in the FAO chain, where a publish actually follows; advisory here.
+"$VENV/bin/python" - <<'PY' || echo "### NOTE: the Appwrite SDK is not importable. This run publishes nothing, so it proceeds. A publishing run on this venv would fail at handover (#517)."
 import appwrite  # noqa: F401  — the SDK itself; views-pipeline-core[appwrite] provides it
 from views_pipeline_core.modules.appwrite import file as _appwrite_file  # noqa: F401
 print("appwrite client importable — the publish path exists")
-
-import pandas, numpy
-print("pandas", pandas.__version__, "numpy", numpy.__version__)
 PY
 
 # ── 2. repo ───────────────────────────────────────────────────────────────────────
@@ -284,24 +308,43 @@ if region != "land":
     sys.exit("REGION is %r, expected 'land' - this would not be a global-land run" % region)
 CFGCHECK
 
-# ── 3. the run ────────────────────────────────────────────────────────────────────
-if [ "$FORECAST" = "1" ]; then
-  stage train_and_forecast
-else
-  stage train_and_evaluate
-fi
+# ── 3. training ───────────────────────────────────────────────────────────────────
+# Training and inference are TWO invocations of main.py, not `-t -e` in one. The reason is
+# the artefact: section 3.5 below exists to get the weights out of the pod's repo tree
+# before anything expensive can kill the run, and under `-t -e` it could not. main.py
+# returns only after evaluation, so on the 2026-10-12 run the weights were written at
+# 03:31:12 and collected at 04:25:10 — 54 minutes in which a crash would have destroyed a
+# trained model exactly the way 2026-09-28 did. The comment on 3.5 claimed otherwise and
+# was wrong; this is the change that makes it true.
+#
+# The split is behaviour-neutral for the model, which is what makes it safe to make:
+#
+#   - evaluation ALREADY reloads the artefact from disk. hydranet_manager.py:367 is
+#     `model = self._load_model_artifact(artifact_name)`, resolved through
+#     get_latest_model_artifact_path(run_type); it never uses the in-memory trained model,
+#     so a second process is handed the same bytes the first one wrote.
+#   - the RNG is re-seeded ABSOLUTELY at the start of inference, not inherited.
+#     _setup_evaluation calls ReproducibilityGate.lock_entropy(np_seed, torch_seed)
+#     (hydranet_manager.py:318-321 -> reproducibility_gate.py:71-75, torch.manual_seed),
+#     so the draws do not depend on how far training advanced the generator and a
+#     two-process run samples like a one-process run.
+#   - `-sa/--saved` on the second invocation is REQUIRED, and not merely as an
+#     optimisation. pipeline-core refuses a non-training run without it
+#     (cli/args.py:414-417), and it makes the second invocation read the dataframe the
+#     first one fetched rather than fetching a fresh snapshot. Evaluating a different
+#     snapshot than was trained on is the failure that flag prevents here.
+stage train
 cd "$REPO/models/$MODEL" || die "cannot enter model dir"
 # WANDB_MODE=offline is NOT optional. Without it main.py calls wandb.login(), which blocks
 # on an interactive prompt no one is watching, and the first forecasting run on a pod died
 # there after the environment was already built.
 export WANDB_MODE=offline WANDB_SILENT=true
 START=$(date +%s)
-if [ "$FORECAST" = "1" ]; then
-  "$VENV/bin/python" main.py -r forecasting -t -f || die "main.py exited non-zero"
-else
-  "$VENV/bin/python" main.py -r calibration -t -e || die "main.py exited non-zero"
-fi
-echo "run took $(( ($(date +%s) - START) / 60 )) minutes"
+RUN_TYPE=calibration
+[ "$FORECAST" = "1" ] && RUN_TYPE=forecasting
+"$VENV/bin/python" main.py -r "$RUN_TYPE" -t \
+    || die "main.py exited non-zero during training -- no artefact to collect"
+echo "training took $(( ($(date +%s) - START) / 60 )) minutes"
 
 # ── 3.5. the TRAINED ARTEFACT ────────────────────────────────────────────────────
 # Collected here, immediately after training and before the deliverable stages, for one
@@ -348,7 +391,7 @@ if [ ! -f "$OUT/artifact/$(basename "$PT").config.json" ]; then
         echo "dict. Without it, ModelArtifactFetcher falls through to a legacy full-object"
         echo "load and raises AttributeError on an OrderedDict. The weights are here and are"
         echo "intact; reconstruct the architecture from the model's own config at the git sha"
-        echo "in MANIFEST before loading them."
+        echo "in PROVENANCE beside this file before loading them."
     } > "$OUT/artifact/INCOMPLETE"
     echo "### WROTE $OUT/artifact/INCOMPLETE -- the config sidecar is missing"
 fi
@@ -399,6 +442,24 @@ if [ -n "$REHEARSAL_LESSONS" ]; then
     } > "$OUT/artifact/REHEARSAL"
     echo "### WROTE $OUT/artifact/REHEARSAL -- these weights are NOT fit to measure"
 fi
+
+# ── 3.6. inference ───────────────────────────────────────────────────────────────
+# Only now, with the weights already in $OUT/artifact, is the expensive half run. Both of
+# the failures this hardware has actually produced strike here and not in training: the
+# 25x posterior-sampling collapse (postmortem_runpod_first_deployment_2026-09.md 2.3) and
+# the OOM the memory guard cannot see because disk_guard reads the host's RAM rather than
+# the cgroup (2.5). From this line on, a failure costs the GPU hours and the parquets. It
+# no longer costs the model.
+if [ "$FORECAST" = "1" ]; then
+  stage forecast
+  "$VENV/bin/python" main.py -r forecasting -f -sa \
+      || die "main.py exited non-zero during forecasting -- the artefact is already in $OUT/artifact"
+else
+  stage evaluate
+  "$VENV/bin/python" main.py -r calibration -e -sa \
+      || die "main.py exited non-zero during evaluation -- the artefact is already in $OUT/artifact"
+fi
+echo "train + inference took $(( ($(date +%s) - START) / 60 )) minutes"
 
 # ── 4-5. the CALIBRATION deliverable (13-origin parquets + posterior archive) ─────
 # Skipped on the forecast leg: a forecast has one origin, so the 13-parquet count check
