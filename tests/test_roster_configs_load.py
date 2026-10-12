@@ -1,4 +1,4 @@
-"""Every roster config must actually LOAD — not merely carry the right values.
+"""Every tracked config must actually LOAD — not merely carry the right values.
 
 `test_roster_conformance.py` compares 184 individual config values against a reference dict and
 passes. It never constructs a `HydraNetConfig`. So a config can satisfy every pinned value and still
@@ -12,8 +12,10 @@ ensemble members had been unrunnable since August and every test passed.**
 
 The validation itself was never missing: `HydraNetConfig` raised correctly, and the platform's
 `CoreConfigSniffer` is the wrong layer (it has no knowledge of `ss_feedback`). What was missing was
-anything that ran that validation *cheaply, in CI, over the whole roster* instead of only when
-someone tried to launch a model.
+anything that ran that validation *cheaply, in CI, over every tracked config* instead of only
+when someone tried to launch a model.
+
+"Every tracked config" is wider than the roster, and was not always: see `TRACKED_MODELS`.
 """
 
 from __future__ import annotations
@@ -25,7 +27,19 @@ import pytest
 
 # One declaration of the roster, not three. `rusty_bucket`'s modelset was reordered precisely so
 # that the two existing declarations could not drift apart; this file must not become a third.
-from tests.test_roster_conformance import ROSTER_MODELS as ROSTER
+from tests.test_roster_conformance import EXPERIMENT_ARMS, ROSTER_MODELS
+
+#: Every tracked HydraNet config in the repository, in both categories that exist.
+#:
+#: The roster is the eight. An experiment arm is a tracked model directory that exists to be
+#: trained against one of the eight as a control; it is deliberately NOT a roster member
+#: (`test_roster_conformance.EXPERIMENT_ARMS` says why) and so it was invisible to this file
+#: until it was named here. It must be, because the defect in the docstring above is one an
+#: arm inherits by construction: an arm is a COPY of its control's config with two or three
+#: values changed, which copies every latent config fault along with it, and the arm's whole
+#: point is that it is launched on rented hardware where a load failure costs provisioning
+#: time rather than a second (views-models#552).
+TRACKED_MODELS = list(ROSTER_MODELS) + list(EXPERIMENT_ARMS)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = REPO_ROOT / "models"
@@ -52,8 +66,8 @@ def _assemble(model: str) -> dict:
     return parts
 
 
-@pytest.mark.parametrize("model", ROSTER)
-def test_the_roster_config_can_be_constructed(model):
+@pytest.mark.parametrize("model", TRACKED_MODELS)
+def test_the_tracked_config_can_be_constructed(model):
     """The whole test. If it raises, that model cannot be run — whatever else is green."""
     pytest.importorskip("views_hydranet")
     from views_hydranet.utils.config_initializer import ConfigInitializer
@@ -62,8 +76,7 @@ def test_the_roster_config_can_be_constructed(model):
         ConfigInitializer(_assemble(model)).get_config()
     except Exception as exc:  # noqa: BLE001 - the failure text is the useful part
         pytest.fail(
-            f"{model}'s config does not load, so the model cannot be run or contribute to the "
-            f"ensemble:\n{exc}"
+            f"{model}'s config does not load, so the model cannot be run:\n{exc}"
         )
 
 
@@ -74,7 +87,7 @@ def test_scheduled_sampling_declares_its_feedback():
     is fine unset — that is `violet_visitor`, and it is a legitimate difference, not an oversight.
     """
     offenders = []
-    for model in ROSTER:
+    for model in TRACKED_MODELS:
         cfg = _assemble(model)
         active = cfg.get("ss_schedule") and (cfg.get("ss_epsilon_max") or 0) > 0
         if active and not cfg.get("ss_feedback"):
