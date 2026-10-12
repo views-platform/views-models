@@ -713,7 +713,15 @@ class TestTheGuideSaysHowToRetrieveTheArtefact:
             "into /workspace/deliver/<model>/artifact/, and this phase has no retrieval step — "
             "so they are destroyed with the pod."
         )
-        assert "rsync" in phase4b, "Phase 4b gives no command for getting the artefacts off the pod"
+        # In a RUNNABLE command, not in the prose. The paragraph above the command says
+        # "this phase has no rsync step", so `"rsync" in phase4b` passed with the command
+        # deleted — the same shape of hole this class's docstring is about, found by
+        # mutating this very assertion.
+        fenced = re.findall(r"```bash\n(.*?)```", phase4b, re.S)
+        assert any("rsync" in block for block in fenced), (
+            "Phase 4b has no rsync COMMAND for getting the artefacts off the pod — only "
+            f"prose about one. Code blocks found: {len(fenced)}"
+        )
 
         # The eight the script actually forecasts, read from the script rather than retyped:
         # a roster change must break this, not silently leave a model out of the instruction.
