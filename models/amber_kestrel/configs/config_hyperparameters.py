@@ -88,10 +88,15 @@ def get_hp_config():
         # gated forecast (gate x body); all-cell body.
         #
         # THE ARM. These two values, and the absence of a third, are the whole difference
-        # from violet_visitor. `truncated_nb` is a registered family and is not
-        # self-zeroed (SELF_ZEROED_FAMILIES == {"zinb"}), which is what lets composition
-        # rule (2) accept `soft_gate`:
-        #   https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/utils/config_initializer.py#L1145-L1152
+        # from violet_visitor. What lets `truncated_nb` take `soft_gate` is that ADR-069
+        # composition rule (1) -- "a self-zeroed family must NOT be gated" -- does not
+        # fire, because `truncated_nb` is not self-zeroed:
+        #   https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/utils/config_initializer.py#L1132-L1141
+        # The set it is absent from is `SELF_ZEROED_FAMILIES = frozenset({"zinb"})`, which
+        # lives in the registry, not in config_initializer -- the config path reads it
+        # through `self_zeroed_family_names()`, and the family class attribute is the
+        # authority the set is parity-tested against:
+        #   https://github.com/views-platform/views-hydranet/blob/e3a039f795787a46a42788aa77256f5470a33086/views_hydranet/distributions/registry.py#L45-L61
         # There is deliberately no `gate_threshold` below. Do not add one back to "match
         # violet_visitor" — a non-None value raises under any composition but
         # `threshold_gate`:
