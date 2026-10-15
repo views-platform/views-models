@@ -53,5 +53,6 @@ def get_meta_config():
         "regression_point_metrics": ["MCR_point", "MSE", "MSLE", "y_hat_bar"],
         "creator": "Dylan",
         # "regression_sample_baselines": ["red_ranger"],
+        "prediction_format": "prediction_frame",
     }
     return meta_config
