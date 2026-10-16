@@ -27,15 +27,30 @@ def get_hp_config():
     to the gate outright: a zero-truncated body (P(body>0) = 1 by construction) composed
     with `soft_gate`, so emitted P(y>0) equals the gate exactly.
 
-    WHAT IS NOT CHANGED, and why that is the point. `loss_class_pos_weight` stays 2.0.
-    `weighted_bce` at pos_weight w has its optimum at s* = wp/(wp + 1 - p), so the loss
-    asks for a calibrated gate only at w = 1 — but measured on all 64,818 land cells at
-    the 13 out-of-sample h=1 months (842,634 cell-months), the gate's median |gate - p| is
-    0.0054 against 0.0573 for the inflated target, median implied w = 1.0365. The gate is
-    already behaving as if trained at 1. So there is no hyperparameter to tune here and
-    the arm is a pure composition change. M45's failure mode — truncating the body while
-    leaving a gate calibrated for a body still absorbing the zeros — is removed by
-    construction rather than by a guessed number.
+    WHAT IS NOT CHANGED, and the honest reason. `loss_class_pos_weight` stays 2.0 — but NOT
+    because 2.0 is right. `weighted_bce` at pos_weight w has its optimum at
+    s* = wp/(1 + (w-1)p), so at w = 2 the loss instructs the gate to overstate the conflict
+    probability by roughly 2x. That is Gneiting & Ranjan (2011) Thm 1: weighting a proper
+    scoring rule by a function of the outcome makes it improper, and the minimiser becomes a
+    tilted law rather than the truth. Measured on all 64,818 land cells at the 13
+    out-of-sample h=1 months (842,634 cell-months), the gate's median |gate - p| is 0.0054
+    against 0.0573 for the inflated target, median implied w = 1.0365 — the gate sits at the
+    truth and about 10x away from its own objective's optimum. It is disobeying its loss, in
+    the direction of honesty.
+
+    So 2.0 is held here as a COMPARABILITY decision, not a correctness one: changing it would
+    have made this a two-variable arm and the composition contrast unreadable. The impropriety
+    is real and is tested separately by the pos_weight arm `copper_kestrel`
+    (views-hydranet reports/2026-10-16_pos_weight_prereg.md), whose control is this artefact.
+
+    M45's failure mode — truncating the body while leaving a gate calibrated for a body still
+    absorbing the zeros — is removed by construction rather than by a guessed number.
+
+    ⛔ An earlier version of this paragraph derived the same formula, quoted the same 1.0365,
+    and then concluded "there is no hyperparameter to tune here". The premises were right and
+    the conclusion did not follow from them (C-303): it argued a property of the LOSS from a
+    comparability decision about the EXPERIMENT. Corrected 2026-10-16; the wording is
+    views-hydranet's own.
 
     `loss_reg` stays 'mse' and is dead: utils.py takes the `resolve_family is not None`
     branch, so it is not consulted under a family, exactly as for `nb`.

@@ -79,7 +79,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # 1.13.0 — both postprocessor requirement files and the pod install in
 # tools/podrun/pod_run_model.sh (not a requirements file, so invisible to this rule).
 #
-# The other 35 declarations are model requirements at >=1.9.0. They are NOT floored here, for
+# The other 36 declarations are model requirements at >=1.9.0. They are NOT floored here, for
 # two reasons. They are unrelated to the delivery legs, so raising them belongs to #509 rather
 # than to a delivery PR; and one of them is `models/violet_visitor/requirements.txt`, whose
 # contents another session owns and which this session is instructed not to edit.
@@ -96,20 +96,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # tests/test_falsification_40_lesson_run_readiness.py::test_every_datafactory_declaration_
 # keeps_its_upper_bound, which is narrower than this rule and survives the deferral.
 #
-# REMOVE THIS ENTRY when #509 floors the remaining 35 — that is the whole of the trigger.
+# REMOVE THIS ENTRY when #509 floors the remaining 36 — that is the whole of the trigger.
 #
 # The count in that sentence is a TRIGGER, not decoration: acting on a stale one deletes a
 # live exemption. It said 34 and was right until amber_kestrel's requirements.txt made it
 # 36 declarations, 35 of them unfloored — the kind of drift that is only ever found by
 # someone reading carefully. It is now asserted against the measured count below, so it
-# cannot go stale silently again.
+# cannot go stale silently again, and copper_kestrel's requirements.txt took it to 37 and 36
+# on 2026-10-16 — the assertion is what reported that, not a reader.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 35 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 36 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 35 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 36 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }

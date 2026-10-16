@@ -125,6 +125,17 @@ EXPERIMENT_ARMS = {
     # vehicle (calibration_model_20261012_033112.pt, sha256 4acbf4d3c2b457b0...), which is
     # why every non-composition value has to stay identical.
     "amber_kestrel": ("violet_visitor", ("truncated_nb", "soft_gate", None, 42)),
+    # views-hydranet reports/2026-10-16_pos_weight_prereg.md. The gate's objective, not its
+    # composition: `weighted_bce` at pos_weight 2.0 has its optimum at s* = wp/(1 + (w-1)p),
+    # so the loss asks the gate to overstate occurrence by ~2x — improper by Gneiting &
+    # Ranjan (2011) Thm 1. This arm sets w = 1.0 and changes nothing else.
+    #
+    # ⛔ Its control is `amber_kestrel`, NOT `violet_visitor`. Editing amber_kestrel in place
+    # was the alternative and was rejected (Simon, 2026-10-16): its control artefact cannot
+    # be retrained (C-317), so a second free key there would have spent the composition
+    # contrast permanently. The declared composition values below are amber_kestrel's,
+    # inherited unchanged — they are what this arm must NOT vary.
+    "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
 }
 
 #: The hyperparameter keys an arm may differ from its control on. Anything else differing
@@ -135,7 +146,38 @@ EXPERIMENT_ARMS = {
 #: word here plus one config edit turns a 300-lesson arm into a 160-lesson one against a
 #: 300-lesson control, with every test in the repository green. Widening it must be a visible
 #: act, not a quiet one.
-ARM_FREE_KEYS = {"output_distribution", "forecast_composition", "gate_threshold"}
+#: ONE SET PER PAIR, not one set for the repository, and that is the whole point.
+#:
+#: This was a single module-level set until 2026-10-16. The defect that shape has is not
+#: hypothetical: `copper_kestrel` needs `loss_class_pos_weight` free, and adding it to a
+#: shared set would have silently licensed the `amber_kestrel` ↔ `violet_visitor` pair to
+#: differ on `loss_class_pos_weight` too — the exact key that pair must hold fixed, because
+#: holding it at 2.0 is what made the composition contrast one-variable. Every future
+#: widening would do that again, to every pair at once, and no single commit would look
+#: wrong. The escape hatch would ratchet open.
+#:
+#: Keyed by ARM, so a widening reaches exactly one contrast and the justification is written
+#: against that contrast rather than in the abstract.
+ARM_FREE_KEYS = {
+    # views-hydranet#396: the composition triple, and nothing else.
+    "amber_kestrel": frozenset(
+        {"output_distribution", "forecast_composition", "gate_threshold"}
+    ),
+    # The pos_weight arm varies exactly one value. `output_distribution` and
+    # `forecast_composition` are NOT free here — they are inherited from the control and
+    # must match it.
+    "copper_kestrel": frozenset({"loss_class_pos_weight"}),
+}
+
+#: Keys that may differ for ANY pair because they change what is RECORDED, never what is
+#: computed. Separate from ARM_FREE_KEYS deliberately: a log path is not an experimental
+#: variable, and filing it as one would make "this arm varies one key" false in the literal
+#: reading that gives the guard its force.
+#:
+#: `trajectory_log_path` is here because it must differ — it resolves to an absolute path
+#: inside the pod's rsynced deliver directory, and the deliver directory is named after the
+#: model. A relative path dies with the pod (views-models#558 / C-161).
+INSTRUMENTATION_KEYS = frozenset({"trajectory_log_path"})
 
 #: Config files that must be BYTE-IDENTICAL between an arm and its control.
 #:
@@ -754,23 +796,32 @@ class TestExperimentArmConformance:
         )
 
     @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
-    def test_the_arm_differs_from_its_control_only_on_composition(self, arm):
+    def test_the_arm_differs_from_its_control_only_on_its_declared_variable(self, arm):
         control, _declared = EXPERIMENT_ARMS[arm]
+        free = ARM_FREE_KEYS[arm]
+        admissible = free | INSTRUMENTATION_KEYS
         arm_hp, control_hp = _load_hp(arm), _load_hp(control)
         differing = {
             key
             for key in set(arm_hp) | set(control_hp)
             if arm_hp.get(key, _ARM_KEY_ABSENT) != control_hp.get(key, _ARM_KEY_ABSENT)
         }
-        assert differing <= ARM_FREE_KEYS, (
+        assert differing <= admissible, (
             f"{arm} differs from its control {control} on "
-            f"{sorted(differing - ARM_FREE_KEYS)}, which is outside the composition triple. "
-            f"The control for this arm is an artefact that has already been trained, so any "
-            f"other difference confounds the comparison — revert it, or add it to "
-            f"ARM_FREE_KEYS and say in the commit why the contrast survives."
+            f"{sorted(differing - admissible)}, which is outside the keys declared free for "
+            f"THIS pair ({sorted(free)}). The control for this arm is an artefact that has "
+            f"already been trained and cannot be retrained (C-317), so any other difference "
+            f"confounds the comparison — revert it, or add it to ARM_FREE_KEYS[{arm!r}] and "
+            f"say in the commit why the contrast survives. Adding it to another pair's set "
+            f"will not help, and that is deliberate."
         )
         # And the inverse, so this cannot pass on an arm that is merely a copy of its control.
-        assert differing, f"{arm} is identical to its control {control}: there is no arm to run"
+        # Instrumentation does not count as an arm: a pair that differs ONLY on a log path has
+        # nothing to run, and before the per-pair split this would have read as a live arm.
+        assert differing - INSTRUMENTATION_KEYS, (
+            f"{arm} is identical to its control {control} apart from instrumentation "
+            f"({sorted(differing & INSTRUMENTATION_KEYS)}): there is no arm to run"
+        )
 
     def test_the_escape_hatch_is_pinned_in_both_directions(self):
         """`ARM_FREE_KEYS` is the one thing that can widen the guard above.
@@ -786,15 +837,45 @@ class TestExperimentArmConformance:
         reviewed edit to this literal rather than a side effect.
         """
         assert ARM_FREE_KEYS == {
-            "output_distribution",
-            "forecast_composition",
-            "gate_threshold",
+            "amber_kestrel": frozenset(
+                {"output_distribution", "forecast_composition", "gate_threshold"}
+            ),
+            "copper_kestrel": frozenset({"loss_class_pos_weight"}),
         }, (
-            f"ARM_FREE_KEYS is {sorted(ARM_FREE_KEYS)}. Widening it licenses a second "
-            f"variable in a one-variable experiment whose control is already trained and "
-            f"cannot be retrained (C-317). If the arm genuinely needs another free key, "
-            f"change this literal too and say in the commit why the contrast survives."
+            f"ARM_FREE_KEYS is { {k: sorted(v) for k, v in ARM_FREE_KEYS.items()} }. "
+            f"Widening any pair's set licenses a second variable in a one-variable "
+            f"experiment whose control is already trained and cannot be retrained (C-317). "
+            f"If an arm genuinely needs another free key, change this literal too and say in "
+            f"the commit why THAT contrast survives."
         )
+
+        # Every arm must declare a set, and no set may be empty: an arm with no declared
+        # variable would pass the guard above by admitting nothing and failing the inverse
+        # assertion for a reason that does not name the cause.
+        assert set(ARM_FREE_KEYS) == set(EXPERIMENT_ARMS), (
+            f"ARM_FREE_KEYS covers {sorted(ARM_FREE_KEYS)} but the arms are "
+            f"{sorted(EXPERIMENT_ARMS)}. Every arm declares exactly which keys its own "
+            f"contrast may vary; a missing entry is a KeyError at test time, not a pass."
+        )
+        for arm, keys in ARM_FREE_KEYS.items():
+            assert keys, f"{arm} declares an empty free-key set, so it has no variable"
+
+        # Instrumentation is pinned on its own, for the same reason: moving a key into it
+        # would exempt that key for EVERY pair at once, which is the ratchet the per-pair
+        # split exists to close.
+        assert INSTRUMENTATION_KEYS == frozenset({"trajectory_log_path"}), (
+            f"INSTRUMENTATION_KEYS is {sorted(INSTRUMENTATION_KEYS)}. A key here is exempt "
+            f"for every arm, so it must change what is RECORDED and never what is computed. "
+            f"If it can alter a forecast it belongs in that pair's ARM_FREE_KEYS instead."
+        )
+
+        # And the two sets must not overlap, or a key would be both "the variable" and
+        # "exempt for everyone" and the guard's meaning would depend on which check ran.
+        for arm, keys in ARM_FREE_KEYS.items():
+            assert not (keys & INSTRUMENTATION_KEYS), (
+                f"{arm} declares {sorted(keys & INSTRUMENTATION_KEYS)} as its experimental "
+                f"variable while INSTRUMENTATION_KEYS exempts it for every arm"
+            )
 
     @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
     @pytest.mark.parametrize("filename", ARM_IDENTICAL_FILES)
@@ -911,23 +992,36 @@ class TestExperimentArmConformance:
         # commit, and reported a correct file as broken. A guard that fires on the correct
         # state is worse than no guard — it gets edited out of the way.
         #
-        # The baseline is DERIVED rather than typed: the control's README is produced by the
-        # same generator and carries no manual block, so its headings are exactly what the
-        # scaffold emits. Anything outside the arm's block that the control does not also
-        # have is hand-written text standing where CI will delete it.
-        control, _declared = EXPERIMENT_ARMS[arm]
-        control_readme = MODELS_DIR / control / "README.md"
-        control_text = control_readme.read_text(encoding="utf-8")
-        assert not _manual_blocks(control_text), (
-            f"{control}/README.md now has a manual block, so it is no longer a pure "
-            f"generated baseline and cannot be used as one here. Pick a model whose README "
-            f"is still fully generated, or pin the scaffold's heading set explicitly."
+        # The baseline is DERIVED rather than typed: it is the README of some model that is
+        # still PURELY generated, so its headings are exactly what the scaffold emits.
+        # Anything outside the arm's block that the baseline does not also have is
+        # hand-written text standing where CI will delete it.
+        #
+        # It used to be the arm's own CONTROL, which was true while every control was a
+        # roster model. It stopped being true on 2026-10-16, when copper_kestrel's control
+        # became amber_kestrel — itself an arm, with a manual block of its own. The test then
+        # failed on a correct arm and named the control as the problem, which is the shape of
+        # failure its own comment above warns about. So the baseline is now ANY purely
+        # generated README, searched deterministically rather than assumed of a role.
+        baselines = sorted(
+            d.name
+            for d in MODELS_DIR.iterdir()
+            if (d / "README.md").is_file()
+            and not _manual_blocks((d / "README.md").read_text(encoding="utf-8"))
         )
+        assert baselines, (
+            "every model README now carries a manual block, so there is no purely generated "
+            "baseline left to derive the scaffold's heading set from. Pin the heading set "
+            "explicitly here instead — but note that pinning it means a scaffold change "
+            "turns this red, which is the trade being made."
+        )
+        baseline = baselines[0]
+        baseline_text = (MODELS_DIR / baseline / "README.md").read_text(encoding="utf-8")
         generated_headings = {
-            line.strip() for line in control_text.splitlines() if line.startswith("## ")
+            line.strip() for line in baseline_text.splitlines() if line.startswith("## ")
         }
         assert generated_headings, (
-            f"no `## ` headings found in {control}/README.md, so the baseline is empty and "
+            f"no `## ` headings found in {baseline}/README.md, so the baseline is empty and "
             f"this check would pass on anything"
         )
 
@@ -942,7 +1036,8 @@ class TestExperimentArmConformance:
         assert not orphaned, (
             f"{arm}/README.md has hand-written sections outside its manual block(s), which "
             f"update_readme.py will delete on the next regeneration: {orphaned}. Move them "
-            f"inside <!-- manual --> … <!-- /manual -->."
+            f"inside <!-- manual --> … <!-- /manual -->. (Scaffold headings were taken from "
+            f"{baseline}/README.md, the baseline this run derived.)"
         )
         # And the block must hold something, not just exist.
         assert preserved.strip(), (

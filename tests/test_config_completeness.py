@@ -155,6 +155,45 @@ class TestConfigHyperparameters:
             f"{model_dir.name} is HydraNet but missing 'sampling_strategy' (ADR-049)"
         )
 
+    def test_hydranet_declares_the_balancer_frozen(self, model_dir, hp_config, meta_config):
+        """A HydraNet must SAY `freeze_multitask_balancer`, and say True.
+
+        The library default is **False**, so a config that simply omits the key gets the
+        unfrozen path — and on that path the balancer's learning rate is never updated.
+        `choose_scheduler` builds its scheduler over an optimiser constructed from
+        `unet.parameters()` alone, so `base_lrs` is captured with ONE param group; the
+        `log_vars` are added as a LATER group, and `_LRScheduler.step()` zips `param_groups`
+        against a `get_lr()` whose length is `len(base_lrs)` = 1. zip truncates, so group 1
+        keeps the optimiser default 0.001 while the network decays. Measured in
+        views-hydranet after 900 steps: network 6.011e-04, balancer 1.000e-03. There is no
+        error and no warning — the run completes and the weights are wrong.
+
+        Omission is therefore not a neutral silence, which is why the key must be PRESENT
+        rather than merely not-False. All HydraNet configs in this repository declare True
+        today; this test is what keeps the next one from inheriting the default by writing
+        nothing. See `reports/technical_risk_register.md` C-162.
+
+        Unfreezing the balancer is separately struck: a 7-seat method review ruled against
+        it unanimously and a pre-registered 3-seed bisect found it to be the cause of the
+        C-113 runaway. If that is ever revisited, the scheduler defect above has to be fixed
+        FIRST, in views-hydranet — not here, and not by relaxing this test.
+        """
+        if meta_config.get("algorithm") != "HydraNet":
+            pytest.skip("not a HydraNet model")
+        assert "freeze_multitask_balancer" in hp_config, (
+            f"{model_dir.name} is HydraNet and does not declare "
+            f"'freeze_multitask_balancer'. The library default is False, and on that path "
+            f"the balancer's lr is silently never updated (C-162). Declare it explicitly."
+        )
+        assert hp_config["freeze_multitask_balancer"] is True, (
+            f"{model_dir.name} declares freeze_multitask_balancer="
+            f"{hp_config['freeze_multitask_balancer']!r}. Unfreezing is struck by a 7-seat "
+            f"method review and a 3-seed bisect (C-113), and the unfrozen path cannot reach "
+            f"the balancer's stationary point anyway because its lr never updates (C-162). "
+            f"If this is deliberate, fix the scheduler in views-hydranet first and change "
+            f"this test in the same breath as the config."
+        )
+
     def test_time_steps_matches_steps_length(self, model_dir, hp_config):
         steps = hp_config.get("steps")
         time_steps = hp_config.get("time_steps")
