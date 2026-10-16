@@ -15,6 +15,8 @@ from tests.conftest import (
 ALL_DIRS = ALL_MODEL_DIRS + ALL_ENSEMBLE_DIRS
 ALL_NAMES = MODEL_NAMES + ENSEMBLE_NAMES
 
+pytestmark = pytest.mark.beige
+
 
 def _find_imports_from(tree: ast.AST, module: str) -> list[ast.ImportFrom]:
     """Find all 'from <module> import ...' nodes in an AST."""

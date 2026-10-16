@@ -1,6 +1,6 @@
 # ADR-005: Testing as Mandatory Critical Infrastructure
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-07-19: fourth category `live`)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -26,6 +26,15 @@ We adopt a three-team testing taxonomy:
 | **Green** (Correctness) | Verify the system works as intended | `test_config_completeness.py` — required keys exist, values are valid |
 | **Beige** (Convention) | Catch configuration drift and convention violations | `test_model_structure.py` — naming, file presence; `test_config_partitions.py` — delegation to shared module; `test_cli_pattern.py` — CLI import consistency |
 | **Red** (Adversarial) | Expose failure modes by testing edge cases | `test_failure_modes.py` — config loading error paths |
+| **Live** (Real-world) | Probe real external services (network, credentials); must `pytest.skip` truthfully when the environment lacks access — never a false red | `tests/test_liveness_*.py` — one live probe per surface (amendment 2026-07-19) |
+
+**Amendment 2026-07-19 (falsify audit, register C-103):** green/beige/red all
+describe *offline* tests distinguished by the question they ask; tests that
+touch the real world are a fourth axis, not a kind of red. The liveness
+suites had mislabeled live network probes as `red` (which means
+adversarial/error-path); those are now `live`, and `red` marks the actual
+error-path tests. Rule: a `live` test asserts only invariants, never
+freshness values, and skips with the reason on any environment failure.
 
 ### Test Design Principles
 

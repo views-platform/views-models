@@ -1,4 +1,11 @@
-from ingester3.ViewsMonth import ViewsMonth
+from datetime import date
+
+
+def _current_month_id() -> int:
+    """VIEWS month_id for the current calendar month. Epoch: January 1980."""
+    today = date.today()
+    return (today.year - 1980) * 12 + today.month
+
 
 
 def generate(steps: int = 36) -> dict:
@@ -15,16 +22,15 @@ def generate(steps: int = 36) -> dict:
         - 'forecasting': Uses training and testing index ranges based on the current month.
 
     Note:
-        - The 'forecasting' partition's 'train' and 'test' values are functions that require the ViewsMonth
-          object (and step for 'test') to compute the appropriate indices.
+        - The 'forecasting' partition's 'train' and 'test' ranges are computed from the current month.
     """
 
     def forecasting_train_range():
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (121, month_last)
 
     def forecasting_test_range(steps):
-        month_last = ViewsMonth.now().id - 1
+        month_last = _current_month_id() - 1
         return (month_last + 1, month_last + 1 + steps)
 
     return {

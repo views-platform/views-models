@@ -1,6 +1,6 @@
 # ADR-009: Boundary Contracts and Configuration Validation
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-09-17 (`config_maturity.py` boundary, ADR-017 Phase 2, #449)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -28,7 +28,7 @@ Every config file boundary must enforce:
 | Config File | Required Keys | Validated By |
 |------------|---------------|-------------|
 | `config_meta.py` | `name`, `algorithm`, `level`, `creator`, `prediction_format`, `rolling_origin_stride` | `tests/test_config_completeness.py` |
-| `config_deployment.py` | `deployment_status` (enum: shadow/deployed/baseline/deprecated) | `tests/test_config_completeness.py` |
+| `config_maturity.py` | `maturity` (enum: candidate/graduate/retired — ADR-017 §3); exactly one of this file and the legacy `config_deployment.py` (`deployment_status`, enum: shadow/deployed/baseline/deprecated) per source | `tests/test_config_completeness.py` |
 | `config_hyperparameters.py` | `steps`, `time_steps` | `tests/test_config_completeness.py` |
 | `config_partitions.py` | Self-contained `generate()` function; boundaries must match canonical values; offset must be `-1` | `tests/test_config_partitions.py` |
 
@@ -39,6 +39,7 @@ Every config file boundary must enforce:
 | Model naming | `^[a-z]+_[a-z]+$` | `tests/test_model_structure.py` |
 | Required files | `main.py`, `run.sh`, `configs/` with 6 config files | `tests/test_model_structure.py` |
 | CLI pattern | Import from `views_pipeline_core.cli`, no `wandb.login()` | `tests/test_cli_pattern.py` |
+| Targets ↔ metrics | Declaring `classification_targets` obliges a classification metric key (`classification_point_metrics` or `classification_sample_metrics`); likewise for regression. The rule is **owned upstream** by views-pipeline-core's `CoreConfigSniffer` and is not restated here, so the two cannot drift. | `tests/test_core_config_sniffer_contract.py`, which loads every config through the installed sniffer |
 
 ### Ensemble Boundaries
 

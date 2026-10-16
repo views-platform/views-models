@@ -9,8 +9,9 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  yellow_submarine   |
 | **Feature Description**       |  Predicting fatalities, cm level Queryset with baseline and imfweo features    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
