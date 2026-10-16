@@ -218,7 +218,11 @@ def test_environment_sharing_is_recorded_not_discovered():
         # views-hydranet#396 composition experiment. It shares the roster's environment
         # deliberately — an arm that installed a different stack would confound the
         # composition change with the dependency change (C-116).
-        "views-hydranet": 9,
+        # 9 -> 10: models/copper_kestrel, the pos_weight arm, whose control IS
+        # amber_kestrel. Its requirements.txt is byte-identical to amber_kestrel's and
+        # tests/test_roster_conformance.py asserts that, so sharing the environment is not
+        # a convenience here — a different stack would confound the one variable.
+        "views-hydranet": 10,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,

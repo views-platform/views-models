@@ -58,4 +58,6 @@ def test_the_split_is_what_the_catalog_says():
     # 34 -> 35 datafactory on 2026-10-12: models/amber_kestrel, the truncated-body /
     # soft-gate arm of the views-hydranet#396 composition experiment, copied from
     # violet_visitor and therefore a datafactory consumer like it.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 35, SYNTHETIC: 6}, dict(counts)
+    # 35 -> 36 on 2026-10-16: models/copper_kestrel, the pos_weight arm, copied from
+    # amber_kestrel for the same reason and inheriting the same queryset byte for byte.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 36, SYNTHETIC: 6}, dict(counts)
