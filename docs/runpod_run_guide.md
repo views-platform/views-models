@@ -384,10 +384,47 @@ The runner already does both. Its output is in `/workspace/deliver/<model>/`:
 |---|---|
 | `artifact/` | the trained state dict, its two sidecars, and `PROVENANCE` — ~4 MB |
 | `parquet/` | 13 files, one per origin, 2,333,448 rows each |
-| `draws/` | the full posterior, zstd — ~236× smaller than raw |
+| `draws/` | ⛔ **HALF the posterior** — `lr_*` only, zstd. See the warning below. |
 | `MANIFEST` | sizes, timestamps, git sha, lesson count, and `mode:` |
 | `STATUS` | `OK`, or `FAILED:<stage>` |
 | `REHEARSAL` | present **only** after `--rehearsal` — this output is not fit to deliver |
+
+⛔ **`draws/` IS NOT THE FULL POSTERIOR, and the runner will tell you it is.** This table
+said "the full posterior — ~236× smaller than raw" until 2026-10-16, and that was false.
+HydraNet writes six target directories per origin: `lr_{sb,ns,os}_best` (the magnitude body)
+and `by_{sb,ns,os}_best` (the gate). `pod_run_model.sh` archives `-path '*/lr_*'` — three of
+six — and its own `N_DRAWS`/`N_ARCHIVED` guard counts only the half it archives, so the run
+reports `STATUS: OK` either way (views-models#558, register **C-161**). `MANIFEST` then prints
+`raw draws: 13G` beside `compressed: 34M` as though one were the compression of the other; the
+denominator includes the half that was thrown away.
+
+**If your readout is gate-side, you must slice the gate before you destroy the pod.** Every
+endpoint the composition and `pos_weight` arms pre-register — median \|gate − p\|, median
+implied `w`, gate AP — is computed from the gate posterior, which `draws/` does not contain.
+On 2026-10-13 the arm's gate survived only because it was sliced by hand before the pod was
+cleared; `violet_visitor`'s 2026-10-12 control is past recovery.
+
+Run this **on the pod**, after the runner reports `OK` and **before** you rsync:
+
+```bash
+python3 /workspace/views-models/tools/podrun/slice_gate_posterior.py <model>
+```
+
+It writes `gate_h1/`, `gate_h1.tar.zst` and `gate_h1.sha256` **into `/workspace/deliver/<model>/`**,
+so the rsync below carries them with everything else and the runner needs no change. It takes
+the h=1 slice — 1/36 of the rows — because the full gate archive measured 1.3 GB (gate draws
+are high-entropy floats and compress 4.8×, not 194× like the zero-heavy `lr_*` draws), and at
+the 43–48 KB/s measured on that link 1.3 GB is **7.7 hours**. The slice came home in minutes
+and is the readout, not a compromise. It refuses rather than writing a partial slice: no
+`by_*` directories, a target missing from an origin, a row count that is not 64,818, a draw
+count that disagrees between targets, a non-finite probability, or an archive whose entry
+count does not match what was written.
+
+Verify locally after the rsync:
+
+```bash
+cd models/<model>/data/generated/calibration_delivery_<date>/ && sha256sum -c gate_h1.sha256
+```
 
 ⛔ **`artifact/` is the one that cannot be remade.** HydraNet training is not bit-reproducible
 (C-317), so a lost state dict is lost for good: on 2026-09-28 eight models trained, delivered
@@ -405,8 +442,9 @@ rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
     models/<model>/data/generated/calibration_delivery_<date>/
 ```
 
-Must transfer **~22 MB** — measured end to end on 2026-10-12, of which ~4 MB is `artifact/`
-and 6.5 MiB the posterior archive. (It was ~18 MB before the runner collected the artefact.)
+Must transfer **~22 MB** without the gate slice, or **~70 MB** with it — measured end to end
+on 2026-10-12 and 2026-10-13 respectively, of which ~4 MB is `artifact/`, 6.5 MiB the `lr_*`
+archive and ~45 MB `gate_h1.tar.zst`. (It was ~18 MB before the runner collected the artefact.)
 If it is trying to move gigabytes, you are copying raw predictions rather than the deliverable
 — check the path.
 
