@@ -1217,6 +1217,47 @@ class TestExperimentArmConformance:
 
     # ── seed replicates: the pair guards above cover them; these cover what is theirs ──
 
+    def test_the_arm_roster_is_exactly_as_declared(self):
+        """Every arm's CONTROL and declared values are pinned, not just its name.
+
+        ⛔ Found by mutation on #568, and it was a live hole. `SEED_REPLICATES` and
+        `ARM_FREE_KEYS` are both pinned as exact literals; `EXPERIMENT_ARMS` was only ever
+        read as a KEY SET (`set(EXPERIMENT_ARMS)`) or indexed by name, so its values — the
+        control each arm is declared against — were pinned by nothing at all.
+
+        **Re-pointing an arm's control was a silent one-word edit.** The mutation that found
+        this changed `indigo_kestrel`'s control from `silver_kestrel` to `amber_kestrel` —
+        the exact confounded declaration the comment at :66-70 exists to forbid — and the
+        full suite stayed GREEN, 291 passed. It survives because `indigo` and `amber` happen
+        to share seed 42, so the seed-pairing guard is satisfied and the one-variable guard
+        sees only `{weight_decay, trajectory_log_path}`, both admissible.
+
+        ⛔ And green is the wrong answer twice over. `amber_kestrel` was trained on a
+        different pod session at a different time under a different code sha (prereg §7), so
+        pairing a fresh arm against it reintroduces precisely the environment gap the fresh
+        replicates exist to exclude — which is why the pre-registration pairs each arm with a
+        seed-matched REPLICATE and not with amber.
+
+        The same hole applies to `copper_kestrel`, whose control could be re-pointed from
+        `amber_kestrel` to `silver_kestrel` and also stay green.
+
+        Pinned in both directions, like the two declarations beside it: adding an arm,
+        removing one, re-pointing a control, or editing a declared value is now a reviewed
+        edit to this literal rather than a side effect.
+        """
+        assert EXPERIMENT_ARMS == {
+            "amber_kestrel": ("violet_visitor", ("truncated_nb", "soft_gate", None, 42)),
+            "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+            "indigo_kestrel": ("silver_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+            "russet_kestrel": ("bronze_kestrel", ("truncated_nb", "soft_gate", None, 43)),
+        }, (
+            f"EXPERIMENT_ARMS changed: {EXPERIMENT_ARMS}. An arm's CONTROL is the comparison "
+            f"the whole experiment rests on — re-pointing it silently changes what the arm "
+            f"measures against, and for a seed-matched pair it can do so while every other "
+            f"guard stays green. Update this literal in the same commit and say in the "
+            f"message why the new control is the right comparison."
+        )
+
     def test_the_replicate_roster_is_exactly_as_declared(self):
         """Both adding and removing a replicate must be a reviewed edit.
 
