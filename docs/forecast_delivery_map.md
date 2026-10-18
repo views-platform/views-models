@@ -165,10 +165,12 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-10-16: **91 `candidate`, 3 `retired`, 0 `graduate`** across 94 `config_maturity.py`
-  files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py` files — 132 files in all.
-  133 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
-  (C-130). Both quote styles must be counted;
+  *(Measured 2026-10-19: **94 `candidate`, 3 `retired`, 0 `graduate`** across 97 `config_maturity.py`
+  files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py` files — 135 files in all.
+  136 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
+  (C-130). The 2026-10-19 move is +3: `silver`/`bronze`/`cobalt_kestrel`, the three seed
+  replicates of `amber_kestrel` that measure this pipeline's run-to-run variance
+  (views-models#567). All three are `candidate` and none is a delivery. Both quote styles must be counted;
   see vmo_017 §2 and register C-127.
   Nothing is `graduate`: the rename was a script, and maturity is an author's sign-off (ADR-017 §3).
   `ensembles/white_mustang`, formerly the only `deployed` source, is `candidate` — its two members,
