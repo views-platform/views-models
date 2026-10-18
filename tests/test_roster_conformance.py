@@ -1203,7 +1203,8 @@ class TestExperimentArmConformance:
         Pinned as an exact literal in both directions, for the reason ARM_FREE_KEYS is: a
         replicate silently removed from this mapping keeps its directory and loses every
         pair guard, and one silently added subjects a directory to guards nobody chose for
-        it. An empty mapping still fails loudly if an entry appears.
+        it. Full dict equality, so a changed SEED or a changed CONTROL fails here too — not
+        only an added or removed name.
         """
         assert SEED_REPLICATES == {
             "silver_kestrel": ("amber_kestrel", 42),
@@ -1321,6 +1322,21 @@ class TestExperimentArmConformance:
                 f"a chain of comparisons rather than the run-to-run variance of one config."
             )
 
+        # ⛔ And the sentence above is now ASSERTED rather than merely written down. The
+        # docstring claimed "replicates must all point at the SAME control" while the loop
+        # only forbade a replicate-of-a-replicate, so two cells against two different
+        # controls would have passed — and `σ̂` pooled across them would be a spread of two
+        # populations, not the run-to-run variance of one config. A docstring that states a
+        # rule the code does not check is the shape C-163 is registered for.
+        controls = {control for control, _seed in SEED_REPLICATES.values()}
+        assert len(controls) <= 1, (
+            f"the replicates point at {sorted(controls)} — more than one control. σ̂ is the "
+            f"spread of ONE config re-run, so a cell split across two controls pools two "
+            f"populations and the estimate is not the quantity views-models#565 pays for. "
+            f"If two cells are genuinely wanted, they need separate declarations and a "
+            f"separate σ̂ each."
+        )
+
     @pytest.mark.parametrize("replicate", sorted(SEED_REPLICATES))
     def test_the_replicate_is_its_declared_seed(self, replicate):
         """The seed is the replicate's whole identity, so it is pinned like an arm's values.
@@ -1365,7 +1381,7 @@ class TestExperimentArmConformance:
         # not symmetric with config divergence — see that test.
 
     def test_the_replicates_are_distinct_runs(self):
-        """No two replicates may share a seed, for the reason above applied across the cell.
+        """No two replicates may share a seed. The cell is the subject, not the control.
 
         Not parametrized: a pairwise property cannot be checked one subject at a time, and
         parametrizing it over `SEED_REPLICATES` would also make it collect zero cases while
@@ -1407,10 +1423,14 @@ class TestExperimentArmConformance:
         is no "there is no arm to run" inverse assertion here — a replicate that is config-
         identical to its control is the valid case, not the degenerate one.
 
-        ⚠️ That is true of the CONFIG and false of the SEED, which is why the inverse lives
-        in `test_the_replicate_is_its_declared_seed` rather than here: this guard permits
-        differing on nothing at all, and on its own would pass a replicate that is a
-        byte-identical rerun of its control.
+        ⚠️ This guard permits differing on NOTHING at all, and that is correct: the control
+        is a config reference, not a member of the variance cell, so a replicate whose
+        config matches it exactly — seed included — is the valid case. ⛔ What must not
+        happen is two replicates matching EACH OTHER, and that is asserted in
+        `test_the_replicates_are_distinct_runs`, over the cell rather than against the
+        control. An earlier version of this file asserted the control-relative form; it was
+        withdrawn in #567 because it is both wrong and weaker — see the comment in
+        `test_the_replicate_is_its_declared_seed`.
 
         What makes this load-bearing rather than tidy: the variance estimate these runs exist
         to produce is the spread of their results, so a config divergence among them enters

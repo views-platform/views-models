@@ -25,7 +25,8 @@
 # different pod session at a different time under a different code sha, so pooling it would
 # import every difference between then and now into the variance estimate (prereg §7;
 # Simon, 2026-10-18: "I agree with the fresh run, don't reuse amber"). This is why carrying
-# amber's own seed 42 is correct for silver_kestrel and not a duplicate run.
+# a replicate may carry amber's own seed without being a duplicate run -- which
+# silver_kestrel does, at 42.
 #
 # The configuration below is amber_kestrel's, copied unchanged. Its reasoning is inherited
 # verbatim and still describes the configuration these runs replicate -- do not "tidy" it.
