@@ -100,7 +100,7 @@ def test_scheduled_sampling_declares_its_feedback(model):
 
     Parametrized rather than looping internally so that its scope is declared in the same
     place, and in the same form, as the construction test's — which is what
-    `test_both_categories_of_tracked_config_are_in_scope` is able to read.
+    `test_every_category_of_tracked_config_is_in_scope` is able to read.
     """
     cfg = _assemble(model)
     active = cfg.get("ss_schedule") and (cfg.get("ss_epsilon_max") or 0) > 0
@@ -139,8 +139,16 @@ def _parametrized_scope(func) -> set[str]:
     [test_the_tracked_config_can_be_constructed, test_scheduled_sampling_declares_its_feedback],
     ids=lambda f: f.__name__,
 )
-def test_both_categories_of_tracked_config_are_in_scope(func):
+def test_every_category_of_tracked_config_is_in_scope(func):
     """The guard on this file's own scope, which is where it failed before.
+
+    Renamed from `test_both_categories_...` when the third declaration arrived: a name that
+    counts the categories goes stale every time one is added, so it now says "every".
+
+    ⚠️ Known limit, and it cannot be closed here: while `SEED_REPLICATES` is empty, dropping
+    `+ list(SEED_REPLICATES)` from `TRACKED_MODELS` leaves `scope == declared` and this guard
+    green. It fires the moment a replicate is declared, which is why views-models#567 — the
+    PR that declares the first three — must mutation-test this guard rather than inherit it.
 
     Narrowing a parametrization back to the roster is a one-line edit that leaves every
     other test in the repository green — a smaller parametrization is not a failure. That is
