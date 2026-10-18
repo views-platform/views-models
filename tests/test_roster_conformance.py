@@ -209,6 +209,11 @@ REPLICATE_FREE_KEYS = frozenset({"torch_seed", "np_seed"})
 #:
 #: Keyed by ARM, so a widening reaches exactly one contrast and the justification is written
 #: against that contrast rather than in the abstract.
+#: Marks a free key whose correct state is ABSENCE rather than a value. `gate_threshold` is
+#: amber_kestrel's: ADR-069 reads `elif self.gate_threshold is not None`, so a `None` loads
+#: fine — and a `None` sitting next to `soft_gate` invites someone to fill it in.
+_ARM_KEY_MUST_BE_ABSENT = object()
+
 ARM_FREE_KEYS = {
     # views-hydranet#396: the composition triple, and nothing else.
     "amber_kestrel": frozenset(
@@ -221,6 +226,38 @@ ARM_FREE_KEYS = {
     # The two zero-decay arms vary exactly one value each, against a seed-matched control.
     "indigo_kestrel": frozenset({"weight_decay"}),
     "russet_kestrel": frozenset({"weight_decay"}),
+}
+
+#: What each arm's free key must actually BE. `ARM_FREE_KEYS` says WHICH key may differ;
+#: this says WHAT it must become, and without it the arm's whole identity is unpinned.
+#:
+#: ⛔ Found by mutation on #568. `EXPERIMENT_ARMS`' declared tuple pins four properties —
+#: `(output_distribution, forecast_composition, gate_threshold, seed)` — and that shape was
+#: chosen for the FIRST arm, whose variable was the composition triple. Every arm since
+#: varies something outside the tuple, so its variable's value was pinned by nothing:
+#:
+#:     amber_kestrel   free keys ARE the tuple's first three   -> value pinned   (caught)
+#:     copper_kestrel  loss_class_pos_weight                   -> value UNPINNED (silent)
+#:     indigo_kestrel  weight_decay                            -> value UNPINNED (silent)
+#:     russet_kestrel  weight_decay                            -> value UNPINNED (silent)
+#:
+#: Measured, not argued: setting `indigo`'s `weight_decay` to 0.05, or to 1e-12, or
+#: `copper`'s `loss_class_pos_weight` to 1.7, left the whole file green at 292 passed —
+#: while the config header, the README and the pre-registration all still said 0.1 -> 0.0.
+#: Setting amber's `output_distribution` to 'nb' failed 5 tests. The rule was exact: a free
+#: key's value was pinned if and only if it happened to be one of those four properties.
+#:
+#: An arm that silently varies a different amount is not a failed experiment — it is a
+#: successful experiment on a question nobody asked, reported as the answer to one they did.
+ARM_FREE_VALUES: dict[str, dict[str, object]] = {
+    "amber_kestrel": {
+        "output_distribution": "truncated_nb",
+        "forecast_composition": "soft_gate",
+        "gate_threshold": _ARM_KEY_MUST_BE_ABSENT,
+    },
+    "copper_kestrel": {"loss_class_pos_weight": 1.0},
+    "indigo_kestrel": {"weight_decay": 0.0},
+    "russet_kestrel": {"weight_decay": 0.0},
 }
 
 #: Keys that may differ for ANY pair because they change what is RECORDED, never what is
@@ -1216,6 +1253,73 @@ class TestExperimentArmConformance:
         )
 
     # ── seed replicates: the pair guards above cover them; these cover what is theirs ──
+
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arm_is_its_declared_free_value(self, arm):
+        """An arm's free key must carry the value the experiment says it carries.
+
+        ⛔ `ARM_FREE_KEYS` licenses a key to differ from the control. It says nothing about
+        what the key becomes, and for three of the four arms nothing else did either — see
+        `ARM_FREE_VALUES` for the measurement. This closes that, for every arm uniformly.
+        """
+        expected = ARM_FREE_VALUES[arm]
+        hp = _load_hp(arm)
+        for key, want in sorted(expected.items(), key=lambda kv: kv[0]):
+            if want is _ARM_KEY_MUST_BE_ABSENT:
+                assert key not in hp, (
+                    f"{arm} carries {key}={hp.get(key)!r}, but its declared state is ABSENT. "
+                    f"A key whose correct state is absence must not be present even as None "
+                    f"(ADR-069)."
+                )
+                continue
+            assert key in hp, (
+                f"{arm} declares {key} as its experimental variable but its config does not "
+                f"set it, so the arm inherits the control's value and varies NOTHING."
+            )
+            assert hp[key] == want, (
+                f"{arm}: {key} is {hp[key]!r}, but this arm is declared to vary it to "
+                f"{want!r}. ⛔ An arm running a different value is not a failed experiment — "
+                f"it is a successful experiment on a question nobody asked, reported as the "
+                f"answer to one they did. Change ARM_FREE_VALUES in the same commit and say "
+                f"in the message what the new intervention is."
+            )
+
+    def test_every_arm_declares_a_value_for_every_free_key(self):
+        """`ARM_FREE_VALUES` must cover `ARM_FREE_KEYS` exactly, so a new arm cannot omit it.
+
+        This is what makes the pin above non-optional. Without it, the next arm declares a
+        free key, forgets to declare its value, and is unpinned again — the state this
+        whole mechanism was added to leave.
+
+        It also cross-checks the overlap with `EXPERIMENT_ARMS`' declared tuple, because
+        `amber_kestrel`'s three free keys ARE that tuple's first three and are therefore
+        written down twice. Two copies that cannot drift are fine; two that can are not.
+        """
+        assert set(ARM_FREE_VALUES) == set(EXPERIMENT_ARMS), (
+            f"ARM_FREE_VALUES covers {sorted(ARM_FREE_VALUES)} but the arms are "
+            f"{sorted(EXPERIMENT_ARMS)}. Every arm must pin the VALUE of its variable, not "
+            f"only which key it is."
+        )
+        for arm, keys in sorted(ARM_FREE_KEYS.items()):
+            assert set(ARM_FREE_VALUES[arm]) == set(keys), (
+                f"{arm} declares free keys {sorted(keys)} but pins values for "
+                f"{sorted(ARM_FREE_VALUES[arm])}. A licensed key with no pinned value is "
+                f"an unpinned intervention."
+            )
+
+        # Where the two declarations overlap, they must agree.
+        _TUPLE_KEYS = ("output_distribution", "forecast_composition", "gate_threshold")
+        for arm, (_control, declared) in sorted(EXPERIMENT_ARMS.items()):
+            for key, tuple_value in zip(_TUPLE_KEYS, declared[:3]):
+                if key not in ARM_FREE_VALUES[arm]:
+                    continue
+                want = ARM_FREE_VALUES[arm][key]
+                expected = _ARM_KEY_MUST_BE_ABSENT if tuple_value is None else tuple_value
+                assert want is expected or want == expected, (
+                    f"{arm}: ARM_FREE_VALUES says {key}={want!r} while EXPERIMENT_ARMS' "
+                    f"declared tuple says {tuple_value!r}. The two are written down "
+                    f"separately and have drifted; fix both in one edit."
+                )
 
     def test_the_arm_roster_is_exactly_as_declared(self):
         """Every arm's CONTROL and declared values are pinned, not just its name.
