@@ -136,6 +136,21 @@ EXPERIMENT_ARMS = {
     # contrast permanently. The declared composition values below are amber_kestrel's,
     # inherited unchanged — they are what this arm must NOT vary.
     "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+    # views-models#565 / #568, pre-registered in views-hydranet
+    # reports/2026-10-18_weight_decay_arms_prereg.md §3. The two zero-weight-decay
+    # interventions. Each varies `weight_decay` 0.1 -> 0.0 and NOTHING else.
+    #
+    # ⛔ THEIR CONTROLS ARE THE SEED-MATCHED REPLICATES, NOT amber_kestrel, and that is the
+    # whole design. indigo and silver are both seed 42; russet and bronze are both seed 43;
+    # so each pair differs on `weight_decay` ALONE. Declared against amber_kestrel instead,
+    # each would differ on THREE keys — weight_decay, torch_seed, np_seed — which the
+    # comment at :66-70 names as the confounded case.
+    #
+    # ⚠️ So an arm's control here is a SEED REPLICATE, which is deliberate and is why
+    # `test_every_declared_control_is_itself_a_declared_model` forbids a replicate-of-a-
+    # replicate but explicitly permits an arm-of-a-replicate.
+    "indigo_kestrel": ("silver_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+    "russet_kestrel": ("bronze_kestrel", ("truncated_nb", "soft_gate", None, 43)),
 }
 
 # --- Seed replicates: the SAME config as their control, re-run to measure how much this
@@ -194,6 +209,11 @@ REPLICATE_FREE_KEYS = frozenset({"torch_seed", "np_seed"})
 #:
 #: Keyed by ARM, so a widening reaches exactly one contrast and the justification is written
 #: against that contrast rather than in the abstract.
+#: Marks a free key whose correct state is ABSENCE rather than a value. `gate_threshold` is
+#: amber_kestrel's: ADR-069 reads `elif self.gate_threshold is not None`, so a `None` loads
+#: fine — and a `None` sitting next to `soft_gate` invites someone to fill it in.
+_ARM_KEY_MUST_BE_ABSENT = object()
+
 ARM_FREE_KEYS = {
     # views-hydranet#396: the composition triple, and nothing else.
     "amber_kestrel": frozenset(
@@ -203,6 +223,41 @@ ARM_FREE_KEYS = {
     # `forecast_composition` are NOT free here — they are inherited from the control and
     # must match it.
     "copper_kestrel": frozenset({"loss_class_pos_weight"}),
+    # The two zero-decay arms vary exactly one value each, against a seed-matched control.
+    "indigo_kestrel": frozenset({"weight_decay"}),
+    "russet_kestrel": frozenset({"weight_decay"}),
+}
+
+#: What each arm's free key must actually BE. `ARM_FREE_KEYS` says WHICH key may differ;
+#: this says WHAT it must become, and without it the arm's whole identity is unpinned.
+#:
+#: ⛔ Found by mutation on #568. `EXPERIMENT_ARMS`' declared tuple pins four properties —
+#: `(output_distribution, forecast_composition, gate_threshold, seed)` — and that shape was
+#: chosen for the FIRST arm, whose variable was the composition triple. Every arm since
+#: varies something outside the tuple, so its variable's value was pinned by nothing:
+#:
+#:     amber_kestrel   free keys ARE the tuple's first three   -> value pinned   (caught)
+#:     copper_kestrel  loss_class_pos_weight                   -> value UNPINNED (silent)
+#:     indigo_kestrel  weight_decay                            -> value UNPINNED (silent)
+#:     russet_kestrel  weight_decay                            -> value UNPINNED (silent)
+#:
+#: Measured, not argued: setting `indigo`'s `weight_decay` to 0.05, or to 1e-12, or
+#: `copper`'s `loss_class_pos_weight` to 1.7, left the whole file green at 292 passed —
+#: while the config header, the README and the pre-registration all still said 0.1 -> 0.0.
+#: Setting amber's `output_distribution` to 'nb' failed 5 tests. The rule was exact: a free
+#: key's value was pinned if and only if it happened to be one of those four properties.
+#:
+#: An arm that silently varies a different amount is not a failed experiment — it is a
+#: successful experiment on a question nobody asked, reported as the answer to one they did.
+ARM_FREE_VALUES: dict[str, dict[str, object]] = {
+    "amber_kestrel": {
+        "output_distribution": "truncated_nb",
+        "forecast_composition": "soft_gate",
+        "gate_threshold": _ARM_KEY_MUST_BE_ABSENT,
+    },
+    "copper_kestrel": {"loss_class_pos_weight": 1.0},
+    "indigo_kestrel": {"weight_decay": 0.0},
+    "russet_kestrel": {"weight_decay": 0.0},
 }
 
 #: Keys that may differ for ANY pair because they change what is RECORDED, never what is
@@ -948,6 +1003,8 @@ class TestExperimentArmConformance:
                 {"output_distribution", "forecast_composition", "gate_threshold"}
             ),
             "copper_kestrel": frozenset({"loss_class_pos_weight"}),
+            "indigo_kestrel": frozenset({"weight_decay"}),
+            "russet_kestrel": frozenset({"weight_decay"}),
         }, (
             f"ARM_FREE_KEYS is { {k: sorted(v) for k, v in ARM_FREE_KEYS.items()} }. "
             f"Widening any pair's set licenses a second variable in a one-variable "
@@ -1197,6 +1254,114 @@ class TestExperimentArmConformance:
 
     # ── seed replicates: the pair guards above cover them; these cover what is theirs ──
 
+    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    def test_the_arm_is_its_declared_free_value(self, arm):
+        """An arm's free key must carry the value the experiment says it carries.
+
+        ⛔ `ARM_FREE_KEYS` licenses a key to differ from the control. It says nothing about
+        what the key becomes, and for three of the four arms nothing else did either — see
+        `ARM_FREE_VALUES` for the measurement. This closes that, for every arm uniformly.
+        """
+        expected = ARM_FREE_VALUES[arm]
+        hp = _load_hp(arm)
+        for key, want in sorted(expected.items(), key=lambda kv: kv[0]):
+            if want is _ARM_KEY_MUST_BE_ABSENT:
+                assert key not in hp, (
+                    f"{arm} carries {key}={hp.get(key)!r}, but its declared state is ABSENT. "
+                    f"A key whose correct state is absence must not be present even as None "
+                    f"(ADR-069)."
+                )
+                continue
+            assert key in hp, (
+                f"{arm} declares {key} as its experimental variable but its config does not "
+                f"set it, so the arm inherits the control's value and varies NOTHING."
+            )
+            assert hp[key] == want, (
+                f"{arm}: {key} is {hp[key]!r}, but this arm is declared to vary it to "
+                f"{want!r}. ⛔ An arm running a different value is not a failed experiment — "
+                f"it is a successful experiment on a question nobody asked, reported as the "
+                f"answer to one they did. Change ARM_FREE_VALUES in the same commit and say "
+                f"in the message what the new intervention is."
+            )
+
+    def test_every_arm_declares_a_value_for_every_free_key(self):
+        """`ARM_FREE_VALUES` must cover `ARM_FREE_KEYS` exactly, so a new arm cannot omit it.
+
+        This is what makes the pin above non-optional. Without it, the next arm declares a
+        free key, forgets to declare its value, and is unpinned again — the state this
+        whole mechanism was added to leave.
+
+        It also cross-checks the overlap with `EXPERIMENT_ARMS`' declared tuple, because
+        `amber_kestrel`'s three free keys ARE that tuple's first three and are therefore
+        written down twice. Two copies that cannot drift are fine; two that can are not.
+        """
+        assert set(ARM_FREE_VALUES) == set(EXPERIMENT_ARMS), (
+            f"ARM_FREE_VALUES covers {sorted(ARM_FREE_VALUES)} but the arms are "
+            f"{sorted(EXPERIMENT_ARMS)}. Every arm must pin the VALUE of its variable, not "
+            f"only which key it is."
+        )
+        for arm, keys in sorted(ARM_FREE_KEYS.items()):
+            assert set(ARM_FREE_VALUES[arm]) == set(keys), (
+                f"{arm} declares free keys {sorted(keys)} but pins values for "
+                f"{sorted(ARM_FREE_VALUES[arm])}. A licensed key with no pinned value is "
+                f"an unpinned intervention."
+            )
+
+        # Where the two declarations overlap, they must agree.
+        _TUPLE_KEYS = ("output_distribution", "forecast_composition", "gate_threshold")
+        for arm, (_control, declared) in sorted(EXPERIMENT_ARMS.items()):
+            for key, tuple_value in zip(_TUPLE_KEYS, declared[:3]):
+                if key not in ARM_FREE_VALUES[arm]:
+                    continue
+                want = ARM_FREE_VALUES[arm][key]
+                expected = _ARM_KEY_MUST_BE_ABSENT if tuple_value is None else tuple_value
+                assert want is expected or want == expected, (
+                    f"{arm}: ARM_FREE_VALUES says {key}={want!r} while EXPERIMENT_ARMS' "
+                    f"declared tuple says {tuple_value!r}. The two are written down "
+                    f"separately and have drifted; fix both in one edit."
+                )
+
+    def test_the_arm_roster_is_exactly_as_declared(self):
+        """Every arm's CONTROL and declared values are pinned, not just its name.
+
+        ⛔ Found by mutation on #568, and it was a live hole. `SEED_REPLICATES` and
+        `ARM_FREE_KEYS` are both pinned as exact literals; `EXPERIMENT_ARMS` was only ever
+        read as a KEY SET (`set(EXPERIMENT_ARMS)`) or indexed by name, so its values — the
+        control each arm is declared against — were pinned by nothing at all.
+
+        **Re-pointing an arm's control was a silent one-word edit.** The mutation that found
+        this changed `indigo_kestrel`'s control from `silver_kestrel` to `amber_kestrel` —
+        the exact confounded declaration the comment at :66-70 exists to forbid — and the
+        full suite stayed GREEN, 291 passed. It survives because `indigo` and `amber` happen
+        to share seed 42, so the seed-pairing guard is satisfied and the one-variable guard
+        sees only `{weight_decay, trajectory_log_path}`, both admissible.
+
+        ⛔ And green is the wrong answer twice over. `amber_kestrel` was trained on a
+        different pod session at a different time under a different code sha (prereg §7), so
+        pairing a fresh arm against it reintroduces precisely the environment gap the fresh
+        replicates exist to exclude — which is why the pre-registration pairs each arm with a
+        seed-matched REPLICATE and not with amber.
+
+        The same hole applies to `copper_kestrel`, whose control could be re-pointed from
+        `amber_kestrel` to `silver_kestrel` and also stay green.
+
+        Pinned in both directions, like the two declarations beside it: adding an arm,
+        removing one, re-pointing a control, or editing a declared value is now a reviewed
+        edit to this literal rather than a side effect.
+        """
+        assert EXPERIMENT_ARMS == {
+            "amber_kestrel": ("violet_visitor", ("truncated_nb", "soft_gate", None, 42)),
+            "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+            "indigo_kestrel": ("silver_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+            "russet_kestrel": ("bronze_kestrel", ("truncated_nb", "soft_gate", None, 43)),
+        }, (
+            f"EXPERIMENT_ARMS changed: {EXPERIMENT_ARMS}. An arm's CONTROL is the comparison "
+            f"the whole experiment rests on — re-pointing it silently changes what the arm "
+            f"measures against, and for a seed-matched pair it can do so while every other "
+            f"guard stays green. Update this literal in the same commit and say in the "
+            f"message why the new control is the right comparison."
+        )
+
     def test_the_replicate_roster_is_exactly_as_declared(self):
         """Both adding and removing a replicate must be a reviewed edit.
 
@@ -1328,6 +1493,28 @@ class TestExperimentArmConformance:
         # controls would have passed — and `σ̂` pooled across them would be a spread of two
         # populations, not the run-to-run variance of one config. A docstring that states a
         # rule the code does not check is the shape C-163 is registered for.
+        # ⛔ And an ARM must share its control's SEED. Carried from views-models#567, where
+        # review found nothing asserted it. It is what makes indigo/silver and
+        # russet/bronze one-variable contrasts: same seed, one differing key. An arm whose
+        # seed drifted from its control's would silently become a TWO-variable contrast,
+        # and the one-variable guard cannot see it — the seed keys are exempt there only
+        # because REPLICATE_FREE_KEYS and INSTRUMENTATION_KEYS are, so a seed difference
+        # would read as admissible rather than as a confound.
+        #
+        # Universal here, not a special case: an arm can never declare the seed as its
+        # variable, because ARM_FREE_KEYS is asserted disjoint from REPLICATE_FREE_KEYS.
+        # A seed contrast is a replicate by construction.
+        for arm, (control, _declared) in sorted(EXPERIMENT_ARMS.items()):
+            arm_hp, control_hp = _load_hp(arm), _load_hp(control)
+            for key in sorted(REPLICATE_FREE_KEYS):
+                assert arm_hp.get(key) == control_hp.get(key), (
+                    f"{arm} has {key}={arm_hp.get(key)!r} but its control {control} has "
+                    f"{control_hp.get(key)!r}. An arm must share its control's seed, or the "
+                    f"contrast varies TWO things and the comparison is confounded "
+                    f"(tests/test_roster_conformance.py:66-70). If a seed contrast is what "
+                    f"is wanted, declare a SEED REPLICATE instead."
+                )
+
         controls = {control for control, _seed in SEED_REPLICATES.values()}
         assert len(controls) <= 1, (
             f"the replicates point at {sorted(controls)} — more than one control. σ̂ is the "

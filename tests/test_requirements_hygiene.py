@@ -107,14 +107,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # replicates of amber_kestrel took it to 40 and 39 on 2026-10-19 (views-models#567); their
 # requirements.txt files are byte-identical copies of amber_kestrel's, which is asserted by
 # tests/test_roster_conformance.py and is load-bearing rather than tidy — a dependency
-# difference between replicates would be counted as run-to-run variance in σ̂.
+# difference between replicates would be counted as run-to-run variance in σ̂. The two
+# zero-decay intervention arms took it to 42 and 41 on 2026-10-19 (views-models#568);
+# their requirements.txt files are byte-identical copies of their seed-matched controls'.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 39 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 41 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 39 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 41 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }
