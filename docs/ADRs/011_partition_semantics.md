@@ -65,19 +65,38 @@ A `config_partitions.py` file may use non-standard boundaries if it contains a d
 
 **Consequences of declaring an override:**
 - The partition consistency test (`test_config_partitions.py`) will **warn** but not fail
-- The migration script (`scripts/update_partitions.py`) will **skip** the file with a warning
-- The override and its rationale are visible in test output and migration logs
+- The bump tool (`tools/partitions/bump.py`) will **skip** the file with a warning
+- The override and its rationale are visible in test output and bump logs
+- **After a bump, override files retain pre-bump values** — they must be reviewed and updated manually
 
 Undeclared deviations (non-standard values without the marker) are treated as **test failures**.
 
-### Migration Procedure
+### Annual Partition Bump
 
-When partition boundaries need to change:
+Partitions advance forward by 12 month_ids annually, typically in June/July after UCDP releases calibrated annual data. The bump tool handles this:
 
-1. Update `meta/partitions.json` with new values
-2. Run `python scripts/update_partitions.py` to rewrite all files
-3. Run `pytest tests/test_config_partitions.py -v` to verify
-4. Files with `PARTITION_OVERRIDE` are skipped — review manually
+```bash
+python -m tools.partitions.bump               # dry run (default)
+python -m tools.partitions.bump --execute     # apply changes
+```
+
+The tool enforces:
+- **7 structural invariants:** train start anchored at 121, test windows = 48 months, partition chaining
+- **Temporal plausibility:** validation test end cannot exceed Dec (current_year - 1) — blocks double-bumps and future-dated partitions
+- **Pre-flight check:** all files must match current canonical before bumping
+- **Post-write verification:** every file re-read and compared after writing
+- **Atomic writes:** tempfile + os.replace to prevent corruption
+- **JSONL lockfile** with git state (commit, branch, dirty flag) in `meta/partition_bump_*.jsonl`
+
+Files with `PARTITION_OVERRIDE` are skipped — the bump summary lists them for manual review.
+
+### Manual Migration (sync without advancing)
+
+To sync all files to canonical values without advancing partitions:
+
+```bash
+python -m tools.partitions.bump --bump 0 --execute
+```
 
 ---
 
@@ -85,13 +104,15 @@ When partition boundaries need to change:
 
 ### Positive
 - Single source of truth eliminates ambiguity about canonical values
-- Migration script reduces a 73-file manual edit to a single command
+- Bump tool reduces a 100-file manual edit to a single command with safety checks
 - Override mechanism permits legitimate deviations while making them visible
 - Data leakage test (`test_train_before_test`) catches off-by-one boundary errors
+- Temporal plausibility check prevents partitions from extending beyond available UCDP data
 
 ### Negative
 - `meta/partitions.json` is a new file contributors must know about
-- The migration script is regex-based and assumes the current file structure; a major structural change to `config_partitions.py` would require updating the script
+- The bump tool is regex-based and assumes the current file structure; a major structural change to `config_partitions.py` would require updating `tools/partitions/fileops.py`
+- Override files must be manually reviewed after each bump — they are not automatically updated
 
 ---
 
@@ -100,5 +121,8 @@ When partition boundaries need to change:
 - [ADR-002](002_topology.md) — Self-contained config files (why duplication exists)
 - [ADR-004](004_evolution.md) — Partition boundaries as Tier 1 — Stable
 - `meta/partitions.json` — Canonical partition values
-- `scripts/update_partitions.py` — Migration tool
+- `tools/partitions/bump.py` — Annual bump tool
+- `tools/partitions/domain.py` — Partition invariants and temporal validation
+- `tools/partitions/fileops.py` — Shared parser for config_partitions.py files
 - `tests/test_config_partitions.py` — Enforcement tests
+- `tests/test_bump_partitions.py` — Bump tool unit tests

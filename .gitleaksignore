@@ -1,0 +1,39 @@
+# gitleaks allowlist — every entry is a finding that WAS inspected and judged benign.
+#
+# Rules for this file (#300):
+#   1. Never add a fingerprint without a written justification below it. An
+#      undocumented allowlist entry is indistinguishable from a hidden leak.
+#   2. A fingerprint is `commit:path:rule:startline`. It embeds a commit SHA, so a
+#      history rewrite invalidates it and the job goes red for a reason unconnected
+#      to any new secret. If that happens, re-derive rather than deleting the entry.
+#   3. "Expired" is a justification. "Probably fine" is not.
+#
+# Current findings, from a full-history scan on 2026-07-31
+# (gitleaks 8.30.1, `--all --full-history`, 1,435 commits / 197.7 MB):
+# 6 findings, 4 unique. All four are below. None is a live credential.
+
+# ── 1–2. Documentation placeholders ───────────────────────────────────────────
+# `curl -H "Authorization: Bearer <21 chars beginning 'your'>"` in two API READMEs.
+# Inspected: the value is a placeholder, not a token. The two entries are the same
+# string — apis/un_fao/README.md was copied to apis/seldon_api/README.md.
+5d320e975a81e74e296b519bbdadd1d025ff19b3:apis/seldon_api/README.md:curl-auth-header:134
+7e82282ab01ca8c3f9e8667c00cb2a09d6bbea72:apis/un_fao/README.md:curl-auth-header:134
+
+# ── 3–4. Expired AWS STS material in a notebook ───────────────────────────────
+# Two `ASIA…` access-key IDs inside S3 **presigned URLs** in a Jupyter notebook,
+# committed 2025-02-18. Inspected:
+#   * `ASIA` is the AWS prefix for STS **temporary** credentials.
+#   * A presigned URL carries an access-key *ID* and a signature — never the secret
+#     access key.
+#   * A URL signed with temporary credentials expires with the session token: at
+#     most 36 hours. Signed 2025-02-18, so dead since 2025-02-20.
+# Not an Appwrite credential and nothing to revoke. Retained here rather than
+# rewritten out of history: the value is already expired, and rewriting public
+# history to remove a dead string costs more than it buys.
+#
+# NOTE for the record: the file is deleted from HEAD but the commit is still
+# reachable from the public branch `origin/purple_alien_experiments`. Deletion is
+# not removal (register S14/C-…); that branch is a separate question from this
+# allowlist.
+87ec1b423b3fe9a88a1458ba7b6bca149a152f9f:models/purple_alien/notebooks/experiement_reconcilliation.ipynb:aws-access-token:110
+87ec1b423b3fe9a88a1458ba7b6bca149a152f9f:models/purple_alien/notebooks/experiement_reconcilliation.ipynb:aws-access-token:111

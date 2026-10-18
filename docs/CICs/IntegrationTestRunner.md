@@ -3,12 +3,38 @@
 
 **Status:** Active  
 **Owner:** Project maintainers  
-**Last reviewed:** 2026-04-11  
+**Last reviewed:** 2026-09-28  
 **Related ADRs:** ADR-004, ADR-005, ADR-008, ADR-009  
 
 ---
 
+## 0. Operational note: the default timeout no longer fits the HydraNets
+
+The `1800` second default was sized when the eight HydraNet models trained **40 lessons** — a
+run-time budget set by #501 so the first global-land integration pass would be cheap.
+
+Since **#507** they train **300 lessons** again, the production value (#463). Measured n=3 on
+rented RTX PRO 4500 SE class hardware (2026-09-28), a full run takes **202-272 minutes end to
+end** — 300 lessons plus the 13-origin evaluation, so roughly **4 hours**, or 40-54 s per
+lesson.
+
+*An earlier version of this section said ~84 s per lesson and ~7 h per model. That figure came
+from the first lesson of a cold two-lesson smoke run and was not representative. The
+recommended timeout below was over-provisioned against it and remains safe.*
+
+On the default they will therefore report `TIMEOUT`, for all eight, every time. **That is the
+training budget, not a regression**, and it is recorded here because a wall of `TIMEOUT` rows is
+exactly the shape a real failure takes — a reader with no context would reasonably start
+debugging.
+
+    bash run_integration_tests.sh --library hydranet --timeout 30000
+
+The default is deliberately left at `1800`: it suits the other libraries, and raising it globally
+would turn every genuine hang in a cheap model into a half-day wait.
+
 ## 1. Purpose
+
+> Located in: `run_integration_tests.sh`
 
 `run_integration_tests.sh` is the only mechanism that tests actual model training and evaluation in views-models. It trains and evaluates each selected model on calibration and/or validation partitions using a shared conda environment, logs results per model, and produces a pass/fail summary. It never aborts on individual model failure — every model gets its turn.
 
@@ -27,15 +53,15 @@
 
 ## 3. Responsibilities and Guarantees
 
-- Guarantees that every matched, runnable model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase from model failures*; classification errors during `--level` or `deployment_status` filtering are surfaced before the run phase begins, see exit code 2 below; user `Ctrl-C` aborts the run phase and is reported distinctly, see exit code 130 below)
+- Guarantees that every matched, runnable model is executed for every requested partition, regardless of prior failures (no early abort *during the run phase from model failures*; classification errors during `--level` or maturity filtering are surfaced before the run phase begins, see exit code 2 below; user `Ctrl-C` aborts the run phase and is reported distinctly, see exit code 130 below)
 - Guarantees crash isolation: each model runs in its own subshell (`bash -c "..."`)
 - Guarantees per-model timeout enforcement via `timeout --foreground` command (default: 1800 seconds). The `--foreground` flag keeps the child process tree in the script's process group so terminal signals (`Ctrl-C`) propagate to the running model; the trade-off is that grandchildren spawned by the model are not timed out when the timer fires (acceptable because `main.py` is a single-process entry point)
-- Guarantees that models with `deployment_status == "deprecated"` are skipped before any subshell is spawned, classified as `DEPRECATED`, and do not count toward `FAIL`/`TIMEOUT` totals
-- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`, `DEPRECATED`, `ABORTED`, or `SKIPPED` (the latter when a `Ctrl-C` abort prevents a run from being attempted at all)
+- Guarantees that retired models — `maturity == "retired"` in `config_maturity.py`, or the legacy `deployment_status == "deprecated"` in `config_deployment.py` (ADR-017 §3: the same fact) — are skipped before any subshell is spawned, classified as `RETIRED`, and do not count toward `FAIL`/`TIMEOUT` totals. pipeline-core ≥ 3.2.0 refuses to run a retired source by design
+- Guarantees that results are classified as exactly one of: `PASS`, `FAIL(exit_code)`, `TIMEOUT`, `RETIRED`, `ABORTED`, or `SKIPPED` (the latter when a `Ctrl-C` abort prevents a run from being attempted at all)
 - Guarantees that `SIGINT` (terminal `Ctrl-C`) is handled: the currently-running model is killed immediately via process-group signal, its slot is labeled `ABORTED`, remaining runs are skipped, a partial summary is printed, and the script exits 130. A single `Ctrl-C` is sufficient — the user does not need to press it repeatedly.
 - Guarantees that per-model stdout/stderr is captured to `$LOG_DIR/$partition/$model.log`
 - Guarantees a structured summary log at `$LOG_DIR/summary.log`
-- Guarantees exit codes: `0` (all runs passed); `1` (at least one `FAIL` or `TIMEOUT`); `2` (at least one model in the candidate set failed classification by `--level` filter *or* `deployment_status` pre-flight — fail-fast before any model runs); `130` (user interrupted with `Ctrl-C`)
+- Guarantees exit codes: `0` (all runs passed); `1` (at least one `FAIL` or `TIMEOUT`); `2` (at least one model in the candidate set failed classification by `--level` filter *or* maturity pre-flight — fail-fast before any model runs); `130` (user interrupted with `Ctrl-C`)
 
 ---
 
@@ -49,9 +75,9 @@
 | `--models` | (all) | Space-separated model names to include |
 | `--level` | (all) | Filter by level: `cm` or `pgm` |
 | `--library` | (all) | Filter by algorithm library: `baseline`, `stepshifter`, `r2darts2`, `hydranet` |
-| `--exclude` | `purple_alien` | Space-separated model names to skip |
+| `--exclude` | *(none)* | Space-separated model names to skip. Until 2026-09-19 the default was `purple_alien`: when the runner moved to one shared conda env (`5a2fd2e6`, 2026-03-15) it was the only model needing `views-hydranet`, which that env lacked. The env used for the roster carries views-hydranet now, so nothing is excluded by default (#499); a model whose packages the chosen env lacks fails in its own row instead |
 | `--partitions` | `calibration validation` | Space-separated partition names |
-| `--timeout` | `1800` | Seconds per model per partition |
+| `--timeout` | `1800` | Seconds per model per partition. **Insufficient for the eight HydraNets since #507** — see §Operational note |
 
 ### Assumptions
 
@@ -79,13 +105,13 @@
 | Condition | Behavior |
 |---|---|
 | Model training crashes | Captured in log; classified as `FAIL(exit_code)`; script continues |
-| Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues |
-| Model `deployment_status` is `deprecated` | Skipped before any subshell is spawned; classified as `DEPRECATED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
+| Model exceeds timeout | Killed by `timeout`; classified as `TIMEOUT`; script continues. A `TIMEOUT` is not by itself evidence of a defect — see §Operational note |
+| Model is retired (`maturity: retired`, or legacy `deployment_status: deprecated`) | Skipped before any subshell is spawned; classified as `RETIRED` (yellow) in the summary; does not count toward `FAIL`/`TIMEOUT` |
 | User presses `Ctrl-C` (`SIGINT`) | Trap fires; currently-running model killed via shared process group (`timeout --foreground`); slot labeled `ABORTED` (yellow); remaining runs labeled `SKIPPED`; partial summary printed; script exits 130. A single `Ctrl-C` is sufficient. |
 | No models match filters | Prints "No models found to test"; exits 1 |
 | Conda environment doesn't exist | Activation fails inside subshell; model classified as `FAIL` |
 | `config_meta.py` unloadable (during `--level` filter) | Python stderr captured; error printed to stderr with model name + last traceback line; model collected in `CLASSIFICATION_ERRORS`; script exits 2 before running any models |
-| `config_deployment.py` unloadable (during deployment_status pre-flight) | Same fail-fast pattern as `config_meta.py`: stderr captured, error printed, model collected, script exits 2 before running any models |
+| Maturity file unloadable (during pre-flight; `config_maturity.py` if present, else `config_deployment.py`) | Same fail-fast pattern as `config_meta.py`: stderr captured, error printed, model collected, script exits 2 before running any models |
 | Unknown CLI flag | Prints error; exits 1 |
 
 The runner itself never fails silently. Individual model failures are captured and reported, not swallowed. User interruption is clearly distinguished from model failure via the `ABORTED` result class and exit code 130.
@@ -98,7 +124,7 @@ The runner itself never fails silently. Individual model failures are captured a
 |---|---|---|
 | `models/*/main.py` | Invokes | Subprocess via `python main.py -r $partition -t -e` |
 | `models/*/configs/config_meta.py` | Reads (for `--level` filter) | `importlib.util` from Python |
-| `models/*/configs/config_deployment.py` | Reads (for `deployment_status` pre-flight) | `importlib.util` from Python |
+| `models/*/configs/config_maturity.py`, else `config_deployment.py` | Reads (for maturity pre-flight; new file wins, as in pipeline-core's loader) | `importlib.util` from Python |
 | `models/*/requirements.txt` | Reads (for `--library` filter) | `grep` for package name |
 | Conda | Activates | `conda activate $ENV` in subshell |
 | `logs/` | Writes | Timestamped log directories |
@@ -136,7 +162,7 @@ bash run_integration_tests.sh --partitions "forecasting"
 
 # Wrong: assuming --exclude appends to defaults
 bash run_integration_tests.sh --exclude "new_model"
-# This REPLACES the default exclusion (purple_alien), not appends to it
+# This REPLACES the default exclusion (none since 2026-09-19), not appends to it
 
 # Wrong: expecting this to run in CI
 # The runner takes hours and requires a GPU-capable environment;
@@ -165,7 +191,7 @@ bash run_integration_tests.sh --exclude "new_model"
 ## 12. Known Deviations
 
 - **Not in CI:** The only behavioral test mechanism is manual (Risk Register C-03). A model can be merged broken.
-- **`--exclude` replaces defaults:** Documented in `--help` but surprising — passing `--exclude "foo"` removes the default `purple_alien` exclusion.
+- **`--exclude` replaces, not appends:** with the default list now empty this no longer surprises anyone; kept so a future default is not re-added without knowing it.
 - **No ensemble coverage:** The runner only discovers models in `models/`; ensembles in `ensembles/` are not tested by this mechanism.
 - **`--library` filter silently excludes models lacking `requirements.txt`:** A model without a `requirements.txt` cannot be classified by the `--library` filter and is silently dropped from the filtered set. Tracked as Risk Register C-34.
 

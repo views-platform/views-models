@@ -29,6 +29,29 @@ Clone the repository:
 ```bash
 git clone https://github.com/views-platform/views-models
 ```
+
+### Set the Machine Up — `./bootstrap.sh`
+
+```bash
+cd views-models
+./bootstrap.sh
+```
+
+No arguments, no companion document. It asks you for **one secret** (the Appwrite
+datastore API key, which it never echoes) and **zero addresses** — those come from the
+platform coordinate registry, because retyping an address that is already declared
+somewhere is how the two copies drift.
+
+It is idempotent, so re-running it is safe, and it is exercised in CI against a fixture
+registry, because a setup path verified once on one laptop rots exactly like the prose it
+replaces. See ADR-018.
+
+It does **not** create conda environments. Each `run.sh` still builds its own.
+
+> The macOS `libomp` step above is also handled by `bootstrap.sh`. The ~130 per-model
+> `run.sh` scripts still carry their own copy of that block; removing them is tracked
+> separately (#310).
+
 ---
 
 ## Run the Models
@@ -128,7 +151,22 @@ ___
 ___
 ## Notes
 
-* Always ensure the **CM model finishes before running PGM model**.
+* Always ensure the **CM model finishes before running PGM model**. The PGM ensemble (`skinny_love`) reconciles its grid forecast to the CM totals from `pink_ponyclub`, so the CM forecast must already exist.
+* **`monthly_run.sh` runs all four production ensembles plus `un_fao` in order.** Two things
+  it does that are easy to miss: it **checks the Appwrite write path before starting**, and
+  aborts if the key is dead — four ensembles is hours of compute whose only product is an
+  upload, and an expired key is silent on that path (#302). And it writes a `pip freeze` per
+  environment into `reports/env_snapshots/`, **which you should commit with the run** — that
+  is the only record of which package versions produced a given forecast (#328, C-117).
+* ⚠️ **Reconciliation currently requires an unreleased pipeline-core.** `skinny_love` and
+  `white_mustang` import `reconciliation/` at module level, and that layer needs
+  `views_pipeline_core.domain.reconciliation_port`, which exists only from pipeline-core
+  **3.0.0** — unpublished. Every ensemble's `requirements.txt` declares
+  `views-pipeline-core>=2.0.1,<3.0.0`, so a clean install per the declared requirements
+  produces an environment where `skinny_love` fails at import. It works today only because
+  `envs/views_ensemble` holds an editable install pointing at a local 3.0.0 checkout. See
+  views-models#329.
+* **Reconciliation is wired automatically.** Reconciling ensembles (`reconciliation: "pgm_cm_point"` in `config_meta`) inject a reconciler at their composition root (`main.py`) via the `reconciliation/` layer — no manual step. The geography mapping is sourced from viewser (VIEWS `country_id`, parity-preserving). See `docs/CICs/ReconciliationWiring.md` and ADR-014. `white_mustang`→`cruel_summer` is also wired but runs on demand (not in `monthly_run.sh`).
 * The `-o [EndOfHistory]` argument specifies the last available month for data; replace `[EndOfHistory]` with the appropriate **VIEWS month** as needed.
 * If you encounter issues with W&B authentication, you can manually log in using:
 
