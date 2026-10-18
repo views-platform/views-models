@@ -158,7 +158,11 @@ EXPERIMENT_ARMS = {
 #     measurement. See views-models#565.
 #
 #     replicate -> (control, seed)
-SEED_REPLICATES: dict[str, tuple[str, int]] = {}
+SEED_REPLICATES: dict[str, tuple[str, int]] = {
+    "silver_kestrel": ("amber_kestrel", 42),
+    "bronze_kestrel": ("amber_kestrel", 43),
+    "cobalt_kestrel": ("amber_kestrel", 44),
+}
 
 #: The hyperparameter keys a REPLICATE may differ from its control on.
 #:
@@ -1201,9 +1205,15 @@ class TestExperimentArmConformance:
         pair guard, and one silently added subjects a directory to guards nobody chose for
         it. An empty mapping still fails loudly if an entry appears.
         """
-        assert SEED_REPLICATES == {}, (
+        assert SEED_REPLICATES == {
+            "silver_kestrel": ("amber_kestrel", 42),
+            "bronze_kestrel": ("amber_kestrel", 43),
+            "cobalt_kestrel": ("amber_kestrel", 44),
+        }, (
             f"SEED_REPLICATES changed: {SEED_REPLICATES}. Update this literal in the same "
-            f"commit and say in the message which variance estimate the replicate serves."
+            f"commit and say in the message which variance estimate the replicate serves. "
+            f"⛔ The three seeds must stay DISTINCT: identical seeds deflate σ̂, drive every "
+            f"threshold toward zero and manufacture a positive (views-models#567)."
         )
 
     def test_paired_models_spans_every_declaration(self):
@@ -1333,29 +1343,51 @@ class TestExperimentArmConformance:
             f"{hp.get('torch_seed')!r} / np_seed {hp.get('np_seed')!r}"
         )
 
-        # ⛔ And the inverse, which the first version of this guard did not have: the seed
-        # must actually DIFFER from the control's. A replicate declared with its control's
-        # own seed is a byte-identical rerun — it passes every other guard in this class,
-        # including the seed-only diff below (which permits differing on nothing), and
-        # contributes ZERO information to the variance estimate it exists to produce.
-        # The spread of two identical runs is 0, which does not read as a bug: it reads as a
-        # perfectly reproducible pipeline.
-        control_hp = _load_hp(control)
-        assert hp["torch_seed"] != control_hp.get("torch_seed"), (
-            f"{replicate} carries its control {control}'s own seed "
-            f"({control_hp.get('torch_seed')!r}), so it is a byte-identical rerun. Its "
-            f"spread against the control is 0 by construction, which looks like a "
-            f"reproducible pipeline rather than a replicate that measures nothing."
-        )
+        # ⚠️ WITHDRAWN, deliberately: an earlier version of this guard also required the
+        # seed to DIFFER from the control's. That is wrong here, and the reason is worth
+        # keeping because the assertion looked obviously right.
+        #
+        # It assumed the control is a MEMBER of the variance cell, so that a replicate
+        # sharing its seed would be a duplicate measuring nothing. The control is not a
+        # member. views-hydranet's pre-registration §7 rules it out explicitly:
+        # `amber_kestrel` "was trained on a different pod session at a different time under
+        # a different code sha", so pooling it would import every difference between then
+        # and now INTO the variance estimate — the one quantity the design rests on. It is a
+        # CONFIG REFERENCE ("base config amber_kestrel, so controls are directly comparable
+        # to the published b = 1.1875"), not a run in the cell.
+        #
+        # So `silver_kestrel` carrying seed 42, which is also amber's, is the approved
+        # design (§3's table: 42 / 43 / 44) and not a defect. The guard would have refused
+        # the first real replicate it ever saw.
+        #
+        # ⛔ The invariant that IS real lives in `test_the_replicates_are_distinct_runs`:
+        # distinctness WITHIN the cell. That is the direction that can hurt us, and it is
+        # not symmetric with config divergence — see that test.
 
     def test_the_replicates_are_distinct_runs(self):
         """No two replicates may share a seed, for the reason above applied across the cell.
 
         Not parametrized: a pairwise property cannot be checked one subject at a time, and
         parametrizing it over `SEED_REPLICATES` would also make it collect zero cases while
-        the mapping is empty. `σ̂` is the spread over the cell, so two identical members
-        shrink it toward zero and every threshold derived from it toward zero with it —
-        which makes a null look like a resolved effect.
+        the mapping is empty.
+
+        ⛔ **This is the one corruption in this design that fails UNSAFE, and the direction
+        is why it matters more than the config-divergence guard beside it.** Every threshold
+        in the pre-registration is `C = k·σ̂`, so `σ̂` sits in the DENOMINATOR:
+
+            config divergence  ->  INFLATES σ̂  ->  thresholds rise  ->  effects fail
+                                   = mimics the null we already expect.   CONSERVATIVE.
+            seed collision     ->  DEFLATES σ̂  ->  thresholds -> 0    ->  anything clears
+                                   = mimics a RESOLVED EFFECT.          ANTI-CONSERVATIVE.
+
+        Identical seeds can only make runs MORE alike than distinct seeds would, so `σ̂` can
+        only be under-stated and a threshold divided by an under-stated spread can only be
+        too permissive. ⚠️ **That argument needs no determinism assumption**, which matters
+        because Amendment 6 withdrew determinism as a precondition of this design.
+
+        Independently reached by the views-hydranet seat as Amendment 11, which added the
+        same requirement to F13 as a third clause: its `(b)` EXEMPTS the seed keys from the
+        identity check, and an exemption cannot express a requirement that they differ.
         """
         seeds: dict[int, list[str]] = {}
         for replicate, (_control, seed) in sorted(SEED_REPLICATES.items()):

@@ -222,7 +222,14 @@ def test_environment_sharing_is_recorded_not_discovered():
         # amber_kestrel. Its requirements.txt is byte-identical to amber_kestrel's and
         # tests/test_roster_conformance.py asserts that, so sharing the environment is not
         # a convenience here — a different stack would confound the one variable.
-        "views-hydranet": 10,
+        # 10 -> 13 on 2026-10-19: models/{silver,bronze,cobalt}_kestrel, the three SEED
+        # REPLICATES of amber_kestrel (views-models#567). Sharing the environment is not a
+        # convenience for these three — it is the measurement. They exist to produce σ̂, the
+        # run-to-run variance at FIXED config, so a dependency difference between them would
+        # be counted as run-to-run variance and inflate the very number they are for. Their
+        # requirements.txt files are byte-identical to amber_kestrel's and
+        # tests/test_roster_conformance.py asserts that (C-116).
+        "views-hydranet": 13,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,

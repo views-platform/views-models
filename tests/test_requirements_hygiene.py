@@ -103,14 +103,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # 36 declarations, 35 of them unfloored — the kind of drift that is only ever found by
 # someone reading carefully. It is now asserted against the measured count below, so it
 # cannot go stale silently again, and copper_kestrel's requirements.txt took it to 37 and 36
-# on 2026-10-16 — the assertion is what reported that, not a reader.
+# on 2026-10-16 — the assertion is what reported that, not a reader. The three seed
+# replicates of amber_kestrel took it to 40 and 39 on 2026-10-19 (views-models#567); their
+# requirements.txt files are byte-identical copies of amber_kestrel's, which is asserted by
+# tests/test_roster_conformance.py and is load-bearing rather than tidy — a dependency
+# difference between replicates would be counted as run-to-run variance in σ̂.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 36 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 39 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 36 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 39 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }

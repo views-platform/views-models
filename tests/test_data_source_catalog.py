@@ -60,4 +60,9 @@ def test_the_split_is_what_the_catalog_says():
     # violet_visitor and therefore a datafactory consumer like it.
     # 35 -> 36 on 2026-10-16: models/copper_kestrel, the pos_weight arm, copied from
     # amber_kestrel for the same reason and inheriting the same queryset byte for byte.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 36, SYNTHETIC: 6}, dict(counts)
+    # 36 -> 39 on 2026-10-19: models/{silver,bronze,cobalt}_kestrel, the three SEED
+    # REPLICATES of amber_kestrel (views-models#567). They inherit its queryset byte for
+    # byte — tests/test_roster_conformance.py asserts exactly that — so they are
+    # datafactory consumers for the same reason copper_kestrel is. Three at once because a
+    # variance estimate needs a cell, not a run: these three ARE the measurement of σ̂.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 39, SYNTHETIC: 6}, dict(counts)
