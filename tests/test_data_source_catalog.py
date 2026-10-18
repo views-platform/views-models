@@ -65,4 +65,7 @@ def test_the_split_is_what_the_catalog_says():
     # byte — tests/test_roster_conformance.py asserts exactly that — so they are
     # datafactory consumers for the same reason copper_kestrel is. Three at once because a
     # variance estimate needs a cell, not a run: these three ARE the measurement of σ̂.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 39, SYNTHETIC: 6}, dict(counts)
+    # 39 -> 41 on 2026-10-19: models/{indigo,russet}_kestrel, the two zero-weight-decay
+    # INTERVENTION ARMS (views-models#568), copied from their seed-matched controls
+    # silver_kestrel and bronze_kestrel and inheriting the same queryset byte for byte.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 41, SYNTHETIC: 6}, dict(counts)

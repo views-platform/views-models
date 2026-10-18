@@ -229,7 +229,11 @@ def test_environment_sharing_is_recorded_not_discovered():
         # be counted as run-to-run variance and inflate the very number they are for. Their
         # requirements.txt files are byte-identical to amber_kestrel's and
         # tests/test_roster_conformance.py asserts that (C-116).
-        "views-hydranet": 13,
+        # 13 -> 15 on 2026-10-19: models/{indigo,russet}_kestrel, the two zero-decay
+        # intervention arms (views-models#568). Each varies weight_decay alone against a
+        # seed-matched control, so a dependency difference would be a SECOND variable in a
+        # one-variable contrast (C-116). requirements.txt byte-identical to the control's.
+        "views-hydranet": 15,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,

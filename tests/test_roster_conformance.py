@@ -136,6 +136,21 @@ EXPERIMENT_ARMS = {
     # contrast permanently. The declared composition values below are amber_kestrel's,
     # inherited unchanged — they are what this arm must NOT vary.
     "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+    # views-models#565 / #568, pre-registered in views-hydranet
+    # reports/2026-10-18_weight_decay_arms_prereg.md §3. The two zero-weight-decay
+    # interventions. Each varies `weight_decay` 0.1 -> 0.0 and NOTHING else.
+    #
+    # ⛔ THEIR CONTROLS ARE THE SEED-MATCHED REPLICATES, NOT amber_kestrel, and that is the
+    # whole design. indigo and silver are both seed 42; russet and bronze are both seed 43;
+    # so each pair differs on `weight_decay` ALONE. Declared against amber_kestrel instead,
+    # each would differ on THREE keys — weight_decay, torch_seed, np_seed — which the
+    # comment at :66-70 names as the confounded case.
+    #
+    # ⚠️ So an arm's control here is a SEED REPLICATE, which is deliberate and is why
+    # `test_every_declared_control_is_itself_a_declared_model` forbids a replicate-of-a-
+    # replicate but explicitly permits an arm-of-a-replicate.
+    "indigo_kestrel": ("silver_kestrel", ("truncated_nb", "soft_gate", None, 42)),
+    "russet_kestrel": ("bronze_kestrel", ("truncated_nb", "soft_gate", None, 43)),
 }
 
 # --- Seed replicates: the SAME config as their control, re-run to measure how much this
@@ -203,6 +218,9 @@ ARM_FREE_KEYS = {
     # `forecast_composition` are NOT free here — they are inherited from the control and
     # must match it.
     "copper_kestrel": frozenset({"loss_class_pos_weight"}),
+    # The two zero-decay arms vary exactly one value each, against a seed-matched control.
+    "indigo_kestrel": frozenset({"weight_decay"}),
+    "russet_kestrel": frozenset({"weight_decay"}),
 }
 
 #: Keys that may differ for ANY pair because they change what is RECORDED, never what is
@@ -948,6 +966,8 @@ class TestExperimentArmConformance:
                 {"output_distribution", "forecast_composition", "gate_threshold"}
             ),
             "copper_kestrel": frozenset({"loss_class_pos_weight"}),
+            "indigo_kestrel": frozenset({"weight_decay"}),
+            "russet_kestrel": frozenset({"weight_decay"}),
         }, (
             f"ARM_FREE_KEYS is { {k: sorted(v) for k, v in ARM_FREE_KEYS.items()} }. "
             f"Widening any pair's set licenses a second variable in a one-variable "
@@ -1328,6 +1348,28 @@ class TestExperimentArmConformance:
         # controls would have passed — and `σ̂` pooled across them would be a spread of two
         # populations, not the run-to-run variance of one config. A docstring that states a
         # rule the code does not check is the shape C-163 is registered for.
+        # ⛔ And an ARM must share its control's SEED. Carried from views-models#567, where
+        # review found nothing asserted it. It is what makes indigo/silver and
+        # russet/bronze one-variable contrasts: same seed, one differing key. An arm whose
+        # seed drifted from its control's would silently become a TWO-variable contrast,
+        # and the one-variable guard cannot see it — the seed keys are exempt there only
+        # because REPLICATE_FREE_KEYS and INSTRUMENTATION_KEYS are, so a seed difference
+        # would read as admissible rather than as a confound.
+        #
+        # Universal here, not a special case: an arm can never declare the seed as its
+        # variable, because ARM_FREE_KEYS is asserted disjoint from REPLICATE_FREE_KEYS.
+        # A seed contrast is a replicate by construction.
+        for arm, (control, _declared) in sorted(EXPERIMENT_ARMS.items()):
+            arm_hp, control_hp = _load_hp(arm), _load_hp(control)
+            for key in sorted(REPLICATE_FREE_KEYS):
+                assert arm_hp.get(key) == control_hp.get(key), (
+                    f"{arm} has {key}={arm_hp.get(key)!r} but its control {control} has "
+                    f"{control_hp.get(key)!r}. An arm must share its control's seed, or the "
+                    f"contrast varies TWO things and the comparison is confounded "
+                    f"(tests/test_roster_conformance.py:66-70). If a seed contrast is what "
+                    f"is wanted, declare a SEED REPLICATE instead."
+                )
+
         controls = {control for control, _seed in SEED_REPLICATES.values()}
         assert len(controls) <= 1, (
             f"the replicates point at {sorted(controls)} — more than one control. σ̂ is the "
