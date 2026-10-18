@@ -138,6 +138,38 @@ EXPERIMENT_ARMS = {
     "copper_kestrel": ("amber_kestrel", ("truncated_nb", "soft_gate", None, 42)),
 }
 
+# --- Seed replicates: the SAME config as their control, re-run to measure how much this
+#     training pipeline varies run to run.
+#
+#     A replicate is not an arm and cannot be declared as one. `EXPERIMENT_ARMS` ends its
+#     one-variable guard with `assert differing - INSTRUMENTATION_KEYS` — "there is no arm to
+#     run" — and that assertion is correct: a replicate differs from its control on nothing
+#     but a seed, or on nothing at all, so there is no contrast to measure. It measures the
+#     NOISE against which a contrast is read.
+#
+#     Why it has to be declared at all, rather than left as untracked directories: every
+#     pair guard in TestExperimentArmConformance is parametrized over EXPERIMENT_ARMS, so a
+#     model outside it has no pair guard of ANY kind — not byte identity, not config_meta,
+#     not maturity. And the cells with no guard would be exactly the cells the variance
+#     estimate is built from: a config divergence among the replicates feeds straight into
+#     that estimate as variance, INFLATING it, which raises every threshold and makes every
+#     effect fail significance. A corrupted variance estimate is indistinguishable from an
+#     honest inconclusive result. It does not look like a failure; it looks like a
+#     measurement. See views-models#565.
+#
+#     replicate -> (control, seed)
+SEED_REPLICATES: dict[str, tuple[str, int]] = {}
+
+#: The hyperparameter keys a REPLICATE may differ from its control on.
+#:
+#: Module-level rather than per-pair, and that is not an inconsistency with ARM_FREE_KEYS.
+#: ARM_FREE_KEYS is keyed per arm because an arm's free key is an experimental choice that
+#: needs a justification written against that contrast, and because a shared set would
+#: ratchet open. A replicate has no such choice: varying anything but the seed stops it
+#: being a replicate, so there is no per-pair justification to write and nothing to widen.
+#: Adding a key here would not loosen a contrast — it would delete the concept.
+REPLICATE_FREE_KEYS = frozenset({"torch_seed", "np_seed"})
+
 #: The hyperparameter keys an arm may differ from its control on. Anything else differing
 #: means it is no longer a one-variable contrast.
 #:
@@ -178,6 +210,26 @@ ARM_FREE_KEYS = {
 #: inside the pod's rsynced deliver directory, and the deliver directory is named after the
 #: model. A relative path dies with the pod (views-models#558 / C-161).
 INSTRUMENTATION_KEYS = frozenset({"trajectory_log_path"})
+
+#: Every declared pair in the repository: name -> control. An arm and its control, or a
+#: replicate and its control.
+#:
+#: The guards below that assert a property of the PAIR — byte identity, config_meta, roster
+#: separation, README survival, maturity — are parametrized over this rather than over
+#: EXPERIMENT_ARMS, because those properties hold of any declared pair and a declaration
+#: outside the parametrize list is guarded by nothing at all.
+#:
+#: The two guards that assert a property of the CONTRAST — the declared values and the
+#: one-variable diff — stay on EXPERIMENT_ARMS, and have replicate counterparts, because a
+#: replicate has no contrast to assert.
+#:
+#: Derived, not hand-written, and covered by a test that it spans both declarations: a third
+#: declaration kind added later and forgotten here would silently inherit the same hole this
+#: mapping exists to close.
+PAIRED_MODELS = {
+    **{arm: control for arm, (control, _declared) in EXPERIMENT_ARMS.items()},
+    **{rep: control for rep, (control, _seed) in SEED_REPLICATES.items()},
+}
 
 #: Config files that must be BYTE-IDENTICAL between an arm and its control.
 #:
@@ -877,7 +929,7 @@ class TestExperimentArmConformance:
                 f"variable while INSTRUMENTATION_KEYS exempts it for every arm"
             )
 
-    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("arm", sorted(PAIRED_MODELS))
     @pytest.mark.parametrize("filename", ARM_IDENTICAL_FILES)
     def test_the_arm_shares_its_controls_data_configuration_byte_for_byte(self, arm, filename):
         """The confound the hyperparameter diff cannot see.
@@ -893,7 +945,7 @@ class TestExperimentArmConformance:
         identity is achievable and anything less is a divergence. `run.sh` is asserted here,
         never edited — it is production infrastructure.
         """
-        control, _declared = EXPERIMENT_ARMS[arm]
+        control = PAIRED_MODELS[arm]
         arm_path = MODELS_DIR / arm / filename
         control_path = MODELS_DIR / control / filename
         for path in (arm_path, control_path):
@@ -923,7 +975,7 @@ class TestExperimentArmConformance:
             f"follows is a real divergence:\n\n{diff}"
         )
 
-    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("arm", sorted(PAIRED_MODELS))
     def test_the_arm_is_evaluated_the_same_way_as_its_control(self, arm):
         """`config_meta` is documentation except for the parts that are not.
 
@@ -931,7 +983,7 @@ class TestExperimentArmConformance:
         arm and its control with different metrics, which is a confound that looks like a
         result. Nothing covered this file before.
         """
-        control, _declared = EXPERIMENT_ARMS[arm]
+        control = PAIRED_MODELS[arm]
         arm_meta = _load_meta(arm, MODELS_DIR)
         control_meta = _load_meta(control, MODELS_DIR)
         differing = {
@@ -946,7 +998,7 @@ class TestExperimentArmConformance:
             f"already been trained under it."
         )
 
-    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("arm", sorted(PAIRED_MODELS))
     def test_an_arm_is_neither_a_roster_member_nor_an_ensemble_constituent(self, arm):
         """The separation this structure exists for, asserted rather than assumed."""
         assert arm not in ROSTER, (
@@ -958,7 +1010,7 @@ class TestExperimentArmConformance:
             f"control, not shipped"
         )
 
-    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("arm", sorted(PAIRED_MODELS))
     def test_the_arms_rationale_survives_readme_regeneration(self, arm):
         """An arm's README is the only place its reasoning lives, and CI deletes READMEs.
 
@@ -1044,7 +1096,7 @@ class TestExperimentArmConformance:
             f"{arm}/README.md has an EMPTY manual block, which preserves nothing"
         )
 
-    @pytest.mark.parametrize("arm", sorted(EXPERIMENT_ARMS))
+    @pytest.mark.parametrize("arm", sorted(PAIRED_MODELS))
     def test_an_arm_is_a_candidate(self, arm):
         """Maturity is a person's act (ADR-017). An arm has not earned anything yet."""
         maturity = _load(
@@ -1052,4 +1104,86 @@ class TestExperimentArmConformance:
         )
         assert maturity["maturity"] == "candidate", (
             f"{arm} declares maturity {maturity['maturity']!r}; an experiment arm is a candidate"
+        )
+
+    # ── seed replicates: the pair guards above cover them; these cover what is theirs ──
+
+    def test_the_replicate_roster_is_exactly_as_declared(self):
+        """Both adding and removing a replicate must be a reviewed edit.
+
+        Pinned as an exact literal in both directions, for the reason ARM_FREE_KEYS is: a
+        replicate silently removed from this mapping keeps its directory and loses every
+        pair guard, and one silently added subjects a directory to guards nobody chose for
+        it. An empty mapping still fails loudly if an entry appears.
+        """
+        assert SEED_REPLICATES == {}, (
+            f"SEED_REPLICATES changed: {SEED_REPLICATES}. Update this literal in the same "
+            f"commit and say in the message which variance estimate the replicate serves."
+        )
+
+    def test_paired_models_spans_every_declaration(self):
+        """PAIRED_MODELS is derived; this asserts it is derived from everything.
+
+        The hole this mapping closes is that a model outside the parametrize list has no
+        pair guard at all. A third declaration kind added later and left out of PAIRED_MODELS
+        would inherit exactly that hole, which is why the mapping is checked against its
+        sources rather than trusted for being a comprehension.
+        """
+        assert set(PAIRED_MODELS) == set(EXPERIMENT_ARMS) | set(SEED_REPLICATES), (
+            "PAIRED_MODELS does not span EXPERIMENT_ARMS | SEED_REPLICATES; a declared pair "
+            "outside it is guarded by nothing — not byte identity, not meta, not maturity"
+        )
+
+    @pytest.mark.parametrize("replicate", sorted(SEED_REPLICATES))
+    def test_a_replicate_is_not_also_an_arm(self, replicate):
+        """A model is a contrast or a noise measurement, never both.
+
+        Declared as both, it would be read as an arm by the one-variable guard and as a
+        replicate by the seed guard, and the two make opposite demands: an arm must differ
+        from its control, a replicate must not.
+        """
+        assert replicate not in EXPERIMENT_ARMS, (
+            f"{replicate} is declared both a seed replicate and an experiment arm; an arm "
+            f"must differ from its control and a replicate must not"
+        )
+
+    @pytest.mark.parametrize("replicate", sorted(SEED_REPLICATES))
+    def test_the_replicate_is_its_declared_seed(self, replicate):
+        """The seed is the replicate's whole identity, so it is pinned like an arm's values."""
+        _control, seed = SEED_REPLICATES[replicate]
+        hp = _load_hp(replicate)
+        assert hp["torch_seed"] == seed and hp["np_seed"] == seed, (
+            f"{replicate}: declared seed {seed}, config has torch_seed "
+            f"{hp['torch_seed']!r} / np_seed {hp['np_seed']!r}"
+        )
+
+    @pytest.mark.parametrize("replicate", sorted(SEED_REPLICATES))
+    def test_the_replicate_differs_from_its_control_only_on_the_seed(self, replicate):
+        """The inverse of the arm guard, and the reason this declaration exists.
+
+        An arm must differ from its control; a replicate must not, beyond the seed. So there
+        is no "there is no arm to run" inverse assertion here — a replicate that is config-
+        identical to its control is the valid case, not the degenerate one.
+
+        What makes this load-bearing rather than tidy: the variance estimate these runs exist
+        to produce is the spread of their results, so a config divergence among them enters
+        that estimate as variance. It inflates it, every threshold derived from it rises, and
+        every effect fails significance — which is indistinguishable from an honest null. The
+        corruption would look like a measurement, not like a bug.
+        """
+        control = SEED_REPLICATES[replicate][0]
+        admissible = REPLICATE_FREE_KEYS | INSTRUMENTATION_KEYS
+        rep_hp, control_hp = _load_hp(replicate), _load_hp(control)
+        differing = {
+            key
+            for key in set(rep_hp) | set(control_hp)
+            if rep_hp.get(key, _ARM_KEY_ABSENT) != control_hp.get(key, _ARM_KEY_ABSENT)
+        }
+        assert differing <= admissible, (
+            f"{replicate} differs from its control {control} on "
+            f"{sorted(differing - admissible)}. A replicate re-runs the SAME config to "
+            f"measure run-to-run variance, so any other difference is counted as variance "
+            f"and inflates the estimate — raising every threshold derived from it and making "
+            f"a real effect fail significance, indistinguishably from an honest null. Revert "
+            f"it, or declare an experiment arm instead and say what it varies."
         )

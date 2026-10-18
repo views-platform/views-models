@@ -27,9 +27,13 @@ import pytest
 
 # One declaration of the roster, not three. `rusty_bucket`'s modelset was reordered precisely so
 # that the two existing declarations could not drift apart; this file must not become a third.
-from tests.test_roster_conformance import EXPERIMENT_ARMS, ROSTER_MODELS
+from tests.test_roster_conformance import (
+    EXPERIMENT_ARMS,
+    ROSTER_MODELS,
+    SEED_REPLICATES,
+)
 
-#: Every tracked HydraNet config in the repository, in both categories that exist.
+#: Every tracked HydraNet config in the repository, in all three categories that exist.
 #:
 #: The roster is the eight. An experiment arm is a tracked model directory that exists to be
 #: trained against one of the eight as a control; it is deliberately NOT a roster member
@@ -39,7 +43,14 @@ from tests.test_roster_conformance import EXPERIMENT_ARMS, ROSTER_MODELS
 #: values changed, which copies every latent config fault along with it, and the arm's whole
 #: point is that it is launched on rented hardware where a load failure costs provisioning
 #: time rather than a second (views-models#552).
-TRACKED_MODELS = list(ROSTER_MODELS) + list(EXPERIMENT_ARMS)
+#:
+#: A seed replicate inherits that reasoning exactly — it is also a copy of a control's config
+#: launched on rented hardware — and it is additionally the case that a replicate failing to
+#: load wastes a pod whose only purpose is to measure variance, so the loss is the estimate
+#: and not just the provisioning time (views-models#565).
+TRACKED_MODELS = (
+    list(ROSTER_MODELS) + list(EXPERIMENT_ARMS) + list(SEED_REPLICATES)
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MODELS_DIR = REPO_ROOT / "models"
@@ -138,16 +149,16 @@ def test_both_categories_of_tracked_config_are_in_scope(func):
     the list, and the cheaper mutation edits the decorator.
 
     So this asserts on the collected scope, for every test in this file that has one, and
-    compares it against the two source-of-truth declarations read independently.
+    compares it against the three source-of-truth declarations read independently.
     """
-    declared = set(ROSTER_MODELS) | set(EXPERIMENT_ARMS)
+    declared = set(ROSTER_MODELS) | set(EXPERIMENT_ARMS) | set(SEED_REPLICATES)
     scope = _parametrized_scope(func)
     assert scope == declared, (
         f"{func.__name__} runs over {sorted(scope)}, but the tracked configs are "
         f"{sorted(declared)}. Missing: {sorted(declared - scope)}; unexpected: "
-        f"{sorted(scope - declared)}. Every model in ROSTER and every experiment arm must be "
-        f"built through HydraNetConfig here; a value pin elsewhere is not a substitute "
-        f"(C-259, views-hydranet#295)."
+        f"{sorted(scope - declared)}. Every model in ROSTER, every experiment arm and every "
+        f"seed replicate must be built through HydraNetConfig here; a value pin elsewhere is "
+        f"not a substitute (C-259, views-hydranet#295)."
     )
     assert EXPERIMENT_ARMS, (
         "EXPERIMENT_ARMS is empty, so this file is covering the roster only. If the last arm "
