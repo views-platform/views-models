@@ -20,6 +20,25 @@
    usage is ~3 GB against 24 available. The machine that failed had the best price and the worst
    RAM.*
 
+   ⛔ **This rule selects on capacity and says nothing about SPEED. It is not sufficient on its
+   own — see ground rule 1b.** A machine can pass every floor here and still cost twice the money.
+
+1b. ⛔ **The two stages are bound by DIFFERENT hardware. Check both, or you will optimise one and
+   pay for it in the other.**
+
+   | stage | bound by | measured |
+   |---|---|---|
+   | **train** (300 lessons) | **the GPU model** | `RTX PRO 4500 SE` **24.8 s/lesson** · `RTX 3090` **56.5 s/lesson** |
+   | **evaluate** (13 origins) | **vCPU count** | 13.6 vCPU → ~21.7 min/origin, throttled 69% of scheduling periods |
+
+   *Measured 2026-10-19 on `silver_kestrel`, both figures from steady-state lessons (n=8 and n=5),
+   not from lesson 1 — see the warning in Phase 3. Taking a 32-vCPU `RTX 3090` to fix a
+   CPU-throttled evaluation **doubled the training time** and bought nothing: total wall time came
+   out the same, because the two stages moved in opposite directions.*
+
+   **So rank on the GPU model AND the vCPU count, not on either alone.** The machine you want is
+   fast at both: a current-generation GPU (`RTX PRO 4500`/`4090`/`L40S`/`6000 Ada`) **with 32+ vCPU**.
+
 2. **Read `/sys/fs/cgroup/`, not the console.**
    *Why: a machine advertised as "16 vCPU" gives `cpu.max` of `1360000 100000` — **13.6**
    effective. An 8-vCPU listing gives 6.8. Memory limits differ from the advertised figure too.*
@@ -100,8 +119,20 @@
 Machines that satisfied it in practice: `RTX PRO 4500 SE`, `RTX PRO 4500`, `RTX A6000`,
 `RTX 4090`, `RTX 6000 Ada`, `RTX 5090`, `L40`, `L40S`.
 
+**Prefer 32+ vCPU** among those. Evaluation is pure CPU and a 13.6-vCPU machine spends 69% of
+its scheduling periods throttled (`cpu.stat: nr_throttled 18920 / nr_periods 27584`, measured
+2026-10-19). The GPU sits at **0%** throughout evaluation — the posterior draws are CPU-side.
+
+### ⛔ Two machines to refuse
+
 **Do not take `PRO 6000 MIG 24GB`** (31 GB RAM, 6.8 effective CPUs). It is the cheapest listing
 and it was 25× slower — 0.11 posterior-sampling steps/s against 2.8 on a machine that fits.
+
+**Do not take `RTX 3090`, whatever its vCPU count.** Measured 2026-10-19: **56.5 s/lesson against
+24.8 s/lesson** on an `RTX PRO 4500 SE` — **2.3× slower to train**, which is 2 h 38 m of extra
+wall time over a 300-lesson run. It passes every floor in the selection rule, and a 31-vCPU
+listing of it looks like an upgrade over a 13.6-vCPU Blackwell. It is not: the cheaper hourly
+rate does not recover the extra hours. This is the case ground rule 1b exists for.
 
 Availability churns on a scale of seconds; listings vanish mid-form. Hold to the *rule* rather
 than a favourite model, or the hunt becomes the bottleneck.
@@ -307,6 +338,24 @@ idle. Do not size a machine by trying to raise this number; size it by RAM and v
 
 A healthy machine completes this in ~35–60 minutes. **Restore `total_lessons` to 300 before
 Phase 4**, or re-clone the repo.
+
+### ⛔ Never extrapolate a run length from lesson 1 — or from a 2-lesson test at all
+
+**Lesson 1 carries a one-off cost that no later lesson pays.** Measured 2026-10-19 on
+`silver_kestrel`: lesson 1 **88 s**, lesson 2 **29 s**, steady state **24.8 s** (n=8). The one-off
+is ~59 s of `VisualDiagnostics` work — a ~55-second gap ending in six plot writes.
+
+Extrapolated over 300 lessons the two readings give **7 h 20 m** and **2 h 25 m**. The second is
+right. Taking the first would have cancelled a viable experiment; taking it as gospel in the other
+direction would have walked into a run 3× longer than budgeted.
+
+⛔ **A 2-lesson smoke test therefore cannot produce a cost estimate.** It answers "is this machine
+broken", nothing more. **To estimate a run length, use `--rehearsal 10` and time lessons 3–9**,
+which costs ~6 minutes on a built venv and is the only reading that transfers to 300.
+
+⚠️ **And read the sustained rate, not tqdm's.** The `s/step` tqdm prints is a decaying average over
+recent steps and ran ~3.5× pessimistic here. Divide the bar's own elapsed time by its step count
+instead: `1465 steps / 13:50` = 0.57 s/step = **1.77 steps/s**, where tqdm was displaying `2.25s/step`.
 
 ---
 
