@@ -24,6 +24,7 @@ def get_meta_config():
         "regression_sample_metrics": ["CRPS", "y_hat_bar", "twCRPS", "QIS", "MIS", "MCR_sample"],
         # "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
         "regression_sample_baselines": ["red_ranger", "maroon_ranger", "green_ranger", "yellow_ranger"],
-        "creator": "Dylan" 
+        "creator": "Dylan",
+        "skip_predictions_delivery": True,
     }
     return meta_config
