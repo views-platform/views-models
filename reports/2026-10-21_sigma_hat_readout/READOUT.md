@@ -253,6 +253,19 @@ identical gate cube. Taking the three questions in order:
 `silver` was a distant seed. The run-to-run variance the prereg set out to measure was being
 measured correctly the whole time.
 
+## ⛔ Vehicle family — added 2026-10-21
+
+Every arm in this readout is `output_distribution: **truncated_nb**`. The delivered `violet_visitor`
+vehicle is `**nb**`, and views-hydranet Amendment 4 holds that a number measured under one family is
+never quoted against the other.
+
+The σ̂, W-5 and feasibility readings above are **internally consistent** — `amber` and `copper` are
+both `truncated_nb` — so they stand as statements about that family. ⚠️ **Whether they are also
+statements about the delivered `nb` vehicle is not answerable from these artifacts.** The
+views-hydranet seat's block test finds the gate's own event/non-event contrast differing **8–298×
+(`nb`) vs 4–27× (`truncated_nb`)** (views-models#590), so the two vehicles' gates are not
+interchangeable. That question is the hydranet seat's to rule on, not this one's.
+
 ## Artifacts
 
 `results/p2_result_{amber,copper,silver,silver014,bronze,cobalt,indigo}.npz`, sha256-verified

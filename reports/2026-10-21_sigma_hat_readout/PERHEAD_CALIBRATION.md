@@ -117,6 +117,28 @@ own word is *cosmetic*. Any per-head calibration work is reporting integrity, no
 
 ## Scope and limits
 
+⛔ **VEHICLE FAMILY — added 2026-10-21 after the fact, because this document did not state it.**
+All six arms are `output_distribution: **truncated_nb**`; the delivered `violet_visitor` vehicle is
+`**nb**`. views-hydranet Amendment 4's rule is *"a number measured under one family is NEVER quoted
+against the other"*, and the first version of this report did not say which family it was on — the
+same defect it reports about the `sb`-only instrument, one layer along.
+
+What that costs:
+
+| survives the family change | does **not** transfer |
+|---|---|
+| the track was measured on `sb` only (instrument property) | every fitted `T` (0.7905–0.9249) |
+| three heads are declared | every fitted Platt `(a, b)` |
+| **per-head base rates** — they are truth, not model output, and are byte-identical across arms | raw `b` per head, and the `sb` seed spread |
+| the mechanism: `sig(x/T)` has no intercept, so it cannot fix a head with `b ≈ 1` | the `F2` 8-of-9 verdict |
+| | ΔAP = 0.00000 and "no map moves" |
+
+The views-hydranet seat measures the **gate itself** differing between families — event/non-event
+contrast **8–298× under `nb`** against **4–27× under `truncated_nb`** (views-models#590). A gate that
+different will not carry the same calibration map. ⇒ **The shape of the recommendation stands
+(per-head, slope AND intercept, on the emitted cube); none of the numbers may be shipped.** They are
+a pilot that establishes the method, not the parameters.
+
 - Three seeds, one architecture, `land`, the 13 out-of-sample h=1 months 456–469.
 - `copper` (pos_weight 2.0) and `indigo` (weight_decay 0.0) were **not** swept per head — they move
   a second parameter. Free to add on request.
