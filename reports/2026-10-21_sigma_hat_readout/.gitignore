@@ -1,0 +1,8 @@
+# The p2_result npz are 14.8 MB each (99 MB for the set) and are deterministically regenerable:
+# sweep_all.sh rebuilds the harness from named sources and re-derives them from the .pt weights,
+# which are backed up on this laptop AND off it (kestrel_sigma_backup_20261021, 27 files,
+# rclone-verified both ways). Committing them would bloat the repo permanently for no recoverable
+# information. harness_provenance.sha256 pins which harness produced them.
+results/
+sweep_iso/
+__pycache__/
