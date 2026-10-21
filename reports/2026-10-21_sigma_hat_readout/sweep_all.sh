@@ -27,8 +27,27 @@ build_iso() {
         cp "$src" "$ISO/$dst"
     done
     [ "$missing" = "0" ] || { echo "cannot build \$ISO -- refusing to sweep"; return 1; }
-    # record what was actually used, so a future reader need not search the filesystem
-    ( cd "$ISO" && sha256sum run_p2.py vehicle.py p2_gate_calibration.py ) > "$SP/harness_provenance.sha256"
+    # record what was ACTUALLY copied -- hashed here, not at the source path. Reading the sha from
+    # the source after the fact records a file that may no longer be the one that ran: that exactly
+    # happened on 2026-10-21, when views-hydranet's Amendment 4 rewrote vehicle.py 28 minutes after
+    # this seat copied it (see heads_iso/HARNESS_SOURCES.md).
+    ( cd "$ISO" && sha256sum run_p2.py vehicle.py p2_gate_calibration.py ) > "$SP/harness_provenance.new"
+    if [ -f "$SP/harness_provenance.sha256" ] \
+       && ! diff -q "$SP/harness_provenance.sha256" "$SP/harness_provenance.new" >/dev/null; then
+        echo "⛔ THE HARNESS HAS CHANGED UPSTREAM since these numbers were measured:"
+        diff "$SP/harness_provenance.sha256" "$SP/harness_provenance.new" | sed 's/^/    /'
+        echo "    A changed harness is a different instrument. Re-measuring with it is fine --"
+        echo "    quoting the OLD numbers alongside the new ones is not."
+        echo "    Known live example: Amendment 4 removed EXPECTED_SIDECAR['output_distribution'],"
+        echo "    so run_p2.py's shim raises KeyError against the current vehicle.py."
+        if [ "${HARNESS_DRIFT_OK:-0}" != "1" ]; then
+            echo "    Refusing. Re-run with HARNESS_DRIFT_OK=1 to proceed deliberately."
+            rm -f "$SP/harness_provenance.new"
+            return 1
+        fi
+        echo "    HARNESS_DRIFT_OK=1 -- proceeding, and the pin is being updated."
+    fi
+    mv "$SP/harness_provenance.new" "$SP/harness_provenance.sha256"
     echo "built \$ISO from named sources; provenance in harness_provenance.sha256"
 }
 build_iso || exit 1

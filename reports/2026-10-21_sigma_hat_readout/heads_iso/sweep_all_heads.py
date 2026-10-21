@@ -24,15 +24,48 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import hashlib  # noqa: E402
+
 import vehicle
 
-# same shim run_p2.py applies: the committed gate pins violet_visitor's 'nb'; these arms are
-# 'truncated_nb'. Nothing else is changed.
-assert vehicle.EXPECTED_SIDECAR["output_distribution"] == "nb", "gate already changed; stop"
-vehicle.EXPECTED_SIDECAR["output_distribution"] = "truncated_nb"
+_vsha = hashlib.sha256(open(vehicle.__file__, 'rb').read()).hexdigest()
+
+# ⛔ TWO SHAPES OF vehicle.py EXIST and this must work against both, loudly.
+#
+# Before views-hydranet's Amendment 4 (2026-10-21 14:18), F6 pinned the family inside
+# EXPECTED_SIDECAR["output_distribution"] = "nb" and REFUSED a truncated_nb vehicle, so run_p2.py
+# and this script shimmed that one key. After Amendment 4 the key is GONE from EXPECTED_SIDECAR
+# and the family is gated by ADMITTED_FAMILIES = ("nb", "truncated_nb"), which admits these arms
+# outright — and the old shim then raises KeyError.
+#
+# The measurements in ../PERHEAD_CALIBRATION.md were taken with the PRE-amendment file
+# (sha256 3d1085402d8a948b9e25d9799aa6980ae09e8d085e6124091214685627cf5a02). What makes them valid
+# is not which file was used but the parity gate below: the sb cube reproduced the committed
+# p2_result_<arm>.npz exactly. Still, the two files are different instruments, so which one ran is
+# recorded rather than left to be inferred.
+HAS_ADMITTED = hasattr(vehicle, "ADMITTED_FAMILIES")
+PINS_FAMILY = "output_distribution" in vehicle.EXPECTED_SIDECAR
+if PINS_FAMILY and not HAS_ADMITTED:
+    assert vehicle.EXPECTED_SIDECAR["output_distribution"] == "nb", "gate already changed; stop"
+    vehicle.EXPECTED_SIDECAR["output_distribution"] = "truncated_nb"
+    VEHICLE_SHAPE = "pre-Amendment-4 (shimmed output_distribution nb -> truncated_nb)"
+elif HAS_ADMITTED and not PINS_FAMILY:
+    assert "truncated_nb" in vehicle.ADMITTED_FAMILIES, (
+        "post-Amendment-4 vehicle.py does not admit truncated_nb; these arms cannot load"
+    )
+    VEHICLE_SHAPE = f"post-Amendment-4 (ADMITTED_FAMILIES={vehicle.ADMITTED_FAMILIES}, no shim)"
+else:
+    raise SystemExit(
+        "VOID: vehicle.py is in neither known shape — "
+        f"ADMITTED_FAMILIES={HAS_ADMITTED}, EXPECTED_SIDECAR pins family={PINS_FAMILY}. "
+        "Refusing to guess which F6 is in force."
+    )
 
 from views_hydranet.infrastructure.reproducibility_gate import ReproducibilityGate  # noqa: E402
 from vehicle import TARGETS, build_volume, grid_rowcol, load_vehicle, pull  # noqa: E402
+
+# announce which F6 is in force BEFORE nine minutes of compute, not after
+print(f"vehicle.py  sha256 {_vsha}\n            shape  {VEHICLE_SHAPE}", flush=True)
 
 ART, ARM, REF = sys.argv[1], sys.argv[2], sys.argv[3]
 HEADS = {"sb": 0, "ns": 1, "os": 2}          # vehicle.py:52 input order
@@ -101,6 +134,8 @@ if not (ok_gate and ok_truth):
     print(f"  max|gate diff| = {gd:.3e}")
     raise SystemExit("⛔ PARITY FAILED — this is not the same instrument. Nothing written.")
 print("  => same instrument. ns/os numbers are comparable to the published sb numbers.")
+print(f"  vehicle.py shape: {VEHICLE_SHAPE}")
+print(f"  vehicle.py sha256: {_vsha}")
 print("=" * 78)
 
 for name in HEADS:
