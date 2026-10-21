@@ -6,3 +6,10 @@
 results/
 sweep_iso/
 __pycache__/
+
+# heads_iso/ holds two COPIES of views-hydranet files (vehicle.py, and tier2_remedies.py with only
+# its EV path repointed). They are not this repo's code to carry — HARNESS_SOURCES.md records where
+# they come from and their sha256 at time of use, which is what makes the run re-creatable.
+heads_iso/vehicle.py
+heads_iso/tier2_remedies_perhead.py
+heads_iso/__pycache__/
