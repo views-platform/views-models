@@ -14,7 +14,8 @@ Common bin support is prereg-mandated: a bin enters a fit only where EVERY arm i
 import sys
 import numpy as np
 sys.path.insert(0, "/home/simon/Documents/scripts/views_platform/views-models/reports/2026-10-21_sigma_hat_readout")
-from sigma_run_to_run import bin_table, logit, W5_THRESHOLD, FEASIBILITY
+from sigma_run_to_run import (bin_table, logit, W5_THRESHOLD,
+                              FEASIBILITY_POOLED, FEASIBILITY_CONSERVATIVE)
 
 R = "/home/simon/Documents/scripts/views_platform/views-models/reports/2026-10-21_sigma_hat_readout/results"
 TAB = {n: bin_table(f"{R}/p2_result_{n}.npz")
@@ -82,8 +83,12 @@ for title, cell in (("B.  CLEAN sigma-hat -- seeds 42/43/44 ALL on 0.1.4", ["sil
         print(f"  {lbl:<9} ({len(e)} common bins)  b = [" + ", ".join(f"{x:.4f}" for x in bs) + "]"
               f"   mean {np.mean(bs):.4f}   sigma-hat_b = {sd:.4f}"
               f"   {'OVER' if sd > W5_THRESHOLD else 'under'} W-5 {W5_THRESHOLD}"
-              f" / {'over' if sd > FEASIBILITY else 'under'} {FEASIBILITY}")
+              f" / {'over' if sd > FEASIBILITY_POOLED else 'under'} {FEASIBILITY_POOLED}"
+              f" / {'over' if sd > FEASIBILITY_CONSERVATIVE else 'under'} {FEASIBILITY_CONSERVATIVE}")
     lo, hi = min(sds), max(sds)
     print(f"  family: {lo:.4f} .. {hi:.4f}   straddles W-5? "
           f"{'YES -> NULL' if lo <= W5_THRESHOLD <= hi else 'no -> ROBUST ' + ('ABOVE' if lo > W5_THRESHOLD else 'BELOW')}")
-    print(f"  straddles 0.0356 feasibility? {'YES -> NULL' if lo <= FEASIBILITY <= hi else 'no'}")
+    for lbl, th in (("0.0645 pooled", FEASIBILITY_POOLED),
+                    ("0.0477 conservative", FEASIBILITY_CONSERVATIVE)):
+        print(f"  straddles {lbl} feasibility? "
+              f"{'YES -> NULL' if lo <= th <= hi else ('no -> ROBUST ' + ('ABOVE' if lo > th else 'BELOW'))}")

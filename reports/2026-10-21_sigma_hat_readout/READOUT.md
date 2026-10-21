@@ -121,9 +121,37 @@ seeds 42/43/44 all on 0.1.4, `silver014` in place of `silver`:
 ⛔ Because `silver014` ≡ `silver` bit for bit, **the clean cell and the as-launched cell are the
 same measurement.** Removing the version confound changed nothing.
 
-⛔ **σ̂_b exceeds the 0.0356 feasibility bound under every estimator** (0.0374 / 0.1107 / 0.0463).
-Unlike the W-5 verdict this is *robust* to the estimator, and it is the answer to DoD item 5:
-**this design cannot detect a complete fix.** Prereg Amendment 2 §3.
+⛔ **CORRECTED — the feasibility threshold I first used is not the live one.** This section
+originally read *"σ̂_b exceeds the 0.0356 feasibility bound under every estimator … unlike the W-5
+verdict this is robust"*. **Prereg Amendment 10 (`:1018`) explicitly retires 0.0356**: it was
+derived for n=1 vs n=2, the approved set is n=3 vs n=2, and the plan's critical value is *"1.81×
+too harsh"*. The live boundaries are **0.0645 pooled** (`:1015`) and **0.0477 conservative**
+(`:1016`).
+
+| threshold | source | 0.0374 | 0.0463 | 0.1107 | verdict |
+|---|---|---|---|---|---|
+| **0.0645** feasibility, pooled | A10 `:1015` | under | under | **over** | **straddles → NULL** |
+| **0.0477** feasibility, conservative | A10 `:1016` | under | under | **over** | **straddles → NULL** |
+| **0.0601** W-5 separability | A10 `:1033` | under | under | **over** | **straddles → NULL** |
+| ~~0.0356~~ | retired by A10 | over | over | over | *not a live reading* |
+
+⛔ **All three live readings are NULLs, and all three are null for the same reason:** two
+estimators sit under every boundary and one sits above all of them. The design is not shown
+unreadable — it is shown *unresolved*.
+
+⚠️ **The lone dissenting estimator is `all_bins`.** It gives every bin equal weight, so a bin with
+**65** observations counts as much as one with **808,517**. `n>=1000` excludes those sparse bins and
+√n-weighting down-weights them; both land at 0.0374–0.0463, under every live boundary. That is a
+statement about the estimator's leverage, not a selection — **the prereg pins no estimator
+(`:676`, `:682`), so this seat reports the family and does not choose.** Choosing is the
+hydranet seat's call.
+
+**DoD item 5, read against Amendment 10's own replicate table (`:493`–`:502`):** at n=2 per cell
+the design needs σ̂ < 0.0436; at **n=3** it needs σ̂ < 0.0827; at n=4, σ̂ < 0.1084. Two of three
+estimators clear even the n=2 requirement; `all_bins` clears none of them. ⛔ **So the pre-registered
+response to an unresolved σ̂ applies as written: more replicates per cell, not more doses** —
+Amendment 10 §4 pre-sizes that at **n=3 on two cells, 6 pods**, and calls it "the single
+highest-leverage change available to this design".
 
 ⚠️ **df is 2, not the 3 the acceptance criteria ask for.** Three runs give 2 df; the planned 3 df
 assumed pooling with the `indigo`/`russet` pair, and `russet` was never launched.

@@ -18,7 +18,13 @@ import numpy as np
 
 BINS = [0, 0.01, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.01]
 W5_THRESHOLD = 0.0601      # prereg:682  -- amber-vs-copper resolvability
-FEASIBILITY = 0.0356       # prereg:397  -- superseded by Amendment 10 (0.0645/0.0477)
+# ⛔ Amendment 10 (:1018) RETIRES 0.0356 as "1.81x too harsh" -- it was derived for n=1 vs n=2
+# and the approved set is n=3 vs n=2. Use the live boundaries; 0.0356 is kept only so an old
+# number in the record can be traced to the reading that produced it.
+FEASIBILITY_POOLED = 0.0645        # prereg:1015 -- n=2 vs n=3, df=3, 2.905*S
+FEASIBILITY_CONSERVATIVE = 0.0477  # prereg:1016 -- sigma-hat from the 3 controls only, df=2
+FEASIBILITY = FEASIBILITY_POOLED   # the default reading
+FEASIBILITY_RETIRED = 0.0356       # prereg:397 -- superseded, do not report against this
 
 
 def bin_table(path):
