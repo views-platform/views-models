@@ -1,0 +1,15 @@
+# The p2_result npz are 14.8 MB each (99 MB for the set) and are deterministically regenerable:
+# sweep_all.sh rebuilds the harness from named sources and re-derives them from the .pt weights,
+# which are backed up on this laptop AND off it (kestrel_sigma_backup_20261021, 27 files,
+# rclone-verified both ways). Committing them would bloat the repo permanently for no recoverable
+# information. harness_provenance.sha256 pins which harness produced them.
+results/
+sweep_iso/
+__pycache__/
+
+# heads_iso/ holds two COPIES of views-hydranet files (vehicle.py, and tier2_remedies.py with only
+# its EV path repointed). They are not this repo's code to carry — HARNESS_SOURCES.md records where
+# they come from and their sha256 at time of use, which is what makes the run re-creatable.
+heads_iso/vehicle.py
+heads_iso/tier2_remedies_perhead.py
+heads_iso/__pycache__/
