@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Prove each verify_local guard FIRES. A guard never seen to fail is decorative.
 set -u
+# Resolve our own directory and work from it: the suite sources ./watch_pod.sh, so running it as
+# `bash scratchpad/test_watch_pod_guards.sh` from the repo root failed all 11 checks on a missing
+# file. A suite that reports FAIL because it cannot find its subject is the absence-is-not-a-pass
+# defect inverted — it must not depend on the caller's cwd.
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
+[ -f ./watch_pod.sh ] || { echo "⛔ cannot find ./watch_pod.sh next to this suite — refusing to report"; exit 2; }
 WATCH_POD_LIB=1
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 pass=0; fail=0
