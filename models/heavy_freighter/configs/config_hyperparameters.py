@@ -1,3 +1,51 @@
+import os
+from pathlib import Path
+
+#: Where the per-task loss trajectory CSV is written.
+#:
+#: ⛔ A RELATIVE path dies with the pod. tools/podrun/pod_run_model.sh rsyncs only
+#: $OUT=/workspace/deliver/<model>, and it copies nothing from the repo clone -- no logs/
+#: glob exists anywhere in it. views-models#558 / C-161 is the record of exactly that: half
+#: of what a pod produced did not come back, and the gate posterior was lost that way.
+#:
+#: So this resolves to an ABSOLUTE path inside the deliver directory WHEN RUNNING ON A POD,
+#: detected by the deliver root existing, and to a repo-relative path otherwise. No operator
+#: action, nothing pod-specific hardcoded, and a local run still writes locally -- which
+#: matters because "remember an extra rsync" is the mechanism C-161 already records failing.
+#: views-hydranet 0.1.3 creates the parent directory (it did not before), so the absolute
+#: path is safe; under 0.1.2 and earlier it would have raised FileNotFoundError mid-run.
+_MODEL_NAME = Path(__file__).resolve().parent.parent.name
+_POD_DELIVER_ROOT = Path("/workspace/deliver")
+
+
+def _trajectory_log_path() -> str:
+    """Absolute, inside the pod's rsynced deliver dir; relative off-pod. Env var wins.
+
+    The parent is created HERE rather than relied on, which removes a version dependency
+    this config would otherwise carry. views-hydranet creates it from 0.1.3 onward and did
+    not before, while `pod_run_model.sh` pins `views-hydranet~=0.1.1` — a range that still
+    ADMITS 0.1.1 and 0.1.2. Under either of those an absolute path would raise
+    FileNotFoundError at the first write, which is after the data pull and the model build.
+    One idempotent mkdir here means the config is correct under every version the pin admits.
+    """
+    override = os.environ.get("HYDRANET_TRAJECTORY_LOG")
+    path = (
+        Path(override)
+        if override
+        else _POD_DELIVER_ROOT / _MODEL_NAME / "logs" / "trajectory.csv"
+        if _POD_DELIVER_ROOT.is_dir()
+        else Path("models") / _MODEL_NAME / "logs" / "trajectory.csv"
+    )
+    # Never let a read-only or unwritable filesystem turn config LOADING into a failure:
+    # tests/test_roster_configs_load.py imports every config, and a config that can only be
+    # read where it can also write would make that job environment-dependent.
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return str(path)
+
+
 def get_hp_config():
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
@@ -21,7 +69,6 @@ def get_hp_config():
     'window_dim': 32,
     'output_channels': 1,
     'weight_init': 'xavier_norm',
-    'h_init': 'abs_rand_exp-100',
     'windows_per_lesson': 3,
     'learning_rate': 0.001,
     'weight_decay': 0.1,
@@ -103,6 +150,11 @@ def get_hp_config():
     'evaluation_mode': 'stochastic',
     'aggregate_method': 'arithmetic_mean',
     'skip_predictions_delivery': True,
+    # The sole sink for the per-task loss split: six columns, body and gate separately
+    # for each of sb/ns/os. Without it the split has to be reconstructed from weights,
+    # which is what happened to both 2026-10-12/13 delivered runs. Helper copied verbatim
+    # from copper_kestrel, where it has produced a complete CSV on six pod runs.
+    'trajectory_log_path': _trajectory_log_path(),
     'output_distribution': 'nb',
     'forecast_composition': 'soft_gate',
     'freeze_multitask_balancer': True,
