@@ -1,0 +1,123 @@
+name: FAO Delivery Freshness
+
+# D7 of the release definition of done: a missed month must fail loudly WITHOUT a
+# human. Everything else this repo built makes the FAO delivery legible; this makes
+# its ABSENCE loud.
+#
+# The failure being guarded against actually happened: FAO received nothing for 145
+# days while a complete forecast sat on the shelf, and nobody noticed (#320). ADR-020
+# §4 calls this "the hole in the floor" — nothing raises, because nothing failed.
+#
+# The bound is NOT set here. `deliveries/un_fao.py` declares `max_age`, and
+# `tools/liveness/unfao_delivery.py` classifies against it (#360). One fact, one place.
+#
+# CADENCE vs BOUND — two different things, deliberately.
+#   * the BOUND says when a delivery is too old. Declared in deliveries/un_fao.py.
+#     Deliberately not repeated here: a number in this comment would be a third copy,
+#     and it would be wrong the moment someone edits the declaration.
+#   * the CADENCE (weekly) says how soon after that we find out.
+# Weekly costs one API call and detects within 7 days of the bound being crossed.
+# Monthly would add up to 30 days of latency on top of it — better than 145, but
+# needlessly late for something this cheap.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'      # Mondays 06:00 UTC
+  workflow_dispatch:          # so it can be proven to work on demand, not only by waiting
+
+permissions:
+  contents: read
+
+jobs:
+  fao-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The check uses stdlib urllib only (no Appwrite SDK, no pipeline-core), so it
+      # dodges the published-core skew that keeps other jobs fragile (C-42/C-73/C-80).
+
+      - name: Check when FAO last actually received a forecast
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_DATASTORE_PROJECT_ID: ${{ secrets.APPWRITE_DATASTORE_PROJECT_ID }}
+          APPWRITE_DATASTORE_API_KEY: ${{ secrets.APPWRITE_DATASTORE_API_KEY }}
+        run: |
+          set -o pipefail
+          out="$(python -m tools.liveness.unfao_delivery 2>&1)" && status=0 || status=$?
+          echo "$out"
+          verdict="$(printf '%s\n' "$out" | sed -n 's/^verdict: //p' | head -1)"
+
+          # Classify on the VERDICT, never on the exit code.
+          #
+          # SKIP_NO_CREDENTIALS maps to exit 0 (tools/liveness/report.py), because for
+          # the six-surface dashboard a truthful skip is not a failure. For THIS job it
+          # is the worst possible outcome: the heartbeat would report success having
+          # read nothing, and a dead heartbeat is indistinguishable from a healthy one.
+          #
+          # Same reasoning as monthly_run.sh's Appwrite preflight (#302) and the C-113
+          # lesson: a gate that cannot tell "passed" from "did not run" is not a gate.
+          #
+          # Every verdict this check can emit has a branch. The catch-all still fails,
+          # but nothing known should reach it: an operator who hits a real condition
+          # deserves a message naming the fix, not the word "inconclusive". The
+          # CREDENTIALS_INCOMPLETE branch exists because a first live run produced
+          # exactly that verdict — a partial credential set, not an absent one.
+          case "$verdict" in
+            DELIVERING)
+              echo ""
+              echo "OK — FAO received a forecast within the bound declared in deliveries/un_fao.py."
+              ;;
+            DELIVERY_STALLED)
+              echo "" >&2
+              echo "FAO DELIVERY IS STALE." >&2
+              echo "  The newest forecast in unfao_bucket is older than the max_age" >&2
+              echo "  declared in deliveries/un_fao.py. The facts above give the exact age." >&2
+              echo "" >&2
+              echo "  This is #320 recurring. A complete forecast may be sitting on the" >&2
+              echo "  internal shelf undelivered — check production_forecasts before" >&2
+              echo "  assuming a run is needed." >&2
+              exit 1
+              ;;
+            UNREACHABLE)
+              echo "" >&2
+              echo "APPWRITE DID NOT ANSWER." >&2
+              echo "  This says nothing about the delivery — the bucket could not be read." >&2
+              echo "  If it persists, the datastore key may have expired (both current keys" >&2
+              echo "  expire around 2026-11-30; register C-114)." >&2
+              exit 1
+              ;;
+            CREDENTIALS_INCOMPLETE)
+              echo "" >&2
+              echo "HEARTBEAT DID NOT RUN — Appwrite credentials are only partly set." >&2
+              echo "  The facts above name exactly which variables are missing." >&2
+              echo "  All three are required:" >&2
+              echo "    APPWRITE_ENDPOINT, APPWRITE_DATASTORE_PROJECT_ID, APPWRITE_DATASTORE_API_KEY" >&2
+              echo "" >&2
+              echo "  A partial set is the more likely mistake than none at all, so it gets" >&2
+              echo "  its own message rather than falling through to 'inconclusive'." >&2
+              exit 1
+              ;;
+            SKIP_NO_CREDENTIALS)
+              echo "" >&2
+              echo "HEARTBEAT DID NOT RUN — no Appwrite credentials." >&2
+              echo "  Nothing was checked, so this job proves nothing about the delivery." >&2
+              echo "  Add these to the repository's Actions secrets:" >&2
+              echo "    APPWRITE_ENDPOINT, APPWRITE_DATASTORE_PROJECT_ID, APPWRITE_DATASTORE_API_KEY" >&2
+              echo "" >&2
+              echo "  Failing rather than skipping is deliberate: a heartbeat that goes" >&2
+              echo "  green without reading anything is worse than none at all." >&2
+              exit 1
+              ;;
+            *)
+              echo "" >&2
+              echo "HEARTBEAT INCONCLUSIVE (verdict: ${verdict:-<none produced>}, exit: ${status})." >&2
+              echo "  The check did not produce a verdict this job recognises, so the" >&2
+              echo "  delivery's freshness is unknown. Unknown is not OK." >&2
+              exit 1
+              ;;
+          esac
