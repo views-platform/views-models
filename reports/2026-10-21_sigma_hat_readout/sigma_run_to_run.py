@@ -54,7 +54,8 @@ def fits(R):
     out = {}
     for lbl, sub in (("n>=1000", [r for r in usable if r[2] >= 1000]), ("all_bins", usable)):
         if len(sub) < 2:
-            out[lbl] = (np.nan, np.nan, len(sub)); continue
+            out[lbl] = (np.nan, np.nan, len(sub))
+            continue
         b, a = np.polyfit(logit(np.array([r[3] for r in sub])),
                           logit(np.array([r[4] for r in sub])), 1)
         out[lbl] = (a, b, len(sub))
@@ -80,9 +81,12 @@ if __name__ == "__main__":
         for n, _ in RUNS:
             a, b, nb = tabs[n][v]
             print(f"    {n:<12} a={a:+.4f}  b={b:.4f}   ({nb} bins)")
-            bs.append(b); as_.append(a)
-        bs = np.array(bs); as_ = np.array(as_)
-        sd_b = float(bs.std(ddof=1)); sd_a = float(as_.std(ddof=1))
+            bs.append(b)
+            as_.append(a)
+        bs = np.array(bs)
+        as_ = np.array(as_)
+        sd_b = float(bs.std(ddof=1))
+        sd_a = float(as_.std(ddof=1))
         print(f"    mean b = {bs.mean():.4f}     ⛔ σ̂_b = {sd_b:.4f}   (sd of a, for reference: {sd_a:.4f})")
         w5 = "EXCEEDED -> W-5 FIRES" if sd_b > W5_THRESHOLD else "under"
         fe = "exceeded" if sd_b > FEASIBILITY else "under"
