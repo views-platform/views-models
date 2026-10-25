@@ -50,7 +50,6 @@ def get_sweep_config():
         'np_seed' : {'values' : [4, 8]},
         'torch_seed' : {'values' : [4, 8]},
         'window_dim' : {'value' : 32},
-        'h_init' : {'value' : 'abs_rand_exp-100'},
         'warmup_steps' : {'value' : 100},
         'time_steps' : {'value' : 36}
         }

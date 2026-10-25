@@ -1,3 +1,72 @@
+import os
+from pathlib import Path
+
+#: Where the per-task loss trajectory CSV is written.
+#:
+#: ⛔ A CWD-RELATIVE path dies with the pod. tools/podrun/pod_run_model.sh rsyncs only
+#: $OUT=$ROOT/deliver/<model> (see _POD_DELIVER_ROOT below -- $ROOT is NOT fixed), and it
+#: copies nothing from the repo clone -- no logs/ glob exists anywhere in it.
+#: views-models#558 / C-161 is the record of exactly that: half of what a pod produced did
+#: not come back, and the gate posterior was lost that way.
+#:
+#: So this resolves to an ABSOLUTE path inside the deliver directory WHEN RUNNING ON A POD,
+#: detected by the deliver root existing, and to a path inside this model's OWN directory
+#: otherwise. The off-pod leg is anchored on __file__ rather than being cwd-relative:
+#: `pod_run_model.sh:371` does `cd "$REPO/models/$MODEL"`, and `models/<model>/run.sh` does
+#: not cd at all, so a "models/..." relative path would resolve against whatever directory
+#: the operator happened to be in -- doubling to models/<model>/models/<model>/logs/ in the
+#: first case and landing under $HOME in the second. No operator action, nothing pod-specific
+#: hardcoded, and a local run still writes beside the model -- which matters because
+#: "remember an extra rsync" is the mechanism C-161 already records failing.
+_MODEL_DIR = Path(__file__).resolve().parent.parent
+_MODEL_NAME = _MODEL_DIR.name
+
+#: ⛔ RELOCATABLE, not fixed. `tools/podrun/pod_run_model.sh:94` is
+#: `ROOT="${PODRUN_ROOT:-/workspace}"` and `OUT=$ROOT/deliver/$MODEL`, and its own comment
+#: says the runner and the delivery script must AGREE on it. Hardcoding /workspace here
+#: would make a relocated pod fail `is_dir()`, fall through to the off-pod branch and write
+#: the trajectory OUTSIDE $OUT -- which is not rsynced home, i.e. C-161 again, the exact
+#: loss this helper exists to prevent. Reading the same variable is what keeps them in step.
+_POD_DELIVER_ROOT = Path(os.environ.get("PODRUN_ROOT") or "/workspace") / "deliver"
+
+
+def _trajectory_log_path() -> str:
+    """Absolute in both legs: inside the pod's rsynced deliver dir on a pod, beside this
+    model otherwise. HYDRANET_TRAJECTORY_LOG overrides both.
+
+    Neither leg depends on the process cwd. That is deliberate and is the second defect
+    corrected against copper_kestrel's original -- see _MODEL_DIR above.
+
+    The parent is created HERE rather than relied on, because views-hydranet only creates it
+    from 0.1.3 onward while `pod_run_model.sh:172` pins `views-hydranet~=0.1.1` — a range
+    that still ADMITS 0.1.1 and 0.1.2, under which an absolute path would raise
+    FileNotFoundError at the first write, after the data pull and the model build.
+
+    ⚠️ The mkdir is BEST-EFFORT and does not make this airtight. Importing a config must
+    never fail on an unwritable filesystem — tests/test_roster_configs_load.py imports every
+    config — so an OSError here is swallowed and the run proceeds. If the directory genuinely
+    cannot be created, the failure still surfaces at the first trajectory write, late and
+    expensively, exactly as it would without this call. What the mkdir removes is the common
+    case (parent simply absent), not the whole class.
+    """
+    override = os.environ.get("HYDRANET_TRAJECTORY_LOG")
+    path = (
+        Path(override)
+        if override
+        else _POD_DELIVER_ROOT / _MODEL_NAME / "logs" / "trajectory.csv"
+        if _POD_DELIVER_ROOT.is_dir()
+        else _MODEL_DIR / "logs" / "trajectory.csv"
+    )
+    # Never let a read-only or unwritable filesystem turn config LOADING into a failure:
+    # tests/test_roster_configs_load.py imports every config, and a config that can only be
+    # read where it can also write would make that job environment-dependent.
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return str(path)
+
+
 def get_hp_config():
     return {   'time_col': 'month_id',
     'id_col': 'priogrid_gid',
@@ -21,7 +90,6 @@ def get_hp_config():
     'window_dim': 32,
     'output_channels': 1,
     'weight_init': 'xavier_norm',
-    'h_init': 'abs_rand_exp-100',
     'windows_per_lesson': 3,
     'learning_rate': 0.001,
     'weight_decay': 0.1,
@@ -103,6 +171,14 @@ def get_hp_config():
     'evaluation_mode': 'stochastic',
     'aggregate_method': 'arithmetic_mean',
     'skip_predictions_delivery': True,
+    # The sole sink for the per-task loss split: six columns, body and gate separately
+    # for each of sb/ns/os. Without it the split has to be reconstructed from weights,
+    # which is what happened to both 2026-10-12/13 delivered runs. Helper ADAPTED from
+    # copper_kestrel, where the original has produced a complete CSV on six pod runs, with
+    # two corrections it does not carry: /workspace was hardcoded although
+    # pod_run_model.sh honours PODRUN_ROOT, and its off-pod leg was cwd-relative. The six
+    # kestrel configs still carrying the original are deliberately untouched (#604).
+    'trajectory_log_path': _trajectory_log_path(),
     'output_distribution': 'nb',
     'forecast_composition': 'soft_gate',
     'freeze_multitask_balancer': True,

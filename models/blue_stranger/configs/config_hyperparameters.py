@@ -21,7 +21,6 @@ def get_hp_config():
     'window_dim': 32,
     'output_channels': 1,
     'weight_init': 'xavier_norm',
-    'h_init': 'abs_rand_exp-100',
     'windows_per_lesson': 3,
     'learning_rate': 0.001,
     'weight_decay': 0.1,
