@@ -179,6 +179,35 @@ def get_hp_config():
     # pod_run_model.sh honours PODRUN_ROOT, and its off-pod leg was cwd-relative. The six
     # kestrel configs still carrying the original are deliberately untouched (#604).
     'trajectory_log_path': _trajectory_log_path(),
+    # ⛔ ON for this model, and that is a REQUIREMENT, not a diagnostic luxury. This is the
+    # control the next set of experiments is measured against, and a control nobody can look
+    # at is not a control. Things have been caught by eyeballing these plots that no metric
+    # and no test in this repository captured — which is the whole argument for the key, and
+    # the reason it is not left at its `False` default (config_initializer.py:436).
+    #
+    # It is NOT free, and the cost is per-WINDOW rather than per-run: views-hydranet calls
+    # `viz.biopsy_sample` on every window ("we biopsy every window to verify geometry and
+    # variety", training_engine.py:1755), and `biopsy_loss_curves` plus one
+    # `biopsy_feature_dossier` per target on every lesson (:1884, :1896). At 300 lessons x
+    # `windows_per_lesson` that is thousands of `savefig(dpi=100)` calls and thousands of
+    # distinct PNGs — the filenames carry lesson and window, so they accumulate rather than
+    # overwrite. The wall-clock and byte cost are measured on a `--rehearsal` run BEFORE the
+    # 300-lesson control is launched; do not restate them here from a guess.
+    #
+    # ⚠️ Two things a future reader needs that are not visible from this line:
+    #   1. The plots do NOT land under $OUT. `VisualDiagnostics.__init__` sets
+    #      `save_dir = f"reports/plots/diagnostics/{ts}"` — RELATIVE, and the pod trains from
+    #      `$REPO/models/<model>` (pod_run_model.sh:371), so they land in the ephemeral clone,
+    #      which the guide's rsync of `$ROOT/deliver/<model>/` does not carry. They are pulled
+    #      separately and deliberately. This is C-161's shape; it is handled by the pull, not
+    #      by this key.
+    #   2. matplotlib is an OPTIONAL `viz` extra of views-hydranet
+    #      (METADATA: `Requires-Dist: matplotlib (>=3.8,<4) ; extra == "viz"`) and
+    #      pod_run_model.sh's install line does not request it. It is present only
+    #      TRANSITIVELY — verified 3.11.2 in the venv that script builds, 2026-10-25. If a
+    #      future resolution drops it, `_load_mpl()` raises mid-training, after the data pull.
+    #      The rehearsal run is what proves it present before the expensive run relies on it.
+    'diagnostic_visualizations': True,
     'output_distribution': 'nb',
     'forecast_composition': 'soft_gate',
     'freeze_multitask_balancer': True,
