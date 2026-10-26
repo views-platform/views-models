@@ -181,6 +181,13 @@ def get_hp_config():
     'trajectory_log_path': _trajectory_log_path(),
     'output_distribution': 'nb',
     'forecast_composition': 'soft_gate',
+    # The #607 structure-penalty arm: ONE key off the 2026-10-25 control (git c8ae1803).
+    # 0.416904 is re-derived on THIS vehicle (`nb`) over all three regression targets --
+    # the prereg's 8.89624 is void three ways (derived on amber_kestrel's `truncated_nb`,
+    # a superseded v1 script, and gradient-matched against one of the three targets that
+    # training_engine.py sums over). views-hydranet 0.1.7 reads it at :1325 and applies it
+    # at :1127-1128; at 0.0 the term is a byte-identical no-op.
+    'struct_penalty_weight': 0.416904,
     'freeze_multitask_balancer': True,
     'freeze_recurrent': 'cell',
     # #484 (views-hydranet 0.1.1): a CPU device is a hard stop, not a banner. A fresh install
