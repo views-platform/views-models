@@ -33,7 +33,6 @@ import subprocess
 import pytest
 
 from packaging.requirements import InvalidRequirement, Requirement
-from packaging.version import Version
 
 pytestmark = pytest.mark.green
 
@@ -120,26 +119,19 @@ DEFERRED_PACKAGES: dict[str, str] = {
         "TRIGGER: #509 raising the remaining 41 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
-    "views-pipeline-core": (
-        "#595/#594: nineteen declarations are at >=3.2.0,<4.0.0 — epic #595's sixteen members, "
-        "its two S3 ensembles (chrome_box, chrome_crate), and rusty_bucket — while TWELVE "
-        "ensembles remain at >=3.0.0,<4.0.0. The higher floor is LOAD-BEARING and the lower one "
-        "is the defect: views-baseline 1.0.2 declares views-pipeline-core>=3.0.0, below the "
-        "3.2.0 that can read configs/config_maturity.py, so an environment holding exactly "
-        "3.0.0 satisfies the range, the launcher upgrades nothing, and the run dies on a "
-        "missing config_deployment.py. That is what broke Hop A on 2026-10-22 (#594), which is "
-        "why those sixteen declare the package directly instead of inheriting it. Every one of "
-        "the twelve carries configs/config_maturity.py, so every one of them carries that trap "
-        "latently. "
-        "⛔ So this divergence is NOT unified by lowering the nineteen. Raising the twelve is "
-        "the right fix — CI already installs 3.3.0 (run_tests.yml:38), so nothing blocks it but "
-        "someone owning those files. rusty_bucket was raised in #598 on Simon's explicit "
-        "instruction because it is the live CRAF'd delivery source and the trap was real there; "
-        "the remaining twelve are filed separately. "
-        "TRIGGER: the twelve remaining ensemble requirements.txt files reaching >=3.2.0 — at "
-        "which point this entry is deleted, not amended."
-    ),
 }
+
+# ⛔ `views-pipeline-core` was the second entry above until #635, and it is gone rather than
+# amended, which is what its own TRIGGER instructed. The divergence it described — nineteen
+# declarations at >=3.2.0 against twelve ensembles at >=3.0.0 — no longer exists: all 31 are
+# at >=3.2.0,<4.0.0, so `test_a_package_is_declared_the_same_way_everywhere` now covers the
+# package under the general rule and needs no exemption.
+#
+# The FLOOR did not stop mattering when the divergence did. #594's trap is a property of
+# every one of those sources, not of the gap between them: each carries
+# configs/config_maturity.py, which only pipeline-core >=3.2.0 can find. That property is now
+# asserted directly by test_every_pipeline_core_declaration_is_at_the_3_2_0_floor below,
+# which is the guard the deleted entry's reason paragraph used to carry in prose.
 
 # pip accepts a bare VCS URL as a requirements.txt line; PEP 508 does not, because
 # such a line names no package. `apis/un_fao/requirements.txt` uses that form. It is
@@ -201,14 +193,19 @@ def test_every_file_ends_with_a_newline():
 
 
 def test_every_pipeline_core_declaration_keeps_its_upper_bound():
-    """The hole the `views-pipeline-core` deferral opens, closed explicitly.
+    """Kept deliberately after #635 deleted the deferral it used to compensate for.
 
-    A DEFERRED_PACKAGES entry also exempts the package from
-    `test_no_dependency_is_declared_without_an_upper_bound`, so while that entry stands
-    nothing above would notice `<4.0.0` being dropped from a pipeline-core line — and a major
-    release would then install itself on the next monthly run. This rule is narrower than the
-    one it compensates for and survives the deferral, which is the pattern
-    `views-datafactory`'s entry already documents for itself.
+    While `views-pipeline-core` sat in DEFERRED_PACKAGES it was exempt from
+    `test_no_dependency_is_declared_without_an_upper_bound`, and this narrower rule was the
+    only thing that would notice `<4.0.0` being dropped from a pipeline-core line — a major
+    release would otherwise install itself on the next monthly run. #635 removed that entry,
+    so the general rule covers the package again and this one is now redundant.
+
+    ⛔ It stays anyway, because the redundancy is conditional on an absence: re-adding a
+    `views-pipeline-core` entry to DEFERRED_PACKAGES for any future reason silently reopens
+    the hole, and whoever adds it will be thinking about floors, not ceilings. A guard that
+    costs eight lines and survives the exemption is cheaper than rediscovering why it was
+    written. `views-datafactory`'s entry documents the same pattern for itself.
     """
     unbounded = []
     for name, number, req in _declarations():
@@ -222,67 +219,69 @@ def test_every_pipeline_core_declaration_keeps_its_upper_bound():
     )
 
 
-def test_the_pipeline_core_deferral_still_describes_reality():
-    """⛔ The deferral's trigger is a COUNT, and acting on a stale count deletes a live
-    exemption — the failure mode `views-datafactory`'s entry records against itself.
+def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
+    """#594's trap, asserted as a property of each source rather than of a divergence.
 
-    Asserted rather than trusted: TWELVE declarations at the 3.0.0 floor, NINETEEN at 3.2.0.
-    When the twelve are raised the divergence is gone and this test fails, which is the
-    signal to delete the entry.
+    Every source that declares `views-pipeline-core` carries `configs/config_maturity.py`,
+    and only pipeline-core >=3.2.0 can find that file; below it the loader looks for a
+    `configs/config_deployment.py` none of them has. views-baseline 1.0.2 floors the package
+    at >=3.0.0, so an environment holding exactly 3.0.0 satisfies `>=3.0.0`, the launcher
+    upgrades nothing, and the run dies on the missing file. That is what broke Hop A on
+    2026-10-22 (#594). #635 brought the last twelve ensembles up, so the floor is now uniform
+    and this test replaces `test_the_pipeline_core_deferral_still_describes_reality`.
 
-    13/16 -> 12/19 in #598: epic #595's two S3 ensembles were born at 3.2.0 rather than
-    copying a floor this very entry calls the defect, and rusty_bucket moved across with
-    them.
+    ⛔ **The thirty-one are pinned BY NAME, because a count cannot survive a compensating
+    swap.** That is not a hypothesis: under the predecessor of this test, dropping
+    `models/ashen_sparrow` to `>=3.0.0` **and** raising `ensembles/skinny_love` to `>=3.2.0`
+    held both counts at 12 and 19 exactly, left the whole suite green, and put a load-bearing
+    member on the floor its own requirements.txt calls "what broke Hop A" — while the test
+    reported that the deferral "still describes reality" (C-182).
 
-    ⛔ **The nineteen are pinned BY NAME, because a count cannot survive a compensating
-    swap.** Dropping `models/ashen_sparrow` to `>=3.0.0` **and** raising
-    `ensembles/skinny_love` to `>=3.2.0` keeps 12 and 19 exactly, left the whole suite
-    green, and put one of the sixteen load-bearing members on the floor its own
-    requirements.txt comment calls "what broke Hop A on 2026-10-22" — while this test
-    reported that the deferral "still describes reality".
+    Keying the census by specifier was tried first and does NOT close it: it pins which
+    *specifier* holds which count, while the swap moves which *file* holds which floor, and
+    the counts are unchanged either way. Only the identities close it. A fix for a surviving
+    mutation is a hypothesis until the mutation is re-run against it.
 
-    Keying the count dict by specifier (`{">=3.2.0,…": 19}` instead of
-    `sorted(values) == [12, 19]`) does NOT fix that, and was tried first: it pins which
-    *specifier* holds which count, while the swap moves which *file* holds which floor,
-    and both counts are unchanged either way. Only the identities close it. The docstring
-    above already claimed these nineteen by name — "epic #595's sixteen members, its two
-    S3 ensembles, and rusty_bucket" — so this asserts the sentence rather than its length.
-    The twelve at the lower floor stay a count: they are the open debt this entry exists
-    to retire, they are named in DEFERRED_PACKAGES, and any of them *rising* is the
-    trigger firing correctly.
+    Two assertions, and neither is redundant. The name set catches a source leaving the
+    census or joining it unreviewed — a *smaller* census reports fewer passes, not a failure,
+    which is C-182's other half. The single-key census catches a declaration drifting to a
+    different specifier, and a second pipeline-core line appearing inside one file.
     """
-    #: The nineteen declarations whose >=3.2.0 floor is load-bearing (#594): epic #595's
-    #: sixteen members, its two S3 ensembles, and rusty_bucket. Each can read
-    #: configs/config_maturity.py only at >=3.2.0.
-    LOAD_BEARING = {f"models/{stem}_{suffix}"
-                    for stem in ("ashen", "brisk", "candid", "dusky",
-                                 "eager", "faint", "gentle", "humble")
-                    for suffix in ("sparrow", "condor")} | {
-        "ensembles/chrome_box", "ensembles/chrome_crate", "ensembles/rusty_bucket",
+    #: Every source that declares views-pipeline-core directly: epic #595's sixteen members
+    #: and all fifteen ensembles. Each can read configs/config_maturity.py only at >=3.2.0.
+    #: A new source declaring the package belongs here as a reviewed edit, not silently.
+    DECLARES_PIPELINE_CORE = {f"models/{stem}_{suffix}"
+                              for stem in ("ashen", "brisk", "candid", "dusky",
+                                           "eager", "faint", "gentle", "humble")
+                              for suffix in ("sparrow", "condor")} | {
+        f"ensembles/{name}" for name in (
+            "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
+            "golden_hour", "pink_ponyclub", "rude_boy", "rusty_bucket", "skinny_love",
+            "stellar_horizon", "synthetic_chant", "synthetic_choir", "synthetic_chorus",
+            "white_mustang",
+        )
     }
 
     floors: dict[str, int] = {}
-    at_high_floor = set()
+    declaring = set()
     for name, _number, req in _declarations():
         if req.name != "views-pipeline-core" or req.url:
             continue
         floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
-        if any(s.operator == ">=" and Version(s.version) >= Version("3.2.0")
-               for s in req.specifier):
-            at_high_floor.add(str(Path(name).parent))
+        declaring.add(str(Path(name).parent))
 
-    assert at_high_floor == LOAD_BEARING, (
-        "the declarations at the >=3.2.0 floor are not the nineteen this entry names.\n"
-        f"  dropped to a lower floor : {sorted(LOAD_BEARING - at_high_floor)}\n"
-        f"  raised without a reason  : {sorted(at_high_floor - LOAD_BEARING)}\n"
-        "A member on >=3.0.0 is #594's trap: views-baseline floors pipeline-core at "
-        ">=3.0.0, an environment holding exactly 3.0.0 satisfies that range, the launcher "
-        "upgrades nothing, and the run dies on a missing config_deployment.py."
+    assert declaring == DECLARES_PIPELINE_CORE, (
+        "the sources declaring views-pipeline-core are not the thirty-one named here.\n"
+        f"  stopped declaring it : {sorted(DECLARES_PIPELINE_CORE - declaring)}\n"
+        f"  started unreviewed   : {sorted(declaring - DECLARES_PIPELINE_CORE)}\n"
+        "A source that stops declaring the package inherits views-baseline's >=3.0.0 floor "
+        "and carries #594's trap again (C-116). A new one needs the floor and this name."
     )
-    # `str(SpecifierSet)` normalises the clause order, hence `<4.0.0,>=3.0.0`.
-    assert floors == {"<4.0.0,>=3.0.0": 12, "<4.0.0,>=3.2.0": 19}, (
-        "the views-pipeline-core floor split is no longer 12 at >=3.0.0 and 19 at "
-        f">=3.2.0, so DEFERRED_PACKAGES' reason and trigger are stale: {floors}"
+    # `str(SpecifierSet)` normalises the clause order, hence `<4.0.0,>=3.2.0`.
+    assert floors == {"<4.0.0,>=3.2.0": 31}, (
+        "views-pipeline-core is no longer declared as >=3.2.0,<4.0.0 by all thirty-one "
+        f"sources: {floors}. Anything below >=3.2.0 cannot find configs/config_maturity.py "
+        "and dies on a missing config_deployment.py (#594)."
     )
 
 

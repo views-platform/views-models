@@ -1,1 +1,9 @@
-views-pipeline-core>=3.0.0,<4.0.0
+# Declared DIRECTLY and floored at >=3.2.0, rather than inherited. This ensemble carries
+# configs/config_maturity.py, and only pipeline-core >=3.2.0 can find it: below that the
+# loader looks for configs/config_deployment.py, which this ensemble does not have.
+# views-baseline 1.0.2 floors pipeline-core at >=3.0.0, so an environment holding exactly
+# 3.0.0 satisfies that range, the launcher upgrades nothing, and the run dies on a missing
+# config_deployment.py. That is what broke Hop A on 2026-10-22 (views-models#594), and
+# C-116 is why inheriting a co-tenant's floor is not good enough. #635 brought every
+# ensemble declaration to this floor, so no ensemble differs from another any more.
+views-pipeline-core>=3.2.0,<4.0.0
