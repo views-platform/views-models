@@ -15,6 +15,7 @@ Green tests (config-level) always run.
 Red tests (output-level) skip when prediction outputs don't exist.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -148,15 +149,35 @@ def _discover_pf_models():
 
 
 def _discover_pfe_ensembles():
-    """Return names of ensembles that use PredictionFrameEnsembleManager."""
+    """Return names of ensembles that INSTANTIATE PredictionFrameEnsembleManager.
+
+    ⛔ Read from the AST, not with `"PredictionFrameEnsembleManager" in text`. Discovery
+    by substring means a comment naming the class holds an ensemble inside this file's
+    scope, and deleting that comment takes it out — silently, because a smaller census
+    reports fewer passing cases, not a failure. That is exactly what happened: switching
+    `chrome_box` to the DataFrame `EnsembleManager`, which refuses its `pgm_cm`
+    reconciliation, AND deleting the ⛔ comment in its main.py that warns against doing so
+    left the whole suite green with five cases silently uncollected (epic #595 S3 guard
+    audit, 2026-10-27).
+
+    A comment has no AST node, so it can no longer hold an ensemble in scope. Discovery is
+    still by what main.py says — this file's premise is that nothing is hardcoded — but
+    now by what it says as *code*.
+    """
     pfe = []
     for d in sorted(ENSEMBLES_DIR.iterdir()):
         main_py = d / "main.py"
         if not main_py.exists():
             continue
-        text = main_py.read_text()
-        if "PredictionFrameEnsembleManager" in text:
-            pfe.append(d.name)
+        tree = ast.parse(main_py.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "PredictionFrameEnsembleManager"
+            ):
+                pfe.append(d.name)
+                break
     return pfe
 
 

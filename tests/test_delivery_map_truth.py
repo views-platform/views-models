@@ -135,36 +135,50 @@ class TestOfflineClaims:
         )
 
     def test_the_reconciling_ensembles_are_what_the_map_says(self):
-        """⛔ Finds them by `"reconciliation":` with ANY non-None value, not by the literal
-        `"pgm_cm_point"`. Keyed on that literal, this guard was blind to the first ensemble
-        declaring `"pgm_cm"` — epic #595's `chrome_box` — so the map would not have been
-        required to mention the reconciling ensemble that actually delivers. pipeline-core
-        has deprecated `pgm_cm_point`, so the old key was retiring under the guard.
+        """The map's list of who reconciles against whom, compared as a SET against the
+        configs — both directions.
+
+        ⛔ Finds them by LOADING each config, not by matching its source text. This read
+        `re.search(r'"reconciliation":\\s*(?!None)[\\'"]', ...)`, which requires a
+        double-quoted key, so rewriting the line as `'reconciliation': 'pgm_cm'` — the
+        config still loads identically — dropped `chrome_box` out of `declared` and the
+        map was then free to omit it. That is the **same defect class as C-127, recorded
+        four lines below in this very file** ("A double-quote-only pattern matched 47 of
+        128 files"). The sibling guard in that class counts both quote styles; this one
+        now does not have a style to get wrong, because it asks Python.
+
+        ⛔ And both directions. Checking only that every declared pairing appears in the
+        text let the map *claim* pairings that do not exist: inventing
+        `white_mustang → pink_ponyclub` and `rusty_bucket → cruel_summer` left it green.
+        A reader of this map is precisely who a wrong partner reaches.
         """
-        declared = sorted(
-            path.parent.parent.name
-            for path in (REPO_ROOT / "ensembles").glob("*/configs/config_meta.py")
-            if re.search(
-                r'"reconciliation":\s*(?!None)[\'"]',
-                path.read_text(encoding="utf-8"),
-            )
-        )
-        text = _map_text()
-        for name in declared:
-            partner = load_config_module(
-                REPO_ROOT / "ensembles" / name / "configs" / "config_meta.py"
-            ).get_meta_config().get("reconcile_with")
-            # ⛔ The PAIRING, not the bare name. Every reconciling ensemble's name already
-            # appears 2-4 times in this document for unrelated reasons, so `name in text`
-            # was satisfiable by any passing mention — a mutation that deleted the
-            # `chrome_box → chrome_crate` entry entirely left the old form green. What the
-            # map is supposed to record is which ensemble reconciles against WHICH, so
-            # that is what is asserted.
+        declared = {}
+        for path in sorted((REPO_ROOT / "ensembles").glob("*/configs/config_meta.py")):
+            meta = load_config_module(path).get_meta_config()
+            if not meta.get("reconciliation"):
+                continue
+            name = path.parent.parent.name
+            partner = meta.get("reconcile_with")
             assert partner, f"{name} declares reconciliation but no reconcile_with partner"
-            assert f"{name} → {partner}" in text, (
-                f"the map does not record the pairing '{name} → {partner}'. An ensemble "
-                f"reconciling against the wrong partner is the defect this documents."
-            )
+            declared[name] = partner
+
+        # Scoped to the one bullet whose job is this list, so that an `X → Y` written
+        # anywhere else in the document — the shape/convergence bullets use plenty of
+        # arrows — neither satisfies nor breaks it.
+        text = _map_text()
+        start = text.index("- **Which ensembles reconcile, and against what:**")
+        clause = text[start:text.index("\n- **", start + 1)]
+        written = set(re.findall(r"([a-z_]+) → ([a-z_]+)", clause))
+
+        assert written == set(declared.items()), (
+            "the map's reconciliation bullet does not match the configs.\n"
+            f"  configs declare : {sorted(declared.items())}\n"
+            f"  the map records : {sorted(written)}\n"
+            f"  only in the map : {sorted(written - set(declared.items()))}\n"
+            f"  only in configs : {sorted(set(declared.items()) - written)}\n"
+            "An ensemble reconciling against the wrong partner is the defect this "
+            "documents, so a pairing the map invents is as wrong as one it omits."
+        )
 
     def test_no_source_is_a_buried_literal_in_any_postprocessor(self):
         """#347 moved it. The map used to call that line 'the smell, exactly'.

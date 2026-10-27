@@ -9,7 +9,7 @@ Ensembles have different required config keys than individual models:
 
 Ensembles do NOT have config_sweep.py or config_queryset.py.
 """
-import re
+import ast
 
 import pytest
 
@@ -35,6 +35,23 @@ REQUIRED_ENSEMBLE_CONFIG_FILES = [
 
 VALID_MATURITIES = {"candidate", "graduate", "retired"}
 VALID_DEPLOYMENT_STATUSES = {"shadow", "deployed", "baseline", "deprecated"}
+
+#: Ensembles that declare a reconciliation mode pipeline-core has deprecated. ⛔ This set
+#: MAY ONLY SHRINK. Both entries predate the deprecation and migrating them is
+#: pipeline-core's own stated removal path, tracked separately — they are listed by name
+#: so that the rule applies to everything else, rather than the rule being dropped to
+#: accommodate them. Adding a name here is declaring new debt and needs the issue to go
+#: with it.
+RECONCILIATION_DEPRECATION_DEBT = frozenset({"white_mustang", "skinny_love"})
+
+
+def _called_name(call):
+    """The name being called in an `ast.Call`, or None for a shape we do not read."""
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
 
 
 # ── Structure ──────────────────────────────────────────────────────────
@@ -257,20 +274,54 @@ class TestEnsembleDependencies:
         reconciliation = meta.get("reconciliation")
         if not reconciliation:
             pytest.skip(f"{ensemble_dir.name} declares no reconciliation")
-        main_text = (ensemble_dir / "main.py").read_text()
-        # ⛔ The ASSIGNMENT, not the mere presence of the name. `"build_reconciler" in
-        # main_text` is satisfied by the `from reconciliation import ...` line alone, so a
-        # mutation to `reconciler = None` left the old form green while injecting nothing —
-        # exactly the RECONCILER_NOT_INJECTED failure this guard exists to pre-empt. All
-        # three reconciling ensembles use this one shape, so pinning it costs nothing.
-        assert re.search(r"reconciler\s*=\s*build_reconciler_for_run\s*\(", main_text), (
+        # ⛔ Read from the AST, not from the source text. Two text forms of this guard
+        # have now been defeated, both in the same way — a pattern cannot tell whether
+        # what it matched is code:
+        #
+        #   `"build_reconciler" in main_text`              — satisfied by the import line.
+        #   `re.search(r"reconciler\s*=\s*build_...\(")`   — satisfied by a `#` comment,
+        #                                                    with `reconciler = None` live.
+        #
+        # Widening a string pattern replaced one evasion with another in the same class,
+        # which is the lesson: a tighter string is not a different kind of guard. A
+        # comment has no AST node, so the first is gone, and the position check closes
+        # the other half — moving the build BELOW the manager call is a
+        # use-before-assignment at run time, and the text form could not see order.
+        tree = ast.parse((ensemble_dir / "main.py").read_text(encoding="utf-8"))
+        builds = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "reconciler" for t in node.targets)
+            and isinstance(node.value, ast.Call)
+            and _called_name(node.value) == "build_reconciler_for_run"
+        ]
+        assert builds, (
             f"{ensemble_dir.name} declares reconciliation={reconciliation!r} but its "
-            f"main.py never assigns a reconciler from build_reconciler_for_run(...) — "
-            f"importing the name is not wiring it. See EPIC #172 / ADR-014."
+            f"main.py never assigns `reconciler = build_reconciler_for_run(...)` as code "
+            f"— importing the name, or leaving the call in a comment, is not wiring it. "
+            f"See EPIC #172 / ADR-014."
         )
-        assert "reconciler=reconciler" in main_text, (
-            f"{ensemble_dir.name} builds a reconciler but does not pass it to its manager "
-            f"(expected reconciler=reconciler) — it will fail loud at runtime."
+        injections = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and any(
+                kw.arg == "reconciler"
+                and isinstance(kw.value, ast.Name)
+                and kw.value.id == "reconciler"
+                for kw in node.keywords
+            )
+        ]
+        assert injections, (
+            f"{ensemble_dir.name} builds a reconciler but no call passes "
+            f"reconciler=reconciler to its manager — it will fail loud at runtime."
+        )
+        assert min(n.lineno for n in builds) < min(n.lineno for n in injections), (
+            f"{ensemble_dir.name} passes reconciler=reconciler on line "
+            f"{min(n.lineno for n in injections)} but only builds it on line "
+            f"{min(n.lineno for n in builds)} — that is a use before assignment, and the "
+            f"module raises before it reconciles anything."
         )
 
     def test_a_declared_reconciliation_is_one_pipeline_core_supports(self, ensemble_dir):
@@ -296,6 +347,33 @@ class TestEnsembleDependencies:
             f"pipeline-core does not accept (supported: {sorted(supported)}). The config "
             f"would be refused at load."
         )
+
+        # ⛔ Supported is not the same set as current. `SUPPORTED_RECONCILIATION_TYPES` is
+        # `{'pgm_cm_point', 'pgm_cm'}` and `DEPRECATED_RECONCILIATION_TYPES` is
+        # `{'pgm_cm_point'}`, so the assertion above catches a TYPO and would not catch a
+        # regression: flipping `chrome_box` back to `pgm_cm_point` left the whole suite
+        # green, and that mode — per the ensemble's own config_meta — "would collapse this
+        # ensemble's 1,024 draws to a single number before reconciling".
+        deprecated = getattr(sniffer, "DEPRECATED_RECONCILIATION_TYPES", None)
+        assert deprecated is not None, (
+            "pipeline-core's sniffer no longer exposes DEPRECATED_RECONCILIATION_TYPES, "
+            "so this guard cannot see its subject and refuses rather than passing "
+            "(ADR-025). Re-point it at wherever the deprecation now lives."
+        )
+        if ensemble_dir.name in RECONCILIATION_DEPRECATION_DEBT:
+            assert reconciliation in deprecated, (
+                f"{ensemble_dir.name} is listed in RECONCILIATION_DEPRECATION_DEBT but "
+                f"declares {reconciliation!r}, which is not deprecated — if it has been "
+                f"migrated, DELETE it from that set so the exemption stops standing."
+            )
+        else:
+            assert reconciliation not in deprecated, (
+                f"{ensemble_dir.name} declares reconciliation={reconciliation!r}, which "
+                f"pipeline-core has DEPRECATED (deprecated: {sorted(deprecated)}). "
+                f"`pgm_cm_point` reconciles a point: it collapses the posterior to one "
+                f"number before reconciling, which for a distributional ensemble throws "
+                f"away the forecast. Use `pgm_cm`, the frames-native draw-aware mode."
+            )
 
     def test_declared_modelset_and_sample_counts_match_reality(self, ensemble_dir):
         """Opt-in belt-and-suspenders contract (ADR-015): an ensemble that declares

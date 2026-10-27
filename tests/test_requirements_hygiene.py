@@ -33,6 +33,7 @@ import subprocess
 import pytest
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import Version
 
 pytestmark = pytest.mark.green
 
@@ -232,14 +233,56 @@ def test_the_pipeline_core_deferral_still_describes_reality():
     13/16 -> 12/19 in #598: epic #595's two S3 ensembles were born at 3.2.0 rather than
     copying a floor this very entry calls the defect, and rusty_bucket moved across with
     them.
+
+    ⛔ **The nineteen are pinned BY NAME, because a count cannot survive a compensating
+    swap.** Dropping `models/ashen_sparrow` to `>=3.0.0` **and** raising
+    `ensembles/skinny_love` to `>=3.2.0` keeps 12 and 19 exactly, left the whole suite
+    green, and put one of the sixteen load-bearing members on the floor its own
+    requirements.txt comment calls "what broke Hop A on 2026-10-22" — while this test
+    reported that the deferral "still describes reality".
+
+    Keying the count dict by specifier (`{">=3.2.0,…": 19}` instead of
+    `sorted(values) == [12, 19]`) does NOT fix that, and was tried first: it pins which
+    *specifier* holds which count, while the swap moves which *file* holds which floor,
+    and both counts are unchanged either way. Only the identities close it. The docstring
+    above already claimed these nineteen by name — "epic #595's sixteen members, its two
+    S3 ensembles, and rusty_bucket" — so this asserts the sentence rather than its length.
+    The twelve at the lower floor stay a count: they are the open debt this entry exists
+    to retire, they are named in DEFERRED_PACKAGES, and any of them *rising* is the
+    trigger firing correctly.
     """
+    #: The nineteen declarations whose >=3.2.0 floor is load-bearing (#594): epic #595's
+    #: sixteen members, its two S3 ensembles, and rusty_bucket. Each can read
+    #: configs/config_maturity.py only at >=3.2.0.
+    LOAD_BEARING = {f"models/{stem}_{suffix}"
+                    for stem in ("ashen", "brisk", "candid", "dusky",
+                                 "eager", "faint", "gentle", "humble")
+                    for suffix in ("sparrow", "condor")} | {
+        "ensembles/chrome_box", "ensembles/chrome_crate", "ensembles/rusty_bucket",
+    }
+
     floors: dict[str, int] = {}
-    for _name, _number, req in _declarations():
-        if req.name == "views-pipeline-core" and not req.url:
-            floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
-    assert sorted(floors.values()) == [12, 19], (
-        "the views-pipeline-core floor split is no longer 12/19, so DEFERRED_PACKAGES' "
-        f"reason and trigger are stale: {floors}"
+    at_high_floor = set()
+    for name, _number, req in _declarations():
+        if req.name != "views-pipeline-core" or req.url:
+            continue
+        floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
+        if any(s.operator == ">=" and Version(s.version) >= Version("3.2.0")
+               for s in req.specifier):
+            at_high_floor.add(str(Path(name).parent))
+
+    assert at_high_floor == LOAD_BEARING, (
+        "the declarations at the >=3.2.0 floor are not the nineteen this entry names.\n"
+        f"  dropped to a lower floor : {sorted(LOAD_BEARING - at_high_floor)}\n"
+        f"  raised without a reason  : {sorted(at_high_floor - LOAD_BEARING)}\n"
+        "A member on >=3.0.0 is #594's trap: views-baseline floors pipeline-core at "
+        ">=3.0.0, an environment holding exactly 3.0.0 satisfies that range, the launcher "
+        "upgrades nothing, and the run dies on a missing config_deployment.py."
+    )
+    # `str(SpecifierSet)` normalises the clause order, hence `<4.0.0,>=3.0.0`.
+    assert floors == {"<4.0.0,>=3.0.0": 12, "<4.0.0,>=3.2.0": 19}, (
+        "the views-pipeline-core floor split is no longer 12 at >=3.0.0 and 19 at "
+        f">=3.2.0, so DEFERRED_PACKAGES' reason and trigger are stale: {floors}"
     )
 
 
