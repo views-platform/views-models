@@ -67,15 +67,17 @@ Clusters are a `review-rr` extension; [ADR-010](../docs/ADRs/010_technical_risk_
 
 ### Cluster G — why it outranks the rest
 
-**Thirty entries, spanning five years and every instrument class this repository has.** Every one produced a *confident* answer about something it could not see, and in every case the answer was recorded and acted on.
+**Thirty-three entries, spanning five years and every instrument class this repository has.** Every one produced a *confident* answer about something it could not see, and in every case the answer was recorded and acted on.
 
 The generalisable rule the cluster yields: **a check whose input is out of scope must fail, not pass.** "Nothing matched" and "I could not look" must never render as the same verdict. The mechanism of the fix is per-instrument but always the same shape — a positive control that the check can see *something* before an empty result is allowed to mean anything.
 
 ✅ **The rule is now an ADR: [ADR-025](../docs/ADRs/025_a_check_that_cannot_see_must_refuse.md)** (Accepted 2026-10-26), which defines three verdicts — PASS, FAIL, **UNVERIFIED** — and makes unverified dominate any aggregate. It is worked as epic **#608**, tracker **#624**.
 
-#### ⚠️ Widened 2026-10-26, from 13 members to 30
+#### ⚠️ Widened twice on 2026-10-26 — 13 → 30 → 33 members
 
-The 2026-10-25 pass tagged the thirteen entries found while looking for the root. A membership sweep (#610) then found **seventeen more that match the same root cause** — twelve carrying no cluster tag at all, and six sitting in Cluster A. The sweep's reasoning is recorded per entry. ⚠️ **The honest consequence is that the 2026-10-25 framing understated this cluster by more than half.**
+The 2026-10-25 pass tagged the thirteen entries found while looking for the root. A membership sweep (#610) then found **seventeen more that match the same root cause** — **eleven** carrying no cluster tag at all (C-26, C-34, C-95, C-104, C-109, C-119, C-135, C-138, C-146, C-148, C-157) and **six** sitting in Cluster A (C-114, C-133, C-165, C-166, C-167, C-172), taking it to **30**. The `/falsify` pass later the same day added **C-179, C-180 and C-181**, taking it to **33**. The sweep's reasoning is recorded per entry. ⚠️ **The honest consequence is that the 2026-10-25 framing understated this cluster by more than half.**
+
+⚠️ **The breakdown above previously read "twelve … and six", which is eighteen, against a total of seventeen.** Eleven is the number the per-entry tags carry, and they are the authority. Caught by review of PR #628 — an arithmetic slip inside the section whose whole job is making this cluster countable.
 
 #### The sub-groups — because a flat list of thirty is not a unit of work
 
@@ -86,9 +88,9 @@ The members share a *mechanism*, not a *fix*. Grouping them by **instrument clas
 | **the test suite** | C-92, C-104, C-138, C-146, C-148 | the dependency that vanished, the runtime behaviour, the re-export, the constructed object, the reader that is not a comparison |
 | **CI and merge gates** | C-113, C-119, C-135, C-142 | the command's exit status, the install's real content, the failing upload, the base of the diff |
 | **filters and censuses that narrow silently** | C-26, C-34, C-95, C-109 | the broken model, the model with no requirements, the unmapped feature, everything past row 25 |
-| **the pod and retrieval chain** | C-161, C-168 *(root)*, C-169, C-170, C-172, C-174 | the other half of the posterior, everything outside `$OUT`, the other mount, the four classes the library writes elsewhere, the riskiest stage, the whole filesystem the repo is not on |
+| **the pod and retrieval chain** | C-161, C-168 *(root)*, C-169, C-170, C-172, C-174, C-179, C-181 | the other half of the posterior, everything outside `$OUT`, the other mount, the four classes the library writes elsewhere, the riskiest stage, the whole filesystem the repo is not on, the second output directory the sync never entered, the mounts a refusal cannot distinguish from an opaque one |
 | **config reads and declarations** | C-112, C-157, C-165, C-166, C-167, C-175 | the exported environment, the consumer, the values behind the key set, every subject but the first, the library version, the file that wins the merge |
-| **the audit instruments themselves** | C-159, C-160, C-164, C-176 | whether the mutation applied, whether the citation says what it claims, legitimate input, the code that would have written the value |
+| **the audit instruments themselves** | C-159, C-160, C-164, C-176, C-180 | whether the mutation applied, whether the citation says what it claims, legitimate input, the code that would have written the value, whether a hash was computed at all |
 | **resolved — kept as precedent of recurrence** | C-114, C-133 | the rejected key, the copy the manager actually reads |
 
 #### ⛔ C-106 is this cluster's root one layer down, and is not a member

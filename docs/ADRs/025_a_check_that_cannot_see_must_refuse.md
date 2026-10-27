@@ -15,11 +15,21 @@ not contradict), [ADR-020](020_errors_must_descend.md) (a refusal still has to n
 
 ## 0. ⛔ Where this ADR's citations resolve
 
-✅ **The register citations resolve.** `reports/technical_risk_register.md` on `development` now runs
-to **C-181** with `Open 93` and carries the `Cluster G` section, so the root **C-168**, every
-`C-16x`/`C-17x` member cited below, and the figure *ninety open concerns* can all be followed from
-the integration branch. ⚠️ **Read the next paragraph anyway** — this was not true when the ADR was
-written, and one citation is still unresolvable.
+✅ **The register's entry citations resolve.** `reports/technical_risk_register.md` on `development`
+now runs to **C-181** with `Open 93` and carries the `Cluster G` section, so the root **C-168** and
+every `C-16x`/`C-17x` member cited below can be followed from the integration branch.
+
+⛔ **Two figures in this ADR do not, and are marked as-written rather than silently left to read as
+current.** §1's *"fourteen of the register's ninety open concerns"* is the 2026-10-25 state. The
+register now reads **`Open 93`**, and **Cluster G is 33 members**, not fourteen — widened twice on
+2026-10-26 (13 → 30 by #610's sweep, → 33 by the `/falsify` pass). Neither *fourteen* nor *ninety*
+resolves against any register revision that exists after this. ⚠️ They are kept because §1 is
+describing what the strategic pass found, which is what motivated the rule; **the register is the
+authority on membership, never this document.** Caught by review of PR #628 — the first draft of
+this very section claimed *ninety* could be followed, which is the defect §2.4 forbids, committed
+inside the paragraph written to confess it.
+
+⚠️ **Read the next paragraph too** — one code citation is still unresolvable.
 
 **What was wrong, and is kept here rather than quietly deleted.** When this ADR was accepted, the
 register on `development` was the 2026-10-19 revision — highest concern **C-166**, `Open 78`, **no
@@ -407,8 +417,9 @@ held to this by review, not by CI.
    (S2) is CLOSED COMPLETED (2026-10-26 00:55Z), and its result is not on `development`** — the
    membership work was done in a copy outside git and has since been landed on `development` as
    #610's residual (§0), verified a strict superset. **So the widening is now on the integration
-   branch: Cluster G is 30, not 14**, and the counts in §1 and §8 describe the cluster as this ADR
-   was written against it.
+   branch: Cluster G is 33 members, not 14** — 13 → 30 by the sweep, → 33 by the `/falsify` pass the
+   same day. The counts in §1 and §8 describe the cluster as this ADR was written against it; §0
+   marks them as-written.
 
 ---
 
