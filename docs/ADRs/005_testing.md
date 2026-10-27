@@ -66,9 +66,22 @@ freshness values, and skips with the reason on any environment failure.
 
 ## Known Gaps
 
-- Catalog generation function tests require `views_pipeline_core` (skipped in most dev environments)
-- DARTS reproducibility tests require `views_r2darts2` (skipped without it); no equivalent for stepshifter or baseline
-- Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03
+- Catalog generation function tests require `views_pipeline_core` (skipped in most dev environments).
+  ⚠️ **An instance, not an accepted gap** — a skip standing in for a verdict about the repository is
+  what [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §2.5 forbids. The skip is truthful
+  where it reports the *environment* (the package is genuinely absent); it is a defect where the
+  census it guards derives to empty and the suite still reads green. Converting these is epic #608
+  story **S5 (#613)**, which classifies all nine sites one by one.
+- DARTS reproducibility tests require `views_r2darts2` (skipped without it); no equivalent for
+  stepshifter or baseline. ⚠️ Same distinction, same story (**#613**) — see
+  [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §2.5.
+- ~~Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03~~ **Corrected
+  2026-10-27:** they are. `run_tests.yml` runs the suite on every PR, and `roster_configs_load.yml`,
+  `runtime_smoke.yml`, `cic_sync_check.yml` and `secret_scan.yml` add four more gates. ⚠️ The
+  residual is narrower and is what C-03 should now say: `run_tests.yml` installs only
+  **published** `views_pipeline_core`, so it cannot execute anything depending on an unreleased
+  symbol, and `roster_configs_load.yml` exists precisely because the HydraNet load test
+  `importorskip`s a package `run_tests.yml` does not install.
 - No static validation of queryset correctness — see Risk Register C-02
 - Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime behavior
 
