@@ -90,7 +90,13 @@ if __name__ == "__main__":
         print(f"    mean b = {bs.mean():.4f}     ⛔ σ̂_b = {sd_b:.4f}   (sd of a, for reference: {sd_a:.4f})")
         w5 = "EXCEEDED -> W-5 FIRES" if sd_b > W5_THRESHOLD else "under"
         fe = "exceeded" if sd_b > FEASIBILITY else "under"
-        print(f"    vs W-5 {W5_THRESHOLD}: {w5}        vs 0.0356 feasibility: {fe}")
+        # ⛔ Print the threshold that was actually used. This line read
+        # "vs 0.0356 feasibility: {fe}" while comparing against FEASIBILITY (0.0645), so
+        # any sigma-hat in (0.0356, 0.0645] printed "under" beside the number its own
+        # definition above marks "superseded, do not report against this". A reading true
+        # of 0.0645 attributed in the output to the retired bound is exactly the
+        # threshold-provenance error Amendment 10 exists to correct.
+        print(f"    vs W-5 {W5_THRESHOLD}: {w5}        vs feasibility {FEASIBILITY}: {fe}")
 
     print("\n" + "=" * 86)
     sds = {v: float(np.array([tabs[n][v][1] for n, _ in RUNS]).std(ddof=1)) for v in variants}

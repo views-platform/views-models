@@ -10,7 +10,12 @@ sys.path.insert(0, sys.argv[1])
 import numpy as np
 from sigma_run_to_run import bin_table, fits
 
-SP = sys.argv[1] + "/p2_results"
+# One directory for the sweep artifacts: `results/`. These three read
+# "/p2_results" while sweep_all.sh wrote there and the per-head harness and
+# version_single_variable.py both used "results" -- which is the directory that
+# actually holds the published npz. Two names for one artifact class meant a
+# regeneration left the headline single-variable test reading the stale set.
+SP = sys.argv[1] + "/results"
 # name, seed, version, weight_decay, pos_weight
 ARMS = [("amber",  42, "0.1.2", 0.1, 1.0), ("copper", 42, "0.1.3", 0.1, 2.0),
         ("silver", 42, "0.1.3", 0.1, 1.0), ("bronze", 43, "0.1.4", 0.1, 1.0),
@@ -36,7 +41,16 @@ for v in V:
     a = {n: T[n][v][0] for n, *_ in ARMS}
     old = [a["amber"], a["copper"], a["silver"]]
     new = [a["bronze"], a["cobalt"], a["indigo"]]
-    sep = "CLEAN SPLIT" if min(old) > max(new) else "NO clean split"
+    # ⛔ Two-sided. This read `min(old) > max(new)` only, so a perfectly clean separation
+    # running the OTHER way would have printed "NO clean split" -- a one-sided criterion
+    # answering a two-sided question. The docstring calls this "the check I should have run
+    # before advising the purchase"; a check that can only see one direction is half a check.
+    if min(old) > max(new):
+        sep = "CLEAN SPLIT (<=0.1.3 above)"
+    elif min(new) > max(old):
+        sep = "CLEAN SPLIT (0.1.4 above)"
+    else:
+        sep = "NO clean split"
     print(f"  {v:<17} <=0.1.3: [{', '.join(f'{x:+.4f}' for x in old)}]   "
           f"0.1.4: [{', '.join(f'{x:+.4f}' for x in new)}]   -> {sep}")
 

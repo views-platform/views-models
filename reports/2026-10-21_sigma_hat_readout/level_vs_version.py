@@ -13,7 +13,12 @@ sys.path.insert(0, sys.argv[1])
 import numpy as np
 from sigma_run_to_run import bin_table, fits
 
-SP = sys.argv[1] + "/p2_results"
+# One directory for the sweep artifacts: `results/`. These three read
+# "/p2_results" while sweep_all.sh wrote there and the per-head harness and
+# version_single_variable.py both used "results" -- which is the directory that
+# actually holds the published npz. Two names for one artifact class meant a
+# regeneration left the headline single-variable test reading the stale set.
+SP = sys.argv[1] + "/results"
 ARMS = [("silver", 42, "0.1.3", 0.1), ("bronze", 43, "0.1.4", 0.1),
         ("cobalt", 44, "0.1.4", 0.1), ("indigo", 42, "0.1.4", 0.0)]
 T = {n: fits(bin_table(f"{SP}/p2_result_{n}.npz")) for n, _, _, _ in ARMS}
@@ -43,6 +48,17 @@ print("the discriminating test: indigo shares silver's SEED but bronze/cobalt's 
 print("="*94)
 for v in V:
     a = {n: T[n][v][0] for n, _, _, _ in ARMS}
-    side = "with silver (seed)" if a["indigo"] > 0 else "with bronze/cobalt (version)"
+    # ⛔ This was `a["indigo"] > 0`, a SIGN test, standing in for the DISTANCE question
+    # the heading asks. It got the answer wrong on the committed numbers: sqrt-n gives
+    # silver +0.0222, bronze -0.4057, cobalt -0.5551, indigo -0.1010, so indigo is 0.123
+    # from silver and 0.305 from the nearer of bronze/cobalt -- it sides with the SEED,
+    # while the sign test printed "sides with bronze/cobalt (version)". That is the version
+    # attribution this readout exists to retract, manufactured by its own discriminator.
+    d_seed = abs(a["indigo"] - a["silver"])
+    d_version = min(abs(a["indigo"] - a["bronze"]), abs(a["indigo"] - a["cobalt"]))
+    side = ("with silver (seed)" if d_seed < d_version
+            else "with bronze/cobalt (version)" if d_version < d_seed
+            else "EQUIDISTANT -- this test cannot separate them")
     print(f"  {v:<17} silver {a['silver']:+.4f} | bronze {a['bronze']:+.4f} "
-          f"cobalt {a['cobalt']:+.4f} | indigo {a['indigo']:+.4f}  -> indigo sides {side}")
+          f"cobalt {a['cobalt']:+.4f} | indigo {a['indigo']:+.4f}  -> indigo sides {side}"
+          f"   (|d_seed|={d_seed:.4f} vs |d_version|={d_version:.4f})")

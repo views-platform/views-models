@@ -4,6 +4,8 @@
 # rclone-verified both ways). Committing them would bloat the repo permanently for no recoverable
 # information. harness_provenance.sha256 pins which harness produced them.
 results/
+p2_results/   # the older name for results/; kept so a stale
+              # checkout or an older sweep_all.sh cannot commit 99 MB
 sweep_iso/
 __pycache__/
 

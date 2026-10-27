@@ -112,7 +112,7 @@ variance cell. The two readings move σ̂ by up to 19%. Both are reported; neith
 **Common support over the three cell members only (12 bins; 5 with n≥1000)** — the clean cell,
 seeds 42/43/44 all on 0.1.4, `silver014` in place of `silver`:
 
-| estimator | b per seed (42, 43, 44) | σ̂_b | vs W-5 0.0601 | vs 0.0356 |
+| estimator | b per seed (42, 43, 44) | σ̂_b | vs W-5 0.0601 | vs ~~0.0356~~ (retired — see below) |
 |---|---|---|---|---|
 | n>=1000 | 1.1462, 1.0764, 1.0879 | 0.0374 | under | **over** |
 | all_bins | 1.1771, 0.9733, 1.0003 | **0.1107** | **OVER** | **over** |
@@ -162,7 +162,10 @@ thresholds but pins neither the weighting nor the bin filter. I am not selecting
 reads cleaner.
 
 **The same-version pair is under both thresholds under every estimator** (0.0002–0.0196 vs 0.0601
-and 0.0356) — but on **1 df**, which is as thin as an estimate gets.
+and ~~0.0356~~ → **0.0645**, the live pooled bound) — but on **1 df**, which is as thin as an
+estimate gets. ⚠️ Here the substitution is harmless in direction — 0.0645 > 0.0356, so "under
+0.0356" implies "under 0.0645" — but the number is cited live and A10 retired it, so it is
+corrected rather than left for a reader to carry forward.
 
 ## The confound — raised, then measured, then dismissed
 
@@ -243,8 +246,33 @@ criterion.** `silver014` reproduced the zero-crossing exactly — 190/190 identi
 identical gate cube. Taking the three questions in order:
 
 1. **σ̂ at df=2 with no version confound** — 0.0374 / 0.1107 / 0.0463. Identical to the
-   as-launched figures, because the confound carried no signal. **W-5 remains a NULL**; the
-   **0.0356 feasibility bound is exceeded robustly.**
+   as-launched figures, because the confound carried no signal. **W-5 remains a NULL**; and
+   ~~the **0.0356 feasibility bound is exceeded robustly**~~.
+
+   ⛔ **CORRECTED 2026-10-27 — the second clause does not survive its own threshold, and the
+   verdict changes.** `0.0356` is retired by prereg Amendment 10 (`:1018`), which this
+   document already states at §"The confound" above and then contradicted here, in the
+   section that states the outcome. Re-read against the live bounds:
+
+   | bound | status | exceeded by |
+   |---|---|---|
+   | 0.0356 | ⛔ retired by A10 — *not a live reading* | **3 of 3** estimators |
+   | **0.0645** pooled (`prereg:1015`, n=2 vs n=3, df=3) | live, the default reading | **1 of 3** — only unweighted (0.1107) |
+   | **0.0477** conservative (`prereg:1016`, 3 controls, df=2) | live | **1 of 3** — only unweighted (0.1107) |
+
+   So *"exceeded robustly"* was true **only of the retired bound**. Against either live
+   bound the excess is **carried by one estimator out of three** and is therefore a choice
+   of weighting, exactly as this document says of W-5 four paragraphs earlier. ⚠️ **What
+   that means for the pre-registered feasibility criterion is the views-hydranet seat's
+   call, not this one's** — this seat measures and hands the numbers over
+   (`2026-10-18_weight_decay_arms_prereg.md` is theirs). The measurement is stated; the
+   outcome is not restated here.
+
+   ⛔ The mechanism is worth more than the number: the retired threshold was still
+   hardcoded in two scripts (`sigma_run_to_run.py`, `readout_m1_m4.py`), so **re-running
+   the readout regenerated the retracted reading**, and this document's own strike-through
+   convention had been applied at §"The confound" and not here. A correction that lives in
+   one section of a document is not a correction.
 2. **The version question** — answered: `0.1.3 → 0.1.4` is numerically inert for this config.
 3. **The matched-seed control for `indigo`** — delivered, and it **halved the zero-decay Δb and
    made it cross zero**: +0.0886 / −0.0154 / +0.0949 against the previously published +0.166.

@@ -69,8 +69,22 @@ print(f"vehicle.py  sha256 {_vsha}\n            shape  {VEHICLE_SHAPE}", flush=T
 
 ART, ARM, REF = sys.argv[1], sys.argv[2], sys.argv[3]
 HEADS = {"sb": 0, "ns": 1, "os": 2}          # vehicle.py:52 input order
-CACHE = ("/home/simon/Documents/scripts/views_platform/views-hydranet/reports/"
-         "2026-10-12_underfire_diagnosis/pull_land_all3_121_504.parquet")
+# ⛔ Derived from this file's own location, not hardcoded to one laptop -- `OUT` three
+#    lines below already used the relative idiom, so this was the one path that did not.
+#    It is a CROSS-REPO data dependency: a 56 MB parquet in the views-hydranet sibling
+#    checkout, which this repo does not own and cannot pin. So its absence is made LOUD
+#    here rather than surfacing nine minutes into the sweep as a read error, and the
+#    message names what to go and look for.
+CACHE = (Path(__file__).resolve().parents[4] / "views-hydranet" / "reports"
+         / "2026-10-12_underfire_diagnosis" / "pull_land_all3_121_504.parquet")
+if not CACHE.is_file():
+    sys.exit(
+        f"the input cache is not where this script derives it:\n  {CACHE}\n"
+        "It lives in the views-hydranet sibling checkout, which this repo does not own. "
+        "Without it this sweep cannot run, and a partial run would publish numbers from "
+        "a different input than the ones in the readout. Refusing (ADR-025)."
+    )
+CACHE = str(CACHE)
 OUT = Path(__file__).parent.parent / "results"
 
 POSTERIOR_D = 4

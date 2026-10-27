@@ -12,12 +12,21 @@ Common bin support is prereg-mandated: a bin enters a fit only where EVERY arm i
 0 < p < 1 (and, for the n>=1000 variant, n >= 1000 in every arm).
 """
 import sys
+from pathlib import Path
+
 import numpy as np
-sys.path.insert(0, "/home/simon/Documents/scripts/views_platform/views-models/reports/2026-10-21_sigma_hat_readout")
-from sigma_run_to_run import (bin_table, logit, W5_THRESHOLD,
+
+# ⛔ Relative to THIS file, not to one laptop. Both this path and R below were hardcoded
+#    to a single checkout, while the three sibling scripts take the directory as argv[1] --
+#    so the script presented as the fix for "the readout was not reproducible from its own
+#    directory" could not run from any other clone or worktree. The directory is computed
+#    inline here rather than assigned first, because an assignment before an import trips
+#    ruff E402 while a bare sys.path call does not.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sigma_run_to_run import (bin_table, logit, W5_THRESHOLD,  # noqa: E402
                               FEASIBILITY_POOLED, FEASIBILITY_CONSERVATIVE)
 
-R = "/home/simon/Documents/scripts/views_platform/views-models/reports/2026-10-21_sigma_hat_readout/results"
+R = str(Path(__file__).resolve().parent / "results")
 TAB = {n: bin_table(f"{R}/p2_result_{n}.npz")
        for n in ("amber", "copper", "silver", "silver014", "bronze", "cobalt", "indigo")}
 

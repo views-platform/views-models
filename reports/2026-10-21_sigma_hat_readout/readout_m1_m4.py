@@ -7,9 +7,14 @@ difference in which bins were fitted -- the pseudo-replication error's cousin.
 import sys
 import numpy as np
 sys.path.insert(0, sys.argv[1])
-from sigma_run_to_run import bin_table, logit
+from sigma_run_to_run import bin_table, logit, W5_THRESHOLD, FEASIBILITY
 
-SP = sys.argv[1] + "/p2_results"
+# One directory for the sweep artifacts: `results/`. These three read
+# "/p2_results" while sweep_all.sh wrote there and the per-head harness and
+# version_single_variable.py both used "results" -- which is the directory that
+# actually holds the published npz. Two names for one artifact class meant a
+# regeneration left the headline single-variable test reading the stale set.
+SP = sys.argv[1] + "/results"
 ARMS = [("amber", 42, "0.1.2", 0.1, 1.0), ("copper", 42, "0.1.3", 0.1, 2.0),
         ("silver", 42, "0.1.3", 0.1, 1.0), ("bronze", 43, "0.1.4", 0.1, 1.0),
         ("cobalt", 44, "0.1.4", 0.1, 1.0), ("indigo", 42, "0.1.4", 0.0, 1.0)]
@@ -67,5 +72,9 @@ for v, _, _ in VAR:
                 f"   range = {bs.max()-bs.min():.4f}"
         print(f"      n={len(bs)} df={len(bs)-1}  σ̂_b = {sd:.4f}{extra}")
         print(f"          {lab}")
-        print(f"          vs W-5 0.0601: {'FIRES' if sd > 0.0601 else 'under'}    "
-              f"vs feasibility 0.0356: {'exceeded' if sd > 0.0356 else 'under'}")
+        # ⛔ These thresholds are IMPORTED, not retyped. This line hardcoded 0.0356 —
+        # retired by prereg Amendment 10 — so re-running the readout reproduced the exact
+        # mis-reading the record retracts. A threshold with a provenance must have exactly
+        # one definition; sigma_run_to_run.py is it.
+        print(f"          vs W-5 {W5_THRESHOLD}: {'FIRES' if sd > W5_THRESHOLD else 'under'}    "
+              f"vs feasibility {FEASIBILITY}: {'exceeded' if sd > FEASIBILITY else 'under'}")

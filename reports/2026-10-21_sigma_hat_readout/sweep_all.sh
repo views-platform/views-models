@@ -45,13 +45,24 @@ build_iso() {
             rm -f "$SP/harness_provenance.new"
             return 1
         fi
-        echo "    HARNESS_DRIFT_OK=1 -- proceeding, and the pin is being updated."
+        # ⛔ Do NOT overwrite the pin. Its whole purpose is to record which harness
+        #    produced the PUBLISHED numbers, so one override used to erase the only
+        #    evidence that drift ever happened -- and the next run could then detect
+        #    nothing. The new hashes go to a separate, dated file and the pin is left
+        #    exactly as it was; superseding it is a deliberate edit, not a side effect.
+        SUPERSEDE="$SP/harness_provenance.superseded_$(date -u +%Y%m%dT%H%M%SZ).sha256"
+        mv "$SP/harness_provenance.new" "$SUPERSEDE"
+        echo "    The pin is UNCHANGED. New hashes written to $(basename "$SUPERSEDE")."
+        echo "    If the new harness is to become authoritative, copy it over the pin"
+        echo "    deliberately and say in the readout which numbers each one produced."
+        echo "built \$ISO from named sources; the PIN still describes the published numbers"
+        return 0
     fi
     mv "$SP/harness_provenance.new" "$SP/harness_provenance.sha256"
     echo "built \$ISO from named sources; provenance in harness_provenance.sha256"
 }
 build_iso || exit 1
-mkdir -p $SP/p2_results
+mkdir -p $SP/results
 run() { # name  weights
   local n=$1 w=$2
   echo "=================== $n ==================="
@@ -60,7 +71,7 @@ run() { # name  weights
   [ -f "$w.config.json" ] || { echo "MISSING SIDECAR - load_vehicle will refuse (views-models#549)"; return 1; }
   ( cd "$ISO" && /usr/bin/time -v $E/bin/python run_p2.py "$w" 2>&1 ) | tail -40
   if [ -f "$ISO/p2_result.npz" ]; then
-    mv "$ISO/p2_result.npz" "$SP/p2_results/p2_result_${n}.npz"
+    mv "$ISO/p2_result.npz" "$SP/results/p2_result_${n}.npz"
     echo ">>> saved p2_result_${n}.npz"
   else
     echo ">>> NO npz PRODUCED for $n"
@@ -70,4 +81,4 @@ run bronze "$M/bronze_kestrel/data/generated/pod_delivery/artifact/calibration_m
 run cobalt "$M/cobalt_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_005527.pt"
 run indigo "$M/indigo_kestrel/data/generated/pod_training_20261020_113202/artifact/calibration_model_20261020_113202.pt"
 echo "=================== ALL SWEEPS DONE ==================="
-ls -l $SP/p2_results/
+ls -l $SP/results/

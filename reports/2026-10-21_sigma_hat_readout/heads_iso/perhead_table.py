@@ -11,13 +11,34 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 HERE = Path(__file__).parent
+def _f2_fires(o):
+    """True/False from the harness's F2 line, or raise if it did not emit one."""
+    m = re.search(r"^F2.*$", o, re.M)
+    if m is None:
+        raise RuntimeError(
+            "the harness emitted no F2 line, so whether F2 fires is UNKNOWN. Refusing to "
+            "render it as a pass -- see ADR-025: a check that cannot see its subject must "
+            "fail, not pass."
+        )
+    return "FIRES" in m.group(0)
+
+
 spec = importlib.util.spec_from_file_location("t2", HERE / "tier2_remedies_perhead.py")
 t2 = importlib.util.module_from_spec(spec)
 sys.argv = ["t2", "amber_sb"]
 spec.loader.exec_module(t2)          # defines helpers; its main() is guarded
 
-ARMS = sys.argv[1:] if len(sys.argv) > 1 else None
+# ⛔ The arms are FIXED, and that is now stated instead of implied. This was
+#    `ARMS = sys.argv[1:] if len(sys.argv) > 1 else None` followed immediately by an
+#    unconditional overwrite, so `perhead_table.py silver014` silently rendered the
+#    amber/bronze/cobalt table instead. sys.argv is also clobbered above to drive the
+#    imported harness, so the argv read could never have worked in the first place.
+#    SEED below pins the three arms this table is defined over; adding a fourth means
+#    adding its seed, which is the edit that should be required.
 ARMS = ["amber", "bronze", "cobalt"]
+if len(sys.argv) > 1 and sys.argv[1:] != ["amber_sb"]:
+    sys.exit(f"perhead_table.py takes no arguments; the arms are fixed at {ARMS}. "
+             f"Got {sys.argv[1:]} -- refusing rather than rendering a different table.")
 HEADS = ["sb", "ns", "os"]
 SEED = {"amber": 42, "bronze": 43, "cobalt": 44}
 
@@ -48,7 +69,13 @@ for arm in ARMS:
             T=g(r"R1 temperature: mean ([\d.]+)"),
             Tspread=g(r"spread ([\d.]+)%"),
             f2=g(r"F2\s+\|b_R1 - 1\| = ([\d.]+)"),
-            f2fires="FIRES" in (re.search(r"^F2.*$", o, re.M) or re.match("", "")).group(0),
+            # ⛔ A missing F2 line is NOT a pass. This was
+            #    `"FIRES" in (re.search(...) or re.match("", "")).group(0)`, so when the
+            #    harness emitted no F2 line at all -- a renamed output, or an arm where the
+            #    check is skipped -- the fallback yielded "" and f2fires became False, which
+            #    prints as "pass" and is counted in "F2 fires in N of M cells". "The harness
+            #    did not report F2" and "F2 passed" rendered identically. Refuse instead.
+            f2fires=_f2_fires(o),
             dap=g(r"F7\s+dAP = ([\d.]+)"),
         ))
 
