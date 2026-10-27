@@ -158,19 +158,21 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
 ## Where each config lives today
 
 - **A source's maturity:** `<source>/configs/config_maturity.py` → `maturity`, one of
-  `candidate | graduate | retired` (ADR-017 §3) — on the 94 sources whose engine runs pipeline-core
+  `candidate | graduate | retired` (ADR-017 §3) — on the 96 sources whose engine runs pipeline-core
   3.x: 29 baseline, 10 hydranet, 42 r2darts2 (31 cm renamed in #490 after #485 moved the engine to
-  3.x; 11 pgm born with it in #491), 13 ensembles. The other 38 — the stepshifter family, whose
+  3.x; 11 pgm born with it in #491), 15 ensembles (13 + epic #595's `chrome_box` and
+  `chrome_crate`). The other 38 — the stepshifter family, whose
   engine is still pinned to pipeline-core 2.x, which requires the old file — still carry
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-10-27 on a clean checkout: **112 `candidate`, 3 `retired`, 0 `graduate`** across
-  115 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 153 files in all. The only movement since 2026-10-19 is epic #595's sixteen `chrome_box`
-  members: +16 files, all candidate, and nothing else changed.
+  *(Measured 2026-10-27 on a clean checkout: **114 `candidate`, 3 `retired`, 0 `graduate`** across
+  117 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 155 files in all. Two movements since 2026-10-19, both epic #595: the sixteen members
+  (+16 files, all candidate) and then S3's two ensembles, `chrome_box` and `chrome_crate`
+  (+2 files, both candidate). Nothing else changed.
   Previously 2026-10-19: 96 candidate, 3 retired, 0 graduate across 99 config_maturity.py files.
-  138 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
+  140 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
   (C-130). The 2026-10-19 move is +3: `silver`/`bronze`/`cobalt_kestrel`, the three seed
   replicates of `amber_kestrel` that measure this pipeline's run-to-run variance
   (views-models#567), then +2: `indigo`/`russet_kestrel`, the two zero-weight-decay
@@ -183,8 +185,13 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   grants `graduate` to a composite only when every member is.)*
 - **An ensemble's members:** `ensembles/<e>/configs/config_modelset.py`.
 - **Which ensembles reconcile, and against what:** `ensembles/<e>/configs/config_meta.py` —
-  `"reconciliation"` (the method) and `"reconcile_with"` (the partner). Two ensembles declare it:
-  `skinny_love → pink_ponyclub`, `white_mustang → cruel_summer`.
+  `"reconciliation"` (the method) and `"reconcile_with"` (the partner). Three ensembles declare it:
+  `skinny_love → pink_ponyclub`, `white_mustang → cruel_summer`, and
+  **`chrome_box → chrome_crate`** (epic #595 S3). The first two declare `pgm_cm_point`, which
+  pipeline-core has **deprecated**: it reconciles a point, and its removal path is to move those
+  two to `pgm_cm`. `chrome_box` is the first to declare `pgm_cm`, the frames-native draw-aware
+  mode — which is why its `main.py` uses `PredictionFrameEnsembleManager`, the DataFrame path
+  having refused `pgm_cm` rather than silently return unreconciled predictions.
 - **Which source feeds a consumer:** `deliveries/<consumer>.py` — the `send` line. There are two:
   `deliveries/un_fao.py` and `deliveries/un_crafd.py`, both currently sending `rusty_bucket`. Each
   consumer's `postprocessors/<consumer>/configs/config_meta.py` **derives** its `"ensemble"`,

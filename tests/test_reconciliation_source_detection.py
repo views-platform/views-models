@@ -38,8 +38,21 @@ def test_missing_config_fails_loud():
 @pytest.mark.parametrize(
     "ensemble", ["skinny_love", "pink_ponyclub", "white_mustang", "cruel_summer"]
 )
-def test_reconciliation_ensembles_are_viewser_today(ensemble):
+def test_the_viewser_reconciliation_ensembles_are_still_viewser(ensemble):
     assert detect_ensemble_source(ENSEMBLES / ensemble) == VIEWSER
+
+
+@pytest.mark.parametrize("ensemble", ["chrome_box", "chrome_crate"])
+def test_the_chrome_box_pair_is_datafactory(ensemble):
+    """⛔ Added because this file's coverage is a HARD-CODED NAME LIST, so a new
+    reconciling pair does not go red here — it silently stops being covered, which is the
+    worse failure. Epic #595's pair is the first datafactory-sourced reconciliation in the
+    repo, and the source is what selects the grid->country provider: `views-datafactory`
+    resolves to the GAUL `gaul0_code` provider (#601), `viewser` to VIEWS `country_id`.
+    The two id systems do not overlap (C-49), so a wrong answer here reconciles against
+    the wrong countries and still produces a plausible number.
+    """
+    assert detect_ensemble_source(ENSEMBLES / ensemble) == DATAFACTORY
 
 
 def _write_model(models_dir: Path, name: str, datafactory: bool):

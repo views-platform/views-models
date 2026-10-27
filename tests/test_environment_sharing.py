@@ -222,7 +222,13 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,
-        "views_ensemble": 13,
+        # 13 -> 15: epic #595 S3's two ensembles, `chrome_box` and `chrome_crate`. They
+        # share `envs/views_ensemble` with the other thirteen because their run.sh is a
+        # byte copy of the generated launcher, which is what sets env_path — an ensemble
+        # with its own environment would be a deliberate act, not a side effect.
+        # ⚠️ This environment's tenants are additionally pinned BY NAME below; the comment
+        # above claims the two new ensembles specifically, and a count cannot check that.
+        "views_ensemble": 15,
         "views-r2darts2": 9,
         # 8 -> 9: models/amber_kestrel, the truncated-body / soft-gate arm of the
         # views-hydranet#396 composition experiment. It shares the roster's environment
@@ -259,6 +265,48 @@ def test_environment_sharing_is_recorded_not_discovered():
         f"  actual:   {dict(sorted(counts.items()))}\n"
         "If deliberate, update `expected` in this test. If you are adding a model, "
         "note that it inherits every package its co-tenants install (C-116)."
+    )
+
+
+def test_the_ensemble_environments_tenants_are_pinned_by_name():
+    """⛔ The census above is a set of CARDINALITIES, and a cardinality cannot see a
+    compensating swap. Moving `chrome_box` off `envs/views_ensemble` onto `views-baseline`
+    and any one `views-baseline` model the other way leaves both counts unchanged and the
+    census green — while the comment beside `"views_ensemble": 15` goes on claiming the
+    two S3 ensembles are there, and the claim that an ensemble with its own environment
+    "would be a deliberate act, not a side effect" stops being checked by anything.
+
+    So for this one environment — the one epic #595 S3 changed — the tenants are pinned by
+    name. The other environments remain a count-only census: they are a deliberate
+    characterization test over ~180 launchers, and converting all of them is a fleet-wide
+    change, not S3's. ⚠️ A compensating swap between any two of THOSE is still invisible,
+    which is a known hole and is recorded as one rather than implied away.
+    """
+    tenants = sorted(
+        Path(launcher).parent.name
+        for launcher, env in _env_by_launcher().items()
+        if env == "views_ensemble"
+    )
+    assert tenants == [
+        "chrome_box",        # epic #595 S3 (#598), the pgm reconciling side
+        "chrome_crate",      # epic #595 S3 (#598), its cm twin
+        "chunky_bunny",
+        "cruel_summer",
+        "first_love",
+        "golden_hour",
+        "pink_ponyclub",
+        "rude_boy",
+        "rusty_bucket",
+        "skinny_love",
+        "stellar_horizon",
+        "synthetic_chant",
+        "synthetic_choir",
+        "synthetic_chorus",
+        "white_mustang",
+    ], (
+        "the tenants of envs/views_ensemble are not the fifteen ensembles this test "
+        f"names: {tenants}. An ensemble leaving this environment, or a model joining it, "
+        "is a deliberate act — update the list and say why in the diff."
     )
 
 
