@@ -68,4 +68,15 @@ def test_the_split_is_what_the_catalog_says():
     # 39 -> 41 on 2026-10-19: models/{indigo,russet}_kestrel, the two zero-weight-decay
     # INTERVENTION ARMS (views-models#568), copied from their seed-matched controls
     # silver_kestrel and bronze_kestrel and inheriting the same queryset byte for byte.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 41, SYNTHETIC: 6}, dict(counts)
+    # 41 -> 57 on 2026-10-27: epic #595's SIXTEEN chrome_box members — eight pgm (*_sparrow,
+    # #596) and eight cm (*_condor, #597). They are datafactory consumers by construction:
+    # their querysets request the datafactory `land_gaul` region and rename `gaul0_code`,
+    # which is what S3's pgm_cm reconciliation needs and what no viewser queryset can give.
+    #
+    # ⛔ This pin was FAILING from 2026-10-22, the day those sixteen were built, because it
+    # reads the filesystem and they existed on disk while untracked. It was being quoted as
+    # one of two "parked CI failures" all through 2026-10-27 — it was neither parked nor a CI
+    # artefact, it was this census going stale and the pin doing exactly its job. The other
+    # supposed parked failure, test_the_maturity_distribution_is_what_the_map_says, was the
+    # same sixteen taking config_maturity.py from 100 files to 116.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 57, SYNTHETIC: 6}, dict(counts)
