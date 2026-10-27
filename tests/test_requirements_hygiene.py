@@ -120,18 +120,23 @@ DEFERRED_PACKAGES: dict[str, str] = {
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
     "views-pipeline-core": (
-        "#595/#594: epic #595's sixteen chrome_box members declare >=3.2.0,<4.0.0 while the "
-        "thirteen ensembles declare >=3.0.0,<4.0.0. The models' floor is LOAD-BEARING and the "
-        "lower one is the defect: views-baseline 1.0.2 declares views-pipeline-core>=3.0.0, "
-        "below the 3.2.0 that can read configs/config_maturity.py, so an environment holding "
-        "exactly 3.0.0 satisfies the range, the launcher upgrades nothing, and the run dies on "
-        "a missing config_deployment.py. That is what broke Hop A on 2026-10-22 (#594), which "
-        "is why those sixteen declare the package directly instead of inheriting it. "
-        "⛔ So this divergence is NOT unified by lowering the sixteen. Raising the thirteen "
-        "ensembles is the right fix and is out of scope for #596/#597 — CI already installs "
-        "3.3.0 (run_tests.yml:38), so nothing blocks it but someone owning those files. "
-        "TRIGGER: the thirteen ensemble requirements.txt files reaching >=3.2.0 — at which "
-        "point this entry is deleted, not amended."
+        "#595/#594: nineteen declarations are at >=3.2.0,<4.0.0 — epic #595's sixteen members, "
+        "its two S3 ensembles (chrome_box, chrome_crate), and rusty_bucket — while TWELVE "
+        "ensembles remain at >=3.0.0,<4.0.0. The higher floor is LOAD-BEARING and the lower one "
+        "is the defect: views-baseline 1.0.2 declares views-pipeline-core>=3.0.0, below the "
+        "3.2.0 that can read configs/config_maturity.py, so an environment holding exactly "
+        "3.0.0 satisfies the range, the launcher upgrades nothing, and the run dies on a "
+        "missing config_deployment.py. That is what broke Hop A on 2026-10-22 (#594), which is "
+        "why those sixteen declare the package directly instead of inheriting it. Every one of "
+        "the twelve carries configs/config_maturity.py, so every one of them carries that trap "
+        "latently. "
+        "⛔ So this divergence is NOT unified by lowering the nineteen. Raising the twelve is "
+        "the right fix — CI already installs 3.3.0 (run_tests.yml:38), so nothing blocks it but "
+        "someone owning those files. rusty_bucket was raised in #598 on Simon's explicit "
+        "instruction because it is the live CRAF'd delivery source and the trap was real there; "
+        "the remaining twelve are filed separately. "
+        "TRIGGER: the twelve remaining ensemble requirements.txt files reaching >=3.2.0 — at "
+        "which point this entry is deleted, not amended."
     ),
 }
 
@@ -220,16 +225,20 @@ def test_the_pipeline_core_deferral_still_describes_reality():
     """⛔ The deferral's trigger is a COUNT, and acting on a stale count deletes a live
     exemption — the failure mode `views-datafactory`'s entry records against itself.
 
-    Asserted rather than trusted: thirteen declarations at the 3.0.0 floor, sixteen at 3.2.0.
-    When the thirteen are raised the divergence is gone and this test fails, which is the
+    Asserted rather than trusted: TWELVE declarations at the 3.0.0 floor, NINETEEN at 3.2.0.
+    When the twelve are raised the divergence is gone and this test fails, which is the
     signal to delete the entry.
+
+    13/16 -> 12/19 in #598: epic #595's two S3 ensembles were born at 3.2.0 rather than
+    copying a floor this very entry calls the defect, and rusty_bucket moved across with
+    them.
     """
     floors: dict[str, int] = {}
     for _name, _number, req in _declarations():
         if req.name == "views-pipeline-core" and not req.url:
             floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
-    assert sorted(floors.values()) == [13, 16], (
-        "the views-pipeline-core floor split is no longer 13/16, so DEFERRED_PACKAGES' "
+    assert sorted(floors.values()) == [12, 19], (
+        "the views-pipeline-core floor split is no longer 12/19, so DEFERRED_PACKAGES' "
         f"reason and trigger are stale: {floors}"
     )
 

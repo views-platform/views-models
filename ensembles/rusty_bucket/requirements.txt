@@ -1,1 +1,7 @@
-views-pipeline-core>=3.0.0,<4.0.0
+# Floored at >=3.2.0, NOT the >=3.0.0 the other twelve ensembles declare. This ensemble
+# carries configs/config_maturity.py, and only pipeline-core >=3.2.0 can find it: an
+# environment holding exactly 3.0.0 satisfies >=3.0.0, the launcher upgrades nothing, and
+# the run dies on a missing config_deployment.py. That is what broke Hop A on 2026-10-22
+# (views-models#594). The twelve lower declarations are the same latent trap and are
+# tracked separately; see DEFERRED_PACKAGES in tests/test_requirements_hygiene.py.
+views-pipeline-core>=3.2.0,<4.0.0

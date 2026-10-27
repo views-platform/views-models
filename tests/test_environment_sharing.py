@@ -222,7 +222,11 @@ def test_environment_sharing_is_recorded_not_discovered():
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,
-        "views_ensemble": 13,
+        # 13 -> 15: epic #595 S3's two ensembles, `chrome_box` and `chrome_crate`. They
+        # share `envs/views_ensemble` with the other thirteen because their run.sh is a
+        # byte copy of the generated launcher, which is what sets env_path — an ensemble
+        # with its own environment would be a deliberate act, not a side effect.
+        "views_ensemble": 15,
         "views-r2darts2": 9,
         # 8 -> 9: models/amber_kestrel, the truncated-body / soft-gate arm of the
         # views-hydranet#396 composition experiment. It shares the roster's environment

@@ -29,6 +29,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import load_config_module
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MAP = REPO_ROOT / "docs" / "forecast_delivery_map.md"
 
@@ -133,15 +135,35 @@ class TestOfflineClaims:
         )
 
     def test_the_reconciling_ensembles_are_what_the_map_says(self):
+        """⛔ Finds them by `"reconciliation":` with ANY non-None value, not by the literal
+        `"pgm_cm_point"`. Keyed on that literal, this guard was blind to the first ensemble
+        declaring `"pgm_cm"` — epic #595's `chrome_box` — so the map would not have been
+        required to mention the reconciling ensemble that actually delivers. pipeline-core
+        has deprecated `pgm_cm_point`, so the old key was retiring under the guard.
+        """
         declared = sorted(
             path.parent.parent.name
             for path in (REPO_ROOT / "ensembles").glob("*/configs/config_meta.py")
-            if '"reconciliation": "pgm_cm_point"' in path.read_text(encoding="utf-8")
+            if re.search(
+                r'"reconciliation":\s*(?!None)[\'"]',
+                path.read_text(encoding="utf-8"),
+            )
         )
         text = _map_text()
         for name in declared:
-            assert name in text, (
-                f"'{name}' declares reconciliation but the map does not mention it."
+            partner = load_config_module(
+                REPO_ROOT / "ensembles" / name / "configs" / "config_meta.py"
+            ).get_meta_config().get("reconcile_with")
+            # ⛔ The PAIRING, not the bare name. Every reconciling ensemble's name already
+            # appears 2-4 times in this document for unrelated reasons, so `name in text`
+            # was satisfiable by any passing mention — a mutation that deleted the
+            # `chrome_box → chrome_crate` entry entirely left the old form green. What the
+            # map is supposed to record is which ensemble reconciles against WHICH, so
+            # that is what is asserted.
+            assert partner, f"{name} declares reconciliation but no reconcile_with partner"
+            assert f"{name} → {partner}" in text, (
+                f"the map does not record the pairing '{name} → {partner}'. An ensemble "
+                f"reconciling against the wrong partner is the defect this documents."
             )
 
     def test_no_source_is_a_buried_literal_in_any_postprocessor(self):

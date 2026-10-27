@@ -9,6 +9,8 @@ Ensembles have different required config keys than individual models:
 
 Ensembles do NOT have config_sweep.py or config_queryset.py.
 """
+import re
+
 import pytest
 
 from tests.conftest import (
@@ -235,23 +237,64 @@ class TestEnsembleDependencies:
                 f"but no ensemble directory '{target}' exists"
             )
 
-    def test_pgm_cm_point_ensemble_wires_a_reconciler(self, ensemble_dir):
-        """An ensemble declaring reconciliation: 'pgm_cm_point' MUST inject a
-        reconciler in its main.py, or the run fails loud at the seam
-        (RECONCILER_NOT_INJECTED). This catches a new unwired reconciling ensemble
-        at CI instead of at the monthly run (EPIC #172 / ADR-014) — the wired/
-        unwired state is declared and visible, never accidental.
+    def test_a_reconciling_ensemble_wires_a_reconciler(self, ensemble_dir):
+        """An ensemble declaring ANY reconciliation MUST inject a reconciler in its
+        main.py, or the run fails loud at the seam (RECONCILER_NOT_INJECTED). This
+        catches a new unwired reconciling ensemble at CI instead of at the monthly run
+        (EPIC #172 / ADR-014) — the wired/unwired state is declared and visible, never
+        accidental.
+
+        ⛔ This used to skip unless the value was the literal `"pgm_cm_point"`, which made
+        it blind to the first ensemble declaring `"pgm_cm"` — epic #595's `chrome_box`.
+        pipeline-core deprecated `pgm_cm_point` and recommends `pgm_cm`, so the guard was
+        keyed on the value being retired and would have silently stopped applying exactly
+        as the fleet moved. Every reconciliation needs a reconciler regardless of mode, so
+        the condition is now "is one declared", which cannot go stale with the vocabulary.
         """
         meta = load_config_module(
             ensemble_dir / "configs" / "config_meta.py"
         ).get_meta_config()
-        if meta.get("reconciliation") != "pgm_cm_point":
-            pytest.skip(f"{ensemble_dir.name} does not declare pgm_cm_point reconciliation")
+        reconciliation = meta.get("reconciliation")
+        if not reconciliation:
+            pytest.skip(f"{ensemble_dir.name} declares no reconciliation")
         main_text = (ensemble_dir / "main.py").read_text()
-        assert "build_reconciler" in main_text and "reconciler=" in main_text, (
-            f"{ensemble_dir.name} declares reconciliation='pgm_cm_point' but its main.py "
-            f"does not wire a reconciler (expected build_reconciler(...) + reconciler=) — "
-            f"it will fail loud at runtime. See EPIC #172 / ADR-014."
+        # ⛔ The ASSIGNMENT, not the mere presence of the name. `"build_reconciler" in
+        # main_text` is satisfied by the `from reconciliation import ...` line alone, so a
+        # mutation to `reconciler = None` left the old form green while injecting nothing —
+        # exactly the RECONCILER_NOT_INJECTED failure this guard exists to pre-empt. All
+        # three reconciling ensembles use this one shape, so pinning it costs nothing.
+        assert re.search(r"reconciler\s*=\s*build_reconciler_for_run\s*\(", main_text), (
+            f"{ensemble_dir.name} declares reconciliation={reconciliation!r} but its "
+            f"main.py never assigns a reconciler from build_reconciler_for_run(...) — "
+            f"importing the name is not wiring it. See EPIC #172 / ADR-014."
+        )
+        assert "reconciler=reconciler" in main_text, (
+            f"{ensemble_dir.name} builds a reconciler but does not pass it to its manager "
+            f"(expected reconciler=reconciler) — it will fail loud at runtime."
+        )
+
+    def test_a_declared_reconciliation_is_one_pipeline_core_supports(self, ensemble_dir):
+        """Separate from the wiring guard, because a typo'd mode and an unwired reconciler
+        are different defects. The accepted set is IMPORTED from pipeline-core's sniffer
+        rather than restated here, so this cannot drift from what the framework will
+        actually accept at load — the same discipline #601 applied to the reconciliation
+        geography registry after a hand-copied literal there proved wrong.
+        """
+        sniffer = pytest.importorskip(
+            "views_pipeline_core.modules.validation.core_config_sniffer",
+            reason="run_tests.yml installs pipeline-core; other jobs may not",
+        )
+        meta = load_config_module(
+            ensemble_dir / "configs" / "config_meta.py"
+        ).get_meta_config()
+        reconciliation = meta.get("reconciliation")
+        if not reconciliation:
+            pytest.skip(f"{ensemble_dir.name} declares no reconciliation")
+        supported = sniffer.SUPPORTED_RECONCILIATION_TYPES
+        assert reconciliation in supported, (
+            f"{ensemble_dir.name} declares reconciliation={reconciliation!r}, which "
+            f"pipeline-core does not accept (supported: {sorted(supported)}). The config "
+            f"would be refused at load."
         )
 
     def test_declared_modelset_and_sample_counts_match_reality(self, ensemble_dir):
