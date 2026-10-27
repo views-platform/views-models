@@ -6,9 +6,37 @@
 **Informed:** All contributors
 **Origin:** epic #608, story #609. Generalised from Cluster G of
 `reports/technical_risk_register.md` — fourteen registered concerns, root **C-168**.
+⚠️ **Read §0 before following any `C-1xx` citation below.**
 **Related ADRs:** [ADR-005](005_testing.md) (the `live` category, whose truthful skip this ADR must
 not contradict), [ADR-020](020_errors_must_descend.md) (a refusal still has to name the next file),
 [ADR-024](024_pod_runner_contract.md) (the runner contract this rule extends)
+
+---
+
+## 0. ⛔ Where this ADR's register citations resolve, and where they do not
+
+**Every `C-167`–`C-181` citation in this document, the name "Cluster G", and the figure *ninety open
+concerns*, come from a revision of `reports/technical_risk_register.md` that is NOT on
+`development`.** On `development` that file is the 2026-10-19 revision: highest concern **C-166**,
+header `Open 78`, and **no occurrence of "Cluster G"**. Three copies exist:
+
+| copy | highest ID | open | state |
+|---|---|---|---|
+| `development` | C-166 | 78 (header) | the integration branch |
+| branch `docs/572-sigma-hat-version-null` | C-178 | **90** | ⚠️ **unmerged** — root **C-168** and the `Cluster G` section live here, as does `tools/podrun/pod_sweep_outputs.sh` (§4) |
+| `~/views-diagnostics/epic608_wip_20261026/` | C-181 | 93 | ⛔ **outside git** |
+
+So: **C-92, C-112, C-113, C-142, C-159, C-160, C-161, C-164 and C-28 resolve on `development`.
+C-167 and above do not.** The *quotations* in this ADR were read from the branch copy and are
+accurate to it; what is unavailable is the ability to follow them from `development`.
+
+⛔ **Merge-order dependency.** If this ADR is accepted before `docs/572-sigma-hat-version-null`
+merges, its root citation dangles. Reconciling the three copies is **#610's unfinished residual**
+(see §7.3) and is the maintainer's; this section exists so that until then no reader follows a
+`C-17x` reference and concludes the path is wrong rather than absent.
+
+This section is here because the alternative — citing them silently — is the precise defect this
+ADR forbids. It is the document applying §2.4 to itself.
 
 ---
 
@@ -33,7 +61,8 @@ and in any aggregate, **unverified dominates**.
 ## 1. Context
 
 `/review-rr strategic` (2026-10-25) found that **fourteen of the register's ninety open concerns
-share one root cause**, recorded as Cluster G with root C-168:
+share one root cause**, recorded as Cluster G with root C-168 (⚠️ both the figure and the cluster
+are from the unmerged copy — §0):
 
 > A check out of scope returns a clean verdict instead of refusing to answer — the instrument's input
 > excludes the thing it is asked about, and the resulting pass is recorded as a result.
@@ -98,13 +127,22 @@ is the defect, and adding the third verdict is the fix.
 **An aggregate containing one UNVERIFIED is UNVERIFIED**, however many PASSes it holds, and the
 unverified branch is evaluated **before** the pass branch.
 
-`tools/podrun/pod_sweep_outputs.sh` already orders itself this way and the ordering is the
-requirement, not an implementation detail: the `UNVERIFIED` branch at `:144-149` runs before the
-outside-count branch at `:152-159` and before the clean exit at `:162-165`, whose message is scoped
-deliberately — *"This is the only result on which destroying the host is justified."*
+`tools/podrun/pod_sweep_outputs.sh` (⚠️ **unmerged — §0, §4**) already orders itself this way and
+the ordering is the requirement, not an implementation detail: the `UNVERIFIED` branch at `:144-149`
+runs before the outside-count branch at `:152-159` and before the clean exit at `:162-165`, whose
+message is scoped deliberately — *"This is the only result on which destroying the host is
+justified."*
 
 ⚠️ The failure mode this forbids is specific: `max(codes, default=0)`. An empty list of parts is not
 a healthy whole.
+
+⛔ **And it is live in this repository, so it is named rather than left abstract:**
+`tools/liveness/report.py:69-71` — `worst_exit` returns exactly that, and
+`tools/liveness/__main__.py` consumes it. An empty or fully-filtered `SURFACES` tuple therefore
+exits **0**: a dashboard that observed nothing, reporting healthy. Converting it is epic story
+**S7**, and until then §4's citation of that same file is a citation of an exemplar that contains
+this defect five lines below the cited range. Per §5.2 a refusal names the next file; so does a
+prohibition.
 
 ### 2.4 A positive control, and it must be independent
 
@@ -196,8 +234,11 @@ citable standing rule — which is what `CLAUDE.md` says an ADR is for:
 
 The register reached this conclusion independently — *"the mechanism of the fix is per-instrument but
 always the same shape"* — and the evidence supports it. The pattern exists as an *idiom* at nine
-sites (`test_the_check_is_not_vacuous`) and as a *mechanism* at exactly one
-(`pod_sweep_outputs.sh`'s sentinel), and **the nine differ in the only part that matters**: what
+sites — six named `test_the_check_is_not_vacuous`, the others
+`test_the_prefix_checks_are_not_vacuous`, `test_the_census_is_not_vacuous` and
+`test_the_value_pins_are_not_vacuous`; `grep -rn "not_vacuous" tests/` is the census — and as a
+*mechanism* at exactly one (`pod_sweep_outputs.sh`'s sentinel, ⚠️ unmerged — §0), and **the nine
+differ in the only part that matters**: what
 "seeing the subject" means for that subject — a glob count, a directory's existence, a package's
 importability, a parsed file's non-emptiness. The sentinel is a fifth distinct shape.
 
@@ -231,6 +272,10 @@ test live only on the unmerged branch `docs/572-sigma-hat-version-null` (added a
 ADR's own rule is that a citation which cannot be resolved must announce itself instead of reading
 as though it resolved.
 
+⚠️ **The same branch holds the register revision this ADR is built on** — see §0. That it took a
+review to notice the second half of one declaration is the reason §0 is a section rather than a
+footnote.
+
 | exemplar | the independent control |
 |---|---|
 | `tools/podrun/pod_sweep_outputs.sh:116-127` ⚠️ *(unmerged — see above)* | **Plants a sentinel on each mount with the same `find` predicates as the real sweep** (`-xdev`, `-newermt "@$SINCE"`), so the control exercises the instrument rather than a proxy. PID-suffixed, so concurrent runs cannot cross-verify. Excluded from the real sweep, so it cannot inflate the result. And it distinguishes `cannot-plant-sentinel` (the write failed) from `sentinel-not-found` (**wrote it and could not then see it** — the shape of the incident). Read-only mounts are **not** exempted: *"'I cannot write a sentinel here' is not 'nothing was written here'"* (`:97-99`) |
@@ -256,8 +301,26 @@ alone is not enough; *"UNVERIFIED: the mount table yielded no sweepable mounts"*
 
 Where the control is a census floor, the number is a literal with a comment saying what the census
 was when the floor was set, and it is set **below** the current count with a stated margin — it
-catches collapse, not drift. Nine existing sites do it this way; copy the shortest,
-`tests/test_datafactory_client_is_declared.py:39-41`.
+catches collapse, not drift.
+
+**Copy `tests/test_sample_count_matches_declared_metrics.py:91-96`** — floor 40, census 42, and the
+margin stated in the assertion message: *"only {n} models declare num_samples; this guard was
+written when 42 did. If models were retired, lower the floor deliberately."*
+`tests/test_target_scaler_is_declared_with_a_loss.py:74-80` carries the provenance in the same
+shape but sets the floor **at** the census it was written against (40 of 40), so it documents the
+number without leaving the margin this section asks for;
+`tests/test_target_prefix_convention.py` states the margin qualitatively against counts of 190 and
+24. Only the `sample_count` site has both.
+
+⚠️ **Four of the nine vacuity sites do it this way, not nine.** Six carry a numeric floor at all,
+and three of those are bare literals with no provenance —
+`tests/test_datafactory_client_is_declared.py:39-41` (`assert len(IMPORTERS) >= 20, IMPORTERS`),
+`tests/test_darts_entity_id_matches_level.py` and
+`tests/test_point_forecast_declares_point_metrics.py`. ⛔ An earlier draft of this section named the
+first of those as the one to copy, *because it was the shortest* — and it is the shortest precisely
+by omitting what this paragraph requires. Bringing those three up to the shape is not filed; it is
+small enough to do in passing, and noted here so the next person to touch them knows which shape is
+intended.
 
 ### 5.4 ⛔ Proving the guard, both directions
 
@@ -323,20 +386,29 @@ held to this by review, not by CI.
    *reader* instead. ⚠️ **Its stated limit, which §2.3 would otherwise require differently:** a
    script still cannot distinguish "all healthy" from "observed nothing" by exit code alone. That is
    accepted deliberately, and gating anything automatically on this dashboard would be a new
-   decision. Recorded in `docs/CICs/LivenessChecks.md` §6, which is the governed contract.
+   decision. ⛔ **Not yet recorded in the governed contract.** `docs/CICs/LivenessChecks.md` §6
+   carries the exit-0 truthful-skip row, but the ruling's operative half — *the report must say what
+   it did not observe* — is absent from that file on every branch, verified 2026-10-27. An earlier
+   draft of this section claimed it was recorded. **Amending §6 is outstanding and belongs with
+   S7**, which is already touching `tools/liveness/`.
 2. **ADR-010 has no tier category for irreversible loss of evidence**, which is why C-161, C-168 and
    C-170 sit at Tier 2 beside naming inconsistencies. Reconciling the register's applied tiers with
    ADR-010's written ones is open and is the maintainer's.
-3. **Is Cluster G's membership complete?** At least seventeen further entries match the root cause and
-   are not tagged G. Tracked as #610, and §2.7's boundary is what stops the answer being "all of
-   them".
+3. **Is Cluster G's membership complete?** At least seventeen further entries match the root cause
+   and are not tagged G. §2.7's boundary is what stops the answer being "all of them". ⚠️ **#610
+   (S2) is CLOSED COMPLETED (2026-10-26 00:55Z), and its result is not on `development`** — the
+   membership work landed in the two register copies described in §0 and nowhere else. So this
+   question is answered in a copy and open on the integration branch, which is #610's residual, not
+   a second question.
 
 ---
 
 ## 8. References
 
 - `reports/technical_risk_register.md` — Cluster G and root **C-168**; members C-92, C-112, C-113,
-  C-142, C-159, C-160, C-161, C-164, C-169, C-170, C-174, C-175, C-176
+  C-142, C-159, C-160, C-161, C-164, C-169, C-170, C-174, C-175, C-176. ⛔ **Eight of these thirteen
+  resolve on `development`; C-169, C-170, C-174, C-175, C-176 and the root C-168 do not — see §0
+  before following them**
 - Epic **#608**; this ADR is story **#609**; tracker **#624**
 - **#549** (weights died with the pods), **#558** (the archive guard counts only the half it
   archives), **#320** (145 days undetected), **#404** / **#458** (unloadable ensemble members),
@@ -347,6 +419,7 @@ held to this by review, not by CI.
   `reports/measurements/2026-08-23_agent_failure_pattern_prevalence.md`. ⛔ **That file does not
   exist in this repository, or anywhere under `views_platform/`** — verified 2026-10-26. The
   register repeats the same citation twice (C-148, C-159). The prevalence claim may well be true;
-  it is **unverified from here**, and under §2.4 an unverifiable witness is not a witness. It is
-  recorded as an open thread on #610 rather than used as evidence
+  it is **unverified from here**, and under §2.4 an unverifiable witness is not a witness. ⚠️ It
+  was recorded as a thread on **#610, which has since closed** — so it is restated here, in the
+  accepted document, rather than left to a closed issue
 - ADR-005 §Test Categories (the `live` amendment), ADR-020, ADR-024
