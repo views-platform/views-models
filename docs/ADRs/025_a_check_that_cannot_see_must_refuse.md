@@ -355,8 +355,46 @@ sufficient on its own**:
   guard against a real, legitimate subject. Where none exists yet, that is a **stated limit of the
   proof**, not an omission.
 
+- **C-182** — mutate **how the guard finds its subject**, not only the subject's values. A guard
+  can stop applying without going red, and a smaller census reports *fewer passes*, not a failure.
+  This is the sibling of §2.1: there, a check cannot see its subject and passes anyway; here, it
+  **silently stops looking**. ⛔ Measured 2026-10-27 on `09a3992b` (epic #595 S3) by an independent
+  auditor: **24 mutations, 12 caught, 12 survived**, and the split was clean along exactly this
+  line — *every* mutation to a value inside a field a guard read was caught (12/12); *every*
+  mutation to how a guard decided what to read survived (12/12). The author's own preceding pass
+  had been 19 mutations, 19 killed, all of them value mutations.
+
+  Two rules follow, both now implemented at the sites:
+
+  1. **Discover by loading or by `ast`, never by matching source text.** A `re.search` over a
+     config is defeated by a quote style (`'reconciliation':` for `"reconciliation":` — the C-127
+     defect, which the defeated guard *cited four lines above itself*); `"<name>" in main_text` is
+     satisfied by an import line, and after widening to a regex, by a `#` comment; and a grep for a
+     class name makes a **comment** that happens to contain the name hold a subject inside the
+     census — deleting that comment removed an ensemble from `_discover_pfe_ensembles()` with five
+     cases silently uncollected and nothing red. Text has no notion of what is code, and widening a
+     pattern replaces one evasion with another in the same class: **pinning a tighter string is not
+     a different kind of guard.** `ast` also makes statement *order* visible, which text cannot see.
+  2. **Never let a cardinality stand in for an identity.** `len(argvalues) == 8` admits seven
+     distinct pairs padded to eight, and a `pytest.mark.skip` on one pair — in a meta-guard that
+     existed *specifically* because narrowing a `parametrize` had been a surviving mutation here
+     before. `sorted(floors.values()) == [12, 19]` and a per-environment tenant count both admit a
+     compensating swap. Compare the declared table element-wise; key the dict; name the tenants.
+
+  ⚠️ And a fix for a surviving mutation is a **hypothesis until the mutation is re-run against it.**
+  The audit's own recommended fix for the floor census was wrong — keying the count dict by
+  specifier pins which *specifier* holds which count, while the mutation moves which *file* holds
+  which floor, so it survived unchanged. Only pinning the nineteen declarations by name closed it.
+
+⚠️ **A kill rate inside one mutation set is not a coverage claim.** 19/19 and 12/24 were measured on
+the same commit, days apart, by the author and by a clean-context auditor. The set is written by the
+model of failure that wrote the guards, which is why §2.4's independence requirement applies to the
+*mutation pass* and not only to the positive control.
+
 ⚠️ `git status --porcelain` before the first mutation: `git checkout` during a revert has silently
-discarded an uncommitted fix on this platform **three** times.
+discarded an uncommitted fix on this platform **three** times. ⛔ Where untracked work must survive
+the pass — 29 paths, in the S3 audit — revert from **file backups** and `cmp`-verify, and compare the
+`git status --porcelain` digest before the first mutation and after the last.
 
 ### 5.5 ⚠️ This ADR is itself subject to §2.4
 
