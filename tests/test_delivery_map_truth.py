@@ -82,27 +82,55 @@ class TestOfflineClaims:
         """
         # Both vocabularies, each counted from its own file (ADR-017 §11 status 2026-09-17):
         # `maturity` in config_maturity.py, `deployment_status` in config_deployment.py.
+        #
+        # ⛔ `*/configs/<filename>`, NOT `rglob`. A pod run that saves its `configs_as_run/`
+        # leaves a COPY of a config under `<model>/data/generated/<delivery>/`, which rglob
+        # counts as a source. On 2026-10-27 exactly one such copy existed
+        # (copper_kestrel's calibration_delivery_20261016) and it put this census one above
+        # the clean checkout, which is how 112 was recorded as 113 and CI went red on a
+        # figure that was right on the machine it was measured on. The roster is the
+        # directories themselves, at a fixed depth; artifacts are not sources.
         pattern = re.compile(r"""(?:maturity|deployment_status)['"]?\s*[:=]\s*['"]([a-z_]+)""")
         text = _map_text()
+        # ⛔ Scope the search to the CURRENT measurement clause, and require exactly one hit.
+        # `needle in text` is satisfied by any occurrence anywhere, so the map could carry a
+        # wrong headline figure and still pass because a delta sentence ("96 -> 112
+        # `candidate`") or the historical record repeated the right number elsewhere. That is
+        # how this guard survived a mutation of its own subject on 2026-10-27. The history
+        # after "Previously" is out of the pin's reach BY CONSTRUCTION -- the slice ends where
+        # it begins -- which is a structural property, not a mutable one: no mutation of the
+        # history clause can make this assertion wrong, so none is recorded as proving it.
+        #
+        # What this does NOT pin: the figure must appear exactly once in the clause, not
+        # specifically in the bolded headline. A parenthetical inside the same four lines that
+        # restated a figure while the headline contradicted it would pass. Accepted -- it is a
+        # self-contradicting edit in one short paragraph, and pinning the bold run would mean
+        # parsing the prose's formatting.
+        start = text.index("*(Measured")
+        measured_now = text[start:text.index("Previously", start)]
         total = 0
         for filename in ("config_maturity.py", "config_deployment.py"):
             counts: dict[str, int] = {}
-            files = list((REPO_ROOT / "models").rglob(filename)) + \
-                    list((REPO_ROOT / "ensembles").rglob(filename))
+            files = sorted((REPO_ROOT / "models").glob(f"*/configs/{filename}")) + \
+                    sorted((REPO_ROOT / "ensembles").glob(f"*/configs/{filename}"))
             total += len(files)
             for path in files:
                 for value in pattern.findall(path.read_text(encoding="utf-8")):
                     counts[value] = counts.get(value, 0) + 1
             for value, count in counts.items():
-                assert f"{count} `{value}`" in text, (
-                    f"the map does not say there are {count} `{value}` sources "
+                assert measured_now.count(f"{count} `{value}`") == 1, (
+                    f"the map's current measurement does not say, exactly once, that there are "
+                    f"{count} `{value}` sources "
                     f"(found {sorted(counts.items())} across {len(files)} {filename} files).\n"
                     f"  Open docs/forecast_delivery_map.md and correct the figure."
                 )
-            assert f"{len(files)} `{filename}`" in text, (
-                f"the map does not say {len(files)} `{filename}` files."
+            assert measured_now.count(f"{len(files)} `{filename}`") == 1, (
+                f"the map's current measurement does not say, exactly once, "
+                f"{len(files)} `{filename}` files."
             )
-        assert f"{total} files in all" in text, f"the map does not say {total} files in all."
+        assert measured_now.count(f"{total} files in all") == 1, (
+            f"the map's current measurement does not say, exactly once, {total} files in all."
+        )
 
     def test_the_reconciling_ensembles_are_what_the_map_says(self):
         declared = sorted(

@@ -165,11 +165,11 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-10-27: **113 `candidate`, 3 `retired`, 0 `graduate`** across 116 `config_maturity.py`
-  files. 99 -> 116 is epic #595's sixteen `chrome_box` members plus `heavy_freighter`'s arm;
-  96 -> 113 is those sixteen, all `candidate`, plus one. Previously 2026-10-19: 96 `candidate`,
-  3 `retired`, 0 `graduate` across 99 `config_maturity.py`
-  files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py` files — 154 files in all.
+  *(Measured 2026-10-27 on a clean checkout: **112 `candidate`, 3 `retired`, 0 `graduate`** across
+  115 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 153 files in all. The only movement since 2026-10-19 is epic #595's sixteen `chrome_box`
+  members: +16 files, all candidate, and nothing else changed.
+  Previously 2026-10-19: 96 candidate, 3 retired, 0 graduate across 99 config_maturity.py files.
   138 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
   (C-130). The 2026-10-19 move is +3: `silver`/`bronze`/`cobalt_kestrel`, the three seed
   replicates of `amber_kestrel` that measure this pipeline's run-to-run variance
