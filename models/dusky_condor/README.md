@@ -1,34 +1,52 @@
-# dusky_condor
-
+# Dusky Condor 
 ## Overview
 
-A distributional baseline member of **epic #595** — CRAF'd's own ensembles.
 
-| Information | Details |
-|---|---|
-| **Model Algorithm** | ConflictologyModel |
-| **Level of Analysis** | cm |
-| **Targets** | `lr_sb_best`, `lr_ns_best`, `lr_os_best` |
-| **Setting** | `window_months=36` |
-| **Draws** | 128 (ADR-015 standard) |
-| **Coverage** | `land_gaul` — 64,742 PRIO-GRID land cells with GAUL country coverage |
-| **Maturity** | candidate |
-| **Data Source** | views-datafactory |
-| **Country twin** | [`dusky_sparrow`](../dusky_sparrow) |
+| Information         | Details                        |
+|---------------------|--------------------------------|
+| **Model Algorithm** | ConflictologyModel                  |
+| **Level of Analysis** | cm            |
+| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
+| **Features**       |  dusky_condor_features   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  datafactory    |
 
-## Why it has a twin
+## Repository Structure
 
-Epic #595 reconciles the pgm ensemble `chrome_box` to a country-month ensemble draw
-by draw. `views_frames_reconcile` uses ALIGNED_DRAWS, which scales grid draw *i* to
-country draw *i*; concatenation puts member *k*'s draws at positions
-128(k−1)+1 … 128k. So this model and `dusky_sparrow` carry **identical
-settings and identical positions** in their ensembles' member lists. Changing one
-without the other silently reconciles this model against an unrelated country
-forecast. A test in #598 pins the pairing.
+```
+Dusky Condor
+├── README.md
+├── main.py
+├── requirements.txt
+├── run.sh
+├── logs
+├── artifacts
+├── configs
+│   ├── config_hyperparameters.py
+│   ├── config_maturity.py
+│   ├── config_meta.py
+│   ├── config_partitions.py
+│   ├── config_queryset.py
+│   ├── config_sweep.py
+├── data
+│   ├── generated
+│   ├── processed
+│   ├── raw
+├── reports
+├── notebooks
+```
+
+## Setup Instructions
+
+Clone the [views-pipeline-core](https://github.com/views-platform/views-pipeline-core) and the [views-models](https://github.com/views-platform/views-models) repository.
+
 
 ## Usage
+Modify configurations in configs/.
 
-Modify configurations in `configs/`.
+If you already have an existing environment, run the `main.py` file. If you don't have an existing environment, run the `run.sh` file. 
 
 ```
 python main.py -r calibration -t -e
@@ -37,3 +55,5 @@ or
 
 ./run.sh -r calibration -t -e
 ```
+
+
