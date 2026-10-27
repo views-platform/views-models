@@ -408,11 +408,12 @@ held to this by review, not by CI.
    with an amendment-log entry that puts a second defect **out of contract**: `report.py`'s
    `worst_exit` is `max(codes, default=0)`, so an empty surface list exits 0 — a dashboard that
    observed nothing, reporting healthy. Fix tracked as **#615 (S7)**.
-   ⚠️ **This took two attempts and the first was this ADR's own defect.** The original draft of this
+   ⚠️ **This sentence passed through three states and only the last is a verified citation.** The
+   original draft of this
    section asserted the amendment was recorded when it was not; the review of PR #627 caught that
    and it was re-stated as outstanding; the amendment was then found to exist only in an untracked
    working copy outside the repository, and was landed. **Three states — claimed, outstanding,
-   actually recorded — and only the third is a verified citation.**
+   actually recorded.**
 2. **ADR-010 has no tier category for irreversible loss of evidence**, which is why C-161, C-168 and
    C-170 sit at Tier 2 beside naming inconsistencies. Reconciling the register's applied tiers with
    ADR-010's written ones is open and is the maintainer's.

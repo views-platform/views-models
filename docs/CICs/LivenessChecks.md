@@ -151,6 +151,16 @@ assert exit_code_for(report.verdict) == 0
 ## 12. Known Deviations
 
 - `report.py` was extracted **WET-before-DRY** (S7/#245): the shared renderer and classifier were pulled out only after six surfaces demonstrably duplicated them — deliberate, per epic #238.
+- ⛔ **§6's unobserved-count requirement is NOT yet implemented, and is listed here rather than left
+  to read as current behaviour.** §6 makes it contract that the printed output state the count of
+  unobserved surfaces plainly. `__main__.py:run_all` prints each surface's block and a final
+  `worst_exit:` line — **and nothing else**, so a reader still has to infer from a clean exit that
+  everything was checked. Added 2026-10-27 with the #623 ruling; **both halves of this gap are
+  scoped to #615 (S7)** — the missing count here, and `report.py`'s `worst_exit` being
+  `max(codes, default=0)` so an empty surface list exits 0. ⚠️ Until #615 lands, §6 describes the
+  intended contract and this row is the deviation. Recorded because a contract that silently
+  outruns its implementation is the same defect as a check that cannot see its subject
+  ([ADR-025](../ADRs/025_a_check_that_cannot_see_must_refuse.md) §2.4), pointed the other way.
 - The per-surface **verdict catalogue** (every verdict and its freshness budget) lives in `tools/liveness/README.md` as the human-readable companion and is **referenced, not duplicated**, here — this contract governs the *shared* shape; the README enumerates the *specifics*.
 
 ---

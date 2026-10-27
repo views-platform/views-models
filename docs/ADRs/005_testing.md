@@ -94,10 +94,15 @@ freshness values, and skips with the reason on any environment failure.
       `run_tests.yml` never installs, so in the main job it has **always** skipped.
 - No static validation of queryset correctness — see Risk Register C-02
 - Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime
-  behavior. ⚠️ This is the gap [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §1 names as
-  **C-106**'s — *"the test architecture verifies declarations exhaustively but runtime behavior
-  nowhere in CI"* — self-declared a strategic root, Mitigated with a live residual, and the CI-layer
-  statement of ADR-025's own rule.
+  behavior. ⚠️ This is **C-106** in `reports/technical_risk_register.md` — *"the test architecture
+  verifies declarations exhaustively but runtime behavior nowhere in CI"* — self-declared a strategic
+  root, Mitigated with a live residual, and recorded there as Cluster G's root *one layer down*, in
+  CI rather than in retrieval. The register's trigger index routes to it on any change to a
+  `pytest.importorskip` or a census `skipif`. ⛔ **Cite the register for C-106, not
+  [ADR-025](025_a_check_that_cannot_see_must_refuse.md)** — the ADR states the rule and names root
+  C-168, and does **not** mention C-106 anywhere. An earlier draft of this bullet pointed at the ADR;
+  a reader following it would have found nothing, which is the defect this very commit exists to
+  correct.
 
 ---
 
