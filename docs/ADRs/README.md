@@ -53,6 +53,8 @@ These ADRs define system philosophy and governance:
 - **[vmo_021](021_coverage_is_declared_once.md)** — Coverage is declared once, in the delivery
 - **[ADR-022](022_the_launcher_body_has_one_home.md)** — The delivery-protocol body has one home; a partner launcher is a wrapper
 - **[ADR-023](023_collapsing_posterior_draws.md)** — Posterior draws collapse by the method the model declares, in count space, outside the run
+- **[ADR-024](024_pod_runner_contract.md)** — The pod runner contract: what a run must produce before it may report OK
+- **[ADR-025](025_a_check_that_cannot_see_must_refuse.md)** — A check that cannot see its subject must refuse, not pass — PASS / FAIL / UNVERIFIED, and unverified dominates
 
 ### Why one of these carries a `vmo_` prefix
 
