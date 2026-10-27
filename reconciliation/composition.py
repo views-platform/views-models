@@ -64,8 +64,9 @@ def _derive_source(ensemble_dir: Path) -> str:
     The country-id system must match the CM forecast this ensemble reconciles
     against (its ``reconcile_with`` partner — VIEWS ``country_id`` vs ``gaul0_code``).
     The PGM ensemble's own source must agree, or the pairing is incoherent. Fails
-    loud on mismatch; an unsupported source (e.g. datafactory before its provider
-    exists) then fails loud at the factory — never a silent viewser fallback.
+    loud on mismatch; a source with no registered provider then fails loud at the
+    factory — never a silent viewser fallback. Both `viewser` and `views-datafactory`
+    have providers since #601; a third source would fail loud until it does.
     """
     ensemble_dir = Path(ensemble_dir)
     partner = _load_meta(ensemble_dir).get("reconcile_with")
@@ -93,8 +94,9 @@ def build_reconciler_for_run(
     """Build the reconciler for a reconciling ensemble. Sizes the geography window
     from the partition config and **derives** the geography source from the data
     (via the ``reconcile_with`` CM partner) unless an explicit ``source``/``provider``
-    is given. A datafactory-sourced ensemble fails loud at the factory until its
-    provider exists — never a silent viewser fallback (EPIC #192 / ADR-014)."""
+    is given. A source with no registered provider fails loud at the factory — never a
+    silent viewser fallback (EPIC #192 / ADR-014). Datafactory gained its provider in
+    #601, so a `chrome_box`-shaped ensemble now resolves instead of refusing."""
     ensemble_dir = Path(ensemble_dir)
     start_month, end_month = _forecast_window(_load_partitions(ensemble_dir))
     if provider is not None:
