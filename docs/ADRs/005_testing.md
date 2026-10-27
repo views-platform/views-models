@@ -76,14 +76,28 @@ freshness values, and skips with the reason on any environment failure.
   stepshifter or baseline. ⚠️ Same distinction, same story (**#613**) — see
   [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §2.5.
 - ~~Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03~~ **Corrected
-  2026-10-27:** they are. `run_tests.yml` runs the suite on every PR, and `roster_configs_load.yml`,
-  `runtime_smoke.yml`, `cic_sync_check.yml` and `secret_scan.yml` add four more gates. ⚠️ The
-  residual is narrower and is what C-03 should now say: `run_tests.yml` installs only
-  **published** `views_pipeline_core`, so it cannot execute anything depending on an unreleased
-  symbol, and `roster_configs_load.yml` exists precisely because the HydraNet load test
-  `importorskip`s a package `run_tests.yml` does not install.
+  2026-10-27:** they are. `run_tests.yml` runs the suite on **push and pull_request to `main` and
+  `development`**, and `roster_configs_load.yml`, `runtime_smoke.yml`, `cic_sync_check.yml` and
+  `secret_scan.yml` add four more gates. ⚠️ **What C-03 should now say is two narrower residuals,
+  and they are different things:**
+    - ⛔ **CI cannot tell a quiet test family from a passing one.** `run_tests.yml:41` is a bare
+      `pytest`; `pyproject.toml` declares only `markers` — no `testpaths`, no `--strict-markers`,
+      no `addopts`, no minimum-collected assertion and no skip budget — and **pytest exits 0 on
+      skips.** So a family that silently empties is indistinguishable from one that passed. Both
+      extra workflows exist *because this already happened*: *"two production ensemble members sat
+      unloadable from August to September while every test passed"*
+      (`roster_configs_load.yml:7-11`, #404/#458). Tracked as **#611 (S3)**; the rule is
+      [ADR-025](025_a_check_that_cannot_see_must_refuse.md).
+    - `run_tests.yml:38` installs only **published** `views_pipeline_core==3.3.0`, so CI cannot
+      execute anything depending on an unreleased symbol — which is why
+      `roster_configs_load.yml` exists at all: the HydraNet load test `importorskip`s a package
+      `run_tests.yml` never installs, so in the main job it has **always** skipped.
 - No static validation of queryset correctness — see Risk Register C-02
-- Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime behavior
+- Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime
+  behavior. ⚠️ This is the gap [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §1 names as
+  **C-106**'s — *"the test architecture verifies declarations exhaustively but runtime behavior
+  nowhere in CI"* — self-declared a strategic root, Mitigated with a live residual, and the CI-layer
+  statement of ADR-025's own rule.
 
 ---
 
