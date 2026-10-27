@@ -163,7 +163,6 @@ def get_hp_config():
         'window_dim': 32,
         'output_channels': 1,
         'weight_init': 'xavier_norm',
-        'h_init': 'abs_rand_exp-100',
         # gated forecast (gate x body); all-cell body.
         #
         # THE ARM. These two values, and the absence of a third, are the whole difference

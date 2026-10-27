@@ -52,7 +52,6 @@ def get_sweep_config():
         'window_dim': {'value': 32},
         'output_channels': {'value': 1},
         'weight_init': {'value': 'xavier_norm'},
-        'h_init': {'value': 'abs_rand_exp-100'},
 
         # ============================================================
         # Optimization
