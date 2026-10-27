@@ -146,11 +146,152 @@ def test_a_mount_find_cannot_list_refuses_instead_of_passing(tmp_path, since):
 
 @pytest.mark.red
 def test_a_mount_that_is_not_there_refuses_instead_of_passing(tmp_path, since):
+    """A mount table naming a path that is not there is "I could not look".
+
+    ⚠️ The label changed on 2026-10-27, and the rename IS the fix. This case used to be
+    reported as `not-a-directory`, which lumped two opposite situations together: a
+    mountpoint that is **absent** (refuse — something is wrong with the host) and a
+    **bind-mounted file** like /etc/resolv.conf (benign — every container has several).
+    Because both refused, the script could never return 0 on a real pod, which is the
+    cry-wolf inverse of C-169. See `test_bind_mounted_files_do_not_make_every_pod_unverified`
+    for the other half; this test is what stops that fix going too far.
+    """
     a, b, mounts = _fixture(tmp_path, outside=False)
     mounts.write_text(mounts.read_text().replace(str(b), str(tmp_path / "mntGONE")))
     r = _run(a, mounts, since)
     assert r.returncode == 1, r.stdout + r.stderr
-    assert "not-a-directory" in r.stdout
+    assert "mountpoint-missing" in r.stdout, r.stdout
+
+
+@pytest.mark.green
+def test_an_overlay_mount_is_swept_and_not_filtered_away(tmp_path, since):
+    """⛔ `/` on a container is overlay. Excluding it reproduced the original incident.
+
+    Measured 2026-10-27: with `/` declared overlay and `/workspace` a network mount, a
+    file written to /root was invisible to the sweep and the script printed "safe to
+    destroy", exit 0. That is `find / -xdev` again with a mount-type filter in place of
+    the device check — the same shape, one layer over. /root is also where this
+    platform's convention puts hand-written files, because /workspace ignores chmod.
+
+    The assertion is the whole point: an overlay mount holding an uncollected file must
+    produce exit 2, never 0. A regression here is silent and costs irrecoverable weights.
+    """
+    a, b, _m = _fixture(tmp_path, outside=False)
+    (b / "root").mkdir()
+    (b / "root" / "by_sb_best.npz").touch()          # the gate posterior, outside $OUT
+
+    mounts = tmp_path / "mounts_overlay"
+    mounts.write_text(
+        f"/dev/sda1 {a} ext4 rw 0 0\n"
+        f"overlay {b} overlay rw 0 0\n"               # <- the container root
+        "proc /proc proc rw 0 0\n"
+    )
+    r = _run(a, mounts, since)
+    assert r.returncode == 2, (
+        "an overlay mount was filtered out of the sweep, so a file outside $OUT was "
+        "invisible and the host was declared safe to destroy\n" + r.stdout + r.stderr
+    )
+    assert "root" in r.stdout, r.stdout
+
+
+@pytest.mark.green
+def test_a_mount_whose_subdirectory_cannot_be_read_refuses(tmp_path, since):
+    """⛔ The control must exercise RECURSION, because the real sweep recurses.
+
+    The earlier version planted its sentinel at depth 1 and looked for it with
+    `-maxdepth 1`, so the positive control proved only that the top of the mount was
+    visible. Measured 2026-10-27: a chmod-000 SUBdirectory holding an uncollected file
+    was skipped in silence and the script printed "safe to destroy", exit 0 — because
+    find's stderr went to /dev/null and its exit code was swallowed by `$(...)`.
+
+    C-113's lesson in a new subsystem: read the exit status before interpreting output.
+    The mount root is readable here; only a child is not.
+    """
+    a, b, mounts = _fixture(tmp_path, outside=False)
+    hidden = b / "hidden"
+    hidden.mkdir()
+    (hidden / "by_sb_best.npz").touch()
+    os.chmod(hidden, 0o000)
+    try:
+        r = _run(a, mounts, since)
+        assert r.returncode == 1, (
+            "a subdirectory the sweep could not read was skipped in silence\n"
+            + r.stdout + r.stderr
+        )
+        assert "find-could-not-read-all-of-it" in r.stdout + r.stderr, r.stdout + r.stderr
+    finally:
+        os.chmod(hidden, stat.S_IRWXU)
+
+
+@pytest.mark.green
+def test_the_verdict_names_what_it_did_not_sweep(tmp_path, since):
+    """A verdict that says "every mount" while a filter removed a class is the defect.
+
+    tmpfs, ramfs and squashfs remain excluded — a stated judgement, not a measurement —
+    so the exclusion has to be visible in the output rather than implied by silence
+    (ADR-025 §2.4), and the clean verdict must stop claiming more than it swept.
+    """
+    a, _b, mounts = _fixture(tmp_path, outside=False)
+    r = _run(a, mounts, since)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "excluded as kernel pseudo filesystems" in r.stdout, r.stdout
+    assert "/dev/shm" in r.stdout, "the excluded tmpfs mount is not named\n" + r.stdout
+    assert "every mount listed above" in r.stdout, (
+        'the clean verdict still claims "every mount"\n' + r.stdout
+    )
+
+
+@pytest.mark.green
+@pytest.mark.parametrize("opt", ["--since", "--mounts"])
+def test_a_trailing_option_exits_instead_of_hanging(opt):
+    """⛔ `shift 2` with one argument left fails WITHOUT shifting — the loop never ended.
+
+    Measured 2026-10-27: `pod_sweep_outputs.sh --since` never returned. This runs on a pod,
+    under time pressure, before a host is destroyed; a typo must cost one line of output,
+    not the terminal. The timeout is the assertion — if this test ever hangs, that is the
+    regression, so it is bounded rather than trusting the exit code alone.
+    """
+    r = subprocess.run([SCRIPT, opt], capture_output=True, text=True, timeout=15)
+    assert r.returncode == 3, r.stdout + r.stderr
+    assert "requires a value" in r.stderr, r.stderr
+
+
+@pytest.mark.green
+def test_bind_mounted_files_do_not_make_every_pod_unverified(tmp_path, since):
+    """⛔ Every container has /etc/hosts, /etc/hostname and /etc/resolv.conf as bind-mounted
+    FILES, fstype ext4 or overlay — not pseudo, so they reach the loop.
+
+    Classifying each as UNVERIFIED meant the script could never return 0 on a real pod: it
+    printed "DO NOT DESTROY" every single time. That is the cry-wolf inverse of C-169 and
+    just as dangerous, because a refusal nobody reads is not a refusal. Measured
+    2026-10-27 against a realistic mount table: rc=1 with the only real mount clean.
+
+    A single file needs no sentinel and no recursion — it is stat'd, reported on its own
+    line, and deliberately kept out of the exit-2 verdict, because /etc/resolv.conf is
+    rewritten by the container runtime and is not a deliverable.
+    """
+    a, b, _m = _fixture(tmp_path, outside=False)
+    hosts, resolv = tmp_path / "etc_hosts", tmp_path / "etc_resolv"
+    hosts.touch()
+    resolv.touch()
+
+    mounts = tmp_path / "mounts_container"
+    mounts.write_text(
+        f"overlay {a} overlay rw 0 0\n"
+        f"/dev/sdb1 {b} ext4 rw 0 0\n"
+        f"/dev/sda1 {hosts} ext4 rw 0 0\n"          # <- bind-mounted FILE
+        f"/dev/sda1 {resolv} ext4 rw 0 0\n"         # <- bind-mounted FILE
+        "proc /proc proc rw 0 0\n"
+    )
+    r = _run(a, mounts, since)
+    assert r.returncode == 0, (
+        "bind-mounted files were treated as unsweepable mounts, so the script refuses on "
+        "every real pod\n" + r.stdout + r.stderr
+    )
+    assert "file mounts touched" in r.stdout, (
+        "the touched file mounts are not named — they must be reported, not hidden\n"
+        + r.stdout
+    )
 
 
 @pytest.mark.red
