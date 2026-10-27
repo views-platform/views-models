@@ -305,7 +305,13 @@ OUTSIDE_COUNT=$(grep -c . "$OUTSIDE_LIST" || true)
 #    (ADR-020: a refusal says where the stairs end).
 OUT_COVERED=0
 for MP in $VERIFIED_MPS; do
-    case "$OUT" in "$MP"|"$MP"/*) OUT_COVERED=1; break ;; esac
+    # ⚠️ Strip the trailing slash first, because the root mount is "/" and "$MP"/* would then
+    #    be "//*", which matches nothing: $OUT on the root filesystem would have been reported
+    #    as not-on-any-verified-mount and refused. A false refusal is the cry-wolf direction,
+    #    which this script's own comments call "just as dangerous" -- and it is the defect this
+    #    very check was added to fix, reintroduced one line below it. Caught in self-review.
+    MPN=${MP%/}
+    case "$OUT" in "$MP"|"$MPN"/*) OUT_COVERED=1; break ;; esac
 done
 if [ "$OUT_COVERED" -ne 1 ]; then
     OUT_MP=$(awk -v o="$OUT" '{ if (index(o, $2) == 1 && length($2) > length(best)) best=$2 } END { print best }' "$MOUNTS_FILE")

@@ -633,6 +633,31 @@ def test_a_clean_run_leaves_no_sentinel_behind(tmp_path, since):
     assert litter == [], f"a clean run left its sentinel behind: {litter}"
 
 
+@pytest.mark.green
+def test_out_on_the_root_mount_is_recognised_as_covered(tmp_path, since):
+    """⚠️ The companion to `test_out_on_an_excluded_mount_refuses`: the A3 check must not refuse
+    when `$OUT` IS covered.
+
+    The first version compared with `"$MP"/*`, which for the root mount `/` expands to `//*` and
+    matches nothing — so `$OUT` on the root filesystem was reported
+    `not-on-any-verified-mount` and refused. A false refusal is the cry-wolf direction this
+    script's own comments call "just as dangerous", and it was the defect the A3 check exists to
+    fix, reintroduced one line below it.
+
+    The mountpoint here ends in a slash, which is the shape that breaks the naive pattern while
+    still being a legitimate mount table entry.
+    """
+    a, _b, _m = _fixture(tmp_path, outside=False)
+    mounts = tmp_path / "mounts_trailing_slash"
+    mounts.write_text(f"/dev/sda1 {a}/ ext4 rw 0 0\n")
+    r = _run(a, mounts, since)
+    assert r.returncode == 0, (
+        "$OUT was on the swept mount but the coverage check did not recognise it, so a clean "
+        "host was refused\n" + r.stdout + r.stderr
+    )
+    assert "not-on-any-verified-mount" not in r.stdout, r.stdout
+
+
 @pytest.mark.red
 @pytest.mark.parametrize(
     "args",
