@@ -9,7 +9,9 @@ contents depend on which tenant ran last. Measured consequences, both directions
                           model completed a run in that state (2026-07-22, wandb
                           atomic-jazz-101). The declaration was removed in PR #325.
     present, undeclared   27 models receive views-datafactory because a co-tenant
-                          declares it; in `envs/views-baseline` only 10 of 29 do.
+                          declares it; in `envs/views-baseline` only 10 of 29 did before
+                          epic #595's sixteen members joined that env (now 45 tenants, and
+                          all sixteen declare it, so 26 of 45).
 
 The tests here guard the one case where that sharing is not merely misleading but
 **silently wrong**, and they exist because the trap is invisible: it looks like a typo.
@@ -208,7 +210,15 @@ def test_environment_sharing_is_recorded_not_discovered():
     expected = {
         # 37 -> 29: the eight temporary_* scaffold models (views-baseline clones, retired by
         # rusty_bucket's own modelset config) were deleted in the 2026-09 roster cleanup.
-        "views-baseline": 29,
+        # 29 -> 45: epic #595's sixteen chrome_box members — eight pgm (*_sparrow, #596) and
+        # eight cm (*_condor, #597) — all run on views-baseline. ⚠️ Per C-116 each of them now
+        # inherits every package its 44 co-tenants install, which is why their
+        # requirements.txt declares views-pipeline-core DIRECTLY rather than relying on
+        # views-baseline's own floor: views-baseline 1.0.2 floors it at >=3.0.0, below the
+        # 3.2.0 that can read configs/config_maturity.py, and an env holding exactly 3.0.0
+        # satisfies that range, upgrades nothing, and dies on a missing config_deployment.py.
+        # That is #594, and it broke Hop A on 2026-10-22.
+        "views-baseline": 45,
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,
