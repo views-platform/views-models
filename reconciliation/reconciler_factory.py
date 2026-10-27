@@ -9,8 +9,9 @@ builds the `(time, priogrid_gid) -> country_id` mapping, constructs the concrete
 and returns it typed as the pipeline-core `Reconciler` port so callers depend only
 on the abstraction.
 
-Adding a datafactory-sourced ensemble later is a one-line registry entry +
-one new provider file — no change to this function's signature or its callers (OCP).
+That OCP claim was tested by #601, which added the datafactory provider: it cost one
+new provider file and one registry entry, with no change to this function's signature
+or to any caller. A third source costs the same.
 """
 from __future__ import annotations
 
@@ -19,12 +20,25 @@ from typing import Optional
 from views_pipeline_core.domain.reconciliation_port import Reconciler
 
 from reconciliation.country_mapping_provider import CountryMappingProvider
+from reconciliation.datafactory_country_mapping_provider import (
+    DatafactoryCountryMappingProvider,
+)
+from reconciliation.source_detection import DATAFACTORY, VIEWSER
 from reconciliation.viewser_country_mapping_provider import ViewserCountryMappingProvider
 
 # Geography-source name -> provider class. Selected per ensemble from its data
-# source (ADR-013). Add "datafactory" here (one line) when a datafactory-sourced
-# reconciling ensemble first exists — callers don't change (OCP).
-_PROVIDERS = {"viewser": ViewserCountryMappingProvider}
+# source (ADR-013); callers don't change when one is added (OCP).
+#
+# ⛔ The keys are `source_detection`'s own constants, imported rather than retyped.
+# This comment used to say to add `"datafactory"`, and #601 records why that would
+# have been wrong: the key must equal what `detect_ensemble_source` RETURNS, which is
+# `"views-datafactory"`. A literal here can drift from the detector silently, and the
+# symptom would be the same `ValueError` below — "unknown source" for a source that
+# had just been added.
+_PROVIDERS = {
+    VIEWSER: ViewserCountryMappingProvider,
+    DATAFACTORY: DatafactoryCountryMappingProvider,
+}
 
 
 def build_reconciler(
