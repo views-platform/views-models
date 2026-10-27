@@ -11,14 +11,32 @@ never reaches a member — the audit on #639 predicted a `FileNotFoundError` fro
 member's `resolve_artifact_path`, which is one layer further in than the run actually gets. Both
 readings agree on the cause: there is no `-t`, and none of the sixteen members has an artifact.
 
-⛔ These guards read the DOCUMENTATION and run it through the REAL parser. That is deliberate.
-The audit's stub asserted that every member has a forecasting artifact, which can only pass on a
-machine that has already done the run — it would be red in CI forever and green only by accident
-of local state. The defect was never "this box lacks artifacts"; it was "the written command
-cannot run". So the subject here is the written command, and the oracle is
-`views_pipeline_core.cli.ForecastingModelArgs`, which is what rejected it. The stub's either/or
-survives intact in `test_documented_launch_does_not_presume_member_artifacts`: a launch without
-`-t` is allowed only where the artifacts it presumes actually exist.
+The subject of these guards is the WRITTEN COMMAND, and the oracle is
+`views_pipeline_core.cli.ForecastingModelArgs`, which is the thing that rejected it. The audit's
+own stub asserted instead that every member has a forecasting artifact, which can only pass on a
+machine that has already done the run — red in CI forever and green only by accident of local
+state. The defect was never "this box lacks artifacts"; it was "the written command cannot run".
+
+⛔ This file was rewritten after an independent mutation audit of its first version, in which
+**12 of 20 mutations survived**. Three habits produced all twelve, and each is now closed by
+construction rather than by another value assertion. They are written down because the first
+version read as though it covered them:
+
+1. **A union stood in for a conjunction.** The census pooled both READMEs into one set of names,
+   so `chrome_crate/README.md` could document nothing at all — or document `chrome_box`'s launch
+   instead of its own — and stay green on the strength of the other file. That is C-182's
+   mechanism one level up: a cardinality over the union standing in for an identity per file.
+   Everything here is now asserted **per README**, and each must document **its own** ensemble.
+2. **A notation stood in for the command a person copies.** The guard recognised exactly
+   `python -m ensembles.X.main` inside a backtick fence. A `$ ` prompt, a `~~~` fence, a
+   four-space indented block, or the `python main.py` form the generated "Usage" section already
+   uses two paragraphs above — each left the census silently. A command this guard cannot read is
+   now a **failure, not an omission** (ADR-025: a check that cannot see its subject must refuse).
+3. **A position in the file stood in for a position in the instructions.** The ordering guard
+   searched the whole README, so a mention inside the ASCII directory tree satisfied "cm first"
+   while the runnable block said the opposite. Scope is now the `<!-- manual -->` block only —
+   which is also the only content `update_catalogs.yml` preserves, so a launch documented outside
+   it would be deleted by the next regeneration.
 """
 
 import io
@@ -26,60 +44,173 @@ import re
 import shlex
 import sys
 from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 from views_pipeline_core.cli import ForecastingModelArgs
 
-from tests.conftest import ENSEMBLES_DIR, MODELS_DIR
+from tests.conftest import ENSEMBLES_DIR
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools.catalogs.readme_preserve import extract_manual_blocks  # noqa: E402
 
 #: The pair #639 is about. Named, not globbed: a glob that stopped matching would report fewer
 #: passes instead of failing, and a cardinality may never stand in for an identity (C-182).
 CHROME_ENSEMBLES = ("chrome_box", "chrome_crate")
 
-_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
-_LAUNCH_RE = re.compile(r"^\s*python\s+-m\s+ensembles\.(\w+)\.main\b(.*)$")
+#: Exactly the flags a fresh-box forecasting launch may carry. A WHITELIST, not a blacklist of
+#: `--saved` and `-p`: the first version enumerated the two flags it knew were hostile, and
+#: `-wn -re -dd -o 3` walked straight past it — `-wn` wants a W&B credential, `-dd` runs a drift
+#: self-test at fetch, `-o` overrides the timestep. A documented fresh-box launch is a short,
+#: fully specified command, so anything outside this set has to be argued for in a review.
+FRESH_BOX_TOKENS = frozenset(
+    {"-r", "--run_type", "forecasting", "-t", "--train", "-f", "--forecast"}
+)
+
+_BACKTICK_FENCE_RE = re.compile(r"^[ \t]*```[^\n]*\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
+_TILDE_FENCE_RE = re.compile(r"^[ \t]*~~~", re.MULTILINE)
+_PROMPT_RE = re.compile(r"^[ \t]*(?:[$>]\s+)?")
+
+#: Every way this repository's own documentation invokes a model or ensemble. The point is not to
+#: bless them all — it is that a command written in any of them is SEEN. `python main.py` and
+#: `./run.sh` are the two forms the generated "Usage" section uses, so they are house style, not
+#: an exotic evasion.
+_COMMAND_RE = re.compile(
+    r"""^
+    (?:cd\s+ensembles/(?P<cd>\w+)\s*&&\s*)?
+    (?:
+        python3?\s+-m\s+ensembles\.(?P<module>\w+)\.main
+      | python3?\s+ensembles/(?P<script>\w+)/main\.py
+      | python3?\s+main\.py
+      | (?:\./|bash\s+|sh\s+)run\.sh
+    )
+    (?P<argv>\s.*|$)
+    """,
+    re.VERBOSE,
+)
+
+#: A line that is trying to be a command. Used only to decide whether an unparseable line is a
+#: silent escape (which must fail) or ordinary prose inside a fence (which must not).
+_LOOKS_LIKE_A_COMMAND_RE = re.compile(r"\b(?:python3?|run\.sh|main\.py|ensembles\.)\b")
 
 
-def _fenced_launches(readme: Path):
-    """Return `(ensemble, argv)` for every `python -m ensembles.X.main` line in a code fence.
+@dataclass(frozen=True)
+class Launch:
+    """One documented command, and which README documented it."""
 
-    Only fenced blocks count. Prose may quote a broken command — this file's own module
-    docstring does, and both chrome READMEs quote the refused one to say why it is refused —
-    and a guard that read prose would forbid documenting the defect it exists to prevent.
+    readme: str
+    ensemble: str
+    line: str
+    argv: tuple[str, ...]
+
+    def __str__(self) -> str:
+        return f"ensembles/{self.readme}/README.md: {self.line.strip()}"
+
+
+class UnreadableDocumentation(Exception):
+    """A documented command this guard cannot read. Never swallowed — see ADR-025."""
+
+
+def _manual_block(ensemble: str) -> str:
+    """The `<!-- manual -->` content of `ensemble`'s README.
+
+    Scope is this block and nothing else, for two reasons that happen to coincide. It is the only
+    content `tools/catalogs/readme_preserve.py` carries across a regeneration, so a launch
+    documented outside it is deleted the next time `update_catalogs.yml` runs; and it is the
+    block a person reads as instructions, which is what the ordering guard needs to be about.
     """
-    found = []
-    for fence in _FENCE_RE.findall(readme.read_text()):
-        for line in fence.splitlines():
-            match = _LAUNCH_RE.match(line)
-            if match:
-                # `comments=True` drops a trailing `# FIRST, same machine` annotation.
-                found.append((match.group(1), shlex.split(match.group(2), comments=True)))
-    return found
+    readme = ENSEMBLES_DIR / ensemble / "README.md"
+    blocks = extract_manual_blocks(readme.read_text())
+    return "\n".join(blocks)
 
 
-def _all_documented_launches():
-    """Every documented launch across both chrome READMEs, as `(readme_name, ensemble, argv)`.
+def _launches(ensemble: str) -> list[Launch]:
+    """Every command documented in `ensemble`'s manual block.
 
-    A launch for `chrome_crate` is documented in BOTH READMEs, because `chrome_box` cannot run
-    without it. Each occurrence is checked on its own: a correct command in one file does not
-    excuse a stale copy in the other.
+    Raises:
+        UnreadableDocumentation: a code notation or a command line this guard cannot read. It
+            refuses rather than skipping: every survivor of the first audit that hid a command
+            did so by leaving this function's predecessor with nothing to return.
     """
+    block = _manual_block(ensemble)
+    if not block:
+        raise UnreadableDocumentation(
+            f"ensembles/{ensemble}/README.md has no <!-- manual --> block, so any launch it "
+            "documents would be deleted by the next update_catalogs.yml regeneration (C-78)."
+        )
+
+    if _TILDE_FENCE_RE.search(block):
+        raise UnreadableDocumentation(
+            f"ensembles/{ensemble}/README.md's manual block uses a ~~~ fence. GitHub renders it "
+            "as code and this guard does not read it, so a command inside it would be "
+            "documented and unchecked. Use a ``` fence."
+        )
+
+    fences = _BACKTICK_FENCE_RE.findall(block)
+    if not fences:
+        raise UnreadableDocumentation(
+            f"ensembles/{ensemble}/README.md's manual block documents no command in a ``` "
+            "fence. #639 exists because the recorded command did not run; an undocumented "
+            "command cannot be checked at all."
+        )
+
+    outside = _BACKTICK_FENCE_RE.sub("", block)
+    indented = [
+        line
+        for line in outside.splitlines()
+        if re.match(r"^(?: {4}|\t)\s*\S", line) and _LOOKS_LIKE_A_COMMAND_RE.search(line)
+    ]
+    if indented:
+        raise UnreadableDocumentation(
+            f"ensembles/{ensemble}/README.md's manual block has an indented code block that "
+            "looks like a command. GitHub renders it as code and this guard does not read it:\n"
+            + "\n".join(f"  {line}" for line in indented)
+        )
+
     launches = []
-    for name in CHROME_ENSEMBLES:
-        readme = ENSEMBLES_DIR / name / "README.md"
-        for ensemble, argv in _fenced_launches(readme):
-            launches.append((name, ensemble, argv))
+    for fence in fences:
+        for raw in fence.splitlines():
+            line = _PROMPT_RE.sub("", raw, count=1)
+            if not line.strip():
+                continue
+            match = _COMMAND_RE.match(line)
+            if not match:
+                if _LOOKS_LIKE_A_COMMAND_RE.search(line):
+                    raise UnreadableDocumentation(
+                        f"ensembles/{ensemble}/README.md documents a command this guard cannot "
+                        f"parse, so none of its flags are checked:\n  {raw.strip()}\n"
+                        "Write it as `python -m ensembles.<name>.main <flags>`."
+                    )
+                continue
+            try:
+                argv = shlex.split(match.group("argv"), comments=True)
+            except ValueError as error:
+                # A `\` line-continuation makes shlex raise. Caught HERE so the failure names
+                # the README; the first version let it escape and take the whole file down at
+                # import with a message that named no file.
+                raise UnreadableDocumentation(
+                    f"ensembles/{ensemble}/README.md documents a command that does not lex "
+                    f"({error}), so its flags are unchecked:\n  {raw.strip()}"
+                ) from error
+            target = match.group("module") or match.group("script") or match.group("cd")
+            launches.append(
+                Launch(
+                    readme=ensemble,
+                    #: No explicit name means the README's own ensemble — `python main.py` and
+                    #: `./run.sh` are run from the ensemble's own directory.
+                    ensemble=target or ensemble,
+                    line=raw,
+                    argv=tuple(argv),
+                )
+            )
     return launches
 
 
-_LAUNCHES = _all_documented_launches()
-_IDS = [f"{readme}:{ensemble}:{' '.join(argv)}" for readme, ensemble, argv in _LAUNCHES]
-
-
-def _parse(argv):
-    """Run `argv` through the real CLI. Returns the args, or the refusal message."""
+def _parse(argv) -> tuple[object, str | None]:
+    """Run `argv` through the real CLI. Returns `(args, None)` or `(None, refusal)`."""
     saved_argv = sys.argv
     buffer = io.StringIO()
     try:
@@ -88,108 +219,155 @@ def _parse(argv):
             return ForecastingModelArgs.parse_args(), None
     except SystemExit:
         lines = [line for line in buffer.getvalue().splitlines() if line.strip()]
-        return None, " ".join(lines[:1]) or "refused with no message"
+        return None, (lines[0] if lines else "refused with no message")
     finally:
         sys.argv = saved_argv
 
 
-def test_both_chrome_ensembles_document_a_launch():
-    """Neither README may go quiet. Absence is not a pass.
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_the_documented_launch_is_written_in_a_notation_this_guard_can_read(ensemble):
+    """Refuse rather than skip. This is the guard that makes every other one mean something.
 
-    Every other guard here is parametrized over what was found, so a README that stops
-    documenting its launch would silently reduce the number of checks that run rather than fail
-    one (C-182, ADR-025). This is the census that makes the rest of the file mean something.
+    Of the twelve mutations that survived the first audit, five hid a command in plain sight: a
+    `$ ` prompt, a `~~~` fence, a four-space indented block, the `python main.py` form, or a
+    module that does not exist. Each left the old census with nothing to iterate, and a census
+    with nothing to iterate reports fewer passes rather than failing (C-182, ADR-025).
     """
-    documented = {ensemble for _, ensemble, _ in _LAUNCHES}
-    assert documented == set(CHROME_ENSEMBLES), (
-        "the chrome READMEs no longer document a launch for each ensemble in a code fence; "
-        f"found {sorted(documented)}, expected {sorted(CHROME_ENSEMBLES)}. #639 exists because "
-        "the recorded command did not run, and an undocumented command cannot be checked at all."
+    try:
+        launches = _launches(ensemble)
+    except UnreadableDocumentation as error:
+        pytest.fail(str(error))
+
+    assert launches, (
+        f"ensembles/{ensemble}/README.md's manual block has a ``` fence but no command in it."
+    )
+
+    missing_entry_points = [
+        str(launch)
+        for launch in launches
+        if not (ENSEMBLES_DIR / launch.ensemble / "main.py").is_file()
+    ]
+    assert not missing_entry_points, (
+        "a documented launch names an entry point that does not exist, so following the README "
+        "fails with `No module named ...` before any flag matters:\n"
+        + "\n".join(f"  {m}" for m in missing_entry_points)
     )
 
 
-@pytest.mark.parametrize("readme,ensemble,argv", _LAUNCHES, ids=_IDS)
-def test_the_documented_launch_is_accepted_by_the_cli(readme, ensemble, argv):
-    """The documented command must survive `ForecastingModelArgs._validate`.
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_each_readme_documents_its_own_ensembles_launch(ensemble):
+    """Per README, not per union.
 
-    This is the guard that fails on #639's actual defect. `--run_type forecasting --saved` is
+    The first version compared a set of names pooled across both files, so `chrome_crate`'s
+    README could document no launch at all, or document `chrome_box`'s instead of its own, and
+    stay green because the other file named both. An operator reads one file.
+    """
+    documented = {launch.ensemble for launch in _launches(ensemble)}
+    assert ensemble in documented, (
+        f"ensembles/{ensemble}/README.md documents launches for {sorted(documented)} but not "
+        f"for {ensemble} itself. Someone following this file would never run this ensemble."
+    )
+
+
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_the_documented_launch_is_accepted_by_the_cli(ensemble):
+    """Every documented command must survive `ForecastingModelArgs._validate`.
+
+    This is the guard that fails on #639's actual defect: `--run_type forecasting --saved` is
     refused by the rule *"neither --train, --evaluate, nor --sweep flag is set"*, which is why
     nobody would have reached a member on the rented box.
     """
-    args, refusal = _parse(argv)
-    assert args is not None, (
-        f"ensembles/{readme}/README.md documents a launch the CLI refuses:\n"
-        f"  python -m ensembles.{ensemble}.main {' '.join(argv)}\n"
-        f"  {refusal}"
-    )
-    assert args.run_type == "forecasting", (
-        f"ensembles/{readme}/README.md documents a {args.run_type} launch for {ensemble}; "
-        "the chrome pair exists to produce a forecast (#595)."
-    )
-    assert args.forecast, (
-        f"ensembles/{readme}/README.md documents a launch for {ensemble} without `-f`. "
-        "`_execute_model_tasks` forecasts only under `if ctx.args.forecast:`, so this command "
-        "would train and then produce nothing."
+    offenders = []
+    for launch in _launches(ensemble):
+        args, refusal = _parse(launch.argv)
+        if args is None:
+            offenders.append(f"  {launch}\n      {refusal}")
+        elif args.run_type != "forecasting":
+            offenders.append(f"  {launch}\n      documents a {args.run_type} run, not a forecast")
+        elif not args.forecast:
+            offenders.append(
+                f"  {launch}\n      has no `-f`, so `_execute_model_tasks` would train and then "
+                "produce nothing"
+            )
+    assert not offenders, (
+        f"ensembles/{ensemble}/README.md documents a launch that would not forecast:\n"
+        + "\n".join(offenders)
     )
 
 
-@pytest.mark.parametrize("readme,ensemble,argv", _LAUNCHES, ids=_IDS)
-def test_documented_launch_does_not_presume_member_artifacts(readme, ensemble, argv):
-    """The stub's either/or, from the #639 audit: train, or have the artifacts already.
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_documented_launch_does_not_presume_member_artifacts(ensemble):
+    """#639's acceptance item: the documented launch must train.
 
-    Without `-t`, every member resolves `get_latest_model_artifact_path("forecasting")`, which
-    raises `FileNotFoundError` when the directory holds no artifact. So a documented launch
-    without `-t` is a claim about the filesystem, and this asserts that claim is true.
+    ⛔ The audit's stub asserted this by globbing `models/*/artifacts` for every member, and that
+    form is abandoned here rather than kept alongside. Two measurements killed it. It cannot fail
+    alone: the real parser refuses any non-`--train` run that lacks `--saved`
+    (`if (not self.train and not self.sweep) and not self.saved`), so every command that reaches
+    its branch is already red in `test_the_documented_launch_is_accepted_by_the_cli` or in
+    `test_the_documented_launch_does_not_pass_saved`. And where it could have spoken it was
+    machine-state dependent: eight empty files touched into `models/*_condor/artifacts/`
+    silenced it completely. A guard whose subject is local state cannot certify a claim about a
+    box that does not exist yet.
+
+    Asserted on the argv rather than on the parsed args, so a command the parser refuses fails
+    here too. The first version's `args is None or not args.saved` let the refused command
+    through this class of check entirely.
     """
-    args, _ = _parse(argv)
-    if args is not None and args.train:
-        return
-
-    members = _members(ensemble)
-    assert members, f"could not read the modelset of {ensemble}"
-    missing = [
-        member
-        for member in members
-        if not any((MODELS_DIR / member / "artifacts").glob("*forecasting*"))
+    offenders = [
+        f"  {launch}"
+        for launch in _launches(ensemble)
+        if not {"-t", "--train"} & set(launch.argv)
     ]
-    assert not missing, (
-        f"ensembles/{readme}/README.md documents a launch for {ensemble} without `-t`, which "
-        f"presumes a forecasting artifact for every member. These have none: {missing}. "
-        "Either train in the documented command (`-t`) or do not document a launch that "
-        "depends on artifacts this repository does not carry."
+    assert not offenders, (
+        f"ensembles/{ensemble}/README.md documents a launch without `-t`. Each member then "
+        "resolves `get_latest_model_artifact_path('forecasting')`, which raises "
+        "FileNotFoundError when the directory holds no artifact — and no member of either "
+        f"chrome ensemble has one:\n" + "\n".join(offenders)
     )
 
 
-@pytest.mark.parametrize("readme,ensemble,argv", _LAUNCHES, ids=_IDS)
-def test_the_documented_launch_does_not_pass_saved(readme, ensemble, argv):
-    """`-t --saved` parses cleanly and still dies on a fresh box, so the string matters.
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_the_documented_launch_does_not_pass_saved(ensemble):
+    """`-t --saved` parses cleanly and still dies on a fresh box, so the token matters.
 
     `_create_model_args` computes `saved = ctx.args.saved if train else True`. The member
-    FORECAST step therefore always runs saved, reusing what training cached — but the member
-    TRAINING step inherits `--saved` from here, and on a fresh box there is no cached data for
-    it to read. The parser cannot catch this, which is why it is asserted separately.
+    FORECAST step is therefore saved regardless of this flag, reusing what training cached — but
+    the member TRAINING step inherits it and goes looking for data a rented box has never
+    written. The parser cannot catch this, which is why it is asserted separately.
     """
-    args, _ = _parse(argv)
-    assert args is None or not args.saved, (
-        f"ensembles/{readme}/README.md documents `--saved` for {ensemble}. The member training "
-        "step then looks for locally stored data, which a freshly rented box does not have "
-        "(#639). Drop it: the member forecast step is saved regardless of this flag."
+    offenders = [
+        f"  {launch}"
+        for launch in _launches(ensemble)
+        if {"-sa", "--saved"} & set(launch.argv)
+    ]
+    assert not offenders, (
+        f"ensembles/{ensemble}/README.md documents `--saved`. The member training step then "
+        "looks for locally stored data, which a freshly rented box does not have (#639):\n"
+        + "\n".join(offenders)
     )
 
 
-@pytest.mark.parametrize("readme,ensemble,argv", _LAUNCHES, ids=_IDS)
-def test_the_documented_launch_does_not_publish(readme, ensemble, argv):
-    """No `-p`. The chrome pair produces; serving is gated elsewhere.
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_the_documented_launch_carries_no_flag_beyond_a_fresh_box_forecast(ensemble):
+    """Whitelist. `-p` is not the only flag that makes a documented launch wrong.
 
     Rule 5 of `docs/runpod_run_guide.md` keeps publish credentials off rented hardware, and the
-    real delivery is gated on views-crafdapi#180 and #599. A documented `-p` would put the
-    Appwrite secrets on the box as a side effect of following the README.
+    delivery is gated on views-crafdapi#180 and #599 — so `-p` must not appear. But the first
+    version enumerated only `-p` and `--saved`, and `-wn -re -dd -o 3` passed: `-wn` needs a W&B
+    credential on the box, `-dd` runs a drift self-test at fetch, `-o` overrides the timestep.
+    Enumerating harm requires imagining it, so this enumerates the four tokens that are known to
+    be right and refuses the rest.
     """
-    args, _ = _parse(argv)
-    assert args is None or not args.prediction_store, (
-        f"ensembles/{readme}/README.md documents `-p` for {ensemble}, which would need publish "
-        "credentials on the box. The chrome run produces a forecast; the delivery is gated on "
-        "views-crafdapi#180 and #599."
+    offenders = []
+    for launch in _launches(ensemble):
+        extra = [token for token in launch.argv if token not in FRESH_BOX_TOKENS]
+        if extra:
+            offenders.append(f"  {launch}\n      unexpected: {extra}")
+    assert not offenders, (
+        f"ensembles/{ensemble}/README.md documents a launch carrying flags beyond a fresh-box "
+        f"forecast (allowed: {sorted(FRESH_BOX_TOKENS)}). `-p` would need publish credentials "
+        "on the box; `-wn` a W&B credential; `-dd` and `-o` change what the run does:\n"
+        + "\n".join(offenders)
     )
 
 
@@ -198,28 +376,20 @@ def test_chrome_box_documents_the_cm_run_first():
 
     `load_cm_frame` resolves `EnsemblePathManager("chrome_crate")
     ._get_generated_predictions_data_file_paths("forecasting")` and fails loud when it finds
-    nothing. The order is a precondition of the run, so the README that a person follows
-    top-to-bottom must show the cm launch above the pgm one.
+    nothing. The order is a precondition of the run, so the block a person follows must show the
+    cm launch above the pgm one.
+
+    Scoped to the manual block. The first version searched the whole README and was satisfied by
+    a `chrome_crate` mention inside the ASCII directory tree, while the runnable fence was
+    reversed — the recurring `src.index(a) < src.index(b)` survivor shape.
     """
-    launches = [ensemble for ensemble, _ in _fenced_launches(ENSEMBLES_DIR / "chrome_box" / "README.md")]
-    assert "chrome_crate" in launches, (
-        "ensembles/chrome_box/README.md does not document the chrome_crate run. chrome_box reads "
-        "chrome_crate's forecast from local disk (load_cm_frame), so running it alone fails with "
-        "'no local forecast found for country model chrome_crate'."
+    order = [launch.ensemble for launch in _launches("chrome_box")]
+    assert "chrome_crate" in order, (
+        "ensembles/chrome_box/README.md's manual block does not document the chrome_crate run. "
+        "chrome_box reads chrome_crate's forecast from local disk (load_cm_frame), so running it "
+        "alone fails with 'no local forecast found for country model chrome_crate'."
     )
-    assert launches.index("chrome_crate") < launches.index("chrome_box"), (
+    assert order.index("chrome_crate") < order.index("chrome_box"), (
         "ensembles/chrome_box/README.md documents its own launch before chrome_crate's. The cm "
-        f"run is a precondition of the pgm run, not a parallel option. Order found: {launches}"
+        f"run is a precondition of the pgm run, not a parallel option. Order found: {order}"
     )
-
-
-def _members(ensemble: str) -> list[str]:
-    """The ensemble's modelset, read from its own config rather than hard-coded here.
-
-    `tests/test_chrome_box_pairing.py` owns the assertion about WHICH members these are and in
-    what order. This file only needs the names, so it reads them and does not restate them — a
-    second copy of the roster would drift and would not be the copy anyone checks.
-    """
-    text = (ENSEMBLES_DIR / ensemble / "configs" / "config_modelset.py").read_text()
-    block = text[text.index('"models"') :]
-    return re.findall(r'"([a-z]+_[a-z]+)"', block[: block.index("]")])
