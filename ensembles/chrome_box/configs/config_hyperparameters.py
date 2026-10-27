@@ -29,9 +29,25 @@ def get_hp_config():
     RECONCILIATION from holding a global-volume x S frame whole. It does not shrink the
     concat pool itself, so it does not answer this.
 
-    The number here is the epic's, deliberately, so the decision is visible rather than
-    pre-made: run it on hardware that can hold it, or thin to 8 x 16 and amend #595's
-    acceptance. That is a hardware and cost call, not a config one.
+    ⚠️ BUT "production hardware" THERE MEANS THE LAPTOP ROTATION (C-99), NOT A POD. The
+    rented pods this platform uses are specified in `docs/runpod_run_guide.md` at
+    **RAM >= 50 GB, vCPU >= 12, VRAM >= 24 GB**, and the 2026-09 campaign ran on 87 GB and
+    57 GB machines. 28.6 GB fits those with room, and the register entry recording this
+    drift says the exit is "a run that fits the hardware, not a config edit". So the
+    epic's number stands and needs no decision: size the pod on the written rule.
+
+    Two things that DO carry to a run:
+
+    - The 31 GB machine the runpod postmortem says "do not take" failed by APPROACHING its
+      ceiling -- a 25x slowdown from kernel reclaim, never an OOM. Headroom is the
+      property, not fit.
+    - `docs/runpod_run_guide.md`: "the in-code memory guard cannot see the container. It
+      reads the host's RAM and will approve a run that cannot fit." So do the arithmetic by
+      hand whatever the pod reports.
+
+    The 28.6 GB above is the concat pool ONLY. Peak also carries the input volume and the
+    cm frame, and that total is NOT MEASURED -- comfortable on 87 GB, worth measuring
+    before taking a 50 GB machine.
 
     Returns:
     - hp_config (dict): A dictionary containing ensemble hyperparameters.
