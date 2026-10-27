@@ -33,6 +33,7 @@ import subprocess
 import pytest
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 
 pytestmark = pytest.mark.green
 
@@ -201,11 +202,21 @@ def test_every_pipeline_core_declaration_keeps_its_upper_bound():
     release would otherwise install itself on the next monthly run. #635 removed that entry,
     so the general rule covers the package again and this one is now redundant.
 
-    ⛔ It stays anyway, because the redundancy is conditional on an absence: re-adding a
-    `views-pipeline-core` entry to DEFERRED_PACKAGES for any future reason silently reopens
-    the hole, and whoever adds it will be thinking about floors, not ceilings. A guard that
-    costs eight lines and survives the exemption is cheaper than rediscovering why it was
-    written. `views-datafactory`'s entry documents the same pattern for itself.
+    ⛔ **Correction, from the independent audit of #635: this rule has never fired alone and
+    cannot today.** An earlier draft of this docstring claimed it "was the only thing that
+    would notice `<4.0.0` being dropped" under a re-added exemption. That was measured and is
+    false: with a `views-pipeline-core` entry back in DEFERRED_PACKAGES *and* the ceiling
+    dropped from one declaration, both this test and
+    `test_every_pipeline_core_declaration_is_at_the_3_2_0_floor` go red, because dropping the
+    ceiling changes `str(req.specifier)` away from `<4.0.0,>=3.2.0` and that guard pins the
+    whole specifier. There is no mutation this catches and that one misses.
+
+    It is kept, and the honest reason is narrow: it is the only *semantic* statement about the
+    ceiling, so it survives the floor guard's specifier pin being loosened into a version
+    comparison — which is a change someone will reasonably propose, since the pin also reddens
+    a uniform bump to `==3.3.0`. Eight lines against that is worth it. What it must not be
+    credited with is independent coverage today. `views-datafactory`'s entry documents the
+    same exemption-widens-silently pattern for itself.
     """
     unbounded = []
     for name, number, req in _declarations():
@@ -264,12 +275,38 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
 
     floors: dict[str, int] = {}
     declaring = set()
-    for name, _number, req in _declarations():
-        if req.name != "views-pipeline-core" or req.url:
+    offenders: list[str] = []
+    inert: list[str] = []
+    for name, number, req in _declarations():
+        #: ⛔ `packaging` does NOT canonicalise `Requirement.name`, so `views_pipeline_core`
+        #: is a different string to this guard and the SAME package to pip. An independent
+        #: audit of this guard appended `views_pipeline_core==3.1.0` to a co-tenant and the
+        #: whole suite stayed green while the shared prefix resolved below the floor.
+        if canonicalize_name(req.name) != "views-pipeline-core":
             continue
-        floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
-        declaring.add(str(Path(name).parent))
+        #: ⛔ A URL, a marker, or a file that is not actually named `requirements.txt`
+        #: each change WHAT INSTALLS while leaving the specifier string intact. None of them
+        #: may `continue` past the census: a skip drops the directory out of `declaring`, and
+        #: a smaller census reports fewer passes rather than failing (C-182). They are
+        #: collected and asserted instead, so the guard refuses rather than shrinks.
+        if req.url:
+            inert.append(f"  {name}:{number}: declared as a URL, so the floor is a label: {req}")
+        elif req.marker is not None:
+            inert.append(f"  {name}:{number}: carries an environment marker, so this line "
+                         f"may install nothing: {req}")
+        elif Path(name).name != "requirements.txt":
+            inert.append(f"  {name}:{number}: not named requirements.txt, so pip never reads "
+                         f"it: {req}")
+        else:
+            floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
+            declaring.add(str(Path(name).parent))
+            if str(req.specifier) != "<4.0.0,>=3.2.0":
+                offenders.append(f"  {name}:{number}: {req}")
 
+    assert not inert, (
+        "a views-pipeline-core declaration cannot be read as a floor at all, so this guard "
+        "refuses rather than counting it (ADR-025):\n" + "\n".join(inert)
+    )
     assert declaring == DECLARES_PIPELINE_CORE, (
         "the sources declaring views-pipeline-core are not the thirty-one named here.\n"
         f"  stopped declaring it : {sorted(DECLARES_PIPELINE_CORE - declaring)}\n"
@@ -281,7 +318,8 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
     assert floors == {"<4.0.0,>=3.2.0": 31}, (
         "views-pipeline-core is no longer declared as >=3.2.0,<4.0.0 by all thirty-one "
         f"sources: {floors}. Anything below >=3.2.0 cannot find configs/config_maturity.py "
-        "and dies on a missing config_deployment.py (#594)."
+        "and dies on a missing config_deployment.py (#594). The declarations that differ:\n"
+        + "\n".join(offenders)
     )
 
 
