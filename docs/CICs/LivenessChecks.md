@@ -84,7 +84,7 @@ string — never narration.
 | A verdict not in `EXIT_CODE_BY_VERDICT` | `exit_code_for` raises `KeyError` — loud — and because `main` classifies **before** printing, no contradictory half-block is emitted (C-101/P7). |
 | A surface's network/parse fails | Contained inside that surface as a `verdict=UNREACHABLE` fact (exit 2), never an uncaught crash. |
 | A surface `main` itself crashes | The aggregate runner catches it, prints an `UNREACHABLE` fact, assigns exit 2 — the other surfaces still run. |
-| Missing credentials / package / VPN | A **truthful skip** (C-75): `SKIP_NO_CREDENTIALS` / `SKIP_NO_PACKAGE` / `VPN_REQUIRED` → exit **0**. Not-observed is not the same as not-live. |
+| Missing credentials / package / VPN | A **truthful skip** (C-75): `SKIP_NO_CREDENTIALS` / `SKIP_NO_PACKAGE` / `VPN_REQUIRED` → exit **0**. Not-observed is not the same as not-live. ⛔ **Ruled by Simon, 2026-10-26 (#623): the exit code stays 0, and the REPORT must say what it did not observe.** The exit code is unchanged so that nothing consuming it starts reporting a fault on a credential-less machine, where not-observing is the normal and correct state. But exit 0 is also the answer for *healthy*, so the printed output must state the count of unobserved surfaces plainly — a reader must never have to infer from a clean exit that everything was checked. ⚠️ **Stated limit of this ruling:** a *script* still cannot distinguish "all healthy" from "observed nothing" by exit code alone. If anything is ever to gate automatically on this dashboard, that requires a distinct non-zero exit and is a new decision. See [ADR-025](../ADRs/025_a_check_that_cannot_see_must_refuse.md) §2.5 for the environment/repository line this sits on. |
 | **Partially** configured credentials (#298) | `CREDENTIALS_INCOMPLETE` → exit **1**, naming the missing variables. Deliberately *not* a truthful skip: "nothing is configured" is an honest absence of observation, "configured, but half of it" is a fault a human must fix. Exit 1 (attention), not 2 — the world is reachable; our configuration is not right. Collapsing the two is what allowed the Appwrite surfaces to fall back to another repository's `.env` unnoticed. |
 | Credentials resolvable only from **another repository's** `.env` | Not resolvable. The Appwrite surfaces read process env, then **this repository's own** `.env` (`REPO_ROOT/.env`, either `KEY=` or `export KEY=` style) — and nothing else. Observing under a foreign identity answers a different question than the one the verdict reports, and an exit code carries no caveat. Pinned by `tests/test_liveness_appwrite_store.py::test_resolve_credentials_does_NOT_read_another_repos_env`. |
 | **A rejected Appwrite key** (expired, revoked, wrong) | `UNREACHABLE` → exit **2**. Not negotiable, and not free: Appwrite answers the **file-listing** endpoint with HTTP 200 and `total: 0` for a rejected key — measured 2026-08-02 against Appwrite 1.9.5 (real key → 200/total=461; garbage key → 200/total=0; empty key → 200/total=0). Listing files was the only call the Appwrite surfaces made, so a dead credential was indistinguishable from an empty bucket, and they reported `STORE_IDLE` / `DELIVERY_STALLED` — exit 1, "attention" — while nothing was authenticated. Both keys expire around 2026-11-30 and the write path reports that expiry as success, so these surfaces *are* the detector; rendering that failure as mild staleness defeated their purpose. Every other endpoint returns 401, so `assert_bucket_reachable` **GETs the bucket before any listing is interpreted** — proving key acceptance (401) and coordinate resolution (404) in one call. Pinned by `test_rejected_key_is_unreachable_not_idle` and `test_key_is_verified_before_any_listing_is_believed` in both Appwrite suites. |
@@ -139,10 +139,28 @@ assert exit_code_for(report.verdict) == 0
 - Epic #238 (S1 `old_api` … S7 runner/DRY extraction of `report.py` … S8 README); pgm-probe added the second data level to `old_api` (#260).
 - Register lineage: C-100 (Mitigated, README), C-101/C-102 (falsify audit), C-103 (taxonomy, Resolved), **C-107** (this contract gap — closed by this CIC).
 - ADR-005 amendment 2026-07-19 added the `Live` category so the skip-truthful probes are a first-class axis, not mislabeled `red`.
+- **2026-10-26, epic #608 / #623.** [ADR-025](../ADRs/025_a_check_that_cannot_see_must_refuse.md)
+  makes it a standing rule that a check which cannot see its subject must refuse rather than pass,
+  with three verdicts and **unverified dominating** any aggregate. This layer is cited there as the
+  exemplar for the three-valued vocabulary and for `exit_code_for` raising on an unregistered
+  verdict. Two consequences land here: the skip-to-exit-0 ruling recorded in §6, and ⛔ **a defect
+  this contract did not previously forbid** — `report.py`'s `worst_exit` is `max(codes, default=0)`,
+  so an **empty** surface list exits 0: a dashboard that observed nothing reporting healthy. Under
+  §3's guarantees that is now out of contract. Fix tracked as **#615**.
 
 ## 12. Known Deviations
 
 - `report.py` was extracted **WET-before-DRY** (S7/#245): the shared renderer and classifier were pulled out only after six surfaces demonstrably duplicated them — deliberate, per epic #238.
+- ⛔ **§6's unobserved-count requirement is NOT yet implemented, and is listed here rather than left
+  to read as current behaviour.** §6 makes it contract that the printed output state the count of
+  unobserved surfaces plainly. `__main__.py:run_all` prints each surface's block and a final
+  `worst_exit:` line — **and nothing else**, so a reader still has to infer from a clean exit that
+  everything was checked. Added 2026-10-27 with the #623 ruling; **both halves of this gap are
+  scoped to #615 (S7)** — the missing count here, and `report.py`'s `worst_exit` being
+  `max(codes, default=0)` so an empty surface list exits 0. ⚠️ Until #615 lands, §6 describes the
+  intended contract and this row is the deviation. Recorded because a contract that silently
+  outruns its implementation is the same defect as a check that cannot see its subject
+  ([ADR-025](../ADRs/025_a_check_that_cannot_see_must_refuse.md) §2.4), pointed the other way.
 - The per-surface **verdict catalogue** (every verdict and its freshness budget) lives in `tools/liveness/README.md` as the human-readable companion and is **referenced, not duplicated**, here — this contract governs the *shared* shape; the README enumerates the *specifics*.
 
 ---
