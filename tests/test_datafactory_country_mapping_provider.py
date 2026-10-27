@@ -16,9 +16,18 @@ rather than implied, because "covers every cell" reads like "is correct" and is 
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
-from datafactory_query import load_region_pgids
+
+# ⛔ The frame types come from `views_frames`, NOT from `datafactory_adapters`, which
+# only re-exports them. `run_tests.yml` installs `views_pipeline_core==3.3.0` and nothing
+# else, which resolves views-frames 2.0.0 — verified in a venv built exactly like that
+# job, where `FeatureFrame`, `SpatioTemporalIndex` and `SpatialLevel` are all top-level.
+# Importing them from the datafactory side instead is what made this whole module ERROR
+# at collection in CI, and reaching for a skip would have silenced 24 guards to fix 5.
+from views_frames import FeatureFrame, SpatialLevel, SpatioTemporalIndex
 
 from reconciliation import source_detection
 from reconciliation.datafactory_country_mapping_provider import (
@@ -29,16 +38,30 @@ from reconciliation.datafactory_country_mapping_provider import (
 from reconciliation.reconciler_factory import _PROVIDERS
 
 
+def _load_region_pgids():
+    """`datafactory_query` only — ⛔ and ONLY for the guards that genuinely need it.
+
+    `run_tests.yml` installs `views_pipeline_core==3.3.0` and nothing else, so the package
+    is absent there; a module-level import ERRORED this file at collection. A module-level
+    `importorskip` would have been worse: it silences all 25 guards to accommodate 6, and a
+    skipped guard reads as a pass, which is the thing ADR-025 forbids. So the skip is
+    per-guard, and `.github/workflows/datafactory_geography.yml` is where the 6 actually
+    run — pinned to the same `views-datafactory>=1.13.0,<2.0.0` floor the sixteen declare.
+    `test_the_skipped_guards_have_a_job_that_runs_them` below keeps that honest.
+    """
+    pytest.importorskip(
+        "datafactory_query",
+        reason="absent in run_tests.yml by design; see datafactory_geography.yml",
+    )
+    from datafactory_query import load_region_pgids
+
+    return load_region_pgids
+
+
 def _frame(times, gids, codes, feature_names=(GAUL_CODE_FEATURE,), extra=None):
     """A real views-frames FeatureFrame, not a stand-in — the provider reads
     `.feature_names`, `.index.time`, `.index.unit` and `.values`, so a mock would
     prove nothing about whether it reads them correctly."""
-    from datafactory_adapters.feature_frame import (
-        FeatureFrame,
-        SpatialLevel,
-        SpatioTemporalIndex,
-    )
-
     cols = [np.asarray(codes, dtype=np.float64)]
     if extra is not None:
         cols.append(np.asarray(extra, dtype=np.float64))
@@ -57,12 +80,6 @@ def _frame_with_columns(times, gids, columns):
     """A frame with several named features, in the given order. Needed because a
     one-or-two-column fixture cannot distinguish `names.index(...)` from a constant
     index: with the gaul column second of two, 1 and -1 coincide."""
-    from datafactory_adapters.feature_frame import (
-        FeatureFrame,
-        SpatialLevel,
-        SpatioTemporalIndex,
-    )
-
     values = np.stack(
         [np.asarray(v, dtype=np.float64) for v in columns.values()], axis=1
     )
@@ -195,21 +212,14 @@ class TestWhatItRefuses:
         """`FeatureFrame.values` carries a trailing draw axis. A lookup must have exactly
         one sample per cell; more means a forecast was fetched where geography was asked
         for, and taking draw 0 would silently reconcile against one draw of a posterior."""
-        import numpy as _np
-        from datafactory_adapters.feature_frame import (
-            FeatureFrame,
-            SpatialLevel,
-            SpatioTemporalIndex,
-        )
-
         index = SpatioTemporalIndex(
-            time=_np.array([500, 500], dtype=_np.int64),
-            unit=_np.array([1001, 1002], dtype=_np.int32),
+            time=np.array([500, 500], dtype=np.int64),
+            unit=np.array([1001, 1002], dtype=np.int32),
             level=SpatialLevel.PGM,
         )
         # (N=2, F=1, S=2) — two draws per cell. The library's own ADR-012 shape.
         sampled = FeatureFrame(
-            y_features=_np.array([[[231.0, 231.0]], [[94.0, 94.0]]]),
+            y_features=np.array([[[231.0, 231.0]], [[94.0, 94.0]]]),
             index=index,
             feature_names=[GAUL_CODE_FEATURE],
         )
@@ -242,6 +252,7 @@ class TestCoverageAgainstTheBundledGroundTruth:
     def test_the_ground_truth_is_the_region_epic_595_was_built_on(self):
         """Pins the two figures the epic, #601 and every member queryset quote, from the
         package's own bundled list rather than from any of those documents."""
+        load_region_pgids = _load_region_pgids()
         assert len(load_region_pgids("land_gaul")) == 64_742
         assert len(load_region_pgids("land")) == 64_818
         assert len(load_region_pgids("land") - load_region_pgids("land_gaul")) == 76
@@ -249,6 +260,7 @@ class TestCoverageAgainstTheBundledGroundTruth:
     def test_the_mapping_covers_every_cell_in_land_gaul(self):
         """At real scale: one month over all 64,742 cells. Coverage is the acceptance
         criterion #601 states; the VALUES are not proved here (see the module docstring)."""
+        load_region_pgids = _load_region_pgids()
         gids = np.array(sorted(load_region_pgids("land_gaul")), dtype=np.int64)
         frame = _frame(np.full(gids.size, 500), gids, np.full(gids.size, 231))
         mapping = _provider(frame).build()
@@ -258,6 +270,7 @@ class TestCoverageAgainstTheBundledGroundTruth:
     def test_the_76_cells_land_excludes_are_exactly_what_the_provider_refuses(self):
         """Ties the refusal to the ground truth: build on `land`, with the 76 carrying
         -1 as the real data does, and the provider must refuse — naming 76."""
+        load_region_pgids = _load_region_pgids()
         land = np.array(sorted(load_region_pgids("land")), dtype=np.int64)
         gaul = sorted(load_region_pgids("land_gaul"))
         # ⛔ TWO months, so rows != cells. With one month the figure in the message
@@ -286,6 +299,7 @@ class TestWhatTheRealFetchAsksFor:
     """
 
     def _capture(self, monkeypatch):
+        _load_region_pgids()  # same per-guard skip; see its docstring
         import datafactory_query
 
         seen = {}
@@ -379,6 +393,38 @@ class TestTheRegistryWiring:
             build_reconciler(500, 501, source="gaul")
         assert source_detection.VIEWSER in str(e.value)
         assert source_detection.DATAFACTORY in str(e.value)
+
+
+def test_the_skipped_guards_have_a_job_that_runs_them():
+    """⛔ The six guards above that need `datafactory_query` SKIP in `run_tests.yml`, and
+    a skipped guard reads as a pass. This asserts the job that actually runs them exists
+    and still names this file — so the skip cannot quietly become permanent.
+
+    The precedent is specific: `test_roster_configs_load.py` carries
+    `importorskip("views_hydranet")` and had therefore always skipped in `run_tests.yml`,
+    which is how two production ensemble members sat unloadable from August to September
+    with every test green (#404, #458 §1b). A dedicated job was the fix there, and this
+    keeps that fix from decaying here.
+    """
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github"
+        / "workflows"
+        / "datafactory_geography.yml"
+    )
+    assert workflow.exists(), (
+        "the job that runs the datafactory-dependent guards is gone; they now skip in "
+        "run_tests.yml and run NOWHERE. Restore it or move those guards."
+    )
+    text = workflow.read_text(encoding="utf-8")
+    assert Path(__file__).name in text, (
+        f"{workflow.name} no longer names {Path(__file__).name}, so the guards it exists "
+        f"to run are not being run by it."
+    )
+    assert "views-datafactory>=1.13.0" in text, (
+        "the job's views-datafactory floor no longer matches the floor the sixteen #595 "
+        "members declare; the guards would run against a version the models do not use."
+    )
 
 
 def test_the_provider_satisfies_the_port():
