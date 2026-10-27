@@ -6,37 +6,44 @@
 **Informed:** All contributors
 **Origin:** epic #608, story #609. Generalised from Cluster G of
 `reports/technical_risk_register.md` — fourteen registered concerns, root **C-168**.
-⚠️ **Read §0 before following any `C-1xx` citation below.**
+⚠️ **§0 records which citations resolve** — the register ones do; §4's first exemplar does not.
 **Related ADRs:** [ADR-005](005_testing.md) (the `live` category, whose truthful skip this ADR must
 not contradict), [ADR-020](020_errors_must_descend.md) (a refusal still has to name the next file),
 [ADR-024](024_pod_runner_contract.md) (the runner contract this rule extends)
 
 ---
 
-## 0. ⛔ Where this ADR's register citations resolve, and where they do not
+## 0. ⛔ Where this ADR's citations resolve
 
-**Every `C-167`–`C-181` citation in this document, the name "Cluster G", and the figure *ninety open
-concerns*, come from a revision of `reports/technical_risk_register.md` that is NOT on
-`development`.** On `development` that file is the 2026-10-19 revision: highest concern **C-166**,
-header `Open 78`, and **no occurrence of "Cluster G"**. Three copies exist:
+✅ **The register citations resolve.** `reports/technical_risk_register.md` on `development` now runs
+to **C-181** with `Open 93` and carries the `Cluster G` section, so the root **C-168**, every
+`C-16x`/`C-17x` member cited below, and the figure *ninety open concerns* can all be followed from
+the integration branch. ⚠️ **Read the next paragraph anyway** — this was not true when the ADR was
+written, and one citation is still unresolvable.
 
-| copy | highest ID | open | state |
+**What was wrong, and is kept here rather than quietly deleted.** When this ADR was accepted, the
+register on `development` was the 2026-10-19 revision — highest concern **C-166**, `Open 78`, **no
+occurrence of "Cluster G"** — while the entries the whole document is built on lived in two places
+that were not `development`:
+
+| copy | highest ID | open | what happened to it |
 |---|---|---|---|
-| `development` | C-166 | 78 (header) | the integration branch |
-| branch `docs/572-sigma-hat-version-null` | C-178 | **90** | ⚠️ **unmerged** — root **C-168** and the `Cluster G` section live here, as does `tools/podrun/pod_sweep_outputs.sh` (§4) |
-| `~/views-diagnostics/epic608_wip_20261026/` | C-181 | 93 | ⛔ **outside git** |
+| `development` (2026-10-19) | C-166 | 78 | superseded |
+| branch `docs/572-sigma-hat-version-null` | C-178 | 90 | fully contained in the copy below; still holds `pod_sweep_outputs.sh` |
+| `~/views-diagnostics/epic608_wip_20261026/` | C-181 | 93 | ⛔ was **outside git** — landed on `development` by **#610's residual**, verified a strict superset of both (no entry, field or `**Notes**` body lost; `C-68`'s title corrected) |
 
-So: **C-92, C-112, C-113, C-142, C-159, C-160, C-161, C-164 and C-28 resolve on `development`.
-C-167 and above do not.** The *quotations* in this ADR were read from the branch copy and are
-accurate to it; what is unavailable is the ability to follow them from `development`.
+⛔ **One citation is still unresolvable, and it is §4's first exemplar.**
+`tools/podrun/pod_sweep_outputs.sh` and `tests/test_pod_sweep_outputs.py` exist only on the unmerged
+branch `docs/572-sigma-hat-version-null` (added at `e71c35cc`) and **do not resolve from
+`development`**. Every reference to that script — §2.3, §3.2, §4 — carries the ⚠️ marker for this
+reason. ⚠️ That branch also carries its own older register revision; it is a subset of what is on
+`development` now, so a merge of it must take `development`'s copy.
 
-⛔ **Merge-order dependency.** If this ADR is accepted before `docs/572-sigma-hat-version-null`
-merges, its root citation dangles. Reconciling the three copies is **#610's unfinished residual**
-(see §7.3) and is the maintainer's; this section exists so that until then no reader follows a
-`C-17x` reference and concludes the path is wrong rather than absent.
-
-This section is here because the alternative — citing them silently — is the precise defect this
-ADR forbids. It is the document applying §2.4 to itself.
+**Why this section exists at all.** It was written because a review found that §4 declared the
+unmerged branch for the *script* and never noticed the *register* was on the same branch — an ADR
+about checks that cannot see their subject, citing a subject that could not be seen. It is kept, now
+that the register half is fixed, because the shape is the lesson: ⛔ **the second half of a
+declaration is the half that gets forgotten.** It is the document applying §2.4 to itself.
 
 ---
 
@@ -61,8 +68,8 @@ and in any aggregate, **unverified dominates**.
 ## 1. Context
 
 `/review-rr strategic` (2026-10-25) found that **fourteen of the register's ninety open concerns
-share one root cause**, recorded as Cluster G with root C-168 (⚠️ both the figure and the cluster
-are from the unmerged copy — §0):
+share one root cause**, recorded as Cluster G with root C-168 (both resolve on `development` since
+#610's residual landed — §0):
 
 > A check out of scope returns a clean verdict instead of refusing to answer — the instrument's input
 > excludes the thing it is asked about, and the resulting pass is recorded as a result.
@@ -272,9 +279,10 @@ test live only on the unmerged branch `docs/572-sigma-hat-version-null` (added a
 ADR's own rule is that a citation which cannot be resolved must announce itself instead of reading
 as though it resolved.
 
-⚠️ **The same branch holds the register revision this ADR is built on** — see §0. That it took a
-review to notice the second half of one declaration is the reason §0 is a section rather than a
-footnote.
+⚠️ **That branch also held the register revision this ADR is built on**, which a review caught and
+#610's residual has since landed on `development` — see §0. The script half is still unmerged. That
+it took a review to notice the second half of one declaration is the reason §0 is a section rather
+than a footnote.
 
 | exemplar | the independent control |
 |---|---|
@@ -397,9 +405,10 @@ held to this by review, not by CI.
 3. **Is Cluster G's membership complete?** At least seventeen further entries match the root cause
    and are not tagged G. §2.7's boundary is what stops the answer being "all of them". ⚠️ **#610
    (S2) is CLOSED COMPLETED (2026-10-26 00:55Z), and its result is not on `development`** — the
-   membership work landed in the two register copies described in §0 and nowhere else. So this
-   question is answered in a copy and open on the integration branch, which is #610's residual, not
-   a second question.
+   membership work was done in a copy outside git and has since been landed on `development` as
+   #610's residual (§0), verified a strict superset. **So the widening is now on the integration
+   branch: Cluster G is 30, not 14**, and the counts in §1 and §8 describe the cluster as this ADR
+   was written against it.
 
 ---
 
@@ -407,8 +416,8 @@ held to this by review, not by CI.
 
 - `reports/technical_risk_register.md` — Cluster G and root **C-168**; members C-92, C-112, C-113,
   C-142, C-159, C-160, C-161, C-164, C-169, C-170, C-174, C-175, C-176. ⛔ **Eight of these thirteen
-  resolve on `development`; C-169, C-170, C-174, C-175, C-176 and the root C-168 do not — see §0
-  before following them**
+  resolved on `development` when this ADR was accepted; all thirteen and the root C-168 resolve now
+  that #610's residual has landed — see §0**
 - Epic **#608**; this ADR is story **#609**; tracker **#624**
 - **#549** (weights died with the pods), **#558** (the archive guard counts only the half it
   archives), **#320** (145 days undetected), **#404** / **#458** (unloadable ensemble members),
