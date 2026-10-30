@@ -15,7 +15,7 @@ explicit about that. Its ground truth is `datafactory_query.load_region_pgids`,
 which resolves a region to its pgid set from the GAUL admin Parquet files and is
 an independent path from the feature fetch this provider reads.
 
-Three things it refuses rather than papers over, because each one would otherwise
+Four things it refuses rather than papers over, because each one would otherwise
 surface as a plausible wrong reconciled number:
 
 1. **A cell with no country.** `gaul0_code <= 0` means GAUL gives the cell no
@@ -31,6 +31,9 @@ surface as a plausible wrong reconciled number:
    Taking `.first()` here would silently pick one of two contradictory answers.
 3. **A missing feature.** If the fetch returns no `gaul0_code` column, the mapping
    cannot be built at all, and an empty mapping reconciles everything to nothing.
+4. **A fetch with no rows.** The same hazard through the other door: the column is
+   present and empty. Both refusals below pass vacuously on zero rows, so this one is
+   checked explicitly rather than inferred from them.
 
 The fetch is injected (a callable) so the build logic is unit-testable without
 network or credentials, exactly as `ViewserCountryMappingProvider` does it.
@@ -86,6 +89,22 @@ class DatafactoryCountryMappingProvider:
         # window the caller asked for, not the months the store happened to return —
         # see `_broadcast_over_the_requested_window` (#647).
         gids = np.asarray(frame.index.unit, dtype=np.int64)
+
+        # A fetch with the column but no rows. Sibling of the check above, and it has to
+        # be here rather than left to the refusals below: both of those pass VACUOUSLY on
+        # zero rows, `np.unique` returns empty, and `build` would hand back a mapping with
+        # no keys — the §3 hazard arriving by the other door. Before #647 a short fetch at
+        # least died loudly in `views_frames.index._remap`; keying on the requested window
+        # removed that accident, so the refusal has to be deliberate (ADR-003, ADR-025).
+        if gids.size == 0:
+            raise ValueError(
+                f"the datafactory fetch returned the {GAUL_CODE_FEATURE!r} feature but "
+                f"ZERO rows for region {self._region!r}, months "
+                f"{self._start_month}..{self._end_month}. The grid->country mapping would "
+                f"have no keys, and an empty mapping reconciles every cell to nothing. "
+                f"Check the region name resolves to a pgid set ('land_gaul' is 64,742 "
+                f"cells) and that the store covers the window."
+            )
 
         # `FeatureFrame.values` is (rows, features, samples) — the trailing axis is the
         # draw dimension, length 1 for a non-sample frame. Geography is not stochastic, so

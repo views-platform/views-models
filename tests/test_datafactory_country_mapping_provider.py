@@ -275,6 +275,39 @@ class TestWhatItRefuses:
         with pytest.raises(ValueError, match=r"no GAUL country"):
             _provider(frame).build()
 
+    def test_a_fetch_with_the_column_but_no_rows_refuses(self):
+        """An empty mapping reconciles every cell to nothing, so zero rows must refuse.
+
+        ⛔ Why this needs its own guard rather than falling out of the two refusals above.
+        Both of them pass VACUOUSLY on an empty frame — `codes <= 0` has nothing to be
+        true of, and `lexsort` on zero rows finds no neighbour that disagrees — then
+        `np.unique` returns empty and `build` hands back a `CountryMapping` with no keys
+        at all. The module docstring refuses that outcome by name at §3 for a MISSING
+        column; this is the same outcome through a present-and-empty one.
+
+        It became reachable with #647. Keying the mapping on the months the store returned
+        meant a short or empty fetch died loudly in `views_frames.index._remap` with the
+        missing `(time, unit)` named — an accident, but a loud one. Keying on the
+        requested window removed the accident, so the refusal has to be deliberate.
+
+        Realistic trigger: a region string that resolves to an empty pgid set, or a store
+        migration that moves the window, either of which `load_dataset` reports as a
+        `UserWarning` and not an error.
+        """
+        frame = _frame([], [], [])
+        with pytest.raises(ValueError, match=r"ZERO rows"):
+            _provider(frame).build()
+
+    def test_the_zero_row_refusal_names_the_region_and_the_window(self):
+        """The operator has to be told which of the two inputs to go and look at."""
+        frame = _frame([], [], [])
+        with pytest.raises(ValueError) as e:
+            _provider(frame, region="atlantis", start=457, end=622).build()
+        message = str(e.value)
+        assert "atlantis" in message, "name the region that returned nothing"
+        assert "457" in message and "622" in message, "name the window that was asked for"
+        assert "64,742" in message, "give the count that says what a real region looks like"
+
     def test_a_cell_whose_country_changes_refuses_instead_of_taking_the_first(self):
         """⛔ TIME-MAJOR rows, two cells — not one cell's two months adjacent.
 

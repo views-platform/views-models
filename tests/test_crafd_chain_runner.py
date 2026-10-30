@@ -347,17 +347,46 @@ def test_phase_two_is_declared_absent_rather_than_half_present(script):
     )
 
 
-def test_the_derived_floors_are_labelled_as_derived(script):
-    """Both floors are reasoned, not observed. A guess presented as a measurement is worse.
+def test_each_floor_is_labelled_with_how_it_was_arrived_at(script):
+    """One floor is measured and one is reasoned, and each must say which it is.
 
     `feedback_never_state_an_unmeasured_cost`: estimates here have been one-sidedly optimistic
-    9 times out of 9. Labelling them is what lets the first real run replace them.
+    9 times out of 9, so labelling is what lets a real run replace them.
+
+    ⛔ This replaces `test_the_derived_floors_are_labelled_as_derived`, which asserted
+    `script.count("DERIVED") >= 2` on the premise that *both* floors were reasoned. The
+    memory floor was measured on 2026-10-28 (96 MB pool, 176 MB members, ~2 MB peak RSS
+    each, 7 minutes, 87 GiB box never strained), and the comment block was updated to say
+    so — while the line the operator actually READS still printed "DERIVED not measured".
+    A count-based assertion could not tell the two floors apart, so it held the stale
+    label in place: the guard was the reason the defect survived its own correction.
+
+    The check is now per-floor and two-directional, because mislabelling is harmful in
+    both: a guess that claims measurement invites over-trust, and a measurement that
+    claims to be a guess invites someone to "replace" a real number with another guess.
     """
     for floor in ("MEM_FLOOR_GB", "DISK_FLOOR_GB"):
         assert floor in script, f"{floor} is not set"
-    assert script.count("DERIVED") >= 2 or script.count("NOT MEASURED") >= 1, (
-        "the memory and disk floors are not labelled as derived. Neither has been observed; "
-        "both are reasoned from frame arithmetic. Say so, so the first run replaces them."
+
+    mem_line = next(
+        (ln for ln in script.splitlines() if "MEM_FLOOR_GB}" in ln and "echo" in ln), None
+    )
+    disk_line = next(
+        (ln for ln in script.splitlines() if "DISK_FLOOR_GB}" in ln and "echo" in ln), None
+    )
+    assert mem_line and disk_line, (
+        "could not find the lines that report the two floors to the operator, so this "
+        "guard cannot see its subject and refuses rather than passing (ADR-025)"
+    )
+
+    assert "MEASURED" in mem_line and "DERIVED" not in mem_line, (
+        f"the memory floor is reported as derived: {mem_line.strip()!r}. It was measured "
+        f"on 2026-10-28 and the comment block above it says so; an operator reads this "
+        f"line, not the comment."
+    )
+    assert "DERIVED" in disk_line, (
+        f"the disk floor is no longer labelled derived: {disk_line.strip()!r}. It has "
+        f"still never been observed — only the memory floor has. Label it, or measure it."
     )
 
 

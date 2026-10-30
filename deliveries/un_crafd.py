@@ -37,8 +37,24 @@ impossible. `chrome_crate` is a cm ensemble carrying all three, which is #422's 
 **Why it is no longer `rusty_bucket`.** It was, and `intent` was `live` — so a hand-run
 of this postprocessor would have delivered FAO's ensemble to CRAF'd. Simon's ruling of
 2026-10-22 is that `rusty_bucket` is FAO's and must never go to CRAF'd as a stopgap.
-Nothing had fired only because `monthly_run.sh:179` runs `un_fao` and not this one;
-that is luck, not a safeguard.
+⛔ **It did fire. Once, on 2026-08-14, and this repository holds the log.**
+`postprocessors/un_crafd/wandb/run-20260814_202751-g06spd7j/files/output.log` records
+**111 uploads** completing at 20:36:25: 108 shards (36 months x `lr_ged_sb`, `lr_ged_ns`,
+`lr_ged_os`), `rusty_bucket_forecasting_20260727_095355__sidecar.parquet`, the
+`__manifest.json` ADR-013 commit marker, and `historical_dataset_20260814_203554.parquet`
+— written by `views_postprocessing/contract/wire/sink.py:165` and
+`crafd/managers/crafd.py:396`, i.e. the CRAF'd path, not a staging path. An earlier
+attempt that day (`run-20260814_040036-az5srom5`) failed on an Appwrite schema error.
+`tools/liveness/crafd_delivery.py`'s own "verified live 2026-08-24 ... 111 files" is this
+same delivery, counted from the other end.
+
+So FAO's ensemble reached CRAF'd two months BEFORE the 2026-10-22 ruling that it must
+not. Earlier versions of this paragraph said "nothing had fired only because
+`monthly_run.sh:179` runs `un_fao` and not this one; that is luck, not a safeguard" —
+that was wrong, and the disproof was in this repository the whole time. It is recorded
+here rather than corrected silently because a decision file that says an event never
+happened is how nobody retracts what was already shipped. **What to do about the shards
+already on CRAF'd's shelf is the maintainer's call, not this file's.**
 
 **Declared `paused`, and it must stay paused until ONE thing lands plus one run.**
 Both code blockers are now closed; what remains is a partner's gate and the fact that
@@ -82,7 +98,9 @@ normalise. pipeline-core's `INTERNAL_TO_WIRE_TARGET` maps these ensembles' inter
 
 **On `since` / the pause date.** `live(since=2026-08-14)` was the rusty_bucket arming.
 It is deliberately not carried over: this is a different delivery of a different
-ensemble, and CRAF'd has never received either.
+ensemble. ⛔ Note what that does NOT say — CRAF'd has received `rusty_bucket`'s wire
+once (2026-08-14, see above). It has never received `chrome_box`, which is why a re-arm
+needs a `since` of the day it happens.
 
 **Coherence.** `check()` warns on this file: `chrome_box` is `candidate` and a `prod`
 consumer wants `graduate` (ADR-017 §5). Same day-one violation the FAO edge carries,

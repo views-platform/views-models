@@ -7,7 +7,17 @@ durable != version-controlled; this directory is the former, not yet the latter.
 ## What it proved
 
 `chrome_box` runs end to end once two defects are fixed, and no third defect lies behind
-them. Patched on the pod via `sitecustomize.py` on `PYTHONPATH` — no installed file edited.
+them. Patched on the pod via a `sitecustomize.py` on `PYTHONPATH` — no installed file edited.
+
+⛔ **That file is stored here as `probe_sitecustomize.py`, renamed on 2026-10-30, and the
+rename is the only edit this directory has had.** CPython imports ANY module named
+`sitecustomize` that it finds on `sys.path` at interpreter start, and `sys.path` includes
+the current directory. So a `python` started while sitting in this directory — the natural
+thing to do when reading the evidence — would silently monkeypatch
+`prediction_frame_ensemble.load_cm_frame` and `DatafactoryCountryMappingProvider.build`,
+and insert `/workspace/views-models` into `sys.path`. Its contents are byte-identical to
+what ran on the pod; **on the pod it was named `sitecustomize.py`**, which is what made the
+patch load at all.
 
 ```
 Reconciled 'lr_sb_best' to country totals from 'chrome_crate' (pgm_cm).
@@ -43,7 +53,7 @@ fix is validated at the far end of the window.
 
 ⛔ **Which of the two runs the peak belongs to.** `phase2.out` (15:25) is unpatched: it
 pooled and then died three times on `load_cm_frame` (views-pipeline-core#562), and its pool
-reached only 27.8 GiB. The 68.2 GiB is `probe.out` (16:53-16:58), where `sitecustomize.py`
+reached only 27.8 GiB. The 68.2 GiB is `probe.out` (16:53-16:58), where `probe_sitecustomize.py`
 patched the loader to prefer the PF directory — what 3.3.5 now does natively — and all three
 targets reconciled (`mode=aligned-draws`, 2,330,712 grid rows x 1,024 draws) before
 "Done. Runtime: 4.427 minutes". The sampler was `watch_probe.sh` (30s, watches probe.out),
@@ -105,7 +115,7 @@ the arithmetic floor, so impossible as a peak). Use 68.2 GiB.
 
 | file | what it is |
 |---|---|
-| `sitecustomize.py` | the two-defect patch — **the proven fix shape for #562 and #647** |
+| `probe_sitecustomize.py` | the two-defect patch — **the proven fix shape for #562 and #647**. Ran on the pod as `sitecustomize.py`; renamed here so reading this directory cannot execute it |
 | `probe_reconciled.py` | the draw-for-draw reconciliation check |
 | `probe_mapping.py` | measures mapping coverage against the asked-for window |
 | `phase2_pgm.sh` | the pgm member driver, hand-written on the pod — `pod_run_crafd_chain.sh` has no phase 2 |

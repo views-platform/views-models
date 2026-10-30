@@ -390,6 +390,33 @@ def test_every_declared_prefix_is_an_environment_this_repository_owns():
     )
 
 
+#: Prefixes that currently FAIL the tlz probe for the C-151 reason, and only that reason.
+#:
+#: ⛔ This is an exemption table, not a mute button, and it is the second attempt at this
+#: guard. The first simply asserted no owned prefix fails — true of the design, false of
+#: every machine, because C-151 is not fixable here: anything resolving
+#: `views-pipeline-core` 3.x pulls `viewser>=6.6.4,<7.0.0`, which caps `toolz<0.12.0`,
+#: which breaks `tlz` on python 3.11. So the assertion could not reach green, and a test
+#: that is always red makes the next failure unreadable — a THIRD prefix breaking looks
+#: exactly like the two that already were. (The reviewer's suggested remedy, an
+#: `xfail(strict=False)`, has the same defect in a quieter form: xfail swallows any
+#: failure, including a new prefix's.)
+#:
+#: So the known-broken set is named, and the check is two-directional: a prefix that
+#: starts failing is red, a listed prefix that starts PASSING is red as a stale entry,
+#: and a listed prefix failing for any reason OTHER than C-151 is red too — otherwise
+#: the exemption would hide a real breakage of the very prefixes it covers.
+#:
+#: Measured 2026-10-30, both on toolz 0.11.2. Remove an entry the day its prefix passes;
+#: the test will tell you. Upstream: views-models#473 (both cappers are orphaned), #643.
+KNOWN_C151_PREFIXES = frozenset({"views_ensemble", "views-postprocessing"})
+
+#: What a C-151 failure looks like in `_probe`'s detail string. An exemption keyed on the
+#: prefix NAME alone would cover a dangling interpreter or a foreign site-packages just as
+#: happily, which is the #644 harm this file exists to catch.
+_C151_SIGNATURE = ("tlz.curried", "C-151", "toolz")
+
+
 def test_every_owned_prefix_can_import_tlz_from_inside_itself():
     """Functional: run each prefix's interpreter and make it prove it is self-contained.
 
@@ -401,6 +428,9 @@ def test_every_owned_prefix_can_import_tlz_from_inside_itself():
     The floor applies to every owned prefix, not only to prefixes whose `requirements.txt`
     mentions datafactory. See the module docstring: tenancy read off that file missed VCS
     pins, path installs and the transitive case, and made two states permanently red.
+
+    `KNOWN_C151_PREFIXES` above carries the prefixes that fail today for a reason this
+    repository cannot fix, and says why that is an exemption rather than a silencing.
     """
     declared = _declared_prefixes()
     owned = {
@@ -413,20 +443,52 @@ def test_every_owned_prefix_can_import_tlz_from_inside_itself():
         # failure here, and an absent envs/ is CI.
         return
 
-    findings = []
+    new_failures, wrong_reason, stale = [], [], []
     for name, prefix in sorted(owned.items()):
         ok, detail = _probe(prefix)
-        if not ok:
-            findings.append(f"  envs/{name}: {detail}   ({len(declared[name])} launchers)")
+        where = f"  envs/{name}: {detail}   ({len(declared[name])} launchers)"
+        if ok:
+            if name in KNOWN_C151_PREFIXES:
+                stale.append(f"  envs/{name}: now passes — {detail}")
+        elif name not in KNOWN_C151_PREFIXES:
+            new_failures.append(where)
+        elif not any(token in detail for token in _C151_SIGNATURE):
+            wrong_reason.append(where)
 
-    assert not findings, "\n".join(
+    assert not new_failures, "\n".join(
         [
             "A prefix this repository owns cannot run a model: its own interpreter could not "
             "import `tlz.curried` from inside the prefix (C-151):",
-            *findings,
+            *new_failures,
             "",
             'Remedy, after the requirements install: pip install "toolz>=0.12.1" using THAT '
             "prefix's own pip. It must be the LAST install, or the next resolve reverts it — "
             "`run.sh` re-resolves requirements.txt on every invocation.",
+            "",
+            "If this prefix is knowingly stuck on C-151 like the others, add it to "
+            "KNOWN_C151_PREFIXES — as a reviewed edit, with the date and the measurement.",
+        ]
+    )
+
+    assert not wrong_reason, "\n".join(
+        [
+            "A prefix exempted for C-151 is now failing for something else, which the "
+            "exemption must not cover:",
+            *wrong_reason,
+            "",
+            "C-151 is a toolz version cap. This is not that — it is a broken interpreter, a "
+            "foreign site-packages, or a half-built prefix (#644). Fix it, do not widen the "
+            "exemption.",
+        ]
+    )
+
+    assert not stale, "\n".join(
+        [
+            "KNOWN_C151_PREFIXES lists a prefix that now PASSES:",
+            *stale,
+            "",
+            "Good news, and the entry has to go: an exemption describing a failure that no "
+            "longer happens is a live licence nobody is checking. Remove it here, and say in "
+            "the commit what fixed it — that is the evidence #643 closes on.",
         ]
     )

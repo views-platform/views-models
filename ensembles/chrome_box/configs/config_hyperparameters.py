@@ -66,10 +66,14 @@ def get_hp_config():
     rule the mistake breaks: a floor is not a peak, and only the measurement settles the
     gap.
 
-    ⚠️ 94% is not "fits". The 31 GB machine the runpod postmortem says "do not take"
-    collapsed 25x -- 32 steps/s to 0.11 -- by APPROACHING its ceiling at ~20 of 31 GB, from
-    kernel reclaim, never an OOM. Nothing failed; it only slowed, for eight hours.
-    **Headroom is the property, not fit.**
+    ⚠️ 78% is not "roomy", and the 57 GiB box is now out of the question rather than
+    merely tight. (This paragraph read "94% is not fits" until 2026-10-28, against the
+    57 GiB box under the frame floor; at the measured peak that box is at 120%, so the
+    figure it argued about no longer appears above.) The 31 GB machine the runpod
+    postmortem says "do not take" collapsed 25x -- 32 steps/s to 0.11 -- by APPROACHING
+    its ceiling at ~20 of 31 GB, from kernel reclaim, never an OOM. Nothing failed; it
+    only slowed, for eight hours. **Headroom is the property, not fit** -- which is the
+    argument for the 87 GiB class and against reading 78% as comfortable.
 
     ⚠️ And `docs/runpod_run_guide.md`: "the in-code memory guard cannot see the container.
     It reads the host's RAM and will approve a run that cannot fit." So this arithmetic is

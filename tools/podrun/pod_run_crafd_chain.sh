@@ -225,7 +225,7 @@ if [ -z "${MEM_GB:-}" ]; then
 elif [ "$MEM_GB" -lt "$MEM_FLOOR_GB" ]; then
     note "only ${MEM_GB}GB of RAM visible to this container; need >= ${MEM_FLOOR_GB}GB (rank machines by RAM first — guide rule 1)"
 else
-    echo "  RAM visible to this container: ${MEM_GB}GB (floor ${MEM_FLOOR_GB}GB, DERIVED not measured)"
+    echo "  RAM visible to this container: ${MEM_GB}GB (floor ${MEM_FLOOR_GB}GB, MEASURED 2026-10-28)"
 fi
 
 # Disk. The venv is the bulk of it: views-pipeline-core pulls pyarrow, wandb, scipy,

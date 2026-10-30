@@ -44,7 +44,8 @@ CONFIG = REPO / "ensembles" / "chrome_box" / "configs" / "config_hyperparameters
 #: `phase2.out` (15:25) is the UNPATCHED run: it pooled, then died three times with
 #: "Cannot reconcile: no local forecast found for country model 'chrome_crate'" — that is
 #: views-pipeline-core#562 live, and its pool reached only 27.8 GiB (the superseded figure
-#: below). 68.20 GiB comes from `probe.out` (16:53-16:58), run with `sitecustomize.py`
+#: below). 68.20 GiB comes from `probe.out` (16:53-16:58), run with `probe_sitecustomize.py`
+#: (named `sitecustomize.py` on the pod, which is how it loaded)
 #: monkeypatching `load_cm_frame` to prefer the PredictionFrame directory — functionally
 #: what 3.3.5 now does natively. That run reconciled all three targets
 #: (`mode=aligned-draws, 2330712 grid rows, 1024 draws`, three "Reconciled ... (pgm_cm)"

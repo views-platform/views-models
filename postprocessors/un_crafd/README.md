@@ -24,8 +24,10 @@ to `False` and the manager never constructs a partner store. A run stages artifa
 
 ⚠️ **This section said exactly that while the declaration said `live`.** From
 2026-08-14 to 2026-10-28 `intent` was `live(since=2026-08-14)`, and this paragraph went
-on claiming the upload was disarmed. Nothing fired only because `monthly_run.sh:179`
-runs `un_fao` and not this launcher. When the two could disagree, read the declaration:
+on claiming the upload was disarmed. ⛔ And it DID fire: 111 uploads completed on
+2026-08-14 20:36:25, logged under this directory's own `wandb/run-20260814_202751-g06spd7j/`.
+The earlier claim that "nothing fired only because `monthly_run.sh:179` runs `un_fao` and
+not this launcher" was false. When the two could disagree, read the declaration:
 `upload_armed()` derives from `intent`, and prose derives from nobody.
 
 Arming now waits on three things, each named with its reason in
