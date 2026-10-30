@@ -62,13 +62,17 @@ The same correction as `chrome_crate`: `--saved` is wrong, and the command this 
 to document is refused before any member runs (views-models#639).
 
 ```
+export WANDB_MODE=offline WANDB_SILENT=true
 python -m ensembles.chrome_crate.main -r forecasting -t -f
 python -m ensembles.chrome_box.main -r forecasting -t -f
 ```
 
-`-t` because no member has an artifact, `-f` because nothing else forecasts, no `--saved` because
-the member training step would then look for local data a fresh box lacks, and no `-p` because
-nothing here publishes. `chrome_crate`'s README explains each flag against the code that reads it.
+`WANDB_MODE=offline` is load-bearing, not tidiness: the ensemble manager opens a W&B run before
+the first member trains, so on a box with no key the run stops at a login prompt having done
+nothing (views-models#645). `-t` because no member has an artifact, `-f` because nothing else
+forecasts, no `--saved` because the member training step would then look for local data a fresh
+box lacks, and no `-p` because nothing here publishes. `chrome_crate`'s README explains each flag,
+and the W&B behaviour, against the code that reads it.
 
 ### The order and the filesystem are both load-bearing
 

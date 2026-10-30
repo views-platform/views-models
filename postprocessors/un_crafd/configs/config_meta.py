@@ -16,9 +16,10 @@ The keys survive as keys because `views_postprocessing` reads them one repositor
 moved and the interface did not.
 
 **The upload is disarmed today**, because `deliveries/un_crafd.py` declares
-`intent = paused(...)`. Arming is views-crafdapi's D5 (#45), after their D4 dry run. With
-it disarmed the manager never constructs a partner store at all, so the run stages
-artifacts locally and makes zero store calls — which is what makes a first run safe.
+`intent = paused(...)`. Arming waits on views-pipeline-core#562, views-models#647 and
+views-crafdapi#180, each named with its reason in that file's docstring. With it disarmed
+the manager never constructs a partner store at all, so the run stages artifacts locally
+and makes zero store calls — which is what makes a first run safe.
 """
 
 import sys

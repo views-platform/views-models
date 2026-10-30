@@ -68,9 +68,19 @@ members has a trained artifact anywhere, so there would be nothing for `--saved`
 The launch for a box that has never run these models:
 
 ```
+export WANDB_MODE=offline WANDB_SILENT=true
 python -m ensembles.chrome_crate.main -r forecasting -t -f
 ```
 
+- **`WANDB_MODE=offline`** is not optional on a fresh box. `_execute_model_training` opens
+  `self._wandb_module.initialize_run(...)` around `_train_ensemble` (pipeline-core
+  `managers/ensemble/prediction_frame_ensemble.py:413`), so W&B is contacted **before the first
+  member trains**. Without a key that is `UsageError: api_key not configured (no-tty)`, or an
+  interactive key prompt in a terminal — either way the run stops before doing any work.
+  `--wandb_notifications` does not prevent it; that flag gates alerts, not `initialize_run`.
+  Offline also keeps a W&B credential off rented hardware, which is rule 5 of
+  `docs/runpod_run_guide.md`. `pod_run_fao_delivery.sh:272` sets the same pair.
+  `WANDB_SILENT=true` only quiets the output.
 - **`-t`** trains the eight members. Without it each member calls
   `resolve_artifact_path("forecasting")`, which raises `FileNotFoundError` when no artifact exists.
 - **`-f`** produces the predictions. Without it `_execute_model_tasks` trains and then stops:

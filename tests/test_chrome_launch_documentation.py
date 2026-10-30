@@ -95,6 +95,9 @@ _COMMAND_RE = re.compile(
 #: A line that is trying to be a command. Used only to decide whether an unparseable line is a
 #: silent escape (which must fail) or ordinary prose inside a fence (which must not).
 _LOOKS_LIKE_A_COMMAND_RE = re.compile(r"\b(?:python3?|run\.sh|main\.py|ensembles\.)\b")
+# `WANDB_MODE=offline`, however it is exported: bare, `export`-prefixed, or beside other
+# assignments on the same line. Quoted forms count too — `WANDB_MODE="offline"` is equivalent.
+_WANDB_OFFLINE_RE = re.compile(r"""\bWANDB_MODE\s*=\s*["']?offline["']?(?!\w)""")
 
 
 @dataclass(frozen=True)
@@ -368,6 +371,48 @@ def test_the_documented_launch_carries_no_flag_beyond_a_fresh_box_forecast(ensem
         f"forecast (allowed: {sorted(FRESH_BOX_TOKENS)}). `-p` would need publish credentials "
         "on the box; `-wn` a W&B credential; `-dd` and `-o` change what the run does:\n"
         + "\n".join(offenders)
+    )
+
+
+@pytest.mark.parametrize("ensemble", CHROME_ENSEMBLES)
+def test_the_documented_launch_sets_wandb_offline_in_the_block_it_documents(ensemble):
+    """The fence an operator copies must set `WANDB_MODE=offline`, or the run stops at a login.
+
+    `_execute_model_training` wraps `_train_ensemble` in
+    `self._wandb_module.initialize_run(...)` (pipeline-core
+    `managers/ensemble/prediction_frame_ensemble.py:413`), so W&B is contacted before the first
+    member trains. On a box with no credential that is `UsageError: api_key not configured
+    (no-tty)`, or an interactive prompt in a terminal — the run does no work either way.
+    `--wandb_notifications` is not the lever: it gates alerts, not `initialize_run`, so the
+    whitelist in `test_the_documented_launch_carries_no_flag_beyond_a_fresh_box_forecast`
+    cannot express this and it is asserted here.
+
+    Asserted **per fence**, not per manual block, because the failure mode is an operator
+    copying the code block: an export mentioned only in the surrounding prose is an export that
+    does not get run. Only `WANDB_MODE` is required — `WANDB_SILENT` merely quiets output, so
+    demanding it would be asserting cosmetics.
+
+    #645. The reason #642 shipped without this: the verification run used a wrapper that set
+    `WANDB_MODE=offline` while the README did not, so a launch was verified working for a
+    reason the documentation never stated.
+    """
+    block = _manual_block(ensemble)
+    fences = _BACKTICK_FENCE_RE.findall(block)
+    # _launches() already refuses an unreadable block; this reaches the fences directly because
+    # the export is deliberately NOT a command (_LOOKS_LIKE_A_COMMAND_RE ignores it), so it
+    # never appears in a Launch.
+    offenders = [
+        fence
+        for fence in fences
+        if _LOOKS_LIKE_A_COMMAND_RE.search(fence) and not _WANDB_OFFLINE_RE.search(fence)
+    ]
+    assert not offenders, (
+        f"ensembles/{ensemble}/README.md documents a launch in a ``` fence that does not set "
+        "WANDB_MODE=offline. The ensemble manager opens a W&B run before any member trains, so "
+        "on a fresh box this stops at a credential prompt having done no work (#645). Add "
+        "`export WANDB_MODE=offline WANDB_SILENT=true` inside the fence, as "
+        "pod_run_fao_delivery.sh:272 does:\n"
+        + "\n".join(f"  ---\n{fence.rstrip()}\n  ---" for fence in offenders)
     )
 
 
