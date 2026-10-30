@@ -82,7 +82,9 @@ class DatafactoryCountryMappingProvider:
                 f"empty mapping would reconcile every cell to nothing"
             )
 
-        times = np.asarray(frame.index.time, dtype=np.int64)
+        # `frame.index.time` is deliberately NOT read. The mapping is keyed on the
+        # window the caller asked for, not the months the store happened to return —
+        # see `_broadcast_over_the_requested_window` (#647).
         gids = np.asarray(frame.index.unit, dtype=np.int64)
 
         # `FeatureFrame.values` is (rows, features, samples) — the trailing axis is the
@@ -102,7 +104,64 @@ class DatafactoryCountryMappingProvider:
         self._refuse_cells_without_a_country(gids, codes)
         self._refuse_cells_whose_country_moves(gids, codes)
 
-        return CountryMapping(np.stack([times, gids], axis=1), codes)
+        return self._broadcast_over_the_requested_window(gids, codes)
+
+    def _broadcast_over_the_requested_window(
+        self, gids: np.ndarray, codes: np.ndarray
+    ) -> CountryMapping:
+        """One code per cell, repeated across every month the CALLER asked for (#647).
+
+        **The defect this fixes.** This used to key the mapping on the months the fetch
+        happened to return: `CountryMapping(np.stack([times, gids], axis=1), codes)`.
+        `datafactory_query.load_dataset` does not refuse a window its store cannot
+        cover — it returns the months it has and emits a `UserWarning`. The datafactory
+        zarr store held 457..564; `chrome_box` asks for 457..622 (the union of its test
+        ranges plus `composition._WINDOW_BUFFER_MONTHS = 24`). So the mapping was built
+        58 months short, reconciliation ran fine for three steps, and month 565 — step 4
+        of 36 — died in `views_frames.index._remap` with
+        `(time, unit) (565, 49182) has no entry in the injected mapping`.
+
+        A warning that something is 58 months short, swallowed into a mapping that looks
+        complete, is the shape ADR-003 exists to stop. The mapping now covers the window
+        that was *requested*, so a short fetch cannot silently shorten it.
+
+        **Why broadcasting is sound rather than a papering-over.** The time axis is
+        redundant here, and this class already proves it: GAUL 2024 polygons are static
+        per cell, and `_refuse_cells_whose_country_moves` has just refused the frame if
+        any cell reported more than one code across the window. After that check a code
+        is a property of the *cell*, not of `(cell, month)`, so repeating it across the
+        requested months adds no information and invents none. Taking `codes[first]` is
+        safe for exactly the same reason — not a `.first()` collapse of contradictory
+        values, which §2 of the module docstring refuses by name, but a read of the one
+        value that survived the refusal.
+
+        Note what this does NOT do: it does not widen the *cell* set. Every requested
+        month gets precisely the cells the fetch returned, so a fetch short in cells
+        still fails loudly in `_remap`, with the missing cell named.
+
+        **What it costs, measured rather than guessed.** The mapping grows from the
+        store's 108 months to the requested 166: 64,742 cells x 166 months = 10,747,172
+        rows, and at 24 bytes a row (two int64 keys plus an int64 value) that is 246.0
+        MiB, up 85.9 MiB. Against the 68.2 GiB peak measured for `chrome_box`'s pool on
+        2026-10-28 that is 0.12%, so it does not move the box class — but it is a real
+        increase and is written down rather than waved past.
+
+        ⚠️ Known waste, deliberately left: the fetch still asks for the whole window
+        (166 months on `chrome_box`) to read a static feature. One month would do. That
+        is a change to what `_fetch_from_datafactory` requests, and the store's region
+        resolution is the kind of thing to alter on its own evidence, not in passing —
+        trigger to revisit: the next time this fetch is slow enough to notice, or the
+        next time the store's horizon moves.
+        """
+        cells, first_row_of_each = np.unique(gids, return_index=True)
+        code_of_cell = codes[first_row_of_each]
+
+        months = np.arange(self._start_month, self._end_month + 1, dtype=np.int64)
+        keys = np.empty((months.size * cells.size, 2), dtype=np.int64)
+        keys[:, 0] = np.repeat(months, cells.size)
+        keys[:, 1] = np.tile(cells, months.size)
+
+        return CountryMapping(keys, np.tile(code_of_cell, months.size))
 
     def _refuse_cells_without_a_country(
         self, gids: np.ndarray, codes: np.ndarray
