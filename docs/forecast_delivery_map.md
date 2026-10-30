@@ -207,10 +207,11 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `"region"` and `"wire_upload_enabled"` from that file and names none of them (#347, #348, ADR-021).
 - **Whether a delivery is armed:** the `intent` line in the same file. `un_fao` is `live`;
   `un_crafd` is `paused` again since 2026-10-28 — it was armed `live` on 2026-08-14 once
-  views-crafdapi's D4 dry run passed (their D5, #45), and is paused now because `chrome_box`
-  cannot run on a released stack: views-pipeline-core#562 (views-models#647, the other
-  half, was fixed on 2026-10-29). Its launcher
-  stages artifacts locally and makes zero store calls.
+  views-crafdapi's D4 dry run passed (their D5, #45), and is paused now because no
+  reconciled wire has been produced from `chrome_box` yet and views-crafdapi#180, their
+  own serving gate at 1,024 draws, is open. Both code blockers are closed:
+  views-pipeline-core#562 shipped in 3.3.5 (published 2026-10-29) and views-models#647 is
+  fixed. Its launcher stages artifacts locally and makes zero store calls.
 - **The FAO declaration, in detail:** `deliveries/un_fao.py` — the `send` line.
   `postprocessors/un_fao/configs/config_meta.py` **derives** its `"ensemble"` key from it and no longer
   names a source (#347). The key survives because views-postprocessing reads `configs["ensemble"]` at

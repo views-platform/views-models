@@ -40,16 +40,21 @@ of this postprocessor would have delivered FAO's ensemble to CRAF'd. Simon's rul
 Nothing had fired only because `monthly_run.sh:179` runs `un_fao` and not this one;
 that is luck, not a safeguard.
 
-**Declared `paused`, and it must stay paused until two things land.** `chrome_box`
-cannot run on a released stack today:
+**Declared `paused`, and it must stay paused until ONE thing lands plus one run.**
+Both code blockers are now closed; what remains is a partner's gate and the fact that
+no reconciled wire has been produced yet.
 
-  - views-pipeline-core#562 — `load_cm_frame` looks for a `.parquet` file where a
-    PredictionFrame ensemble writes a directory, so the cm partner cannot be loaded.
-    **Fixed but NOT RELEASED, as of 2026-10-29.** pipeline-core has it working and
-    verified on a working tree, gated for 3.3.5; it is on neither `development` nor
-    PyPI. `requirements.txt` here pins `views-pipeline-core>=3.2.0,<4.0.0`, so nothing
-    this repository can declare reaches that fix yet. Re-arming needs 3.3.5 *published*,
-    not merely written — the distinction that cost five months on #320.
+  - ~~views-pipeline-core#562~~ — **fixed and PUBLISHED in 3.3.5, 2026-10-29T20:41:59Z.**
+    `load_cm_frame` looked for a `.parquet` file where a PredictionFrame ensemble writes
+    a directory, so the cm partner could not be loaded. `requirements.txt` here now
+    declares `views-pipeline-core>=3.3.5,<4.0.0` — raised in the same change that
+    rewrote this paragraph, because a floor of `>=3.2.0` is satisfied by 3.3.4 and
+    `run.sh`'s dry-run gate would have upgraded nothing.
+    ⚠️ An earlier version of this paragraph said "Fixed but NOT RELEASED, as of
+    2026-10-29", which was true when written and false eight hours later. Re-arming
+    needs 3.3.5 *published*, not merely written — the distinction that cost five months
+    on #320 — and it now is; verified against PyPI's JSON and simple indexes, `pip index
+    versions`, a resolving `pip install --dry-run`, and the cut release.
     Their verification turned up a **second** live symptom beyond the one filed: a PF
     cm *model* partner (as opposed to an ensemble) writes per-target parquets, and the
     unfiltered `paths[0]` read the alphabetically-last target, failing with a missing
@@ -103,10 +108,10 @@ DELIVERY = Delivery(               # DECIDES  — change a line, something diffe
     # docstring are met, and then with a `since` date of that day, not this one.
     intent    = paused(
         reason=(
-            "chrome_box cannot run on a released stack: views-pipeline-core#562 "
-            "(load_cm_frame cannot read a PredictionFrame cm forecast). "
-            "views-crafdapi#180 is their own serving gate at 1,024 draws. "
-            "views-models#647 was the other half and is fixed."
+            "no reconciled wire has been produced yet, and views-crafdapi#180 "
+            "is their own open serving gate at 1,024 draws. Both code blockers are "
+            "closed: views-pipeline-core#562 shipped in 3.3.5 (published "
+            "2026-10-29) and views-models#647 is fixed."
         ),
         since=date(2026, 10, 28),
     ),

@@ -35,7 +35,7 @@ def get_hp_config():
 
     ⛔ **PEAK IS 68.2 GiB, MEASURED. `RAM >= 50 GB` IS NOT ENOUGH.**
     Measured on a pod 2026-10-28 by sampling cgroup `anon` at 30s through pool and
-    reconcile, on a run that completed. The frame arithmetic below predicted 53.85 GiB
+    reconcile, on a run that completed. The frame arithmetic below predicted 53.86 GiB
     and was right about the frames; the remaining 14.3 GiB (1.27x) is the transient
     allocation this comment already flagged as unmeasured, at the bottom. Two figures
     reported during that session were wrong and are recorded here so neither is
@@ -82,9 +82,15 @@ def get_hp_config():
 
     ⛔ Transient allocations inside `np.concatenate` and inside the reconciler beyond the
     frames counted above are now bounded by subtraction, not by analysis: 68.2 measured
-    minus 53.86 of frames = ~14.3 GiB. Still not attributed to a line of code. `chunk_by_time=True` bounds the
-    reconciliation's own working set but not these. So ~53.85 GiB is a floor on the peak,
-    not a ceiling -- another reason the 87 GiB class rather than the 57.
+    minus 53.86 of frames = ~14.3 GiB. Still not attributed to a line of code.
+
+    ⛔ The chunking that bounds reconciliation is NOT `chunk_by_time`. The measured run
+    logged `reconcile_frames: mode=aligned-draws (2330712 grid rows, 1024 draws) --
+    per-draw approximation (C-200b)`, three times, once per target. So the reconciler
+    held one draw's grid at a time, not one month's -- which is why the sizing argument
+    must rest on the 68.20 measurement and not on reasoning about the time axis. The
+    53.86 figure remains a floor on the peak and the 87 GiB class remains the one to
+    rent, but the reason is now a measurement rather than an inference.
 
     If the 87 GiB class is unavailable, the honest alternatives are to thin to 8 x 16 as
     `rusty_bucket` did and amend #595's acceptance, or to reduce the target set -- either
