@@ -15,7 +15,7 @@ from typing import Optional
 from views_pipeline_core.domain.reconciliation_port import Reconciler
 
 from reconciliation.country_mapping_provider import CountryMappingProvider
-from reconciliation.reconciler_factory import build_reconciler
+from reconciliation.reconciler_factory import build_reconciler, provider_for
 from reconciliation.source_detection import detect_ensemble_source
 
 # Months padded past the last declared test range, so a forecast run that runs
@@ -69,12 +69,7 @@ def _derive_source(ensemble_dir: Path) -> str:
     have providers since #601; a third source would fail loud until it does.
     """
     ensemble_dir = Path(ensemble_dir)
-    partner = _load_meta(ensemble_dir).get("reconcile_with")
-    if not partner:
-        raise ValueError(
-            f"{ensemble_dir.name}: reconciliation is configured but no reconcile_with "
-            f"partner is declared — cannot derive the geography source."
-        )
+    partner = partner_of(ensemble_dir)
     cm_source = detect_ensemble_source(ensemble_dir.parent / partner)
     pgm_source = detect_ensemble_source(ensemble_dir)
     if pgm_source != cm_source:
@@ -99,8 +94,36 @@ def build_reconciler_for_run(
     #601, so a `chrome_box`-shaped ensemble now resolves instead of refusing."""
     ensemble_dir = Path(ensemble_dir)
     start_month, end_month = _forecast_window(_load_partitions(ensemble_dir))
-    if provider is not None:
-        return build_reconciler(start_month, end_month, provider=provider)
+    if provider is None:
+        provider = mapping_provider_for_run(ensemble_dir, source=source)
+    return build_reconciler(start_month, end_month, provider=provider)
+
+
+def partner_of(ensemble_dir: Path) -> str:
+    """The ensemble's declared ``reconcile_with`` partner. Declared, never inferred
+    (ADR-003): the partner decides which country totals the grid is scaled to, so a
+    guess here is a wrong forecast rather than a missing file."""
+    ensemble_dir = Path(ensemble_dir)
+    partner = _load_meta(ensemble_dir).get("reconcile_with")
+    if not partner:
+        raise ValueError(
+            f"{ensemble_dir.name}: no reconcile_with partner is declared in "
+            f"configs/config_meta.py — there is nothing to reconcile against."
+        )
+    return str(partner)
+
+
+def mapping_provider_for_run(
+    ensemble_dir: Path, *, source: Optional[str] = None
+) -> CountryMappingProvider:
+    """The geography provider a run of ``ensemble_dir`` uses.
+
+    ``build_reconciler_for_run`` above goes through this, so a verifier that calls it
+    measures the forecast against **the mapping the run actually reconciled with** —
+    same window, same source, same provider — rather than one that merely resembles it.
+    """
+    ensemble_dir = Path(ensemble_dir)
+    start_month, end_month = _forecast_window(_load_partitions(ensemble_dir))
     if source is None:
         source = _derive_source(ensemble_dir)
-    return build_reconciler(start_month, end_month, source=source)
+    return provider_for(source, start_month, end_month)
