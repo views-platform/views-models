@@ -33,7 +33,15 @@ def get_hp_config():
     epic's draw count is not the blocker it first reads as. But the pool is NOT the peak,
     and the peak is what decides the pod.
 
-    ⛔ **PEAK IS ~53.8 GiB, ROUGHLY DOUBLE THE POOL. `RAM >= 50 GB` IS NOT ENOUGH.**
+    ⛔ **PEAK IS 68.2 GiB, MEASURED. `RAM >= 50 GB` IS NOT ENOUGH.**
+    Measured on a pod 2026-10-28 by sampling cgroup `anon` at 30s through pool and
+    reconcile, on a run that completed. The frame arithmetic below predicted 53.85 GiB
+    and was right about the frames; the remaining 14.3 GiB (1.27x) is the transient
+    allocation this comment already flagged as unmeasured, at the bottom. Two figures
+    reported during that session were wrong and are recorded here so neither is
+    remembered as live: **19.8 GiB** was `memory.current`, which includes reclaimable
+    page cache; **27.8 GiB** was a 60s-interval undersample, and sits below the frame
+    floor, which is how it was caught — a number below the floor cannot be a peak.
     Traced through `prediction_frame_ensemble.py::_forecast_ensemble` (pipeline-core
     3.3.0), which builds `model_results` for ALL constituents and ALL targets before the
     aggregation loop, frees it nowhere -- no `del`, no `gc.collect` -- and then accumulates
@@ -44,13 +52,19 @@ def get_hp_config():
         input volume   64,742 x 441 months x 4 features, f32     0.43 GiB
         cm frame       ~200 countries x 36 x 1,024 x 3           0.08 GiB
         ------------------------------------------------------ ----------
-        peak                                                   ~53.85 GiB
+        FRAME FLOOR (not the peak -- see above)                 53.86 GiB
+        measured peak, 2026-10-28                               68.20 GiB
 
     Against the written selection rule and the machines the 2026-09 campaign actually used:
 
         50 GiB (the rule)   DOES NOT FIT
-        57 GiB (used)       94% -- too close; see the reclaim note below
-        87 GiB (used)       62% -- this is the class to rent
+        57 GiB (used)       120% -- DOES NOT FIT EITHER
+        87 GiB (used)       78% -- this is the class to rent, and it is not roomy
+
+    ⛔ The 62% this table claimed for the 87 GiB box until 2026-10-28 was the FRAME FLOOR
+    divided by the box, not the peak. Anyone sizing from it would have under-rented. The
+    rule the mistake breaks: a floor is not a peak, and only the measurement settles the
+    gap.
 
     ⚠️ 94% is not "fits". The 31 GB machine the runpod postmortem says "do not take"
     collapsed 25x -- 32 steps/s to 0.11 -- by APPROACHING its ceiling at ~20 of 31 GB, from
@@ -66,8 +80,9 @@ def get_hp_config():
     quantity. The run guide's own check is `memory.max / 1073741824`, i.e. GiB, so the
     figures above are GiB and comparable to it.
 
-    ⛔ What is still NOT measured: transient allocations inside `np.concatenate` and inside
-    the reconciler beyond the frames counted above. `chunk_by_time=True` bounds the
+    ⛔ Transient allocations inside `np.concatenate` and inside the reconciler beyond the
+    frames counted above are now bounded by subtraction, not by analysis: 68.2 measured
+    minus 53.86 of frames = ~14.3 GiB. Still not attributed to a line of code. `chunk_by_time=True` bounds the
     reconciliation's own working set but not these. So ~53.85 GiB is a floor on the peak,
     not a ceiling -- another reason the 87 GiB class rather than the 57.
 
