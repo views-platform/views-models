@@ -277,14 +277,34 @@ def test_it_does_not_declare_the_unsatisfiable_pandas_extra(script):
     )
 
 
-def test_the_pipeline_core_floor_is_at_least_3_2_0(script):
-    """Below 3.2.0 the loader cannot find configs/config_maturity.py (#594, #635)."""
+def test_the_install_set_takes_its_floor_from_the_declared_variable(script):
+    """The install line must not carry a floor of its own.
+
+    It used to read `"views-pipeline-core>=3.2.0,<4.0.0"` literally, and this test asserted
+    that literal. Both were part of the same defect: the floor lived only here, so when
+    `ensembles/chrome_box/requirements.txt` moved to `>=3.3.5` this lane silently kept
+    3.2.0, and a reused venv ran phase 2 on 3.3.4. The floor is now `$PC_FLOOR`, declared
+    once and asserted after install.
+
+    So the property worth holding is no longer "the literal is at least 3.2.0" — that is
+    `test_the_resolved_pipeline_core_version_is_asserted_and_not_merely_printed`'s job, and
+    it checks the INSTALLED version rather than the text. What this one holds is that the
+    install line has not been given a second, independent floor: a hardcoded specifier here
+    would diverge from the assert, and the assert would then pass while the install pulled
+    something else.
+    """
     match = re.search(r'"views-pipeline-core([^"]*)"', script)
     assert match, "the install set does not declare views-pipeline-core"
-    assert ">=3.2.0" in match.group(1), (
-        f"views-pipeline-core is declared as {match.group(1)!r}. A floor below 3.2.0 admits a "
-        "pipeline-core that cannot read configs/config_maturity.py, and the run dies on a "
-        "missing config_deployment.py (#594)."
+    spec = match.group(1)
+    assert "$PC_FLOOR" in spec, (
+        f"views-pipeline-core is declared as {spec!r} in the install set. It must read "
+        f"`>=$PC_FLOOR` so the installed floor and the asserted floor cannot diverge — a "
+        f"hardcoded number here is how this lane kept 3.2.0 after the repository moved on."
+    )
+    assert "<4.0.0" in spec, (
+        f"views-pipeline-core is declared as {spec!r}; the major-version ceiling is gone, so "
+        f"a 4.x release (where viewser becomes an optional extra, their ADR-063) would be "
+        f"installed untested."
     )
 
 
@@ -345,6 +365,84 @@ def test_phase_two_is_declared_absent_rather_than_half_present(script):
         "and a memory floor derived from a configuration nobody has chosen is a guess with a "
         "price tag:\n" + "\n".join(f"  {line}" for line in offenders)
     )
+
+
+def test_the_resolved_pipeline_core_version_is_asserted_and_not_merely_printed(script):
+    """The venv's INSTALLED version must be compared to the floor, not just echoed.
+
+    ⛔ The defect this closes, found by an independent /falsify on 2026-10-30. Three facts
+    composed into a three-hour failure:
+
+      1. the install set is declared INLINE in this script and, as its own comment says,
+         "not read from any requirements.txt" — so raising
+         `ensembles/chrome_box/requirements.txt` to `>=3.3.5` did not reach this lane;
+      2. the install block is guarded by `[ ! -d "$VENV" ]`, so a surviving workspace is
+         never re-resolved;
+      3. `phase2_pgm.sh` installs nothing and reuses whatever this script left behind.
+
+    And `verify_install` already computed the resolved version into `$PC_VERSION` — then
+    only printed it. The measurement was taken and not used. A reused venv therefore ran
+    phase 2 against whatever it held; this repository's own
+    `tools/podrun/evidence/2026-10-28_chrome_box/crafd_chain.out:210` records
+    `views-pipeline-core==3.3.4`, the release whose `load_cm_frame` cannot read a
+    PredictionFrame cm forecast. That is `phase2.out` replayed — pool, then three
+    `Cannot reconcile: no local forecast found` — after ~3h05m of paid member training.
+
+    A fresh venv resolves 3.3.5 and is fine, which is what makes it dangerous rather than
+    merely wrong: it works until it doesn't.
+
+    Three properties, because each fails independently.
+    """
+    assert "PC_FLOOR=" in script, (
+        "the pipeline-core floor is no longer declared as a single variable. Two copies of "
+        "a floor is how this lane kept 3.2.0 after the rest of the repository moved to "
+        "3.3.5 — the install set and the assert must read the same name."
+    )
+
+    floor = next(
+        (ln.split("=", 1)[1].strip() for ln in script.splitlines()
+         if ln.startswith("PC_FLOOR=")), None
+    )
+    assert floor and tuple(int(n) for n in floor.split(".")[:3]) >= (3, 3, 5), (
+        f"PC_FLOOR is {floor!r}; it must be at least 3.3.5, the release whose "
+        f"`load_cm_frame` can read a PredictionFrame cm forecast "
+        f"(views-pipeline-core#562). Phase 2 reconciles against one."
+    )
+
+    #: The assert must be OUTSIDE the `[ ! -d "$VENV" ]` install block, or a reused venv
+    #: skips it — which is the whole finding. Proxy for "outside": it appears after the
+    #: `verify_install` stage marker, which is itself after the block closes.
+    verify_at = script.index("stage verify_install")
+    tail = script[verify_at:]
+    assert 'm.version("views-pipeline-core")' in tail and "sys.exit" in tail, (
+        "`verify_install` no longer compares the INSTALLED views-pipeline-core version to "
+        "the floor. Printing $PC_VERSION is not asserting it — that is exactly the state "
+        "this guard was written for. The check must run on every invocation, not only when "
+        "the venv is built."
+    )
+    assert "PC_FLOOR" in tail, (
+        "the version assert does not reference PC_FLOOR, so it is comparing against "
+        "something other than the declared floor."
+    )
+
+
+def test_the_header_sizes_phase_two_from_the_measured_peak(script):
+    """Whoever extends this script to phase 2 reads the header first.
+
+    It cited rusty_bucket's "~28.6 GB" as chrome_box's shape at 1,024 draws. The measured
+    peak is >= 68.2 GiB — a 2.4x under-estimate, and the direction that rents a box which
+    dies in the pool after the training is paid for.
+    """
+    assert "68.2" in script, (
+        "the header no longer carries chrome_box's measured 68.2 GiB peak. Phase 2's "
+        "machine class is decided by whoever reads this header, and the 28.6 GB figure it "
+        "used to cite under-sizes the box by 2.4x."
+    )
+    if "28.6" in script:
+        assert "under-estimate" in script or "NOT 28.6" in script, (
+            "28.6 GB still appears without being marked as the superseded figure. It was "
+            "published, so it will be met again; the correction has to travel with it."
+        )
 
 
 def test_each_floor_is_labelled_with_how_it_was_arrived_at(script):

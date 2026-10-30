@@ -12,11 +12,32 @@
 # image to a pooled country-month forecast on disk.
 #
 # PHASE 2 — the eight `*_sparrow` pgm models and `chrome_box`, which reconciles against
-# chrome_crate — is deliberately NOT here. chrome_box at the epic's 8 x 128 = 1024 draws is
-# the shape rusty_bucket's own config comment records as "peaks ~28.6 GB and cannot fit
-# production hardware"; the draw count is an open decision, and it decides which machine
-# class to rent. Adding it now would mean writing a memory floor for a configuration nobody
-# has chosen. The trigger to extend this script is that decision being made.
+# chrome_crate — is deliberately NOT here. ⚠️ **The reason recorded here until 2026-10-30
+# has expired.** It said the draw count was "an open decision" and that a floor could not
+# be written for "a configuration nobody has chosen". Both are now false: the maintainer
+# settled 8 x 128 = 1,024 draws on 2026-10-22, the configs declare it
+# (`expected_models: 8`, `expected_samples_per_model: 128`, asserted against reality by
+# `tests/test_ensemble_configs.py`), and it RAN on 2026-10-28 — all three targets
+# reconciled in 4.427 minutes at a measured >= 68.2 GiB peak.
+#
+# So phase 2 is absent for one reason only now: **nobody has written it.** What it needs is
+# known, not open — the eight `*_sparrow` members trained, then chrome_box on the same
+# filesystem as chrome_crate, a preflight floor from the 68.2 GiB measurement rather than
+# this phase's 16, and its output copied under `deliver/` as it is produced, because
+# anything left in the workspace dies with the pod.
+#
+# ⛔ IF YOU ARE THE ONE EXTENDING IT, THE NUMBER TO SIZE FROM IS 68.2 GiB, NOT 28.6 GB.
+# An earlier version of this paragraph cited rusty_bucket's config comment — "peaks ~28.6 GB
+# and cannot fit production hardware" — as the shape chrome_box takes at 8 x 128 = 1024
+# draws. That was the best figure available when this script was written and it is a
+# 2.4x under-estimate: chrome_box's pool was MEASURED at >= 68.2 GiB anon on 2026-10-28
+# (30s cgroup sampling through pool AND reconcile, on a run that completed), against a
+# 53.86 GiB frame-arithmetic floor. Sizing phase 2 from 28.6 rents a box that dies in the
+# pool after the member training is paid for. The authoritative figure, with its provenance
+# and its lower-bound caveat, is in
+# `ensembles/chrome_box/configs/config_hyperparameters.py`, pinned by
+# `tests/test_chrome_box_memory_is_the_measured_peak.py`. Rent the 87 GiB class; at the
+# measured peak the 57 GiB class is at 120% and does not fit.
 #
 # ## Why this is a sibling and not a flag on pod_run_model.sh
 #
@@ -60,6 +81,28 @@
 #   /workspace/deliver/chrome_crate/STATUS     OK or FAILED:<stage>
 #   /workspace/deliver/chrome_crate/FAILURE    the reason, on failure only
 #   /workspace/deliver/chrome_crate/run.log    the whole transcript
+#
+# ## How this reaches CRAF'd — the step that is NOT in any script
+#
+# This runner is step 3 of seven, and the handoff either side of it is manual. Written down
+# here because it was agreed across four sessions on 2026-10-30 and lived in none of them:
+#
+#   1. target names — NOTHING TO DO. The ensembles declare internal `lr_*_best`;
+#      pipeline-core's `INTERNAL_TO_WIRE_TARGET` (ADR-013 §7a,
+#      `sampled_forecast_publisher.py:76`) maps them to canonical `lr_ged_*` before anything
+#      is written, and `wire_target()` fails loud on an unmapped name. Proven in production:
+#      the shards CRAF'd received on 2026-08-14 are named `lr_ged_sb/ns/os` and came from
+#      `rusty_bucket`, whose `regression_targets` are byte-identical to chrome_box's.
+#      ⛔ Renaming the configs to `lr_ged_*` would BREAK it — those are not keys of the map.
+#   2. phase 2 added to this script (see the header).
+#   3. the pod run, and the output brought home. `deliver/` is the only thing retrieved.
+#   4. publish to the shelf with `--prediction_store`, FROM THE LAPTOP. The nine Appwrite
+#      publish variables live there and must never reach rented hardware (guide rule 5);
+#      this script refuses to start if it sees three of them.
+#   5. the `un_crafd` postprocessor, dry run, interlock closed (#599, views-postprocessing#320).
+#   6. views-crafdapi#180 — their serving gate at 1,024 draws. Theirs, open.
+#   7. the maintainer arms the delivery. `deliveries/un_crafd.py` is `paused`, so until he
+#      edits that one word, every step above makes zero store calls.
 #
 # Progress is readable from outside at any time:  cat /workspace/deliver/chrome_crate/STAGE
 
@@ -206,6 +249,25 @@ done
 # the echoed "GB" are therefore wrong by 7%. Left as-is because the comparison is
 # GiB-against-GiB and so correct; renaming touches the two echo strings and an external
 # guard's regex. Trigger to fix: the next edit that does arithmetic across this boundary.
+# The pipeline-core floor, stated ONCE and used twice: by the install set and by the
+# resolved-version assert in `verify_install`. Two copies of a floor is how a lane keeps a
+# version the rest of the repository has already moved past.
+PC_FLOOR=3.3.5
+
+# ⛔ TRAP, WRITTEN DOWN BEFORE THE EDIT THAT SPRINGS IT. `MEM_FLOOR_GB` below is a
+# SINGLE number for a script that runs ONE phase. The moment someone adds the `*_sparrow`
+# members to MODELS and chrome_box to ENSEMBLE, this constant becomes a guard that cannot
+# fire: `--preflight` would approve a 16 GiB box for a 68.2 GiB peak, and #640's own
+# acceptance criterion ("--preflight refuses on a box under the memory floor") would be
+# satisfied while being meaningless. Nothing in this script or its tests fails on that
+# edit, because the floor has no idea which ensemble it is guarding.
+#
+# And the failure is not an OOM, which is what makes it expensive: the runpod postmortem's
+# 31 GB machine did not die, it collapsed 25x — 32 steps/s to 0.11 — from kernel reclaim,
+# and ran for eight hours. So the honest shape when phase 2 lands is a floor PER PHASE,
+# derived from the ensemble being run, not one constant with a comment telling you not to
+# raise it.
+
 MEM_FLOOR_GB=16
 CG_MAX=/sys/fs/cgroup/memory.max
 if [ -r "$CG_MAX" ]; then
@@ -278,11 +340,15 @@ if [ ! -d "$VENV" ]; then
     # xarray, which is what the proven rusty_bucket stand-ins relied on. See
     # views-pipeline-core#561 for the attempt to remove the inherited viewser.
     #
-    # pipeline-core floored at 3.2.0: below it the loader cannot find configs/config_maturity.py
-    # and the run dies on a missing config_deployment.py (#594, #635).
+    # pipeline-core floored at $PC_FLOOR, declared once near the top and ASSERTED after
+    # install (see `verify_install`). 3.2.0 was the old floor: below it the loader cannot
+    # find configs/config_maturity.py and the run dies on a missing config_deployment.py
+    # (#594, #635). It is 3.3.5 now, because `load_cm_frame` could not read a
+    # PredictionFrame cm forecast before that release and phase 2 reconciles against one
+    # (views-platform/views-pipeline-core#562, published 2026-10-29).
     uv pip install --python "$VENV/bin/python" \
         "views-baseline>=1.0.2,<2.0.0" \
-        "views-pipeline-core>=3.2.0,<4.0.0" \
+        "views-pipeline-core>=$PC_FLOOR,<4.0.0" \
         "views-datafactory>=1.13.0,<2.0.0" || die "pip install failed"
     # register C-151: viewser pins toolz<0.12, which cannot import tlz submodules on Python
     # 3.11 and breaks EVERY datafactory fetch. Override after resolution.
@@ -313,7 +379,31 @@ stage verify_install
 "$VENV/bin/python" -c "import views_baseline, datafactory_query, views_pipeline_core" \
   || die "the venv is missing one of views_baseline / datafactory_query / views_pipeline_core"
 PC_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("views-pipeline-core"))' 2>/dev/null)
-echo "  views-pipeline-core $PC_VERSION, tlz importable, engine present"
+
+# ASSERT THE RESOLVED VERSION, NOT THE CONSTRAINT.
+#
+# This block used to compute $PC_VERSION and only echo it. The measurement was taken, printed,
+# and never compared to anything.
+#
+# Why the check has to live HERE and not in the install block above. Three facts compose:
+#   1. the install block is guarded by `[ ! -d "$VENV" ]`, so a workspace that survives is
+#      never re-resolved;
+#   2. `phase2_pgm.sh` installs nothing at all -- it sets VENV and reuses what this left;
+#   3. the install set is declared INLINE, so raising the floor in
+#      `ensembles/chrome_box/requirements.txt` does not reach this lane.
+# Compose them and a reused venv runs phase 2 against whatever it happens to hold. This
+# repository's own evidence records it: `tools/podrun/evidence/2026-10-28_chrome_box/
+# crafd_chain.out:210` shows `views-pipeline-core==3.3.4` -- precisely the release whose
+# `load_cm_frame` cannot read a PredictionFrame forecast. The failure is `phase2.out`
+# replayed: pool, then three `Cannot reconcile: no local forecast found`, AFTER ~3h05m of
+# paid member training.
+#
+# A FRESH venv resolves 3.3.5 and is fine, which is what makes this dangerous rather than
+# merely wrong: it works until it doesn't. Same shape as #594/#635 one layer down --
+# verifying that a constraint PERMITS a version is not verifying the version is INSTALLED.
+"$VENV/bin/python" -c 'import re,sys,importlib.metadata as m; t=lambda v: tuple(int(n) for n in re.findall(r"\d+", v)[:3]); sys.exit(0 if t(m.version("views-pipeline-core")) >= t(sys.argv[1]) else 1)' "$PC_FLOOR" \
+  || die "views-pipeline-core $PC_VERSION is below the $PC_FLOOR floor this chain needs. A venv that already exists is never re-resolved (the install block is guarded by [ ! -d \$VENV ]) and phase2_pgm.sh installs nothing, so an old workspace keeps an old version. Remedy: rm -rf $VENV and re-run. Below 3.3.5, load_cm_frame cannot read a PredictionFrame cm forecast, so phase 2 dies at reconcile AFTER the member training is paid for (views-pipeline-core#562)."
+echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), tlz importable, engine present"
 
 # W&B offline for the whole chain. The ensemble manager opens a W&B run before any member
 # trains (pipeline-core managers/ensemble/prediction_frame_ensemble.py:413), so without this a
@@ -393,4 +483,4 @@ cat "$OUT/MANIFEST"
 echo OK > "$OUT/STATUS"
 stage done
 echo "### $ENSEMBLE — COMPLETE in ${RUN_MIN}min"
-echo "### phase 2 (chrome_box, pgm) is a separate decision — it needs the draw count settled."
+echo "### phase 2 (chrome_box, pgm) is not in this script. 8x128 draws is SETTLED; what is missing is the script. Needs an 87 GiB box (68.2 GiB measured peak), not this phase floor of 16."
