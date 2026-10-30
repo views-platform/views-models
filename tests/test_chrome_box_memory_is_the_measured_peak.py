@@ -9,8 +9,11 @@ as a cm floor is a correct value answering the wrong question, and the floor was
 too low.
 
 ⛔ Earlier versions of this docstring said "views-models#648 was filed on that basis and
-is invalid". **No such issue exists** — the repository's highest issue number is 647, and
-I had invented 648. The claim was corrected before this file was ever pushed. It is
+is invalid". **No such issue had been filed** — 647 was the highest number the repository
+had, and I had invented 648. Corrected before this file was ever pushed. (#648 now exists
+and is the PR carrying this correction: GitHub numbers issues and pull requests from one
+counter, so opening it consumed the number. It is not, and never was, an issue about a
+memory floor.) It is
 recorded here rather than silently deleted because a fabricated issue number is the most
 citable kind of wrong: it reads as provenance, and the next reader would have gone looking
 for a decision that was never taken.

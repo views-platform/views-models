@@ -72,8 +72,9 @@ stated in its own header). Phase 1's measured figures, from `crafd_chain.out`'s 
 the 87 GiB box without strain. 16 GiB is ample, so the floor was never too low.
 
 ⛔ An earlier version of this paragraph said an issue had been filed on that claim
-("views-models#648"). **It had not** — 647 is the highest issue number this repository
-has, and 648 was a number I invented. Corrected before this file was pushed.
+("views-models#648"). **It had not** — 647 was the highest number the repository had, and
+648 was a number I invented. Corrected before this file was pushed. #648 now exists and is
+the PR carrying that correction, because GitHub numbers issues and PRs from one counter.
 
 The exposure is the other way round: **phase 2 has no script, so nothing preflights it.**
 68.2 GiB belongs to `chrome_box` and is recorded where phase 2 is configured —
