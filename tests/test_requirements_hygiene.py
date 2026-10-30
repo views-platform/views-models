@@ -34,6 +34,7 @@ import pytest
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 pytestmark = pytest.mark.green
 
@@ -131,7 +132,7 @@ DEFERRED_PACKAGES: dict[str, str] = {
 # The FLOOR did not stop mattering when the divergence did. #594's trap is a property of
 # every one of those sources, not of the gap between them: each carries
 # configs/config_maturity.py, which only pipeline-core >=3.2.0 can find. That property is now
-# asserted directly by test_every_pipeline_core_declaration_is_at_the_3_2_0_floor below,
+# asserted directly by test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs below,
 # which is the guard the deleted entry's reason paragraph used to carry in prose.
 
 # pip accepts a bare VCS URL as a requirements.txt line; PEP 508 does not, because
@@ -207,7 +208,7 @@ def test_every_pipeline_core_declaration_keeps_its_upper_bound():
     would notice `<4.0.0` being dropped" under a re-added exemption. That was measured and is
     false: with a `views-pipeline-core` entry back in DEFERRED_PACKAGES *and* the ceiling
     dropped from one declaration, both this test and
-    `test_every_pipeline_core_declaration_is_at_the_3_2_0_floor` go red, because dropping the
+    `test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs` go red, because dropping the
     ceiling changes `str(req.specifier)` away from `<4.0.0,>=3.2.0` and that guard pins the
     whole specifier. There is no mutation this catches and that one misses.
 
@@ -230,7 +231,7 @@ def test_every_pipeline_core_declaration_keeps_its_upper_bound():
     )
 
 
-def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
+def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
     """#594's trap, asserted as a property of each source rather than of a divergence.
 
     Every source that declares `views-pipeline-core` carries `configs/config_maturity.py`,
@@ -238,8 +239,17 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
     `configs/config_deployment.py` none of them has. views-baseline 1.0.2 floors the package
     at >=3.0.0, so an environment holding exactly 3.0.0 satisfies `>=3.0.0`, the launcher
     upgrades nothing, and the run dies on the missing file. That is what broke Hop A on
-    2026-10-22 (#594). #635 brought the last twelve ensembles up, so the floor is now uniform
-    and this test replaces `test_the_pipeline_core_deferral_still_describes_reality`.
+    2026-10-22 (#594). #635 brought the last twelve ensembles up, and this test replaces
+    `test_the_pipeline_core_deferral_still_describes_reality`.
+
+    ⛔ **The floor is no longer uniform, and that is the point of `NEEDS_A_HIGHER_FLOOR`.**
+    `ensembles/chrome_box` sits at >=3.3.5 because it is the only source that reaches
+    pipeline-core's `load_cm_frame` (it declares `reconciliation: "pgm_cm"`), and before
+    3.3.5 that function reported a cm forecast as absent when its partner wrote a
+    PredictionFrame directory rather than a parquet (views-pipeline-core#562). So each
+    source is now compared against **the floor it needs**, not against one shared string.
+    That is strictly stronger than the uniform check it replaces: a uniform assertion
+    passes a source that was raised without review, and this one does not.
 
     ⛔ **The thirty-one are pinned BY NAME, because a count cannot survive a compensating
     swap.** That is not a hypothesis: under the predecessor of this test, dropping
@@ -253,10 +263,12 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
     the counts are unchanged either way. Only the identities close it. A fix for a surviving
     mutation is a hypothesis until the mutation is re-run against it.
 
-    Two assertions, and neither is redundant. The name set catches a source leaving the
+    Three assertions, and none is redundant. The name set catches a source leaving the
     census or joining it unreviewed — a *smaller* census reports fewer passes, not a failure,
-    which is C-182's other half. The single-key census catches a declaration drifting to a
-    different specifier, and a second pipeline-core line appearing inside one file.
+    which is C-182's other half. The per-source comparison catches any declaration differing
+    from the floor its own directory needs, in EITHER direction. The specifier census catches
+    a second pipeline-core line appearing inside one file, which the per-source check cannot
+    see because it would compare each line separately and find both acceptable.
     """
     #: Every source that declares views-pipeline-core directly: epic #595's sixteen members
     #: and all fifteen ensembles. Each can read configs/config_maturity.py only at >=3.2.0.
@@ -272,6 +284,20 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
             "white_mustang",
         )
     }
+
+    #: ⛔ The one source that needs MORE than the shared floor, and why. Adding an entry
+    #: here is a reviewed edit: it must name a capability the source actually calls, not a
+    #: version someone happened to have installed. Removing one re-admits the defect.
+    BASE_FLOOR = "<4.0.0,>=3.2.0"
+    NEEDS_A_HIGHER_FLOOR = {
+        #: Calls through to `load_cm_frame`, which could not read a PredictionFrame cm
+        #: forecast before 3.3.5 — views-pipeline-core#562, published 2026-10-29.
+        "ensembles/chrome_box": "<4.0.0,>=3.3.5",
+    }
+    assert set(NEEDS_A_HIGHER_FLOOR) <= DECLARES_PIPELINE_CORE, (
+        "a source is excused to a higher floor without appearing in the census at all, so "
+        f"nothing checks it: {sorted(set(NEEDS_A_HIGHER_FLOOR) - DECLARES_PIPELINE_CORE)}"
+    )
 
     floors: dict[str, int] = {}
     declaring = set()
@@ -298,10 +324,14 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
             inert.append(f"  {name}:{number}: not named requirements.txt, so pip never reads "
                          f"it: {req}")
         else:
+            source = str(Path(name).parent)
             floors[str(req.specifier)] = floors.get(str(req.specifier), 0) + 1
-            declaring.add(str(Path(name).parent))
-            if str(req.specifier) != "<4.0.0,>=3.2.0":
-                offenders.append(f"  {name}:{number}: {req}")
+            declaring.add(source)
+            expected = NEEDS_A_HIGHER_FLOOR.get(source, BASE_FLOOR)
+            if str(req.specifier) != expected:
+                offenders.append(
+                    f"  {name}:{number}: declares {req.specifier}, needs {expected}"
+                )
 
     assert not inert, (
         "a views-pipeline-core declaration cannot be read as a floor at all, so this guard "
@@ -314,14 +344,68 @@ def test_every_pipeline_core_declaration_is_at_the_3_2_0_floor():
         "A source that stops declaring the package inherits views-baseline's >=3.0.0 floor "
         "and carries #594's trap again (C-116). A new one needs the floor and this name."
     )
+    assert not offenders, (
+        "a views-pipeline-core declaration is not at the floor its own source needs. "
+        "Anything below >=3.2.0 cannot find configs/config_maturity.py and dies on a "
+        "missing config_deployment.py (#594); chrome_box additionally cannot read "
+        "chrome_crate's cm forecast below >=3.3.5 (#562). A source raised ABOVE its "
+        "floor is also listed, because an unreviewed raise is how a floor stops meaning "
+        "anything:\n" + "\n".join(offenders)
+    )
     # `str(SpecifierSet)` normalises the clause order, hence `<4.0.0,>=3.2.0`.
-    assert floors == {"<4.0.0,>=3.2.0": 31}, (
-        "views-pipeline-core is no longer declared as >=3.2.0,<4.0.0 by all thirty-one "
-        f"sources: {floors}. Anything below >=3.2.0 cannot find configs/config_maturity.py "
-        "and dies on a missing config_deployment.py (#594). The declarations that differ:\n"
-        + "\n".join(offenders)
+    expected_census = {BASE_FLOOR: len(DECLARES_PIPELINE_CORE) - len(NEEDS_A_HIGHER_FLOOR)}
+    for spec in NEEDS_A_HIGHER_FLOOR.values():
+        expected_census[spec] = expected_census.get(spec, 0) + 1
+    assert floors == expected_census, (
+        f"the views-pipeline-core specifier census is {floors}, not {expected_census}. "
+        "The per-source check above passed, so every LINE is at its source's floor — this "
+        "catches the case it cannot see: one file carrying two pipeline-core lines, where "
+        "each line is individually acceptable and pip resolves their intersection."
     )
 
+
+def test_chrome_box_refuses_the_pipeline_core_that_cannot_read_a_pf_cm_forecast():
+    """The floor stated as the PROPERTY it is for, not as the string it happens to be.
+
+    The census above pins `ensembles/chrome_box` to the exact specifier, which is what
+    catches an unreviewed edit. This asserts the thing that specifier is *for*, so the
+    reason survives the next legitimate bump: whatever the floor says, it must exclude
+    3.3.4 and admit 3.3.5.
+
+    **Why 3.3.4 by name.** `chrome_box` declares `reconciliation: "pgm_cm"`, so
+    PredictionFrameEnsembleManager calls `load_cm_frame` to read `chrome_crate`'s cm
+    forecast. Up to and including 3.3.4 that function looked only for a `.parquet` file
+    while a PredictionFrame partner writes a directory, so it reported
+    "no local forecast found for country model 'chrome_crate'" over a forecast that
+    existed (views-pipeline-core#562, fixed in 3.3.5, ADR-069).
+
+    ⛔ **Both directions, because one is vacuous alone.** A specifier of `>=99.0` excludes
+    3.3.4 and would satisfy a one-sided test while installing nothing that exists. The
+    admit-3.3.5 half is what makes the refuse-3.3.4 half mean something.
+    """
+    specs = [
+        req.specifier
+        for name, _number, req in _declarations()
+        if canonicalize_name(req.name) == "views-pipeline-core"
+        and str(Path(name).parent) == "ensembles/chrome_box"
+    ]
+    assert len(specs) == 1, (
+        f"ensembles/chrome_box declares views-pipeline-core {len(specs)} times, so this "
+        "guard cannot say which floor applies and refuses rather than reading the first "
+        "one (ADR-025). pip would resolve the intersection of all of them."
+    )
+    spec = specs[0]
+    assert Version("3.3.4") not in spec, (
+        f"ensembles/chrome_box admits views-pipeline-core 3.3.4 ({spec}), which cannot "
+        "read chrome_crate's PredictionFrame cm forecast and reports it as absent "
+        "(views-pipeline-core#562). A laptop whose shared envs/views_ensemble already "
+        "holds 3.3.4 satisfies the range, so run.sh upgrades nothing and the run dies."
+    )
+    assert Version("3.3.5") in spec, (
+        f"ensembles/chrome_box no longer admits views-pipeline-core 3.3.5 ({spec}), the "
+        "release that fixed #562. A floor that excludes every version carrying the fix "
+        "refuses 3.3.4 for free and installs nothing."
+    )
 
 def test_no_dependency_is_declared_without_an_upper_bound():
     """An unbounded spec silently accepts the next breaking major of an internal package."""
@@ -344,7 +428,44 @@ def test_a_package_is_declared_the_same_way_everywhere():
     131 files resolve into 11 shared environments (**C-116**), so two tenants
     declaring the same package differently do not each get what they asked for —
     whichever ran last wins, and pip reports success to both.
+
+    ⛔ **One divergence is expected and is declared below rather than exempted.** The
+    distinction this rule actually cares about is whether run order can change the outcome,
+    and for `views-pipeline-core` today it cannot, because the two floors are **nested**:
+
+        ensembles/chrome_crate  >=3.2.0,<4.0.0     ─┐ same ceiling,
+        ensembles/chrome_box    >=3.3.5,<4.0.0     ─┘ one floor strictly higher
+
+    Both run in the shared `envs/views_ensemble`, and pip does not downgrade a package to
+    satisfy a floor already met. So `chrome_crate` first leaves 3.3.4 in place and
+    `chrome_box` then upgrades to 3.3.5; `chrome_box` first installs 3.3.5 and
+    `chrome_crate` accepts it. **Neither order loses** — which is exactly what makes this
+    divergence different from the kind C-116 describes, where the specs are incompatible and
+    the loser is whoever ran first.
+
+    ⚠️ This is NOT handled with a `DEFERRED_PACKAGES` entry, although the assertion message
+    below offers that. Two reasons. That list means *a decision was deliberately deferred*,
+    and this divergence is a decided, permanent, reasoned difference — mislabelling it there
+    would make the list a place to hide, which its own docstring warns about at exactly two
+    entries. And an entry is blanket: it would stop this rule seeing **every** pipeline-core
+    declaration, including a genuinely incompatible one appearing later. The dict below is
+    narrower — a third specifier, a changed specifier, or any other package diverging still
+    fails.
+
+    The specs are pinned as STRINGS, following the same deliberate choice the floor census
+    makes: a version-comparison form would accept an unreviewed bump, and a reviewed bump is
+    the point. Updating chrome_box's floor means editing two lines in this file, on purpose.
     """
+    #: package -> the exact set of specifiers expected to coexist, and why order cannot
+    #: decide the outcome. Anything not listed here must be declared identically everywhere.
+    EXPECTED_DIVERGENCE: dict[str, dict[str, str]] = {
+        "views-pipeline-core": {
+            "<4.0.0,>=3.2.0": "every source: configs/config_maturity.py needs >=3.2.0 (#594)",
+            "<4.0.0,>=3.3.5": "ensembles/chrome_box only: reads chrome_crate's PF cm "
+                              "forecast through load_cm_frame (pipeline-core#562)",
+        },
+    }
+
     specs = {}
     for name, number, req in _declarations():
         if req.name in DEFERRED_PACKAGES:
@@ -359,7 +480,10 @@ def test_a_package_is_declared_the_same_way_everywhere():
             continue
         specs.setdefault(req.name, {}).setdefault(str(req.specifier), []).append(name)
 
-    divergent = {pkg: v for pkg, v in specs.items() if len(v) > 1}
+    divergent = {
+        pkg: v for pkg, v in specs.items()
+        if len(v) > 1 and set(v) != set(EXPECTED_DIVERGENCE.get(pkg, {}))
+    }
     assert not divergent, (
         "one package declared several ways:\n"
         + "\n".join(
@@ -369,6 +493,21 @@ def test_a_package_is_declared_the_same_way_everywhere():
             for pkg, variants in sorted(divergent.items())
         )
         + "\nUnify them, or record the package in DEFERRED_PACKAGES with a reason."
+    )
+    #: ⛔ The other direction, which an allowlist always forgets: an entry describing a
+    #: divergence that no longer exists is a live exemption nobody is checking. #635 deleted
+    #: pipeline-core's DEFERRED_PACKAGES entry rather than amending it for exactly this
+    #: reason, and this assertion is what makes the same discipline automatic here.
+    stale = {
+        pkg: sorted(set(expected) - set(specs.get(pkg, {})))
+        for pkg, expected in EXPECTED_DIVERGENCE.items()
+        if set(expected) - set(specs.get(pkg, {}))
+    }
+    assert not stale, (
+        "EXPECTED_DIVERGENCE describes specifiers that no source declares any more, so the "
+        f"exemption is wider than the divergence it was written for: {stale}\n"
+        "Delete the entry rather than amending it — if the divergence is gone, the general "
+        "rule should cover the package again."
     )
 
 

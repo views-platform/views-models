@@ -294,3 +294,93 @@ class TestCrossRepoClaims:
             "vpp ADR-013 §11.4's interlock is no longer off by default. The map, and "
             "this repo's derived arming state (#348), both assume it is."
         )
+
+
+@pytest.mark.beige
+class TestReconciledIsNotADecorativeClaim:
+    """`REQUIRE.reconciled = True` must be true of the sources actually sent.
+
+    **Why this did not exist until 2026-10-28, and why it has to now.** `coherence.py`
+    checks `reconciled` only to *gate* multi-source deliveries: `_check_reconciliation`
+    returns at `if len(delivery.send) < 2`. So on a single-source delivery the flag was
+    unread by anything — it could say `True` over an ensemble that reconciles with
+    nothing and no check would object. `un_crafd` became the repository's first
+    single-source `reconciled=True` on 2026-10-28, which turned a latent gap into a live
+    one: register **C-145** already records that the flag "by then claims nothing".
+
+    What makes it worth a guard rather than a comment is the failure it admits. A
+    delivery repointed at an unreconciled ensemble — exactly the `rusty_bucket` edit this
+    file's own history is about — keeps `reconciled=True`, passes coherence, and ships a
+    grid forecast whose cells do not sum to any country total to an external partner,
+    while the declaration says they do.
+
+    ⛔ Loads each config with Python rather than matching its text, for the reason the
+    sibling guard above gives at length: a `'reconciliation'` written in single quotes
+    loads identically and defeats a regex.
+    """
+
+    def _reconciliation_of(self, source: str) -> tuple[str | None, str | None]:
+        """`(reconciliation, reconcile_with)` as the source's own config declares them.
+
+        Refuses rather than skips when the source cannot be found (ADR-025). A delivery
+        naming a source that does not exist is a worse defect than the one this test
+        hunts, and returning `(None, None)` for it would report that as "does not
+        reconcile" — a true-looking verdict reached for the wrong reason.
+        """
+        for base in ("ensembles", "models"):
+            path = REPO_ROOT / base / source / "configs" / "config_meta.py"
+            if path.exists():
+                meta = load_config_module(path).get_meta_config()
+                return meta.get("reconciliation"), meta.get("reconcile_with")
+        raise AssertionError(
+            f"no configs/config_meta.py for source '{source}' under ensembles/ or "
+            f"models/, so whether it reconciles cannot be read.\n"
+            f"  A delivery naming a source that does not exist is the first thing to "
+            f"fix; this check will not treat an unreadable source as unreconciled."
+        )
+
+    def test_every_delivery_claiming_reconciled_sends_something_that_reconciles(self):
+        from deliveries.status import delivery_files, load_delivery
+
+        checked = []
+        for path in delivery_files():
+            module = load_delivery(path)
+            if module.REQUIRE.reconciled is not True:
+                continue
+            names = [s.name for s in module.DELIVERY.send]
+            declared = {n: self._reconciliation_of(n) for n in names}
+            reconcilers = {n: p for n, (r, p) in declared.items() if r}
+
+            assert reconcilers, (
+                f"deliveries/{path.stem}.py declares reconciled=True, but none of its "
+                f"sources ({', '.join(names)}) declares `reconciliation` in its own "
+                f"configs/config_meta.py.\n"
+                f"  The flag is then a claim about nothing, and an external partner "
+                f"reads it as a promise that cell forecasts sum to country totals.\n"
+                f"  Either send a reconciling ensemble, or drop reconciled=True."
+            )
+            for name, partner in reconcilers.items():
+                assert partner, (
+                    f"{name} declares reconciliation but no `reconcile_with` partner, "
+                    f"so deliveries/{path.stem}.py's reconciled=True names no twin."
+                )
+            # Every source must be a reconciler or a reconciler's declared partner.
+            # Without this, adding an unreconciled third source to a delivery that
+            # already has a reconciling one would pass on the strength of the other.
+            allowed = set(reconcilers) | set(reconcilers.values())
+            stranded = sorted(set(names) - allowed)
+            assert not stranded, (
+                f"deliveries/{path.stem}.py declares reconciled=True but sends "
+                f"{stranded}, which neither reconciles nor is the declared partner of "
+                f"a source that does.\n"
+                f"  reconciling here: {sorted(reconcilers.items())}\n"
+                f"  A source outside the reconciliation group makes the flag true of "
+                f"part of the delivery and false of the rest."
+            )
+            checked.append(path.stem)
+
+        assert checked, (
+            "no delivery declares reconciled=True, so this guard proved nothing this "
+            "run. It is not vacuously green by design — un_crafd has declared it since "
+            "2026-10-28. If that changed deliberately, delete this assertion knowingly."
+        )

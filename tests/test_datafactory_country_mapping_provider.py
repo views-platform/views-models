@@ -153,12 +153,95 @@ class TestTheMappingItBuilds:
                 "a_decoy_after": [9, 9],
             },
         )
-        assert _provider(frame).build().map_vals.tolist() == [231, 94]
+        # `end=500`: a one-month window for a one-month frame. Since #647 the mapping
+        # spans the window the caller ASKED for, so leaving the default two-month window
+        # here would repeat both cells and make the assertion about the broadcast
+        # instead of about which column was read. One subject per guard.
+        assert _provider(frame, end=500).build().map_vals.tolist() == [231, 94]
 
     def test_a_float_coded_column_becomes_integers_without_truncating_down(self):
         """Zarr hands back floats. 230.9999 is country 231, not 230."""
         frame = _frame([500, 500], [1001, 1002], [230.9999, 94.00001])
-        assert _provider(frame).build().map_vals.tolist() == [231, 94]
+        # `end=500` for the same reason as the guard above.
+        assert _provider(frame, end=500).build().map_vals.tolist() == [231, 94]
+
+
+class TestTheWindowItCovers:
+    """#647. The mapping spans the window the CALLER asked for, not the months the
+    store happened to return.
+
+    `datafactory_query.load_dataset` does not refuse a window it cannot cover — it
+    returns what it has and emits a `UserWarning`. The store held 457..564 while
+    `chrome_box` asked for 457..622, so the mapping came back 58 months short, survived
+    three forecast steps, and died at month 565 (step 4 of 36) inside
+    `views_frames.index._remap`. Verified on a pod, 2026-10-28.
+
+    The frames below are deliberately SHORTER in time than the window, because that is
+    the condition the defect needed and no previous guard created.
+    """
+
+    def test_a_fetch_short_in_time_still_covers_the_whole_window(self):
+        frame = _frame([500, 500], [1001, 1002], [231, 94])
+        mapping = _provider(frame, start=500, end=503).build()
+        assert sorted(set(mapping.map_keys[:, 0].tolist())) == [500, 501, 502, 503], (
+            "the fetch returned month 500 only; the caller asked for 500..503"
+        )
+        assert len(mapping) == 4 * 2
+
+    def test_every_cell_keeps_its_own_country_in_every_month(self):
+        """⛔ Not just "the right months are present" — the right CODE in each.
+
+        A broadcast that tiled the codes against a repeated cell axis, or repeated where
+        it should tile, produces a mapping of exactly the right length and shape with
+        every country attached to the wrong cell. Length and month-set assertions cannot
+        see that; this one reads the pairs back.
+        """
+        frame = _frame([500, 500], [1001, 1002], [231, 94])
+        mapping = _provider(frame, start=500, end=502).build()
+        pairs = {
+            (int(time), int(gid)): int(code)
+            for (time, gid), code in zip(mapping.map_keys, mapping.map_vals)
+        }
+        assert pairs == {
+            (500, 1001): 231, (500, 1002): 94,
+            (501, 1001): 231, (501, 1002): 94,
+            (502, 1001): 231, (502, 1002): 94,
+        }
+
+    def test_a_single_month_window_is_a_single_month_of_keys(self):
+        """The broadcast must not widen a window either. `start == end` is one month."""
+        frame = _frame([500, 500], [1001, 1002], [231, 94])
+        mapping = _provider(frame, start=500, end=500).build()
+        assert set(mapping.map_keys[:, 0].tolist()) == {500}
+        assert len(mapping) == 2
+
+    def test_it_does_not_invent_cells_the_fetch_never_returned(self):
+        """Time is broadcast; GEOGRAPHY is not. A fetch short in cells must stay short,
+        so a missing cell still fails loudly in `_remap` with its gid named, rather than
+        being filled in with a guess."""
+        frame = _frame([500, 500], [1001, 1002], [231, 94])
+        mapping = _provider(frame, start=500, end=502).build()
+        assert set(mapping.map_keys[:, 1].tolist()) == {1001, 1002}
+
+    def test_a_long_window_does_not_let_a_moving_cell_through(self):
+        """⛔ The refusals run on the RAW rows, before the broadcast — and must keep
+        doing so. Deriving one code per cell with `codes[first]` is a `.first()` collapse
+        in disguise if the inconsistency check is ever reordered after it: it would pick
+        one of two contradictory countries and tile that silently across the window,
+        which is §2 of the module docstring's refusal defeated by its own fix."""
+        frame = _frame(
+            [500, 500, 501, 501], [1001, 1002, 1001, 1002], [231, 94, 94, 94]
+        )
+        with pytest.raises(ValueError, match=r"more than one gaul0_code"):
+            _provider(frame, start=500, end=560).build()
+
+    def test_the_window_is_inclusive_of_its_end_month(self):
+        """`chrome_box` asks 457..622, which is 166 months, not 165. An exclusive end
+        would be short by exactly one month — the last forecast step."""
+        frame = _frame([457], [1001], [231])
+        mapping = _provider(frame, start=457, end=622).build()
+        assert len(mapping) == 166
+        assert mapping.map_keys[:, 0].max() == 622
 
 
 class TestWhatItAsksFor:
@@ -191,6 +274,39 @@ class TestWhatItRefuses:
         frame = _frame([500], [1001], [0])
         with pytest.raises(ValueError, match=r"no GAUL country"):
             _provider(frame).build()
+
+    def test_a_fetch_with_the_column_but_no_rows_refuses(self):
+        """An empty mapping reconciles every cell to nothing, so zero rows must refuse.
+
+        ⛔ Why this needs its own guard rather than falling out of the two refusals above.
+        Both of them pass VACUOUSLY on an empty frame — `codes <= 0` has nothing to be
+        true of, and `lexsort` on zero rows finds no neighbour that disagrees — then
+        `np.unique` returns empty and `build` hands back a `CountryMapping` with no keys
+        at all. The module docstring refuses that outcome by name at §3 for a MISSING
+        column; this is the same outcome through a present-and-empty one.
+
+        It became reachable with #647. Keying the mapping on the months the store returned
+        meant a short or empty fetch died loudly in `views_frames.index._remap` with the
+        missing `(time, unit)` named — an accident, but a loud one. Keying on the
+        requested window removed the accident, so the refusal has to be deliberate.
+
+        Realistic trigger: a region string that resolves to an empty pgid set, or a store
+        migration that moves the window, either of which `load_dataset` reports as a
+        `UserWarning` and not an error.
+        """
+        frame = _frame([], [], [])
+        with pytest.raises(ValueError, match=r"ZERO rows"):
+            _provider(frame).build()
+
+    def test_the_zero_row_refusal_names_the_region_and_the_window(self):
+        """The operator has to be told which of the two inputs to go and look at."""
+        frame = _frame([], [], [])
+        with pytest.raises(ValueError) as e:
+            _provider(frame, region="atlantis", start=457, end=622).build()
+        message = str(e.value)
+        assert "atlantis" in message, "name the region that returned nothing"
+        assert "457" in message and "622" in message, "name the window that was asked for"
+        assert "64,742" in message, "give the count that says what a real region looks like"
 
     def test_a_cell_whose_country_changes_refuses_instead_of_taking_the_first(self):
         """⛔ TIME-MAJOR rows, two cells — not one cell's two months adjacent.
@@ -258,14 +374,26 @@ class TestCoverageAgainstTheBundledGroundTruth:
         assert len(load_region_pgids("land") - load_region_pgids("land_gaul")) == 76
 
     def test_the_mapping_covers_every_cell_in_land_gaul(self):
-        """At real scale: one month over all 64,742 cells. Coverage is the acceptance
-        criterion #601 states; the VALUES are not proved here (see the module docstring)."""
+        """At real scale: all 64,742 cells, over a window the frame does not cover.
+
+        Coverage is the acceptance criterion #601 states; the VALUES are not proved here
+        (see the module docstring).
+
+        ⛔ This asserted `len(mapping) == gids.size` until #647, against a frame carrying
+        ONE month and a provider asked for TWO. That is the defect it now pins: the old
+        mapping was as short as the fetch, so this guard was quietly asserting the bug.
+        At 36 forecast steps against a store 58 months short, the shortfall killed
+        reconciliation at step 4."""
         load_region_pgids = _load_region_pgids()
         gids = np.array(sorted(load_region_pgids("land_gaul")), dtype=np.int64)
         frame = _frame(np.full(gids.size, 500), gids, np.full(gids.size, 231))
-        mapping = _provider(frame).build()
+        mapping = _provider(frame).build()  # default window is 500..501, two months
         assert set(mapping.map_keys[:, 1].tolist()) == set(gids.tolist())
-        assert len(mapping) == gids.size
+        assert len(mapping) == gids.size * 2, (
+            "the mapping must span the window it was asked for (500..501), not the one "
+            "month the frame happened to carry"
+        )
+        assert set(mapping.map_keys[:, 0].tolist()) == {500, 501}
 
     def test_the_76_cells_land_excludes_are_exactly_what_the_provider_refuses(self):
         """Ties the refusal to the ground truth: build on `land`, with the 76 carrying

@@ -3,7 +3,9 @@
 Answers, with raw facts: when did CRAF'd last actually receive anything — per delivery
 stream? Same two-stream shape as the FAO surface, verified live 2026-08-24 rather than
 assumed: 108 shards + 1 sidecar + 1 `__manifest.json` + 1 `historical_dataset_*` = 111
-files, identical naming conventions, same `rusty_bucket` source.
+files, identical naming conventions. The two streams shared one `rusty_bucket` source when
+that was verified; CRAF'd was repointed to `chrome_box` on 2026-10-28, which this module does
+not care about — see `FORECAST_MANIFEST_SUFFIX` below.
 
     <source>_forecasting_<ts>__manifest.json   the ADR-013 commit marker, written LAST
     historical_dataset_*.parquet               the historical actuals delivery

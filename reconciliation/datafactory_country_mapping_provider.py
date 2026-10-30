@@ -15,7 +15,7 @@ explicit about that. Its ground truth is `datafactory_query.load_region_pgids`,
 which resolves a region to its pgid set from the GAUL admin Parquet files and is
 an independent path from the feature fetch this provider reads.
 
-Three things it refuses rather than papers over, because each one would otherwise
+Four things it refuses rather than papers over, because each one would otherwise
 surface as a plausible wrong reconciled number:
 
 1. **A cell with no country.** `gaul0_code <= 0` means GAUL gives the cell no
@@ -31,6 +31,9 @@ surface as a plausible wrong reconciled number:
    Taking `.first()` here would silently pick one of two contradictory answers.
 3. **A missing feature.** If the fetch returns no `gaul0_code` column, the mapping
    cannot be built at all, and an empty mapping reconciles everything to nothing.
+4. **A fetch with no rows.** The same hazard through the other door: the column is
+   present and empty. Both refusals below pass vacuously on zero rows, so this one is
+   checked explicitly rather than inferred from them.
 
 The fetch is injected (a callable) so the build logic is unit-testable without
 network or credentials, exactly as `ViewserCountryMappingProvider` does it.
@@ -82,8 +85,26 @@ class DatafactoryCountryMappingProvider:
                 f"empty mapping would reconcile every cell to nothing"
             )
 
-        times = np.asarray(frame.index.time, dtype=np.int64)
+        # `frame.index.time` is deliberately NOT read. The mapping is keyed on the
+        # window the caller asked for, not the months the store happened to return —
+        # see `_broadcast_over_the_requested_window` (#647).
         gids = np.asarray(frame.index.unit, dtype=np.int64)
+
+        # A fetch with the column but no rows. Sibling of the check above, and it has to
+        # be here rather than left to the refusals below: both of those pass VACUOUSLY on
+        # zero rows, `np.unique` returns empty, and `build` would hand back a mapping with
+        # no keys — the §3 hazard arriving by the other door. Before #647 a short fetch at
+        # least died loudly in `views_frames.index._remap`; keying on the requested window
+        # removed that accident, so the refusal has to be deliberate (ADR-003, ADR-025).
+        if gids.size == 0:
+            raise ValueError(
+                f"the datafactory fetch returned the {GAUL_CODE_FEATURE!r} feature but "
+                f"ZERO rows for region {self._region!r}, months "
+                f"{self._start_month}..{self._end_month}. The grid->country mapping would "
+                f"have no keys, and an empty mapping reconciles every cell to nothing. "
+                f"Check the region name resolves to a pgid set ('land_gaul' is 64,742 "
+                f"cells) and that the store covers the window."
+            )
 
         # `FeatureFrame.values` is (rows, features, samples) — the trailing axis is the
         # draw dimension, length 1 for a non-sample frame. Geography is not stochastic, so
@@ -102,7 +123,64 @@ class DatafactoryCountryMappingProvider:
         self._refuse_cells_without_a_country(gids, codes)
         self._refuse_cells_whose_country_moves(gids, codes)
 
-        return CountryMapping(np.stack([times, gids], axis=1), codes)
+        return self._broadcast_over_the_requested_window(gids, codes)
+
+    def _broadcast_over_the_requested_window(
+        self, gids: np.ndarray, codes: np.ndarray
+    ) -> CountryMapping:
+        """One code per cell, repeated across every month the CALLER asked for (#647).
+
+        **The defect this fixes.** This used to key the mapping on the months the fetch
+        happened to return: `CountryMapping(np.stack([times, gids], axis=1), codes)`.
+        `datafactory_query.load_dataset` does not refuse a window its store cannot
+        cover — it returns the months it has and emits a `UserWarning`. The datafactory
+        zarr store held 457..564; `chrome_box` asks for 457..622 (the union of its test
+        ranges plus `composition._WINDOW_BUFFER_MONTHS = 24`). So the mapping was built
+        58 months short, reconciliation ran fine for three steps, and month 565 — step 4
+        of 36 — died in `views_frames.index._remap` with
+        `(time, unit) (565, 49182) has no entry in the injected mapping`.
+
+        A warning that something is 58 months short, swallowed into a mapping that looks
+        complete, is the shape ADR-003 exists to stop. The mapping now covers the window
+        that was *requested*, so a short fetch cannot silently shorten it.
+
+        **Why broadcasting is sound rather than a papering-over.** The time axis is
+        redundant here, and this class already proves it: GAUL 2024 polygons are static
+        per cell, and `_refuse_cells_whose_country_moves` has just refused the frame if
+        any cell reported more than one code across the window. After that check a code
+        is a property of the *cell*, not of `(cell, month)`, so repeating it across the
+        requested months adds no information and invents none. Taking `codes[first]` is
+        safe for exactly the same reason — not a `.first()` collapse of contradictory
+        values, which §2 of the module docstring refuses by name, but a read of the one
+        value that survived the refusal.
+
+        Note what this does NOT do: it does not widen the *cell* set. Every requested
+        month gets precisely the cells the fetch returned, so a fetch short in cells
+        still fails loudly in `_remap`, with the missing cell named.
+
+        **What it costs, measured rather than guessed.** The mapping grows from the
+        store's 108 months to the requested 166: 64,742 cells x 166 months = 10,747,172
+        rows, and at 24 bytes a row (two int64 keys plus an int64 value) that is 246.0
+        MiB, up 85.9 MiB. Against the 68.2 GiB peak measured for `chrome_box`'s pool on
+        2026-10-28 that is 0.12%, so it does not move the box class — but it is a real
+        increase and is written down rather than waved past.
+
+        ⚠️ Known waste, deliberately left: the fetch still asks for the whole window
+        (166 months on `chrome_box`) to read a static feature. One month would do. That
+        is a change to what `_fetch_from_datafactory` requests, and the store's region
+        resolution is the kind of thing to alter on its own evidence, not in passing —
+        trigger to revisit: the next time this fetch is slow enough to notice, or the
+        next time the store's horizon moves.
+        """
+        cells, first_row_of_each = np.unique(gids, return_index=True)
+        code_of_cell = codes[first_row_of_each]
+
+        months = np.arange(self._start_month, self._end_month + 1, dtype=np.int64)
+        keys = np.empty((months.size * cells.size, 2), dtype=np.int64)
+        keys[:, 0] = np.repeat(months, cells.size)
+        keys[:, 1] = np.tile(cells, months.size)
+
+        return CountryMapping(keys, np.tile(code_of_cell, months.size))
 
     def _refuse_cells_without_a_country(
         self, gids: np.ndarray, codes: np.ndarray

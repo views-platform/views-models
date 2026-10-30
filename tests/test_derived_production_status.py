@@ -91,13 +91,26 @@ class TestDeclaredSourceRefusesSeveral:
     """
 
     def _two_source_delivery(self, tmp_path):
-        """A real delivery file with a second source added, written somewhere harmless."""
+        """A real delivery file with a second source added, written somewhere harmless.
+
+        ⛔ Templated off `un_fao.py`, not `un_crafd.py`, since 2026-10-28. It was
+        `un_crafd.py`, and it quoted that file's `send` and import lines verbatim — so
+        repointing the CRAF'd delivery (`rusty_bucket` → `chrome_box`) broke all three
+        tests in this class, none of which is about CRAF'd. The subject here is
+        `declared_source`'s one-source rule; coupling it to the delivery most likely to
+        be repointed made an unrelated edit look like a regression in this rule.
+
+        `un_fao.py` is the stable single-source file: it feeds the live FAO leg, which
+        a standing rule says no change may touch. If this assertion ever fails, the
+        vocabulary moved and the fixture should follow it — do not switch the template
+        back to whichever file currently happens to match.
+        """
         import shutil
 
-        source = REPO_ROOT / "deliveries" / "un_crafd.py"
+        source = REPO_ROOT / "deliveries" / "un_fao.py"
         body = source.read_text()
         assert 'send      = [pgm("rusty_bucket")],' in body, (
-            "deliveries/un_crafd.py no longer has the send line this test rewrites"
+            "deliveries/un_fao.py no longer has the send line this test rewrites"
         )
         body = body.replace('send      = [pgm("rusty_bucket")],',
                             'send      = [pgm("rusty_bucket"), cm("pink_ponyclub")],', 1)
@@ -140,7 +153,11 @@ class TestDeclaredSourceRefusesSeveral:
 
     def test_one_source_is_unchanged(self):
         assert declared_source("un_fao") == "rusty_bucket"
-        assert declared_source("un_crafd") == "rusty_bucket"
+        # Repointed 2026-10-28: `rusty_bucket` is FAO's and must not reach CRAF'd as a
+        # stopgap (Simon's ruling, 2026-10-22). `chrome_box` is the reconciled pgm
+        # ensemble; see deliveries/un_crafd.py for why `send` names it alone and not
+        # `chrome_crate` too.
+        assert declared_source("un_crafd") == "chrome_box"
 
 
 

@@ -193,12 +193,25 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   mode — which is why its `main.py` uses `PredictionFrameEnsembleManager`, the DataFrame path
   having refused `pgm_cm` rather than silently return unreconciled predictions.
 - **Which source feeds a consumer:** `deliveries/<consumer>.py` — the `send` line. There are two:
-  `deliveries/un_fao.py` and `deliveries/un_crafd.py`, both currently sending `rusty_bucket`. Each
+  `deliveries/un_fao.py`, sending `rusty_bucket`, and `deliveries/un_crafd.py`, sending
+  `pgm("chrome_box")` since 2026-10-28. CRAF'd previously sent `rusty_bucket` too; that was
+  repointed because `rusty_bucket` is FAO's and must not go to CRAF'd as a stopgap
+  (maintainer's ruling, 2026-10-22). **`chrome_box` alone, not the pair.** It is a reconciled
+  forecast — it reconciles against `chrome_crate` during its own run, and `REQUIRE` declares
+  `reconciled=True` to say so — but `send` names one source, because `declared_source` refuses
+  several: `views_postprocessing` reads `configs["ensemble"]` as a single string and has no key
+  for a list (`deliveries/status.py:188`). ADR-019 §4 permits several sources and ADR-019 §3
+  would then require `reconciled=True` (`deliveries/coherence.py:390`); the limit that bites is
+  one repository away, not here. Each
   consumer's `postprocessors/<consumer>/configs/config_meta.py` **derives** its `"ensemble"`,
   `"region"` and `"wire_upload_enabled"` from that file and names none of them (#347, #348, ADR-021).
 - **Whether a delivery is armed:** the `intent` line in the same file. `un_fao` is `live`;
-  `un_crafd` is `paused` until views-crafdapi's first delivery (their D5, #45), so its launcher
-  stages artifacts locally and makes zero store calls.
+  `un_crafd` is `paused` again since 2026-10-28 — it was armed `live` on 2026-08-14 once
+  views-crafdapi's D4 dry run passed (their D5, #45), and is paused now because no
+  reconciled wire has been produced from `chrome_box` yet and views-crafdapi#180, their
+  own serving gate at 1,024 draws, is open. Both code blockers are closed:
+  views-pipeline-core#562 shipped in 3.3.5 (published 2026-10-29) and views-models#647 is
+  fixed. Its launcher stages artifacts locally and makes zero store calls.
 - **The FAO declaration, in detail:** `deliveries/un_fao.py` — the `send` line.
   `postprocessors/un_fao/configs/config_meta.py` **derives** its `"ensemble"` key from it and no longer
   names a source (#347). The key survives because views-postprocessing reads `configs["ensemble"]` at
