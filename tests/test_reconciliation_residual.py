@@ -172,3 +172,98 @@ def test_unplaced_mass_is_reported_but_a_scaling_failure_is_fatal(
 
     monkeypatch.setattr(mod, "measure_run", lambda *a, **k: ([broken], ["n"]))
     assert main(["--ensemble", "x"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# From /code-review high on PR #657 -- three ways a real mismatch was reported
+# as full agreement, each demonstrated by the reviewer before it was accepted.
+# ---------------------------------------------------------------------------
+
+
+def test_a_non_finite_grid_value_is_refused_not_counted_as_agreement() -> None:
+    """⛔ `gap > tolerance` is **False** for NaN, so a NaN grid cell agreed with everything.
+
+    The reviewer's demonstration: one NaN grid cell against a country total of 4 returned
+    `short_triples=0, scaling_failures=0, unplaced_mass=0` — so `main` exited 0, the runner
+    continued, and the MANIFEST asserted that the only unplaced mass was the zero-grid kind
+    while a whole country's total had gone unmet.
+
+    This is the same family as the module's other refusals and the opposite of its docstring,
+    which claims scaling_failures "was 0 across 22,339,584 triples and if it is ever non-zero
+    the run must fail rather than deliver". A NaN made it unable to be non-zero.
+    """
+    pgm = [[1, 2], [3, 4], [np.nan, 5],
+           [2, 2], [2, 2], [9, 1]]
+    cm = [[4, 6], [4, 5], [4, 4], [9, 1]]
+    with pytest.raises(ValueError, match="non-finite"):
+        _measure(pgm, cm)
+
+
+def test_a_negative_grid_sum_is_a_scaling_failure_and_not_in_neither_bucket() -> None:
+    """⛔ The two buckets must PARTITION the disagreements, or one in neither reads as agreement.
+
+    `zero_grid = off & (grid_total == 0)` and `real = off & (grid_total > 0)` left negative
+    grid sums in neither. The reviewer's demonstration: a grid sum of −7 against a country
+    total of 4 returned `scaling_failures=0`. A negative fatality count is meaningless, so it
+    is a defect by definition — and it was the one shape the classifier could not see.
+
+    Now `real = off & ~(grid_total == 0)`, which is exhaustive by construction.
+    """
+    pgm = [[-4, 2], [-3, 4], [5, 5],
+           [2, 2], [2, 2], [9, 1]]
+    cm = [[4, 6], [5, 5], [4, 4], [9, 1]]
+    r = _measure(pgm, cm)
+    assert r.scaling_failures == 1, (
+        "a country whose grid sums to a negative number while its total says 4 must be a "
+        "scaling failure, not an unclassified pass"
+    )
+    assert r.short_triples == 0
+    assert r.unplaced_mass == 0.0
+
+
+def test_a_country_forecast_month_the_grid_does_not_cover_is_refused() -> None:
+    """The loop iterates the GRID's months, so a longer country forecast shrank the denominator.
+
+    `cm_mass` is summed inside that loop. A country forecast covering months the grid does
+    not — a truncated or interrupted pgm run against a full `chrome_crate` — would be measured
+    over the grid's subset, and the reported "% of mass unplaced" would be a percentage of
+    less than the delivery. Smaller, and therefore reassuring, in exactly the case where
+    something went wrong.
+    """
+    with pytest.raises(ValueError, match="months the grid"):
+        measure_target(
+            "t",
+            np.ones((6, 2), np.float32), PGM_TIME, PGM_UNIT,
+            np.ones((6, 2), np.float32),
+            np.array([1, 1, 2, 2, 3, 3]), np.array([10, 20, 10, 20, 10, 20]),
+            MAP_KEYS, MAP_VALS,
+        )
+
+
+def test_a_prediction_directory_with_no_targets_is_refused_not_reported_as_zero(
+    tmp_path: Path,
+) -> None:
+    """⛔ Two empty sets are equal, so `set(pgm) != set(cm)` passed over nothing.
+
+    The reviewer's demonstration: with no target subdirectories, `measure_run` produced no
+    results and `render([])` printed *"UP TO 0.000% OF THE COUNTRY FORECAST'S FATALITIES ARE
+    NOT ON THE GRID"* with `scaling_failures total: 0`, and `main` returned 0. The runner
+    then continued — the only trace being `RESIDUAL_LINES` falling back to its "UNREADABLE"
+    string, which is printed but not fatal — and wrote `STATUS: OK`.
+
+    Reachable, not theoretical: `pod_run_chrome_box.sh`'s own comment records the shape of an
+    ensemble that exits 0 having written only a tracked `.gitkeep`.
+    """
+    from reconciliation.residual import measure_run
+
+    ens = tmp_path / "ensembles" / "chrome_box"
+    (ens / "configs").mkdir(parents=True)
+    (ens / "configs" / "config_meta.py").write_text(
+        'def get_meta_config():\n    return {"name": "chrome_box", "reconcile_with": "chrome_crate"}\n'
+    )
+    for name in ("chrome_box", "chrome_crate"):
+        d = tmp_path / "ensembles" / name / "data" / "generated"
+        (d / "predictions_forecasting_20261030_000000").mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="no target subdirectories"):
+        measure_run(ens)

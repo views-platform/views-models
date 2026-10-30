@@ -12,6 +12,27 @@ The trigger index was consulted first, which is what it is for. **C-168's trigge
 verbatim** — *"Declaring a pod ready to destroy on the strength of a bundle-vs-manifest
 comparison"* — and C-170's class ("output written outside `$OUT`") supplied both findings.
 
+**Three of the four findings were closed in the same branch** and are recorded here rather
+than kept as stubs, because an xfail whose `reason` names a defect the diff fixes reads as an
+open defect forever — it can never flip to XPASS to signal its own staleness. Flagged by
+`/code-review high` on PR #657:
+
+* **The trained artefacts (HARD).** `pod_run_chrome_box.sh` copied only the pool and had no
+  `collect_artifact` stage, while `pod_run_model.sh:395` has had one for weeks and
+  `docs/runpod_run_guide.md:429` names `artifact/` in bold as the thing that cannot be
+  remade. 16 `.pkl` files, 363.7 MiB, on a host declared safe to destroy. CLOSED by
+  `stage collect_members`, which pairs each artefact to its forecast by the timestamp both
+  filenames carry — and whose first version was worse than none, failing the resume path
+  after deleting the copies it had made last time (see
+  `test_the_collect_stage_survives_a_resume`).
+* **The offline W&B record (SOFT).** 50 `offline-run-*` directories, 164 MB, outside `$OUT`
+  because `WANDB_MODE=offline` is forced. C-170's second class. CLOSED by the same stage.
+* **The package set (SOFT).** The MANIFEST pinned 2 versions; the venv had 143, and
+  `pip freeze` returns nothing in a uv-built venv — an empty file, exit 0. CLOSED by a
+  `FREEZE` step asking `importlib.metadata`, with an empty result fatal.
+  `views-frames==1.11.0` is the entry that matters: C-192's deficit is a property of that
+  reconciler, so a reproduction that re-resolves it is not one.
+
 What SURVIVED, recorded so it is not re-probed:
 
 * **P3 — integrity, per file.** Every file in the local 1.70 GiB archive was hashed in one
@@ -34,109 +55,6 @@ What SURVIVED, recorded so it is not re-probed:
 """
 
 import pytest
-
-
-# ---------------------------------------------------------------------------
-# HARD -- the runner collects the product and not the thing that cannot be remade
-# ---------------------------------------------------------------------------
-
-@pytest.mark.xfail(reason="pod_run_chrome_box.sh has no collect_artifact stage", strict=False)
-def test_the_runner_collects_the_trained_artefacts_and_not_only_the_pool() -> None:
-    """⛔ Eight trained models were going to die with the pod, and the guide says so in bold.
-
-    `tools/podrun/pod_run_chrome_box.sh` copies exactly one thing into `deliver/`:
-
-        mkdir -p "$OUT/parquet"
-        cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/." "$OUT/parquet/"
-
-    There is **no `collect_artifact` stage**. `tools/podrun/pod_run_model.sh` has had one
-    since before this runner was written (`:395` `stage collect_artifact`, `:412` `cp "$PT"*
-    "$OUT/artifact/"`), and `docs/runpod_run_guide.md:429` states the reason in bold: *"⛔
-    `artifact/` is the one that cannot be remade"*, citing 2026-09-28, when eight models
-    trained, delivered their parquets, reported `OK`, **and their weights died with the
-    pods**.
-
-    Measured on this pod: `models/*_sparrow/artifacts/forecasting_model_*.pkl`, **16 files,
-    363.7 MiB** (8 `*_sparrow` + 8 `*_condor`), none of them in `deliver/`, none of them in
-    the 1.70 GiB archive that had been verified and declared complete. One was extracted from
-    the rescue archive and `pickle.load`s to a `MixtureBaseline`, so they are real and intact.
-
-    **Why this is the hard finding.** The 2026-10-28 reasoning for copying the pool and not
-    the members was sound and is recorded: 26.7 GiB of member *forecasts* is pure duplication
-    of data the pool already contains. ⚠️ But that argument was about the forecasts, and it
-    silently took `artifacts/` and `wandb/` with it — **542 MB, not 30 GB**, and the one
-    class the guide names as irreplaceable. A size-based exclusion inherited a
-    correctness-based one.
-
-    Retrieved during this audit (`chrome_box_20261030_rescue.tar.zst`, 3.5 MiB compressed,
-    sha256 verified, 366 MiB of payload), so nothing is lost. The runner is unchanged and
-    will do it again. Fix: a `collect_artifact` stage mirroring `pod_run_model.sh`'s, copying
-    each member's `artifacts/` and `wandb/` — and a guard that the stage exists, since this
-    runner's tests pin the pool copy and never asked what else the run produced.
-
-    Cross-refs: **C-161** (the runner archives half the posterior and the guard counts only
-    the half it archives — the same shape, one artefact class along), **C-170** (four classes
-    of run output written outside `$OUT`), **C-168** (ROOT).
-    """
-    raise NotImplementedError
-
-
-# ---------------------------------------------------------------------------
-# SOFT -- the run's own logged record was outside the collected scope
-# ---------------------------------------------------------------------------
-
-@pytest.mark.xfail(reason="50 offline W&B runs outside $OUT; C-170's class", strict=False)
-def test_the_runs_own_logged_record_is_collected() -> None:
-    """50 `offline-run-*` directories, 164 MB, sat outside `deliver/` and were not retrieved.
-
-    `WANDB_MODE=offline` is forced by the runner — correctly, because nothing may be
-    published from rented hardware. The consequence nobody followed through is that the run's
-    metrics, system stats and config snapshots are then written to
-    `models/<member>/wandb/offline-run-*/` and `ensembles/<ensemble>/wandb/`, which is **not
-    `$OUT`**, and the runner's collection step never looks there.
-
-    This is exactly **C-170**'s second class ("the W&B tables"), recorded against
-    `pod_run_model.sh` and now true of this runner too. It is cheap to fix and cheap to lose,
-    which is why it keeps being lost: 164 MB against a 27 GB product.
-
-    Retrieved during this audit inside the rescue archive. Same fix as the stub above.
-    """
-    raise NotImplementedError
-
-
-# ---------------------------------------------------------------------------
-# SOFT -- nothing recorded what the run actually ran on
-# ---------------------------------------------------------------------------
-
-@pytest.mark.xfail(reason="no frozen package set is retained; MANIFEST names two of 143", strict=False)
-def test_the_exact_package_set_the_run_used_is_recorded() -> None:
-    """The MANIFEST pins 2 versions. The venv had **143** packages.
-
-    `MANIFEST` records `pipeline_core: 3.3.5` and `toolz: 1.2.0 (C-151 override)` — the two
-    the runner asserts a floor on. Nothing recorded the rest, and
-    `/workspace/venv-crafd/bin/python -m pip freeze` returns **zero lines**, because the venv
-    was built with `uv` and has no `pip`. So the obvious way to capture it silently produces
-    nothing — absence reading as success, one more time.
-
-    Captured during this audit with `uv pip freeze` (143 packages) and retained. The ones a
-    future reader would want and could not otherwise recover:
-
-        views-frames==1.11.0        <- the reconciler; the subject of C-192 and views-frames#283
-        views-datafactory==1.16.0   <- the geography the country mapping came from
-        views-baseline==1.0.2       views-evaluation==2.0.0   views-schema==2.3.3
-        numpy==1.26.4               pandas==1.5.3             scipy==1.17.1
-
-    ⚠️ `views-frames==1.11.0` matters specifically: the 2.9%-7.3% mass deficit in **C-192**
-    is a property of that reconciler's `aligned-draws` implementation, and a reproduction
-    attempt that re-resolves to a different views-frames is not a reproduction. The MANIFEST
-    asserted a floor on the two packages the runner was worried about, which is not the same
-    as recording what ran.
-
-    Fix: the runner writes `uv pip freeze` into `deliver/<ensemble>/FREEZE` beside the
-    MANIFEST. One line of shell, and it is the difference between a reproducible run and a
-    similar one.
-    """
-    raise NotImplementedError
 
 
 # ---------------------------------------------------------------------------

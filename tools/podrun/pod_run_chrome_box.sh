@@ -323,7 +323,11 @@ echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), tlz importable, engine p
 # The 68.2 figure was also a lower bound because its series was never retrieved from a pod
 # that no longer exists; this writes both series into deliver/, so the next one is not.
 ( while :; do
-    MS=$(awk '/^anon /{a=$2} /^file /{f=$2} END{printf "anon=%dMiB file=%dMiB", (a+0)/1048576, (f+0)/1048576}' /sys/fs/cgroup/memory.stat 2>/dev/null)
+    # ⛔ `a==""||f==""` is not belt-and-braces. awk skips END only when the file cannot be
+    # OPENED; a readable memory.stat that carries no `anon `/`file ` line still runs END, and
+    # the old version printed `anon=0MiB file=0MiB` -- a logged zero indistinguishable from
+    # "used no memory", which `peak_of` would then report as a measured peak of nothing.
+    MS=$(awk '/^anon /{a=$2} /^file /{f=$2} END{if (a=="" || f=="") printf "anon=NA file=NA"; else printf "anon=%dMiB file=%dMiB", a/1048576, f/1048576}' /sys/fs/cgroup/memory.stat 2>/dev/null)
     C=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
     # ⛔ `anon=NA`, never `anon=0MiB`. A sampler that cannot read memory.stat must be
     # visibly unreadable: a logged zero is indistinguishable from "used no memory", and the
@@ -442,17 +446,43 @@ cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/." "$OUT/parquet/" || die "canno
 # Fatal on a missing artefact, and safe to be: the pool is already copied above, so dying
 # here costs attention rather than work — and a missing irreplaceable artefact is precisely
 # what an operator must learn BEFORE destroying the host, not after.
+# ⛔ Paired by the TIMESTAMP both filenames carry, not by mtime against this run's start.
+# The first version of this stage keyed on `stat %Y "$PKL" -lt "$START"`, and that made the
+# resume path -- the one this whole script is built around, and the one its own die messages
+# invite -- fail every time: the member loop SKIPS a member whose forecast already exists,
+# so no new .pkl is written, so every artefact predates $START, so all eight land in MISSING
+# and the run dies with "no .pkl artefact from THIS run" while all eight sit on disk. And
+# `rm -rf "$OUT/members"` ran first, so a previous invocation's collected artefacts -- the
+# only irreplaceable thing here -- were destroyed before the check refused to re-collect
+# them. Found by `/code-review high` on PR #657 and reproduced before it was accepted.
+#
+# The invariant that actually holds, verified across all 8 members of the 2026-10-30 run:
+# `artifacts/forecasting_model_<ts>.pkl` and `data/generated/predictions_forecasting_<ts>`
+# carry the SAME timestamp. So the artefact is paired to the forecast by identity rather
+# than by clock, which is C-188's own exit -- key on what only exists on success, and
+# compare it to something -- and it is true on a resume as well as a first run.
+#
+# ⚠️ No `rm -rf` here. Nothing is cleared before a replacement exists; a stale artefact from
+# an earlier run is simply not the one the timestamp selects (C-171's concern, answered by
+# identity instead of by deletion).
 stage collect_members
-rm -rf "$OUT/members"
 mkdir -p "$OUT/members"
 MISSING=""
 for M in $MODELS; do
-    # Newest first, and its mtime checked against this run's start: the repo tree is not
-    # cleared between runs on one pod, so a previous run's .pkl would otherwise be collected
-    # and reported as this run's (C-171).
-    PKL=$(ls -1t "$REPO/models/$M/artifacts"/*.pkl 2>/dev/null | head -1)
-    if [ -z "$PKL" ] || [ "$(stat -c %Y "$PKL" 2>/dev/null || echo 0)" -lt "$START" ]; then
-        MISSING="$MISSING $M"
+    GEN=$REPO/models/$M/data/generated
+    # Extract the timestamp rather than slicing the directory name: each member writes FOUR
+    # directories -- `predictions_forecasting_<ts>` plus one `<ts>_lr_*_best` per target --
+    # so `sort | tail -1` would pick `..._lr_sb_best` and the timestamp with it.
+    TS=$(ls -1d "$GEN"/predictions_forecasting_* 2>/dev/null \
+         | sed -E 's|.*/predictions_forecasting_([0-9]{8}_[0-9]{6}).*|\1|' \
+         | sort -u | tail -1)
+    if [ -z "$TS" ]; then
+        MISSING="$MISSING $M(no-forecast)"
+        continue
+    fi
+    PKL=$REPO/models/$M/artifacts/forecasting_model_$TS.pkl
+    if [ ! -f "$PKL" ]; then
+        MISSING="$MISSING $M(no-artefact-for-$TS)"
         continue
     fi
     mkdir -p "$OUT/members/$M"
@@ -463,7 +493,7 @@ for M in $MODELS; do
     [ -d "$REPO/models/$M/wandb" ] && cp -r "$REPO/models/$M/wandb" "$OUT/members/$M/" 2>/dev/null
 done
 [ -d "$REPO/ensembles/$ENSEMBLE/wandb" ] && cp -r "$REPO/ensembles/$ENSEMBLE/wandb" "$OUT/members/_$ENSEMBLE-wandb" 2>/dev/null
-[ -z "$MISSING" ] || die "no .pkl artefact from THIS run for:$MISSING — those members produced a forecast but their trained state is missing or predates this run. It cannot be regenerated without re-running them (~23 min each, measured). The pool is intact at $OUT/parquet; do NOT destroy this host until you have decided whether you need their artefacts."
+[ -z "$MISSING" ] || die "could not pair a trained artefact with a forecast for:$MISSING — '(no-forecast)' means the member wrote no predictions_forecasting_* at all; '(no-artefact-for-<ts>)' means it has that forecast but no artifacts/forecasting_model_<ts>.pkl beside it, so the trained state that produced it is gone and cannot be regenerated without re-running the member (~23 min each, measured). Nothing has been deleted and the pool is intact at $OUT/parquet; do NOT destroy this host until you have decided whether you need those artefacts."
 echo "  collected $(find "$OUT/members" -name '*.pkl' | wc -l) member artefacts, $(du -sh "$OUT/members" | cut -f1)"
 
 # ── FREEZE: what this run actually ran on ─────────────────────────────────────────────
@@ -518,8 +548,11 @@ PEAK_FILE=$( [ -r /sys/fs/cgroup/memory.peak ] && echo "$(( $(cat /sys/fs/cgroup
 peak_of() {  # peak_of <key> — max of `<key>=<n>MiB` across memory.log, or UNREADABLE
   awk -v k="$1" '{for(i=1;i<=NF;i++) if(index($i,k"=")==1){v=$i; gsub(/[^0-9]/,"",v); if(v!=""){seen=1; if(v+0>m) m=v+0}}} END{if(seen) printf "%dMiB", m; else printf "UNREADABLE"}' "$OUT/memory.log" 2>/dev/null
 }
-PEAK_ANON=$(peak_of anon)
-PEAK_CUR=$(peak_of current)
+# ⛔ Defaulted, because awk does not run END at all when it cannot open the file -- so a
+# missing memory.log yields an EMPTY string rather than the UNREADABLE the function promises,
+# and the MANIFEST would print "PEAK anon:" with no value beside it.
+PEAK_ANON=$(peak_of anon);    PEAK_ANON=${PEAK_ANON:-UNREADABLE}
+PEAK_CUR=$(peak_of current);  PEAK_CUR=${PEAK_CUR:-UNREADABLE}
 stage manifest
 {
   echo "ensemble:      $ENSEMBLE (pgm, global land) — phase 2 of 2"

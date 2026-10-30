@@ -290,7 +290,13 @@ def test_a_member_already_forecast_is_skipped(script: str) -> None:
     #: behaviour. That mutation turned out to be harmless to the skip itself but not to the
     #: MANIFEST, which would then report "0 already present" after skipping eight. Both halves
     #: are pinned below.
-    loop_start = script.index("for M in $MODELS; do")
+    # ⛔ Anchored on the member loop's own body, not on `for M in $MODELS; do` -- which
+    # occurs THREE times and whose first occurrence is the PREFLIGHT loop ~180 lines earlier.
+    # The slice therefore spanned the preflight, which contains its own
+    # `find ... -name 'predictions_forecasting_*'`, so mutating the member skip to a
+    # never-matching glob left this assertion green. That is precisely the mutation this
+    # test's docstring says it was rewritten to catch (`/code-review high` on PR #657).
+    loop_start = script.index("GEN=$REPO/models/$M/data/generated")
     loop_end = script.index("echo \"  members:", loop_start)
     loop = script[loop_start:loop_end]
 
@@ -522,6 +528,40 @@ def test_the_memory_sampler_records_anon_and_not_only_memory_current(script: str
             capture_output=True, text=True, check=True,
         ).stdout.strip()
 
+    # ⛔ And the case awk DOES reach END for: a readable memory.stat with no `anon `/`file `
+    # line. The first version printed `anon=0MiB file=0MiB` here, which `peak_of` reports as
+    # a measured peak of nothing — the absence that reads as success, in the one instrument
+    # MEM_FLOOR_GB is derived from. (`/code-review high` on PR #657; a mutation removing the
+    # a==""/f=="" test survived the suite until this case was added.)
+    with tempfile.TemporaryDirectory() as d:
+        empty = Path(d) / "memory.stat"
+        empty.write_text("kernel_stack 9879552\nslab 1288490188\nsock 262144\n")
+        na = subprocess.run(
+            ["bash", "-c", cmd.group(1).replace("/sys/fs/cgroup/memory.stat", str(empty))],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    assert na == "anon=NA file=NA", (
+        f"a memory.stat with no anon/file line produced {na!r}. It must be visibly "
+        f"unreadable: a logged zero is indistinguishable from a job that used no memory, "
+        f"and peak_of would report it as a measured peak"
+    )
+
+    # ⛔ Each field separately. A guard written `if (a=="")` alone passes the case above,
+    # because that fixture is missing both — so the fixture, not the code, was doing the
+    # work. One field present and the other absent is the case that separates them.
+    for present, absent in (("anon", "file"), ("file", "anon")):
+        with tempfile.TemporaryDirectory() as d:
+            half = Path(d) / "memory.stat"
+            half.write_text(f"{present} {65404 * 1048576}\nsock 262144\n")
+            got = subprocess.run(
+                ["bash", "-c", cmd.group(1).replace("/sys/fs/cgroup/memory.stat", str(half))],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        assert got == "anon=NA file=NA", (
+            f"memory.stat carrying {present} but not {absent} produced {got!r}. A partially "
+            f"readable cgroup must be NA in both fields, not a real number beside a zero"
+        )
+
     assert out == "anon=65404MiB file=23833MiB", (
         f"the sampler emitted {out!r}. It must label the two fields exactly `anon=` and "
         f"`file=` in MiB, because peak_of() keys on those names and the MANIFEST reports "
@@ -701,30 +741,49 @@ def test_the_trained_member_artefacts_are_collected_and_a_missing_one_is_fatal(s
     regenerated. `docs/runpod_run_guide.md:429` states it in bold and cites 2026-09-28, when
     eight models trained, delivered their parquets, reported `OK`, and their weights died
     with the pods (views-models#549). `pod_run_model.sh:395` has had a `collect_artifact`
-    stage since before this runner existed; this runner had none, because the deliberate
-    (and correct) decision not to copy 26.7 GiB of member *forecasts* silently took
-    `artifacts/` and `wandb/` with it — 542 MB, and the half that cannot be remade.
+    stage since before this runner existed; this runner had none.
 
-    Fatal rather than advisory, and the ordering makes that safe: the pool is copied first,
-    so dying here costs attention rather than work, and a missing irreplaceable artefact is
-    exactly what an operator must learn **before** destroying the host.
+    ⛔ **The first version of this stage was worse than none**, and `test_the_collect_stage_
+    survives_a_resume` below is the executable proof. It keyed staleness on
+    `stat %Y "$PKL" -lt "$START"` — this invocation's clock — while the member loop *skips* a
+    member whose forecast already exists. So on any re-run no new `.pkl` is written, every
+    artefact predates `$START`, all eight land in `MISSING`, and the run dies claiming they
+    are absent while all eight sit on disk — after `rm -rf "$OUT/members"` has already
+    destroyed the previous invocation's collected copies.
+
+    The invariant that does hold, verified across all 8 members of that run:
+    `forecasting_model_<ts>.pkl` and `predictions_forecasting_<ts>` carry the **same**
+    timestamp. Pairing by that is C-188's own exit — key on what only exists on success and
+    compare it to something — and it is true on a resume as well as a first run.
     """
     assert re.search(r"^stage collect_members$", script, re.M), (
         "the member-artefact collection stage is gone — the trained models will die with "
         "the pod, which is views-models#549 verbatim"
     )
-    assert re.search(r'artifacts"/\*\.pkl', script), (
-        "the stage no longer reads each member's artifacts/*.pkl (the sparrow members are "
-        "pickled baselines, not .pt state dicts)"
+    assert re.search(r'PKL=\$REPO/models/\$M/artifacts/forecasting_model_\$TS\.pkl', script), (
+        "the artefact is no longer paired to the forecast by their shared timestamp. Any "
+        "clock-based test fails the resume path this script exists to support"
     )
-    assert re.search(r'-lt "\$START"', script), (
-        "the artefact's mtime is no longer compared against this run's start. The repo tree "
-        "is not cleared between runs on one pod, so a previous run's .pkl would be collected "
-        "and reported as this run's (C-171)"
+    # ⛔ Both of these assert an ABSENCE, so they must read CODE lines only. The comment in
+    # the script that explains the old defect necessarily quotes `-lt "$START"` and
+    # `rm -rf "$OUT/members"` — and a bare `not in script` therefore fails on the very
+    # documentation of the fix. C-189 in its mirror image: asserting the absence of a word
+    # that the explanation of its absence must contain.
+    code = [ln for ln in script.splitlines() if not ln.lstrip().startswith("#")]
+    offenders = [ln for ln in code if '-lt "$START"' in ln]
+    assert not offenders, (
+        "a mtime-against-$START test is back in the script. The member loop skips a member "
+        "whose forecast exists, so no artefact is newer than $START on a re-run:\n  "
+        + "\n  ".join(offenders)
+    )
+    offenders = [ln for ln in code if 'rm -rf "$OUT/members"' in ln]
+    assert not offenders, (
+        "the collect stage clears $OUT/members again. Nothing irreplaceable may be deleted "
+        "before its replacement has been collected:\n  " + "\n  ".join(offenders)
     )
     assert re.search(r'^\[ -z "\$MISSING" \] \|\| die ', script, re.M), (
-        "a member with no artefact from this run is no longer fatal. A warning in a log is "
-        "not a signal when the next action is destroying the host"
+        "an unpaired artefact is no longer fatal. A warning in a log is not a signal when "
+        "the next action is destroying the host"
     )
     assert re.search(r'cp -r "\$REPO/models/\$M/wandb"', script), (
         "the offline W&B record is no longer collected. WANDB_MODE=offline is forced, so it "
@@ -736,6 +795,86 @@ def test_the_trained_member_artefacts_are_collected_and_a_missing_one_is_fatal(s
     assert pool_copy < collect < manifest, (
         "collect_members must run after the pool is copied (so a failure here loses nothing) "
         "and before the MANIFEST is written (so the MANIFEST can report what was collected)"
+    )
+
+
+def test_the_collect_stage_survives_a_resume(script: str, tmp_path: Path) -> None:
+    """Executed, not asserted about: the shipped stage run against a resumed tree.
+
+    Every member already has a forecast and an artefact from an EARLIER invocation, which is
+    exactly the state the 2026-10-28 pod was left in and the state this script's own `die`
+    messages invite the operator back into. The stage must collect all of them. The previous
+    version died here, having first deleted the copies it had made last time.
+
+    Four directories per member, including the three `<ts>_lr_*_best` variants, because a
+    naive `sort | tail -1` picks `..._lr_sb_best` and takes the timestamp with it.
+    """
+    block = re.search(
+        r"^stage collect_members$.*?^\[ -z \"\$MISSING\" \] \|\| die [^\n]*$",
+        script, re.S | re.M,
+    )
+    assert block, "could not locate the collect_members stage to execute"
+
+    repo, out = tmp_path / "repo", tmp_path / "out"
+    models = ["ashen_sparrow", "brisk_sparrow"]
+    for m, ts in zip(models, ("20261030_042853", "20261030_045106")):
+        gen = repo / "models" / m / "data" / "generated"
+        for suffix in ("", "_lr_sb_best", "_lr_ns_best", "_lr_os_best"):
+            (gen / f"predictions_forecasting_{ts}{suffix}").mkdir(parents=True)
+        arts = repo / "models" / m / "artifacts"
+        arts.mkdir(parents=True)
+        (arts / f"forecasting_model_{ts}.pkl").write_bytes(b"trained state")
+        (repo / "models" / m / "wandb" / "offline-run-x").mkdir(parents=True)
+    # A previous invocation's collection, which must not be destroyed.
+    (out / "members" / "ashen_sparrow").mkdir(parents=True)
+    (out / "members" / "ashen_sparrow" / "earlier.pkl").write_bytes(b"from last time")
+
+    prelude = (
+        f'REPO={repo}\nOUT={out}\nMODELS="{" ".join(models)}"\n'
+        'START=$(date +%s)\n'          # the clock the old version keyed on: AFTER the files
+        'stage() { :; }\ndie() { echo "DIED: $*"; exit 7; }\n'
+    )
+    r = subprocess.run(["bash", "-c", prelude + block.group(0)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, (
+        f"the collect stage failed on a resumed tree (exit {r.returncode}).\n{r.stdout}{r.stderr}"
+    )
+    for m, ts in zip(models, ("20261030_042853", "20261030_045106")):
+        assert (out / "members" / m / f"forecasting_model_{ts}.pkl").is_file(), (
+            f"{m}'s artefact was not collected on a resume"
+        )
+    assert (out / "members" / "ashen_sparrow" / "earlier.pkl").is_file(), (
+        "the previous invocation's collected artefact was destroyed"
+    )
+
+
+def test_the_collect_stage_refuses_a_forecast_with_no_matching_artefact(
+    script: str, tmp_path: Path
+) -> None:
+    """The real defect the stage exists to catch: a forecast whose trained state is gone.
+
+    A member with `predictions_forecasting_<ts>` but no `forecasting_model_<ts>.pkl` beside
+    it produced a forecast from a model that no longer exists. That cannot be regenerated
+    without re-running the member, so it must be fatal BEFORE the host is destroyed.
+    """
+    block = re.search(
+        r"^stage collect_members$.*?^\[ -z \"\$MISSING\" \] \|\| die [^\n]*$",
+        script, re.S | re.M,
+    )
+    assert block
+    repo, out = tmp_path / "repo", tmp_path / "out"
+    gen = repo / "models" / "ashen_sparrow" / "data" / "generated"
+    (gen / "predictions_forecasting_20261030_042853").mkdir(parents=True)
+    (repo / "models" / "ashen_sparrow" / "artifacts").mkdir(parents=True)
+    prelude = (
+        f'REPO={repo}\nOUT={out}\nMODELS="ashen_sparrow"\nSTART=$(date +%s)\n'
+        'stage() { :; }\ndie() { echo "DIED: $*"; exit 7; }\n'
+    )
+    r = subprocess.run(["bash", "-c", prelude + block.group(0)],
+                       capture_output=True, text=True)
+    assert r.returncode == 7, "a forecast with no paired artefact must be fatal"
+    assert "no-artefact-for-20261030_042853" in r.stdout, (
+        f"the refusal must name the timestamp it could not pair: {r.stdout}"
     )
 
 

@@ -127,6 +127,20 @@ def measure_target(
     keys, vals = keys[order], np.asarray(map_vals)[order]
 
     months = np.unique(np.asarray(pgm_time))
+    # ⛔ The loop iterates the GRID's months. A country forecast covering months the grid
+    # does not would then be measured over the grid's subset, and `cm_mass` would shrink
+    # with it — so the reported unplaced fraction would be a fraction of less than the
+    # delivery. The reverse direction already raises via the country check below; this is
+    # the direction that silently shrinks the denominator.
+    cm_months = np.unique(np.asarray(cm_time))
+    uncovered = np.setdiff1d(cm_months, months)
+    if uncovered.size:
+        raise ValueError(
+            f"{target}: the country forecast covers {uncovered.size} months the grid "
+            f"forecast does not (e.g. {uncovered[:5].tolist()}). Measuring over the grid's "
+            f"months would compute the unplaced fraction against a smaller denominator "
+            f"than the delivery."
+        )
     triples = short = failures = 0
     worst = 0.0
     cm_mass = unplaced = 0.0
@@ -168,6 +182,24 @@ def measure_target(
             )
         countries_seen.update(uniq.tolist())
 
+        # ⛔ Refuse non-finite values before classifying anything. `gap > tolerance` is
+        # **False** for NaN, so a NaN grid cell would be counted in `triples`, flagged by
+        # nothing, and reported as fully reconciled — the module would assert that the only
+        # unplaced mass is the zero-grid kind while a whole country's total went unmet.
+        # Found by `/code-review high` on PR #657, which demonstrated it: a NaN grid cell
+        # against a country total of 4 returned short_triples=0, scaling_failures=0.
+        if not np.isfinite(value).all():
+            raise ValueError(
+                f"{target}, month {int(month)}: the grid forecast holds "
+                f"{int((~np.isfinite(value)).sum())} non-finite values. A NaN compares False "
+                f"against every tolerance, so it would be classified as agreement."
+            )
+        if not np.isfinite(cm_v).all():
+            raise ValueError(
+                f"{target}, month {int(month)}: the country forecast holds "
+                f"{int((~np.isfinite(cm_v)).sum())} non-finite values."
+            )
+
         # An honest zero (country 0, grid 0) needs no special case: 0 / 1e-12 == 0, so
         # it is already below tolerance. A mutation that deleted an explicit guard here
         # survived the suite, which is how the guard was identified as dead.
@@ -180,7 +212,12 @@ def measure_target(
         short += int(zero_grid.sum())
         unplaced += float(cm_v[zero_grid].sum())
 
-        real = off & (grid_total > 0)
+        # ⛔ `~(grid_total == 0)`, NOT `> 0`. The two buckets must PARTITION `off`, or a
+        # case in neither is silently reported as agreement. A negative grid sum — which is
+        # meaningless for fatalities and therefore a real defect — fell through both tests
+        # and returned scaling_failures=0 (demonstrated by `/code-review high` on #657: a
+        # grid sum of -7 against a country total of 4 was reported fully reconciled).
+        real = off & ~(grid_total == 0)
         failures += int(real.sum())
         if real.any():
             worst = max(worst, float(np.where(real, gap, 0.0).max()))
@@ -251,6 +288,16 @@ def measure_run(
     ]
 
     pgm_targets, cm_targets = targets_in(pgm_dir), targets_in(cm_dir)
+    # ⛔ Before comparing them: two EMPTY sets are equal, so a prediction directory with no
+    # target subdirectories passed the check below, produced no results, and `render([])`
+    # printed "UP TO 0.000%" with `scaling_failures total: 0` and exit 0 — a clean verdict
+    # over nothing. Reachable: the runner's own comment records an ensemble that exited 0
+    # having written only a `.gitkeep`.
+    if not pgm_targets:
+        raise ValueError(
+            f"{pgm_dir} holds no target subdirectories, so there is nothing to measure. "
+            f"A residual computed over zero targets is not a residual of zero."
+        )
     if set(pgm_targets) != set(cm_targets):
         raise ValueError(
             f"targets differ: grid has {pgm_targets}, country has {cm_targets}. "
