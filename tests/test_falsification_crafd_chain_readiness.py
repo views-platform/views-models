@@ -23,9 +23,20 @@ import pytest
 # HARD-1 (probe P1) -- the runner does not run chrome_box, and says so itself
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="phase 2 is unscripted by design; no guard ties the two", strict=False)
+@pytest.mark.xfail(reason="CLOSED by pod_run_chrome_box.sh; kept as the record", strict=False)
 def test_a_runner_claiming_the_chain_covers_both_ensembles() -> None:
     """Nothing connects "the chain" as spoken to "the chain" as scripted.
+
+    ⛔ **ADDRESSED in the same branch that added this file.** Phase 2 is now
+    `tools/podrun/pod_run_chrome_box.sh`, and phase 1's closing output names it with the
+    command to run it. The quoted strings below are what phase 1 said BEFORE that, and the
+    reason string on this stub used to read "phase 2 is unscripted by design" — a premise
+    the branch invalidated three commits later. Left as the record of what was found, with
+    the resolution named, rather than deleted: that is ADR-000's reasoning, and a finding
+    whose fix is invisible gets rediscovered.
+
+    Still open as a general rule: nothing MECHANICALLY ties a runner's name to its coverage.
+    `tests/test_chrome_box_runner.py` now pins phase 2's own disciplines, which is narrower.
 
     `pod_run_crafd_chain.sh` hardcodes `ENSEMBLE=chrome_crate` (:90) and the eight
     `*_condor` members. Its header (:14-15) states that phase 2 — the eight `*_sparrow`
@@ -91,9 +102,19 @@ def test_the_crafd_delivery_is_armed_when_a_run_is_called_ready() -> None:
 # HARD-3 (probe P4) -- the preflight would approve a box chrome_box dies on
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="MEM_FLOOR_GB is 16, correct for phase 1 only", strict=False)
+@pytest.mark.xfail(reason="each phase now floors itself; the fleet-wide rule is open", strict=False)
 def test_a_memory_floor_refuses_a_box_that_cannot_hold_what_is_being_run() -> None:
     """`MEM_FLOOR_GB=16` (:209) against chrome_box's measured peak of >=68.2 GiB.
+
+    ⛔ **ADDRESSED in the same branch.** `pod_run_chrome_box.sh` floors at 80, from the
+    measured 68.2 plus headroom, and `tests/test_chrome_box_runner.py` pins it and refuses
+    phase 1's 16. The hazard this stub described — "if phase 2 is ever added to this script
+    without moving the floor" — cannot now arise the way it was written, because phase 2 is
+    a separate script with its own floor.
+
+    Still open, and the reason this is not deleted: neither floor is DERIVED from the
+    ensemble being run. Both are constants with comments telling the next person which one
+    they are. A third phase, or a draw-count change, re-opens exactly this.
 
     The floor is **right** for what the script runs: chrome_crate is country-month, its
     pool measured 96 MB, members ~2.0 MB peak RSS, 7 minutes, and 16 GiB exists to refuse

@@ -146,6 +146,12 @@ mkdir -p "$OUT" || { echo "!!! cannot create $OUT" >&2; exit 1; }
 # is in fact progressing — observed on a pod 2026-10-28. STAGE is the live field; STATUS is a
 # verdict and must not outlive its run (`feedback_status_fields_lie`).
 rm -f "$OUT/STATUS" "$OUT/FAILURE"
+# memory.log too, and for the same reason. The sampler appends, and the MANIFEST takes the
+# max over the whole file — so without this a resume run (which skips the members and pools
+# in minutes) would report the FIRST attempt's peak as its own. The whole purpose of
+# retaining this series is to replace a figure whose provenance was uncertain; a peak
+# contaminated by an earlier run is that defect again.
+rm -f "$OUT/memory.log"
 
 stage() { echo "$1" > "$OUT/STAGE"; echo "=== [$(date +%H:%M:%S)] $1 ==="; }
 die()   {
@@ -178,12 +184,37 @@ done
 # comes back empty. That is the exact string `phase2.out` printed three times on 2026-10-28,
 # after the members were already trained.
 PARTNER_GENERATED=$REPO/ensembles/$PARTNER/data/generated
+PARTNER_STATUS=$ROOT/deliver/$PARTNER/STATUS
 if [ ! -d "$PARTNER_GENERATED" ]; then
     note "$PARTNER has produced no forecast on this filesystem ($PARTNER_GENERATED is absent). Run pod_run_crafd_chain.sh first — $ENSEMBLE reconciles against it and cannot proceed without the country totals."
-elif [ -z "$(find "$PARTNER_GENERATED" -mindepth 1 -name '*forecasting*' -print -quit 2>/dev/null)" ]; then
-    note "$PARTNER_GENERATED exists but holds no forecasting output. Run pod_run_crafd_chain.sh to completion (its STATUS must read OK) before this script."
+elif [ -z "$(find "$PARTNER_GENERATED" -mindepth 1 -maxdepth 1 -name 'predictions_forecasting_*' -print -quit 2>/dev/null)" ]; then
+    note "$PARTNER_GENERATED holds no predictions_forecasting_* output. Run pod_run_crafd_chain.sh to completion before this script."
+# Phase 1 writes its own verdict, on this same PODRUN_ROOT. The earlier version of this
+# check told the operator "its STATUS must read OK" and then never read it — a message
+# describing a check that was not performed. A PredictionFrame directory is created before
+# it is filled, so a phase 1 killed mid-save leaves a matching directory and nothing else;
+# its STATUS is the only thing that distinguishes finished from interrupted.
+elif [ ! -r "$PARTNER_STATUS" ]; then
+    note "$PARTNER_STATUS is absent, so phase 1 has not reported a verdict on this filesystem. Run pod_run_crafd_chain.sh to completion."
+elif ! grep -q '^OK$' "$PARTNER_STATUS" 2>/dev/null; then
+    note "phase 1 did not finish: $PARTNER_STATUS reads '$(cat "$PARTNER_STATUS" 2>/dev/null)'. $ENSEMBLE reconciles against $PARTNER's forecast and a partial one produces a plausible wrong number. Re-run pod_run_crafd_chain.sh."
 else
-    echo "  $PARTNER forecast present under $PARTNER_GENERATED"
+    echo "  $PARTNER forecast present and phase 1 reported OK"
+fi
+
+# The datafactory read credential. Phase 1 checks it; phase 2 needs it MORE, because the
+# eight `*_sparrow` models are pgm global-land and fetch data phase 1 never touched. Without
+# this, a box with no `.netrc` passes `--preflight OK` and dies inside member 1's fetch —
+# which is the opposite of the "every problem at once" property this preflight claims.
+# /root is local disk on purpose: C-154, /workspace silently ignores chmod.
+if [ ! -s /root/.netrc ]; then
+    note "/root/.netrc is absent or empty — the datafactory fetch needs it (docs/runpod_run_guide.md Step 2.3). All eight members fetch before anything else happens."
+elif [ "$(stat -c %a /root/.netrc 2>/dev/null)" != "600" ]; then
+    chmod 600 /root/.netrc 2>/dev/null \
+      && echo "  fixed: /root/.netrc was not 600" \
+      || note "/root/.netrc is not mode 600 and could not be chmod'd. Put it on /root, never /workspace, which silently ignores chmod (C-154)."
+else
+    echo "  /root/.netrc present, mode 600"
 fi
 
 # The venv. This script does not build one: phase 1 owns that, and two scripts racing to
@@ -297,8 +328,19 @@ for M in $MODELS; do
     # to arrive at the same place. The manager itself does the same thing for the ensemble
     # (`prediction_frame_ensemble.py:998` loads an existing PredictionFrame rather than
     # regenerating), so this makes the member loop agree with it.
+    # ⛔ `predictions_forecasting_*`, NOT `*forecasting*`. The looser glob also matched
+    # `forecasting_log.txt`, which the run writes into this same directory BEFORE the
+    # predictions are saved — the sibling run type proves the shape on disk today
+    # (`models/bronze_kestrel/data/generated/` holds `calibration_log.txt` beside
+    # `predictions_calibration_<ts>`). So a member whose training finished and whose
+    # FORECAST stage then died — OOM, reclaim, preemption, a #562-class error: exactly the
+    # resume case this skip exists for — would have been reported "already present" and
+    # silently dropped from the pool. Seven of eight members then reach `-f -sa`, where the
+    # best case is an ADR-015 `expected_models: 8` failure after three paid hours and the
+    # worst is a plausible misaligned reconcile, because concat ordering is positionally
+    # paired against the `*_condor` twins.
     GEN=$REPO/models/$M/data/generated
-    if [ -n "$(find "$GEN" -mindepth 1 -name '*forecasting*' -print -quit 2>/dev/null)" ]; then
+    if [ -n "$(find "$GEN" -mindepth 1 -maxdepth 1 -name 'predictions_forecasting_*' -print -quit 2>/dev/null)" ]; then
         SKIPPED=$((SKIPPED+1))
         echo "=== [$(date +%H:%M:%S)] member:$M ($N of 8) — SKIPPED, forecast already under $GEN"
         continue
@@ -321,7 +363,12 @@ cd "$REPO/ensembles/$ENSEMBLE" || die "cannot enter ensembles/$ENSEMBLE"
 # makes it load them instead. chrome_box additionally reconciles against $PARTNER, read from
 # local disk — which the preflight has already confirmed is there.
 "$VENV/bin/python" main.py -r forecasting -f -sa || die "$ENSEMBLE pool/reconcile exited non-zero. If this is 'Cannot reconcile: no local forecast found', check views-pipeline-core is >= $PC_FLOOR (it reported $PC_VERSION) and that $PARTNER's forecast is still on disk."
-[ -d "$REPO/ensembles/$ENSEMBLE/data/generated" ] || die "$ENSEMBLE reported success but wrote no data/generated — nothing to deliver"
+# ⛔ Look for the OUTPUT, not the directory. `ensembles/chrome_box/data/generated/.gitkeep`
+# is TRACKED, so the directory exists in every clone before anything runs and a `[ -d ]`
+# test here could never fail: an ensemble that exited 0 having written nothing would have
+# copied a `.gitkeep`, reported `pool: 4.0K`, and written STATUS=OK.
+POOL_DIR=$(find "$REPO/ensembles/$ENSEMBLE/data/generated" -mindepth 1 -maxdepth 1 -name 'predictions_forecasting_*' -print -quit 2>/dev/null)
+[ -n "$POOL_DIR" ] || die "$ENSEMBLE exited 0 but wrote no predictions_forecasting_* under data/generated — there is nothing to deliver, and a run that produces no forecast must not report OK"
 mkdir -p "$OUT/parquet"
 cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/." "$OUT/parquet/" || die "cannot copy the pool into $OUT/parquet"
 
@@ -336,7 +383,11 @@ stage manifest
   echo "members_run:   $TRAINED trained this invocation, $SKIPPED already present"
   echo "reconciled:    against $PARTNER, read from local disk"
   echo "finished:      $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "draws:         8 x 128 = 1024 (epic #595 as specified, NOT thinned)"
+  # Stated as CONFIGURED, not as observed. The number is `expected_models` x
+  # `expected_samples_per_model` from config_hyperparameters.py, and ADR-015 makes the
+  # ensemble refuse to pool a different count — so a successful run implies it rather than
+  # measuring it. `members_run:` above is the line that reports what actually happened.
+  echo "draws:         8 x 128 = 1024 configured (epic #595, NOT thinned; enforced by ADR-015 expected_models, not measured here)"
   echo "runtime_min:   $(( ($(date +%s)-START)/60 ))"
   echo "PEAK cgroup:   memory.peak=$PEAK_FILE  sampled_max=$PEAK_LOG"
   echo "peak_expected: >= 68.2 GiB, MEASURED 2026-10-28 and a LOWER BOUND (30s sampling over"

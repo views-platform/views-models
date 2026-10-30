@@ -51,8 +51,9 @@ def get_hp_config():
     set and the datafactory cache, not for the pool.
 
     ⛔ **The 53.8 GiB / 87 GiB figures are chrome_box's and belong only there.**
-    `chrome_box` is pgm global-land: 64,742 cells rather than 191 countries, measured at
-    **>= 68.2 GiB** on the same day, and it genuinely wants the 87 GiB class. Those numbers
+    `chrome_box` is pgm global-land, and its 64,742 cells are **not this ensemble's** —
+    191 countries are. It measured **>= 68.2 GiB** on the same day and genuinely wants the
+    87 GiB class. Those numbers
     live in `ensembles/chrome_box/configs/config_hyperparameters.py` with their provenance
     and their lower-bound caveat, pinned by
     `tests/test_chrome_box_memory_is_the_measured_peak.py`. Do not copy them back here;

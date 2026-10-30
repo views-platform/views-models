@@ -198,10 +198,35 @@ def test_the_partner_forecast_is_required_before_anything_is_trained(script: str
     #: Again the glob and not the word: "forecasting" also appears in this check's own error
     #: message, so a word search passes on the prose that describes the check while the check
     #: itself looks for something else.
-    assert re.search(r"find .*-name '\*forecasting\*'", preflight), (
-        "the partner check no longer distinguishes a forecasting run from any other output. A "
-        "calibration-only data/generated would pass the preflight and the reconcile would "
-        "still fail — after the members are paid for."
+    assert re.search(r"find .*-name 'predictions_forecasting_\*'", preflight), (
+        "the partner check no longer looks for `predictions_forecasting_*`. A calibration-only "
+        "data/generated, or a `forecasting_log.txt` from an interrupted phase 1, would pass "
+        "the preflight and the reconcile would still fail — after the members are paid for."
+    )
+
+    #: And it must read phase 1's own verdict. A PredictionFrame directory is created before
+    #: it is filled, so a phase 1 killed mid-save leaves a matching directory and nothing
+    #: else. An earlier version of this check TOLD the operator "its STATUS must read OK" and
+    #: never read it — a message describing a check that was not performed, which is the
+    #: defect class this whole branch keeps closing.
+    assert "PARTNER_STATUS" in preflight and "deliver/$PARTNER/STATUS" in preflight.replace(
+        '$ROOT/deliver/$PARTNER/STATUS', 'deliver/$PARTNER/STATUS'
+    ), (
+        "the preflight does not read phase 1's STATUS. Phase 1 writes its verdict to "
+        "$ROOT/deliver/chrome_crate/STATUS on the same PODRUN_ROOT this script honours; "
+        "without reading it, a partial partner forecast passes and produces a plausible "
+        "wrong reconciled number."
+    )
+    assert re.search(r"grep -q '\^OK\$'", preflight), (
+        "the partner STATUS is referenced but not compared to OK, so a FAILED verdict would "
+        "satisfy the check."
+    )
+
+    #: The datafactory credential, which phase 2 needs more than phase 1 does.
+    assert "netrc" in preflight, (
+        "the preflight does not check /root/.netrc. All eight *_sparrow members fetch pgm "
+        "global-land data before anything else happens, so without it a box passes "
+        "--preflight OK and dies inside member 1 — the opposite of 'every problem at once'."
     )
 
 
@@ -273,11 +298,19 @@ def test_a_member_already_forecast_is_skipped(script: str) -> None:
     #: never matches survived an earlier `"forecasting" in loop` assertion, because the word
     #: also appears in `main.py -r forecasting -t -f` two lines below. Asserting vocabulary
     #: that the subject happens to contain for an unrelated reason is a guard that cannot fail.
-    assert re.search(r"find .*-name '\*forecasting\*'", loop), (
-        "the member loop no longer tests for an existing FORECASTING output before training. "
-        "A re-run after a mid-chain failure would retrain all eight — 184 minutes measured on "
-        "2026-10-28 — to arrive at the same place. (A skip keyed on any other pattern either "
-        "never fires, or fires on calibration output and skips a member that has no forecast.)"
+    #: `predictions_forecasting_*`, and NOT the looser `*forecasting*` this guard asserted
+    #: when it was written. That glob also matches `forecasting_log.txt`, which the run writes
+    #: into the same directory BEFORE the predictions are saved — the sibling run type proves
+    #: the shape on disk today (`models/bronze_kestrel/data/generated/` holds
+    #: `calibration_log.txt` beside `predictions_calibration_<ts>`). So a member whose
+    #: training finished and whose forecast stage then died would have been reported "already
+    #: present" and dropped from the pool, which is the one case this skip exists for.
+    assert re.search(r"find .*-name 'predictions_forecasting_\*'", loop), (
+        "the member skip is not keyed on `predictions_forecasting_*`, the artefact a finished "
+        "forecast actually leaves. Anything looser also matches `forecasting_log.txt`, which "
+        "exists as soon as the run starts — so an interrupted member is skipped and 7 of 8 "
+        "reach the pool, where concat ordering is positionally paired against the *_condor "
+        "twins. Anything stricter never fires and a re-run retrains 184 minutes."
     )
     assert "continue" in loop, (
         "the member loop detects an existing forecast and then trains anyway: there is no "

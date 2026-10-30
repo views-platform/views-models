@@ -216,22 +216,38 @@ def test_the_cm_twin_does_not_present_the_pgm_peak_as_its_own() -> None:
     #: the disclaimer that retires it routinely land on different lines. The first version
     #: of this guard checked the line alone and fired on the correction's own quotation of
     #: the old text — a guard strict enough to forbid explaining the defect it prevents.
-    DISCLAIMERS = ("until", "used to", "chrome_box", "wrong", "copied", "not its own", "pgm")
-    lines = src.splitlines()
-    for pgm_marker in ("64,742", "2,330,712"):
-        for i, line in enumerate(lines):
-            if pgm_marker not in line:
-                continue
-            window = " ".join(lines[max(0, i - 2):i + 3]).lower()
-            disowned = any(w in window for w in DISCLAIMERS)
-            assert disowned, (
-                f"chrome_crate's config states {pgm_marker!r} in a line that does not "
-                f"disown it:\n    {line.strip()}\n"
-                f"That is pgm global-land arithmetic. chrome_crate is cm — 191 countries x "
-                f"36 steps, measured at 96 MB of pool and 7 minutes. Presenting the grid "
-                f"figure as this ensemble's own is how an operator over-rents by two "
-                f"machine classes."
+    #: ⛔ GUARD THE ARITHMETIC TABLE, NOT THE PROSE.
+    #:
+    #: Two earlier versions of this check tried to read the prose. The first forbade the pgm
+    #: figures anywhere, and fired on the correction's own quotation of the defect. The second
+    #: allowed them near a "disclaimer" word over a +/-2-line window, and its word list
+    #: contained "pgm" and "chrome_box" — the vocabulary of the very thing being disclaimed —
+    #: so a verbatim copy-paste from the twin would have been auto-forgiven. Narrowing the
+    #: list then made it fire on the correction again.
+    #:
+    #: The lesson is that a guard matching prose about a defect cannot distinguish the defect
+    #: from its explanation. So this reads the SIZING TABLE instead, which is what actually
+    #: misleads an operator: table rows are indented eight spaces and start with a figure;
+    #: prose is indented four. A quotation in a paragraph is free, and a pgm row in the table
+    #: is red.
+    table_rows = [ln for ln in src.splitlines() if re.match(r"^ {8}\d", ln)]
+    assert table_rows, (
+        "chrome_crate's config has no sizing table at all, so there is nothing stating what "
+        "this ensemble costs; this guard cannot see its subject and refuses (ADR-025)."
+    )
+    for row in table_rows:
+        for pgm_marker in ("64,742", "2,330,712"):
+            assert pgm_marker not in row, (
+                f"the sizing table states {pgm_marker!r}:\n    {row.strip()}\n"
+                f"That is pgm global-land arithmetic. chrome_crate is cm — 191 countries x 36 "
+                f"steps = 6,876 rows, ~0.16 GiB, measured at 96 MB of pool and 7 minutes. A "
+                f"pgm row in this table is how an operator over-rents by two machine classes "
+                f"and reads \"DOES NOT FIT\" about a seven-minute job."
             )
+    assert any("191 countries" in row for row in table_rows), (
+        "the sizing table no longer derives from 191 countries, so whatever it now computes "
+        "is not this ensemble's shape."
+    )
 
     assert "country-month" in src or "191 countries" in src, (
         "chrome_crate's config no longer says anywhere that it is country-month. That is "

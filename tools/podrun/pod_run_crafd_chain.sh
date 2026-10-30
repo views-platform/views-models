@@ -26,7 +26,9 @@
 # this phase's 16, and its output copied under `deliver/` as it is produced, because
 # anything left in the workspace dies with the pod.
 #
-# ⛔ IF YOU ARE THE ONE EXTENDING IT, THE NUMBER TO SIZE FROM IS 68.2 GiB, NOT 28.6 GB.
+# ⛔ PHASE 2 NOW EXISTS: `tools/podrun/pod_run_chrome_box.sh`. Run it after this script, on
+# the same filesystem — it reconciles against this run's output and its preflight refuses
+# if this run's STATUS is not OK. THE NUMBER IT SIZES FROM IS 68.2 GiB, NOT 28.6 GB.
 # An earlier version of this paragraph cited rusty_bucket's config comment — "peaks ~28.6 GB
 # and cannot fit production hardware" — as the shape chrome_box takes at 8 x 128 = 1024
 # draws. That was the best figure available when this script was written and it is a
@@ -483,4 +485,6 @@ cat "$OUT/MANIFEST"
 echo OK > "$OUT/STATUS"
 stage done
 echo "### $ENSEMBLE — COMPLETE in ${RUN_MIN}min"
-echo "### phase 2 (chrome_box, pgm) is not in this script. 8x128 draws is SETTLED; what is missing is the script. Needs an 87 GiB box (68.2 GiB measured peak), not this phase floor of 16."
+echo "### phase 2 (chrome_box, pgm) is tools/podrun/pod_run_chrome_box.sh — run it next, on THIS filesystem:"
+echo "###     tools/podrun/pod_run_chrome_box.sh --preflight && tools/podrun/pod_run_chrome_box.sh"
+echo "### It needs an 87 GiB box (>= 68.2 GiB measured peak), not this phase floor of 16, and it reads this run's output to reconcile against."
