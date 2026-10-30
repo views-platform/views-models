@@ -53,8 +53,6 @@ or
 ./run.sh -r calibration -t -e
 ```
 
-
-
 <!-- manual -->
 ## Running this ensemble on a fresh box
 
