@@ -37,6 +37,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 CONFIG = REPO / "ensembles" / "chrome_box" / "configs" / "config_hyperparameters.py"
+CRATE_CONFIG = REPO / "ensembles" / "chrome_crate" / "configs" / "config_hyperparameters.py"
 
 #: Measured on the pod, 2026-10-28: 30s sampling of cgroup anon through pool + reconcile.
 #:
@@ -182,3 +183,81 @@ def test_the_three_superseded_figures_stay_recorded_as_superseded() -> None:
             f"appears in the pod logs and in earlier messages; without the correction "
             f"here, the next reader meets it with nothing contradicting it."
         )
+
+
+def test_the_cm_twin_does_not_present_the_pgm_peak_as_its_own() -> None:
+    """`chrome_crate` is country-month. Its config must not carry chrome_box's figures.
+
+    ⛔ The defect, found by an independent /falsify on 2026-10-30 and live for ten days:
+    `chrome_crate/configs/config_hyperparameters.py` was copied from its pgm twin and the
+    grid arithmetic was never replaced. It reasoned about "64,742 cells x 36 steps =
+    2,330,712 rows", announced "PEAK IS ~53.8 GiB ... RAM >= 50 GB IS NOT ENOUGH", and
+    concluded "87 GiB -- this is the class to rent" — for a workload measured at 96 MB of
+    pool, ~2.0 MB peak RSS per member, seven minutes, on a box it never strained.
+
+    Wrong by roughly 570x, in the expensive direction: an operator sizing phase 1 from it
+    over-rents by two machine classes. This is the file-level version of the error #648
+    was filed on — a pgm figure used as a cm floor — arriving by copy-paste between twins
+    rather than by citation.
+
+    The guard asserts the SHAPE of the claim, not the prose: a cm config may MENTION the
+    pgm figures (it now does, to say they are not its own and must not be copied back),
+    but it may not present grid-cell arithmetic as its own sizing input.
+    """
+    assert CRATE_CONFIG.exists(), (
+        f"{CRATE_CONFIG.relative_to(REPO)} is gone; this guard cannot see its subject and "
+        f"refuses rather than passing (ADR-025)."
+    )
+    src = CRATE_CONFIG.read_text(encoding="utf-8")
+
+    #: The pgm row count. Allowed only where the surrounding prose disowns it.
+    #:
+    #: A WINDOW rather than the line itself, deliberately: prose wraps, so the number and
+    #: the disclaimer that retires it routinely land on different lines. The first version
+    #: of this guard checked the line alone and fired on the correction's own quotation of
+    #: the old text — a guard strict enough to forbid explaining the defect it prevents.
+    #: ⛔ GUARD THE ARITHMETIC TABLE, NOT THE PROSE.
+    #:
+    #: Two earlier versions of this check tried to read the prose. The first forbade the pgm
+    #: figures anywhere, and fired on the correction's own quotation of the defect. The second
+    #: allowed them near a "disclaimer" word over a +/-2-line window, and its word list
+    #: contained "pgm" and "chrome_box" — the vocabulary of the very thing being disclaimed —
+    #: so a verbatim copy-paste from the twin would have been auto-forgiven. Narrowing the
+    #: list then made it fire on the correction again.
+    #:
+    #: The lesson is that a guard matching prose about a defect cannot distinguish the defect
+    #: from its explanation. So this reads the SIZING TABLE instead, which is what actually
+    #: misleads an operator: table rows are indented eight spaces and start with a figure;
+    #: prose is indented four. A quotation in a paragraph is free, and a pgm row in the table
+    #: is red.
+    table_rows = [ln for ln in src.splitlines() if re.match(r"^ {8}\d", ln)]
+    assert table_rows, (
+        "chrome_crate's config has no sizing table at all, so there is nothing stating what "
+        "this ensemble costs; this guard cannot see its subject and refuses (ADR-025)."
+    )
+    for row in table_rows:
+        for pgm_marker in ("64,742", "2,330,712"):
+            assert pgm_marker not in row, (
+                f"the sizing table states {pgm_marker!r}:\n    {row.strip()}\n"
+                f"That is pgm global-land arithmetic. chrome_crate is cm — 191 countries x 36 "
+                f"steps = 6,876 rows, ~0.16 GiB, measured at 96 MB of pool and 7 minutes. A "
+                f"pgm row in this table is how an operator over-rents by two machine classes "
+                f"and reads \"DOES NOT FIT\" about a seven-minute job."
+            )
+    assert any("191 countries" in row for row in table_rows), (
+        "the sizing table no longer derives from 191 countries, so whatever it now computes "
+        "is not this ensemble's shape."
+    )
+
+    assert "country-month" in src or "191 countries" in src, (
+        "chrome_crate's config no longer says anywhere that it is country-month. That is "
+        "the one fact which makes every number in it readable, and its absence is what let "
+        "the pgm arithmetic sit here unchallenged for ten days."
+    )
+
+    assert "96 MB" in src or "96M" in src, (
+        "the measured chrome_crate pool (96 MB, pod 2026-10-28, recorded in "
+        "tools/podrun/pod_run_crafd_chain.sh:186) is no longer stated. Without it the file "
+        "has no measurement of its own to contrast the inherited pgm figures against — "
+        "which is exactly the state the defect was found in."
+    )

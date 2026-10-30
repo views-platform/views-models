@@ -5,12 +5,24 @@ yet, and its job is to say exactly what `postprocessors/un_fao/` does today. The
 test below is what makes that claim checkable — and it is the reason the later stories
 (#347, #348) are safe to attempt at all.
 
-**Parity is scoped to keys that are committed to git.** `git show HEAD:` of the FAO
-config declares five keys — name, algorithm, targets, level, ensemble. Three more
-(`region`, `wire_contract`, `wire_upload_enabled`) exist only in a working tree
-(register C-110), and a test that asserted against them would pass on one checkout and
-fail on another. The declaration still records `coverage`, because that is what runs;
-the *test* only pins what the repository can prove.
+**Parity is scoped to keys that are committed to git** — which, since #127, is all of
+them. `COMMITTED_META_KEYS` below is a census asserted for EQUALITY, so every key named
+there is under test, `region` included.
+
+⛔ This paragraph said the opposite until 2026-10-30, and the cost was three sessions.
+It read: *"Three more (`region`, `wire_contract`, `wire_upload_enabled`) exist only in a
+working tree (register C-110) ... the test only pins what the repository can prove."*
+That was true before #127 committed them and before ADR-021 made `region` derived, and
+the comment above `COMMITTED_META_KEYS` has recorded C-110 as CLOSED since — so this
+file has contradicted itself for weeks. On 2026-10-30 three separate sessions read the
+stale half, concluded the region was uncommitted, and one of them reported it to the
+maintainer as a live risk to the FAO delivery. It is not: `declared_coverage('un_fao')`
+and `declared_coverage('un_crafd')` both return `'land_gaul'`, both postprocessor configs
+derive `config_meta["region"]` from it with an assert, and both are identical to HEAD.
+
+The lesson is about prose, not code: **a comment describing a defect in the present tense
+outlives the defect**, and a file that states both the old and the new state is read as
+whichever half the reader meets first.
 """
 
 import ast
@@ -37,11 +49,12 @@ COMMITTED_META_KEYS = {
     "wire_upload_enabled",  # derived from DELIVERY.intent since #348
     "wire_contract",        # committed by #127
     # Committed by #127, and this guard's own question — "might this key belong in the
-    # delivery declaration?" — answers YES for this one. `region` duplicates
-    # REQUIRE.coverage in deliveries/un_fao.py and REGION in config_queryset.py, and it
-    # is the only one of the three the un_fao manager actually reads
-    # (unfao/managers/unfao.py:236,312,419 -> delivery/provenance.py:47). Scheduled to
-    # become derived by ADR-021; until then it is a typed literal that nothing checks.
+    # delivery declaration?" — answered YES. It now IS derived: ADR-021 landed, and the
+    # config reads `"region": declared_coverage(CONSUMER)` with an assert two lines below
+    # (`postprocessors/un_fao/configs/config_meta.py:97,102`, same shape at `un_crafd:59,69`).
+    # `deliveries/status.py:119::declared_coverage` is the single declaration and raises
+    # rather than defaulting, so there is no longer a typed literal here to go stale. The
+    # un_fao manager reads it at `unfao/managers/unfao.py:236,312,419`.
     "region",
 }
 
