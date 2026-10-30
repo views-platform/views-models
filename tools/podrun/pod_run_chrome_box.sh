@@ -50,7 +50,11 @@
 #
 # ## The deliverable
 #
-#   /workspace/deliver/chrome_box/parquet/   the pooled, reconciled pgm forecast
+#   /workspace/deliver/chrome_box/parquet/   the pooled, reconciled pgm forecast (.npy/.npz — see the copy step)
+#   /workspace/deliver/chrome_box/members/   the 8 trained member artefacts + offline wandb
+#                                            — THE ONLY IRREPLACEABLE THING HERE
+#   /workspace/deliver/chrome_box/FREEZE     the exact package set the run used
+#   .../RECONCILIATION_RESIDUAL              the country mass reconciliation could not place
 #   /workspace/deliver/chrome_box/MANIFEST   versions, timings, git sha, observed peak
 #   /workspace/deliver/chrome_box/STATUS     OK or FAILED:<stage>
 #   /workspace/deliver/chrome_box/FAILURE    the reason, on failure only
@@ -305,11 +309,26 @@ PC_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.vers
 echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), tlz importable, engine present"
 
 # ── memory sampler ────────────────────────────────────────────────────────────────────
-# The 68.2 GiB figure is a LOWER BOUND because its series was never retrieved from a pod that
-# no longer exists. This writes the series into deliver/, so the next figure is not.
+# TWO series, because they differ by 5x and only one of them is the requirement.
+#   anon     anonymous pages — the allocation that actually has to fit in RAM. THIS is what
+#            MEM_FLOOR_GB answers, and the only figure to size a box from.
+#   file     page cache — reclaimable. It climbs monotonically as members write arrays and
+#            is not given back until something needs the memory.
+#   current  memory.current = anon + file + kernel. MEASURED on this box 2026-10-30: it
+#            pinned at the 87GiB cgroup limit while anon peaked at 63.9 GiB — 1.4x high at
+#            the peak, and 5x high during the member stage (22.0 GiB vs 4.3 GiB anon).
+# ⛔ The withdrawn 19.8 GiB in chrome_box/configs/config_hyperparameters.py and the 68.2 GiB
+# "lower bound" below were BOTH memory.current readings taken through this same mistake. The
+# floor they produced is high rather than wrong, which is why it survived three sessions.
+# The 68.2 figure was also a lower bound because its series was never retrieved from a pod
+# that no longer exists; this writes both series into deliver/, so the next one is not.
 ( while :; do
+    MS=$(awk '/^anon /{a=$2} /^file /{f=$2} END{printf "anon=%dMiB file=%dMiB", (a+0)/1048576, (f+0)/1048576}' /sys/fs/cgroup/memory.stat 2>/dev/null)
     C=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
-    echo "$(date +%H:%M:%S) $(( C / 1048576 ))MiB $(cat "$OUT/STAGE" 2>/dev/null)" >> "$OUT/memory.log"
+    # ⛔ `anon=NA`, never `anon=0MiB`. A sampler that cannot read memory.stat must be
+    # visibly unreadable: a logged zero is indistinguishable from "used no memory", and the
+    # peak parsers below would report it as a successful measurement of nothing.
+    echo "$(date +%H:%M:%S) ${MS:-anon=NA file=NA} current=$(( C / 1048576 ))MiB $(cat "$OUT/STAGE" 2>/dev/null)" >> "$OUT/memory.log"
     sleep 10
   done ) & SAMPLER=$!
 trap 'kill $SAMPLER 2>/dev/null' EXIT
@@ -356,6 +375,30 @@ echo "  members: $TRAINED trained, $SKIPPED already present"
 
 # ── pool and reconcile ────────────────────────────────────────────────────────────────
 
+# ⛔ COUNT WHAT IS ABOUT TO BE POOLED. Nothing downstream does.
+#
+# `expected_models: 8` is compared only against `len(config_modelset["models"])` by
+# tests/test_ensemble_configs.py — a config-against-config check at CI time. Measured in
+# pipeline-core 3.3.4: `grep -rn "expected_models"` over the installed package returns ZERO
+# matches. So no run-time guard sees a MISSING constituent:
+#   * `_assert_expected_sample_count` raises on a member whose produced sample count is not
+#     128 — seven members that each produced 128 pass it;
+#   * the #160 balance guard rejects constituents whose counts differ FROM EACH OTHER —
+#     seven equal members are balanced.
+# A short pool therefore yields 7 x 128 = 896 draws where the config, epic #595 and the
+# delivery contract all say 1,024, then reconciles, writes a MANIFEST and reports OK.
+#
+# This is the backstop the member skip above was wrongly believed to have.
+POOLABLE=0
+for M in $MODELS; do
+    [ -n "$(find "$REPO/models/$M/data/generated" -mindepth 1 -maxdepth 1 -name 'predictions_forecasting_*' -print -quit 2>/dev/null)" ] \
+      && POOLABLE=$((POOLABLE+1)) \
+      || echo "  NO FORECAST: $M"
+done
+EXPECTED=$(printf '%s\n' $MODELS | wc -l)
+[ "$POOLABLE" = "$EXPECTED" ] || die "only $POOLABLE of $EXPECTED members have a predictions_forecasting_* directory, so the pool would be short. Nothing downstream would catch it: pipeline-core never reads expected_models, and a short pool of equally-sized members passes both the sample-count assert and the #160 balance guard — it would deliver ${POOLABLE} x 128 draws as though it were 1024. Fix the members named above and re-run; already-forecast members are skipped."
+echo "  all $POOLABLE of $EXPECTED members have a forecast on disk"
+
 stage pool_and_reconcile
 cd "$REPO/ensembles/$ENSEMBLE" || die "cannot enter ensembles/$ENSEMBLE"
 # -f -sa, NOT -t. With -t the manager calls _train_model_artifact, which shells out to each
@@ -369,33 +412,155 @@ cd "$REPO/ensembles/$ENSEMBLE" || die "cannot enter ensembles/$ENSEMBLE"
 # copied a `.gitkeep`, reported `pool: 4.0K`, and written STATUS=OK.
 POOL_DIR=$(find "$REPO/ensembles/$ENSEMBLE/data/generated" -mindepth 1 -maxdepth 1 -name 'predictions_forecasting_*' -print -quit 2>/dev/null)
 [ -n "$POOL_DIR" ] || die "$ENSEMBLE exited 0 but wrote no predictions_forecasting_* under data/generated — there is nothing to deliver, and a run that produces no forecast must not report OK"
+# ⚠️ `parquet/` holds NO .parquet files. Measured on the 2026-10-30 run: what lands here is
+# `predictions_forecasting_<ts>/<target>/{y_pred.npy,identifiers.npz}` — numpy arrays. The
+# name is inaccurate and is kept anyway, deliberately: `parquet/` is the deliverable's name
+# in pod_run_crafd_chain.sh (phase 1 of THIS chain), pod_run_darts_calibration.sh,
+# pod_run_model.sh and docs/runpod_run_guide.md. pod_run_model.sh may not be edited, so
+# renaming here would leave one of five different forever — a divergence every reader of
+# either half of the chain has to hold in their head, in exchange for a name. A comment is
+# cheaper and lies to nobody. (In the two model runners the name IS accurate; they run a
+# collapse step that really writes .parquet.)
 mkdir -p "$OUT/parquet"
 cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/." "$OUT/parquet/" || die "cannot copy the pool into $OUT/parquet"
+
+# ── collect what cannot be remade ─────────────────────────────────────────────────────
+# ⛔ The pool is the product. The member artefacts are the only IRREPLACEABLE thing on the
+# box, and `docs/runpod_run_guide.md:429` says so in bold — "`artifact/` is the one that
+# cannot be remade" — citing 2026-09-28, when eight models trained, delivered their
+# parquets, reported OK, and their weights died with the pods (views-models#549).
+#
+# This runner had no such stage until the 2026-10-30 teardown audit found 16 trained models
+# (363.7 MiB) and 50 offline W&B runs about to die with a box that had just been declared
+# safe to destroy. ⚠️ The reason it was missing is the instructive part, so it is recorded
+# rather than quietly fixed: the 2026-10-28 decision to copy the pool and NOT the members
+# was correct and deliberate — 26.7 GiB of member FORECASTS duplicate what the pool already
+# holds — and it silently took `artifacts/` and `wandb/` with it. Those are 542 MB, not
+# 30 GB, and they are the half that cannot be regenerated. A size-based exclusion inherited
+# a correctness-based one.
+#
+# Fatal on a missing artefact, and safe to be: the pool is already copied above, so dying
+# here costs attention rather than work — and a missing irreplaceable artefact is precisely
+# what an operator must learn BEFORE destroying the host, not after.
+stage collect_members
+rm -rf "$OUT/members"
+mkdir -p "$OUT/members"
+MISSING=""
+for M in $MODELS; do
+    # Newest first, and its mtime checked against this run's start: the repo tree is not
+    # cleared between runs on one pod, so a previous run's .pkl would otherwise be collected
+    # and reported as this run's (C-171).
+    PKL=$(ls -1t "$REPO/models/$M/artifacts"/*.pkl 2>/dev/null | head -1)
+    if [ -z "$PKL" ] || [ "$(stat -c %Y "$PKL" 2>/dev/null || echo 0)" -lt "$START" ]; then
+        MISSING="$MISSING $M"
+        continue
+    fi
+    mkdir -p "$OUT/members/$M"
+    cp "$PKL" "$OUT/members/$M/" || die "cannot copy $M's artefact into $OUT/members/$M"
+    # Offline W&B is the run's own logged record and is written outside $OUT by design,
+    # because WANDB_MODE=offline is forced above. C-170's second class; 164 MB, and the only
+    # record of what each member logged.
+    [ -d "$REPO/models/$M/wandb" ] && cp -r "$REPO/models/$M/wandb" "$OUT/members/$M/" 2>/dev/null
+done
+[ -d "$REPO/ensembles/$ENSEMBLE/wandb" ] && cp -r "$REPO/ensembles/$ENSEMBLE/wandb" "$OUT/members/_$ENSEMBLE-wandb" 2>/dev/null
+[ -z "$MISSING" ] || die "no .pkl artefact from THIS run for:$MISSING — those members produced a forecast but their trained state is missing or predates this run. It cannot be regenerated without re-running them (~23 min each, measured). The pool is intact at $OUT/parquet; do NOT destroy this host until you have decided whether you need their artefacts."
+echo "  collected $(find "$OUT/members" -name '*.pkl' | wc -l) member artefacts, $(du -sh "$OUT/members" | cut -f1)"
+
+# ── FREEZE: what this run actually ran on ─────────────────────────────────────────────
+# The MANIFEST pins the two packages this runner asserts a floor on. The venv has ~143.
+# ⛔ `pip freeze` returns NOTHING in this venv — it is uv-built and has no pip — so the
+# obvious way to capture this writes an empty file, which is the absence that reads as
+# success. `importlib.metadata` is asked instead: it is the same source the pipeline-core
+# version assert above uses, needs neither pip nor uv, and cannot be silently empty.
+# Why it matters beyond tidiness: the reconciliation mass deficit this runner reports is a
+# property of a specific views-frames, so a reproduction that re-resolves it is not one.
+"$VENV/bin/python" - > "$OUT/FREEZE" <<'PYFREEZE'
+import importlib.metadata as m
+print("\n".join(sorted({f"{d.name}=={d.version}" for d in m.distributions() if d.name})))
+PYFREEZE
+[ -s "$OUT/FREEZE" ] || die "could not record the package set into $OUT/FREEZE. The run itself succeeded and the pool is intact at $OUT/parquet, but nothing would record WHICH views-frames produced this reconciliation, and that is the one version a reproduction must match."
+echo "  recorded $(wc -l < "$OUT/FREEZE") packages in $OUT/FREEZE"
+
+# ── the residual: what reconciliation could NOT place ─────────────────────────────────
+# ⛔ Runs on every successful run, and its figures go into the MANIFEST, because the
+# 2026-10-30 delivery lost 2.9%-7.3% of the country forecast's fatalities and said only
+# `reconciled: against chrome_crate`. Multiplicative scaling cannot lift a country whose
+# cells are all zero (0 x anything = 0), so some loss is inherent to the method — but a
+# delivery may be approximate, never QUIETLY approximate, least of all to a UN partner.
+#
+# Two outcomes, deliberately different:
+#   rc 0   measured. Unplaced mass is reported and the run continues: it is a property of
+#          the method, and the forecast is correct everywhere the grid is non-zero.
+#   rc!=0  either the scaling actually failed (country totals are WRONG, which is a defect
+#          and not a limit), or the residual could not be measured at all. Both are fatal.
+#          The pool is already copied to deliver/ above, so dying here loses nothing but
+#          costs a human's attention — and keeps `OK` meaning "fully verified"
+#          (ADR-025: a check that cannot see its subject must refuse, not skip).
+stage reconciliation_residual
+( cd "$REPO" && "$VENV/bin/python" -m reconciliation.residual \
+      --ensemble "$REPO/ensembles/$ENSEMBLE" \
+      --out "$OUT/RECONCILIATION_RESIDUAL" )
+RESIDUAL_RC=$?
+[ "$RESIDUAL_RC" = 0 ] || die "the reconciliation residual check exited $RESIDUAL_RC. The pool itself is INTACT at $OUT/parquet and nothing is lost, but this run must not be reported OK: either the scaling failed and the country totals are wrong, or the residual could not be measured. Re-run just this check with: cd $REPO && $VENV/bin/python -m reconciliation.residual --ensemble ensembles/$ENSEMBLE"
+
+# Pulled out of the manifest block so an empty result is visible as a refusal rather than
+# as a missing line — `grep` printing nothing is exactly the absence that reads as a pass.
+RESIDUAL_LINES=$(grep -E '^[A-Za-z0-9_]+ +unplaced ' "$OUT/RECONCILIATION_RESIDUAL" 2>/dev/null)
+[ -n "$RESIDUAL_LINES" ] || RESIDUAL_LINES="⛔ UNREADABLE — RECONCILIATION_RESIDUAL carries no per-target line"
 
 # ── manifest ──────────────────────────────────────────────────────────────────────────
 
 PEAK_FILE=$( [ -r /sys/fs/cgroup/memory.peak ] && echo "$(( $(cat /sys/fs/cgroup/memory.peak)/1048576 ))MiB" || echo "n/a" )
-PEAK_LOG=$(awk '{gsub("MiB","",$2); if($2+0>m) m=$2+0} END{printf "%dMiB", m}' "$OUT/memory.log" 2>/dev/null)
+# ⛔ `seen` is not decoration. Without it a log whose format changed, or an unreadable
+# memory.stat, yields `0MiB` — which prints in the MANIFEST as a measured peak of nothing
+# and would have the next operator size a box from it (ADR-025: a check that cannot see its
+# subject must refuse, not return a clean value).
+peak_of() {  # peak_of <key> — max of `<key>=<n>MiB` across memory.log, or UNREADABLE
+  awk -v k="$1" '{for(i=1;i<=NF;i++) if(index($i,k"=")==1){v=$i; gsub(/[^0-9]/,"",v); if(v!=""){seen=1; if(v+0>m) m=v+0}}} END{if(seen) printf "%dMiB", m; else printf "UNREADABLE"}' "$OUT/memory.log" 2>/dev/null
+}
+PEAK_ANON=$(peak_of anon)
+PEAK_CUR=$(peak_of current)
 stage manifest
 {
   echo "ensemble:      $ENSEMBLE (pgm, global land) — phase 2 of 2"
   echo "members:       $MODELS"
   echo "members_run:   $TRAINED trained this invocation, $SKIPPED already present"
-  echo "reconciled:    against $PARTNER, read from local disk"
+  echo "members_pooled: $POOLABLE of $EXPECTED verified present before pooling"
+  # ⛔ Never print this line unqualified. It used to read "against $PARTNER, read from
+  # local disk" and stop — a statement about what was ATTEMPTED, in a field every reader
+  # takes as a statement about what was ACHIEVED. Measured on 2026-10-30: 2.9%-7.3% of the
+  # country forecast's fatalities were not on the grid and nothing said so.
+  echo "reconciled:    against $PARTNER, read from local disk — PARTIALLY. See residual:"
+  echo "residual:      country fatalities that could NOT be placed on the grid, because"
+  echo "               multiplicative scaling cannot lift a country whose cells are all"
+  echo "               zero. Full block in RECONCILIATION_RESIDUAL beside this file."
+  echo "$RESIDUAL_LINES" | sed 's/^/               /'
   echo "finished:      $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  # Stated as CONFIGURED, not as observed. The number is `expected_models` x
-  # `expected_samples_per_model` from config_hyperparameters.py, and ADR-015 makes the
-  # ensemble refuse to pool a different count — so a successful run implies it rather than
-  # measuring it. `members_run:` above is the line that reports what actually happened.
-  echo "draws:         8 x 128 = 1024 configured (epic #595, NOT thinned; enforced by ADR-015 expected_models, not measured here)"
+  # Stated as CONFIGURED, not as observed, and deliberately WITHOUT naming a backstop.
+  # ⛔ Never write "enforced by ADR-015 expected_models" here. `grep -rn expected_models`
+  # over installed views-pipeline-core 3.3.5 returns ZERO matches — nothing reads it at run
+  # time. `expected_samples_per_model` IS enforced (`_assert_expected_sample_count`,
+  # prediction_frame_ensemble.py:153) and the #160 balance guard rejects constituents that
+  # differ FROM EACH OTHER, but neither of them can see a MISSING constituent: seven members
+  # at 128 draws are mutually balanced and individually correct, so a short pool passes both
+  # and delivers 896 draws as though they were 1024. `members_pooled:` above is the ONLY
+  # check of the count and it is this script's own. That claim was made four times before it
+  # was measured — in #649's commit message, in register entry C-188, in a test docstring,
+  # and in this line, which printed it into a real delivery artifact on 2026-10-30.
+  echo "draws:         8 x 128 = 1024 configured (epic #595, NOT thinned) — see members_pooled: above for the only verification of the count"
   echo "runtime_min:   $(( ($(date +%s)-START)/60 ))"
-  echo "PEAK cgroup:   memory.peak=$PEAK_FILE  sampled_max=$PEAK_LOG"
-  echo "peak_expected: >= 68.2 GiB, MEASURED 2026-10-28 and a LOWER BOUND (30s sampling over"
-  echo "               a 4.4-minute stage cannot see a shorter transient). The two figures"
-  echo "               above are the ones that replace it; memory.log carries the series."
+  echo "PEAK anon:     $PEAK_ANON  <- THE REQUIREMENT. Size a box from this and nothing else."
+  echo "PEAK current:  $PEAK_CUR (memory.peak=$PEAK_FILE) — INFLATED by reclaimable page cache."
+  echo "               On 2026-10-30 this pinned at the cgroup limit while anon peaked at"
+  echo "               63.9 GiB. A box chosen from this number is oversized, not safe."
+  echo "peak_history:  the 68.2 GiB 'lower bound' (2026-10-28) and the withdrawn 19.8 GiB in"
+  echo "               configs/config_hyperparameters.py were BOTH memory.current readings,"
+  echo "               so both are superseded by PEAK anon. memory.log carries both series."
   echo "mem_floor:     ${MEM_FLOOR_GB}GB enforced, box reported ${MEM_GB}GB"
   echo "disk_floor:    ${DISK_FLOOR_GB}GB enforced (DERIVED) — replace it with pool: below"
   echo "pool:          $(du -sh "$OUT/parquet" 2>/dev/null | cut -f1)"
+  echo "artefacts:     $(find "$OUT/members" -name '*.pkl' 2>/dev/null | wc -l) trained member artefacts + their offline wandb, in members/ ($(du -sh "$OUT/members" 2>/dev/null | cut -f1))"
+  echo "packages:      $(wc -l < "$OUT/FREEZE" 2>/dev/null) recorded in FREEZE beside this file — the venv is uv-built and has no pip"
   echo "pipeline_core: $PC_VERSION (floor $PC_FLOOR)"
   echo "git:           $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)"
   echo "driver:        tools/podrun/pod_run_chrome_box.sh"
