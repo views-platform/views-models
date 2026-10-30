@@ -1,0 +1,22 @@
+# views-baseline first: tests/test_algorithm_coherence.py reads the first
+# non-comment line as this source's engine, and main.py imports views_baseline.
+views-baseline>=1.0.2,<2.0.0
+# Declared DIRECTLY, not left to views-baseline. views-baseline 1.0.2 (PyPI latest,
+# checked 2026-10-22) declares views-pipeline-core>=3.0.0,<4.0.0 — a floor of 3.0.0,
+# BELOW the 3.2.0 that can find configs/config_maturity.py. An env holding exactly
+# 3.0.0 satisfies that range, so the launcher upgrades nothing and the run dies on a
+# missing config_deployment.py. That is what broke Hop A on 2026-10-22 (#594).
+views-pipeline-core>=3.2.0,<4.0.0
+# NOT the [pandas] extra, deliberately. The extra floors pandas at >=2.0, while
+# views-pipeline-core 3.x requires viewser (ADR-063 clause 1) and viewser caps
+# pandas<2.0.0 — so declaring the extra makes this file unresolvable. Measured in a
+# clean venv on 2026-10-28 (#644): pip reports ResolutionImpossible naming exactly
+# those two, and the same file without the extra resolves to pandas 1.5.3 with
+# views_pipeline_core 3.3.4 and views-datafactory 1.15.0.
+# Dropping it costs nothing: views-datafactory's own pyproject.toml records that the
+# extra "gates NOTHING today" because xarray is a required dependency and carries
+# pandas regardless. The country-month path still works — grid_to_country_month only
+# annotates and constructs a pd.DataFrame, identical on pandas 1.5.3.
+# Floored at 1.13.0: the 'land_gaul' region and country_month output are both
+# verified present there (measured 2026-10-22; 1.12.0 also has them).
+views-datafactory>=1.13.0,<2.0.0

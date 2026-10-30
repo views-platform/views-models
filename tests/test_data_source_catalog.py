@@ -1,0 +1,82 @@
+"""The catalog says which data source each model reaches (#474), and the split is what #473 measured.
+
+``tools/catalogs/data_source.py`` is the one reader (C-147 shape). Two kinds of test:
+
+1. **Each branch on a synthetic file** — a queryset importing viewser; one importing
+   datafactory_query; the synthetic descriptor; both clients (``unknown``, never a guess);
+   neither (``unknown``); no file (``none``).
+2. **The fleet pin** — a characterisation of today's split, updated deliberately when a model
+   migrates, like ``test_environment_sharing``'s tenant counts. #473 §2 measured 77 viewser /
+   29 datafactory-or-synthetic on 2026-09-17; #491 added eleven pgm datafactory models.
+"""
+
+from collections import Counter
+import pytest
+
+from tests.conftest import ALL_MODEL_DIRS
+from tools.catalogs.data_source import DATAFACTORY, NONE, SYNTHETIC, UNKNOWN, VIEWSER, data_source_of
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        ("from viewser import Queryset, Column\ndef generate():\n    return Queryset('x', 'cm')\n", VIEWSER),
+        ("import viewser\n", VIEWSER),
+        ("from datafactory_query.defaults import DEFAULT_REMOTE\ndef generate():\n    return {}\n", DATAFACTORY),
+        ("def generate():\n    return {'source': 'synthetic', 'pattern': 'diagonal_gradient'}\n", SYNTHETIC),
+        ("from viewser import Queryset\nfrom datafactory_query.defaults import DEFAULT_REMOTE\n", UNKNOWN),
+        ("import os\ndef generate():\n    return {'source': 'somewhere_else'}\n", UNKNOWN),
+        ("from .viewser import x\n", UNKNOWN),  # relative import is not the client
+        # a stray dict elsewhere in the file is not generate()'s answer
+        ("from datafactory_query.defaults import DEFAULT_REMOTE\nNOTE = {'source': 'synthetic'}\ndef generate():\n    return {'source': 'views-datafactory'}\n", DATAFACTORY),
+    ],
+    ids=["viewser-from", "viewser-import", "datafactory", "synthetic", "both-clients", "neither", "relative", "stray-dict"],
+)
+def test_each_branch_on_a_synthetic_file(tmp_path, source, expected):
+    q = tmp_path / "config_queryset.py"
+    q.write_text(source)
+    assert data_source_of(q) == expected
+
+
+def test_no_file_is_none(tmp_path):
+    assert data_source_of(tmp_path / "config_queryset.py") == NONE
+
+
+def _fleet():
+    return {d.name: data_source_of(d / "configs" / "config_queryset.py") for d in ALL_MODEL_DIRS}
+
+
+def test_no_model_is_unknown():
+    fleet = _fleet()
+    unknown = sorted(n for n, s in fleet.items() if s == UNKNOWN)
+    assert not unknown, f"the classifier could not place these — look, do not guess: {unknown}"
+
+
+def test_the_split_is_what_the_catalog_says():
+    """Characterisation pin. When a model migrates, change the numbers here on purpose and
+    say so in the commit (#473 §7-8 is the plan for the 77)."""
+    counts = Counter(_fleet().values())
+    # 34 -> 35 datafactory on 2026-10-12: models/amber_kestrel, the truncated-body /
+    # soft-gate arm of the views-hydranet#396 composition experiment, copied from
+    # violet_visitor and therefore a datafactory consumer like it.
+    # 35 -> 36 on 2026-10-16: models/copper_kestrel, the pos_weight arm, copied from
+    # amber_kestrel for the same reason and inheriting the same queryset byte for byte.
+    # 36 -> 39 on 2026-10-19: models/{silver,bronze,cobalt}_kestrel, the three SEED
+    # REPLICATES of amber_kestrel (views-models#567). They inherit its queryset byte for
+    # byte — tests/test_roster_conformance.py asserts exactly that — so they are
+    # datafactory consumers for the same reason copper_kestrel is. Three at once because a
+    # variance estimate needs a cell, not a run: these three ARE the measurement of σ̂.
+    # 39 -> 41 on 2026-10-19: models/{indigo,russet}_kestrel, the two zero-weight-decay
+    # INTERVENTION ARMS (views-models#568), copied from their seed-matched controls
+    # silver_kestrel and bronze_kestrel and inheriting the same queryset byte for byte.
+    # 41 -> 57 on 2026-10-27: epic #595's SIXTEEN chrome_box members — eight pgm (*_sparrow,
+    # #596) and eight cm (*_condor, #597). They are datafactory consumers by construction:
+    # their querysets request the datafactory `land_gaul` region and rename `gaul0_code`,
+    # which is what S3's pgm_cm reconciliation needs and what no viewser queryset can give.
+    #
+    # ⛔ This pin was FAILING from 2026-10-22, the day those sixteen were built, because it
+    # reads the filesystem and they existed on disk while untracked. It was being quoted as
+    # one of two "parked CI failures" all through 2026-10-27 — it was neither parked nor a CI
+    # artefact, it was this census going stale and the pin doing exactly its job. The other
+    # supposed parked failure, test_the_maturity_distribution_is_what_the_map_says, was the
+    # same sixteen taking config_maturity.py from 100 files to 116.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 57, SYNTHETIC: 6}, dict(counts)

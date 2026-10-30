@@ -13,6 +13,8 @@ import pytest
 
 from tests.conftest import load_config_module
 
+pytestmark = pytest.mark.green
+
 # Verified empirically from all 66 active models on 2026-04-04.
 # Update this mapping when a new algorithm is added to a package.
 ALGORITHM_TO_PACKAGE = {
@@ -38,6 +40,10 @@ ALGORITHM_TO_PACKAGE = {
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
     "ConflictologyModel": "views_baseline",
+    # parametric climatology (ADR-022) — real, exported views_baseline classes
+    # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
+    "ParametricConflictology": "views_baseline",
+    "ParametricHurdleConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }
@@ -63,13 +69,18 @@ def _extract_manager_package(main_path: Path) -> str | None:
 
 
 def _extract_requirements_package(req_path: Path) -> str | None:
-    """Extract package name from requirements.txt, normalizing hyphens to underscores."""
+    """Extract package name from requirements.txt, normalizing hyphens to underscores.
+
+    An extra (``views-r2darts2[manager]``) is not part of the name: ``[`` ends it, like a
+    version operator does. views-r2darts2 0.2.x makes pipeline-core its ``manager`` extra,
+    so every r2darts2 model declares one (#485).
+    """
     if not req_path.exists():
         return None
     for line in req_path.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#"):
-            pkg_name = re.split(r"[><=!~@]", line)[0].strip()
+            pkg_name = re.split(r"[\[><=!~@;]", line)[0].strip()
             return pkg_name.replace("-", "_")
     return None
 

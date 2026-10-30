@@ -10,7 +10,8 @@
 | **Features**       |  {{FEATURES}}   |
 | **Feature Description**       |  {{DESCRIPTION}}    |
 | **Metrics**       |  {{METRICS}}    |
-| **Deployment Status**       |  {{DEPLOYMENT}}    |
+| **Maturity**       |  {{DEPLOYMENT}}    |
+| **Data Source**       |  {{DATA_SOURCE}}    |
 
 ## Repository Structure
 

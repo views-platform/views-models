@@ -57,6 +57,21 @@ Do **not** write ADRs for:
 
 Decisions are never deleted. If a decision changes, it is **superseded**, not erased.
 
+**Splitting an ADR is not a supersession.** An ADR that has grown to hold several decisions changing
+at different rates may be **split for containment** — its parts moved into new ADRs that cite each
+other — provided **no decision is reversed**. The original keeps its number and records where the
+material went. This is a re-organisation, and marking it Superseded would retire a number that other
+documents cite while nothing was actually overturned.
+
+*Why the rule exists:* a decision should be retirable **whole**. If one document holds three
+decisions, changing one of them means amputating a third of it — and what remains is neither the old
+decision nor a clean new one. (Precedent: ADR-017 was split into 017/019/020 plus
+`docs/forecast_delivery_map.md` on 2026-08-04.)
+
+**A document that is designed to change is not an ADR at all.** If a page shrinks or grows as the
+system moves — a map of what exists today, an inventory, a burn-down — it belongs in `docs/`, and ADRs
+cite it. The rule above is what makes that distinction load-bearing rather than stylistic.
+
 ---
 
 ## Consequences
