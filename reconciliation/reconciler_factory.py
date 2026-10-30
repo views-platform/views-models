@@ -41,6 +41,27 @@ _PROVIDERS = {
 }
 
 
+def provider_for(
+    source: str, start_month: int, end_month: int
+) -> CountryMappingProvider:
+    """The geography provider for ``source``, covering ``start_month..end_month``.
+
+    Named and public so that a *verifier* of a finished run can build the identical
+    mapping the run used. Before this existed, the only way to do that was to reach into
+    ``_PROVIDERS`` from outside, which makes sameness a coincidence rather than a
+    guarantee — and a verifier that silently measures against a *different* mapping
+    reports a clean verdict it never established (ADR-025).
+    """
+    try:
+        provider_cls = _PROVIDERS[source]
+    except KeyError:
+        raise ValueError(
+            f"Unknown reconciliation geography source {source!r}; "
+            f"known sources: {sorted(_PROVIDERS)}"
+        )
+    return provider_cls(start_month, end_month)
+
+
 def build_reconciler(
     start_month: int,
     end_month: int,
@@ -55,14 +76,7 @@ def build_reconciler(
         provider: an explicit provider (overrides ``source``) — for testing / advanced wiring.
     """
     if provider is None:
-        try:
-            provider_cls = _PROVIDERS[source]
-        except KeyError:
-            raise ValueError(
-                f"Unknown reconciliation geography source {source!r}; "
-                f"known sources: {sorted(_PROVIDERS)}"
-            )
-        provider = provider_cls(start_month, end_month)
+        provider = provider_for(source, start_month, end_month)
 
     mapping = provider.build()
 
