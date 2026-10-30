@@ -42,9 +42,15 @@ which is how a committed evidence directory ends up holding nothing.
 
 ## One redaction
 
-⛔ `run.out` has `204.168.219.108` replaced by `DATAFACTORY_ZARR_HOST` in **37 places**. That is
-the views-datafactory zarr endpoint — a bare IP over plain HTTP — and **this repository is
-public**. Nothing else in these files was changed, and the redaction touches no measurement.
+⛔ `run.out` has `204.168.219.108` replaced by `DATAFACTORY_ZARR_HOST` in **8 places** — one per
+member data fetch, logged by pipeline-core's `dataloaders.py:490`. That is the views-datafactory
+zarr endpoint, a bare IP over plain HTTP, and **this repository is public**. Nothing else in these
+files was changed, and the redaction touches no measurement.
+
+⚠️ **The commit that made the redaction says "37 places" in its message. The number is 8.** It was
+written without counting, and a commit message cannot be corrected without rewriting history,
+which is not this session's to do — so the error is recorded here, where a reader of the directory
+will meet it.
 
 ⚠️ The same IP is already committed, unredacted, in `../2026-10-28_chrome_box/`. That is on
 `development` and predates this directory, so it is not this commit's to quietly rewrite — it is
