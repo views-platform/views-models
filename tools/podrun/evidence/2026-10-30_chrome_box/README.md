@@ -40,6 +40,16 @@ commit.
 file called `MANIFEST` (`.gitignore:82`) — a `git add` of the obvious names drops them silently,
 which is how a committed evidence directory ends up holding nothing.
 
+## One redaction
+
+⛔ `run.out` has `204.168.219.108` replaced by `DATAFACTORY_ZARR_HOST` in **37 places**. That is
+the views-datafactory zarr endpoint — a bare IP over plain HTTP — and **this repository is
+public**. Nothing else in these files was changed, and the redaction touches no measurement.
+
+⚠️ The same IP is already committed, unredacted, in `../2026-10-28_chrome_box/`. That is on
+`development` and predates this directory, so it is not this commit's to quietly rewrite — it is
+flagged for the maintainer, because removing it means a history rewrite and that is his call.
+
 ## The three numbers worth reading
 
 **1. Memory: 63.9 GiB, not 87.** `anon` peaked at **65,404 MiB** at 07:28:00 in
