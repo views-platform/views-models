@@ -1,9 +1,29 @@
-# Declared DIRECTLY and floored at >=3.2.0, rather than inherited. This ensemble carries
-# configs/config_maturity.py, and only pipeline-core >=3.2.0 can find it: below that the
-# loader looks for configs/config_deployment.py, which this ensemble does not have.
-# views-baseline 1.0.2 floors pipeline-core at >=3.0.0, so an environment holding exactly
-# 3.0.0 satisfies that range, the launcher upgrades nothing, and the run dies on a missing
-# config_deployment.py. That is what broke Hop A on 2026-10-22 (views-models#594), and
-# C-116 is why inheriting a co-tenant's floor is not good enough. #635 brought every
-# ensemble declaration to this floor, so no ensemble differs from another any more.
-views-pipeline-core>=3.2.0,<4.0.0
+# Declared DIRECTLY and floored at >=3.3.5, rather than inherited. Two reasons stack here,
+# and the HIGHER one is what the floor has to satisfy:
+#
+# >=3.2.0 — this ensemble carries configs/config_maturity.py, and only pipeline-core
+#   >=3.2.0 can find it: below that the loader looks for configs/config_deployment.py,
+#   which this ensemble does not have. views-baseline 1.0.2 floors pipeline-core at
+#   >=3.0.0, so an environment holding exactly 3.0.0 satisfies that range, the launcher
+#   upgrades nothing, and the run dies on a missing config_deployment.py. That is what
+#   broke Hop A on 2026-10-22 (views-models#594), and C-116 is why inheriting a
+#   co-tenant's floor is not good enough.
+#
+# >=3.3.5 — ⛔ chrome_box is the ONLY ensemble that needs this, and it needs it to finish
+#   rather than to start. It declares `reconciliation: "pgm_cm"`, so
+#   PredictionFrameEnsembleManager calls pipeline-core's `load_cm_frame` to read
+#   chrome_crate's cm forecast. Before 3.3.5 that function looked only for a `.parquet`
+#   file while a PredictionFrame partner writes a DIRECTORY, so it reported
+#   "no local forecast found for country model 'chrome_crate'" over a forecast that was
+#   there (views-pipeline-core#562, fixed in 3.3.5, published 2026-10-29; ADR-069).
+#
+# ⚠️ Why the floor and not just a fresh install: 3.3.4 satisfies >=3.2.0, so on a laptop
+# whose envs/views_ensemble already holds 3.3.4 the `pip install --dry-run` gate in run.sh
+# reports nothing missing and the launcher upgrades NOTHING. Measured 2026-10-29: that env
+# holds 3.3.4 today. A fresh box got 3.3.5 only by accident of it being newest. Same class
+# as #594/#635 — a satisfied range is not a current install.
+#
+# chrome_crate deliberately stays at >=3.2.0: it declares no reconciliation, so it never
+# reaches load_cm_frame, and claiming a requirement it does not have is the kind of false
+# precision this comment block exists to prevent.
+views-pipeline-core>=3.3.5,<4.0.0
