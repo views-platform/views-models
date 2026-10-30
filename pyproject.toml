@@ -5,3 +5,12 @@ markers = [
     "green: correctness and functional tests (ADR-005)",
     "live: tests that touch real external services; skip truthfully offline (ADR-005 amendment 2026-07-19)",
 ]
+
+[tool.ruff]
+# `tools/podrun/evidence/` holds scripts exactly as they RAN on a rented pod, kept as the
+# record of a measurement the pod can no longer be asked to repeat. They are evidence, not
+# source: a pod script bootstraps `sys.path` before importing the repo, so E402 is inherent
+# to the shape, and `# noqa` or a reordered import would alter the artefact being cited.
+# Linting them is a category error — the only honest edit to a transcript is none.
+# Named trigger to revisit: if anything under evidence/ is ever imported by code that runs.
+extend-exclude = ["tools/podrun/evidence"]
