@@ -21,6 +21,7 @@ import pytest
 from tools.collapse.collapse_predictions import (
     AGGREGATE_METHODS,
     DEFAULT_AGGREGATE_METHOD,
+    ESTIMATORS,
     TARGETS,
     CollapseError,
     collapse_origin,
@@ -255,20 +256,30 @@ def test_the_default_method_is_the_one_the_roster_declares():
     assert set(AGGREGATE_METHODS) == {"arithmetic_mean", "median"}
 
 
+def test_the_experiment_estimators_are_not_declarable_aggregate_methods():
+    """The separation is the point. `q95` and `conditional_mean` are estimators this tool can
+    compute; they are NOT names a model may declare. Collapsing the two sets would let a config
+    declare `q95` and have the roster test wave it through as an ADR-021 aggregate method."""
+    assert set(AGGREGATE_METHODS) < set(ESTIMATORS), "aggregate methods must be a strict subset"
+    assert set(ESTIMATORS) - set(AGGREGATE_METHODS) == {"q95", "conditional_mean"}
+    for experiment_only in ("q95", "conditional_mean"):
+        assert experiment_only not in AGGREGATE_METHODS
+
+
 def test_median_is_available_and_is_not_the_mean(origin):
     """views-hydranet ADR-021 allows median. If a model ever declares it we must honour it."""
     raw = np.load(origin / "lr_sb_best" / "y_pred.npy")
-    df = collapse_origin(origin, aggregate_method="median")
+    df = collapse_origin(origin, estimator="median")
     np.testing.assert_allclose(
         df["pred_lr_sb_best"].to_numpy(), np.median(raw.astype("float64"), axis=1), rtol=1e-12
     )
     assert not np.allclose(df["pred_lr_sb_best"], raw.astype("float64").mean(axis=1))
 
 
-def test_mutation_unknown_aggregate_method_is_refused(origin):
+def test_mutation_unknown_estimator_is_refused(origin):
     """A typo must not fall back to the mean and ship an estimator nobody chose."""
-    with pytest.raises(CollapseError, match="unknown aggregate_method"):
-        collapse_origin(origin, aggregate_method="geometric_mean")
+    with pytest.raises(CollapseError, match="unknown estimator"):
+        collapse_origin(origin, estimator="geometric_mean")
 
 
 def test_mutation_log_space_in_ONE_target_only_is_refused(tmp_path):
@@ -319,3 +330,113 @@ def test_mutation_duplicate_identifier_rows_are_refused(origin):
         np.savez(d / "identifiers.npz", time=month, unit=unit)
     with pytest.raises(CollapseError, match="duplicate"):
         collapse_origin(origin)
+
+
+# ── the views-models#505 selector experiment: q95 and E[y|y>0] ────────────────────
+
+
+def test_q95_is_available_and_is_not_the_mean(origin):
+    """Frame II. numpy's linear interpolation, pinned — a different interpolation would move
+    every value in the frame without changing a single row count."""
+    raw = np.load(origin / "lr_sb_best" / "y_pred.npy").astype("float64")
+    df = collapse_origin(origin, estimator="q95")
+    np.testing.assert_allclose(
+        df["pred_lr_sb_best"].to_numpy(), np.quantile(raw, 0.95, axis=1), rtol=1e-12
+    )
+    assert not np.allclose(df["pred_lr_sb_best"], raw.mean(axis=1))
+
+
+def test_conditional_mean_is_the_mean_of_the_positive_draws(origin):
+    """Frame III, against the definition written the obvious way rather than the vectorised
+    way the implementation uses. If the two agree, the `sum / n_positive` shortcut is sound."""
+    raw = np.load(origin / "lr_sb_best" / "y_pred.npy").astype("float64")
+    df = collapse_origin(origin, estimator="conditional_mean")
+    expected = np.array([row[row > 0].mean() if (row > 0).any() else 0.0 for row in raw])
+    np.testing.assert_allclose(df["pred_lr_sb_best"].to_numpy(), expected, rtol=1e-12)
+
+
+def test_conditional_mean_equals_mean_over_probability_of_positive(origin):
+    """The other half of the identity: `E[y|y>0] == E[y] / P(y>0)`. Stated as a test because
+    the docstring claims it, and a claim in a docstring is not evidence."""
+    raw = np.load(origin / "lr_sb_best" / "y_pred.npy").astype("float64")
+    df = collapse_origin(origin, estimator="conditional_mean")
+    p_positive = (raw > 0).mean(axis=1)
+    live = p_positive > 0
+    np.testing.assert_allclose(
+        df["pred_lr_sb_best"].to_numpy()[live],
+        raw.mean(axis=1)[live] / p_positive[live],
+        rtol=1e-12,
+    )
+
+
+def test_conditional_mean_is_never_below_the_arithmetic_mean(origin):
+    """A property, not an example: dividing by `n_positive <= D` cannot shrink the value. It is
+    what lets the scale guard's threshold stay unchanged for the experiment frames — neither
+    new estimator can drop a target's maximum below one the mean already cleared."""
+    for target in TARGETS:
+        mean = collapse_origin(origin, estimator="arithmetic_mean")[f"pred_{target}"].to_numpy()
+        cond = collapse_origin(origin, estimator="conditional_mean")[f"pred_{target}"].to_numpy()
+        assert (cond >= mean - 1e-12).all()
+
+
+def test_conditional_mean_of_an_all_silent_cell_is_zero_not_nan(tmp_path):
+    """The 99.6% case on real output. NaN here would be joined and scored by
+    `ensemble-updater` rather than refused, so the estimator must commit to 0.0."""
+    o = tmp_path / "predictions_calibration_20260101_000000" / "origin_0"
+    draws = np.zeros((ROWS, DRAWS))
+    draws[0, :] = 50.0  # one live cell, so the scale guard has something to clear
+    for target in TARGETS:
+        _write_target(o, target, draws)
+    df = collapse_origin(o, estimator="conditional_mean")
+    silent = df["pred_lr_sb_best"].to_numpy()[1:]
+    assert np.isfinite(silent).all(), "an all-zero cell must not produce NaN or inf"
+    assert (silent == 0.0).all()
+
+
+def test_conditional_mean_equals_the_mean_when_every_draw_is_positive(tmp_path):
+    """The boundary of the inequality above: at `n_positive == D` the two estimators are the
+    same number. A frame III that differed from frame I everywhere would mean the positive mask
+    was wrong, and this is the case that would catch it."""
+    o = tmp_path / "predictions_calibration_20260101_000000" / "origin_0"
+    rng = np.random.default_rng(7)
+    draws = rng.uniform(1.0, 100.0, size=(ROWS, DRAWS))  # no zeros at all
+    for target in TARGETS:
+        _write_target(o, target, draws)
+    mean = collapse_origin(o, estimator="arithmetic_mean")["pred_lr_sb_best"].to_numpy()
+    cond = collapse_origin(o, estimator="conditional_mean")["pred_lr_sb_best"].to_numpy()
+    np.testing.assert_allclose(cond, mean, rtol=1e-6)
+
+
+def test_every_estimator_produces_the_same_shape_and_identifiers(origin):
+    """Whichever estimator ran, the frame the selector reads is the same shape with the same
+    keys. Only `pred_*` may differ — an estimator that dropped or reordered rows would make the
+    three frames non-comparable, which is the whole point of submitting them together."""
+    frames = {name: collapse_origin(origin, estimator=name) for name in ESTIMATORS}
+    reference = frames[DEFAULT_AGGREGATE_METHOD]
+    for name, df in frames.items():
+        assert list(df.columns) == list(reference.columns), name
+        pd.testing.assert_series_equal(df["month_id"], reference["month_id"], check_names=False)
+        pd.testing.assert_series_equal(
+            df["priogrid_id"], reference["priogrid_id"], check_names=False
+        )
+
+
+def test_convert_model_honours_the_estimator_end_to_end(tmp_path, origin):
+    """The CLI path, not just the function: two estimators over the same source must write
+    parquets that differ in value and agree in every identifier."""
+    model = tmp_path / "m"
+    source = origin.parent
+    generated = model / "data" / "generated"
+    generated.mkdir(parents=True)
+    source.rename(generated / source.name)
+
+    out_i = tmp_path / "frame_I"
+    out_ii = tmp_path / "frame_II"
+    written_i = convert_model(model, out_dir=out_i, estimator="arithmetic_mean")
+    written_ii = convert_model(model, out_dir=out_ii, estimator="q95")
+    assert len(written_i) == len(written_ii) == 1
+
+    a, b = pd.read_parquet(written_i[0]), pd.read_parquet(written_ii[0])
+    pd.testing.assert_series_equal(a["month_id"], b["month_id"])
+    pd.testing.assert_series_equal(a["priogrid_id"], b["priogrid_id"])
+    assert not np.allclose(a["pred_lr_sb_best"], b["pred_lr_sb_best"])
