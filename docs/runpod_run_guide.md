@@ -391,8 +391,11 @@ The runner already does both. Its output is in `/workspace/deliver/<model>/`:
 
 ⛔ **`draws/` IS NOT THE FULL POSTERIOR, and the runner will tell you it is.** This table
 said "the full posterior — ~236× smaller than raw" until 2026-10-16, and that was false.
-HydraNet writes six target directories per origin: `lr_{sb,ns,os}_best` (the magnitude body)
-and `by_{sb,ns,os}_best` (the gate). `pod_run_model.sh` archives `-path '*/lr_*'` — three of
+HydraNet writes six target directories per origin: `lr_{sb,ns,os}_best` (the **composed
+forecast** — ⛔ not the ungated magnitude body; this said "the magnitude body" until
+2026-11-02 and was wrong for all eight roster members, because composition is applied at
+emit time and five of them are `soft_gate`, three `threshold_gate`, none `self_zeroed`)
+and `by_{sb,ns,os}_best` (the gate that produced it). `pod_run_model.sh` archives `-path '*/lr_*'` — three of
 six — and its own `N_DRAWS`/`N_ARCHIVED` guard counts only the half it archives, so the run
 reports `STATUS: OK` either way (views-models#558, register **C-161**). `MANIFEST` then prints
 `raw draws: 13G` beside `compressed: 34M` as though one were the compression of the other; the
