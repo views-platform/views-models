@@ -290,9 +290,16 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
     #: version someone happened to have installed. Removing one re-admits the defect.
     BASE_FLOOR = "<4.0.0,>=3.2.0"
     NEEDS_A_HIGHER_FLOOR = {
-        #: Calls through to `load_cm_frame`, which could not read a PredictionFrame cm
-        #: forecast before 3.3.5 — views-pipeline-core#562, published 2026-10-29.
-        "ensembles/chrome_box": "<4.0.0,>=3.3.5",
+        #: Two capabilities stack here, and the HIGHER one is what the floor satisfies.
+        #: >=3.3.5 — calls through to `load_cm_frame`, which could not read a PredictionFrame
+        #:   cm forecast before it (views-pipeline-core#562, published 2026-10-29).
+        #: >=3.4.0 — ⛔ and this is not about pipeline-core at all: 3.4.0 is the first release
+        #:   carrying `views-frames>=3.0.0`, and views-frames 3.0.0 is where the reconciler was
+        #:   fixed. Below it a country whose grid is all-zero in a draw loses its entire mass
+        #:   silently — 4.023%/7.321%/2.943% on the 2026-10-30 delivery, which reported
+        #:   STATUS: OK and scaling_failures: 0 (views-frames#283, #659/#663). Raised
+        #:   2026-11-02, the day views-datafactory 1.17.0 made it satisfiable at all.
+        "ensembles/chrome_box": "<4.0.0,>=3.4.0",
     }
     assert set(NEEDS_A_HIGHER_FLOOR) <= DECLARES_PIPELINE_CORE, (
         "a source is excused to a higher floor without appearing in the census at all, so "
@@ -401,10 +408,25 @@ def test_chrome_box_refuses_the_pipeline_core_that_cannot_read_a_pf_cm_forecast(
         "(views-pipeline-core#562). A laptop whose shared envs/views_ensemble already "
         "holds 3.3.4 satisfies the range, so run.sh upgrades nothing and the run dies."
     )
-    assert Version("3.3.5") in spec, (
-        f"ensembles/chrome_box no longer admits views-pipeline-core 3.3.5 ({spec}), the "
-        "release that fixed #562. A floor that excludes every version carrying the fix "
-        "refuses 3.3.4 for free and installs nothing."
+    #: ⛔ 3.3.5 IS NOW ALSO REFUSED, and it is the more interesting of the two.
+    #: 3.3.5 carries the #562 fix, so it starts and finishes and writes a pool. What it does
+    #: not carry is `views-frames>=3.0.0`, so it reconciles with the OLD reconciler: a country
+    #: whose grid is all-zero in a draw loses its whole mass, with no error, no warning, and
+    #: `scaling_failures: 0`. That is the 2026-10-30 delivery, which was short by
+    #: 4.023%/7.321%/2.943% and reported STATUS: OK (views-frames#283).
+    #: ⇒ So 3.3.4 fails LOUDLY and 3.3.5 fails SILENTLY, and the silent one is why the floor
+    #: moved. Asserting only the 3.3.4 half would now pass on the version that loses mass.
+    assert Version("3.3.5") not in spec, (
+        f"ensembles/chrome_box admits views-pipeline-core 3.3.5 ({spec}). It runs to "
+        "completion and silently drops 2.9-7.3% of the fatality mass, because it does not "
+        "floor views-frames at 3.0.0 (views-frames#283, #659/#663). Unlike 3.3.4 this one "
+        "leaves no trace in the run."
+    )
+    assert Version("3.4.0") in spec, (
+        f"ensembles/chrome_box no longer admits views-pipeline-core 3.4.0 ({spec}), the "
+        "first release carrying the views-frames>=3.0.0 floor that fixes the reconciler. A "
+        "floor that excludes every version carrying the fix refuses the broken ones for free "
+        "and installs nothing."
     )
 
 def test_no_dependency_is_declared_without_an_upper_bound():
@@ -461,8 +483,23 @@ def test_a_package_is_declared_the_same_way_everywhere():
     EXPECTED_DIVERGENCE: dict[str, dict[str, str]] = {
         "views-pipeline-core": {
             "<4.0.0,>=3.2.0": "every source: configs/config_maturity.py needs >=3.2.0 (#594)",
-            "<4.0.0,>=3.3.5": "ensembles/chrome_box only: reads chrome_crate's PF cm "
-                              "forecast through load_cm_frame (pipeline-core#562)",
+            "<4.0.0,>=3.4.0": "ensembles/chrome_box only: the only source that reconciles, "
+                              "so the only one needing the views-frames>=3.0.0 floor that "
+                              "3.4.0 carries (views-frames#283, #663)",
+        },
+        #: Raised on the eight chrome_box members only, 2026-11-02. views-baseline 1.0.2
+        #: declares `views-frames<2`, which makes views-frames 3.x UNREACHABLE for anything
+        #: sharing the environment — a cap refuses, it does not merely prefer. 1.0.3 widened
+        #: it to `<4`. The nesting argument above applies unchanged: same ceiling, one floor
+        #: strictly higher, and pip does not downgrade to satisfy a floor already met, so
+        #: neither run order loses. The eight `*_condor` members stay at >=1.0.2 because they
+        #: install into a different prefix (envs/views-baseline) and do not reconcile —
+        #: claiming a requirement they do not have is the false precision this file argues
+        #: against elsewhere.
+        "views-baseline": {
+            "<2.0.0,>=1.0.2": "every other source: does not reconcile, so no frames floor",
+            "<2.0.0,>=1.0.3": "the eight models/*_sparrow (chrome_box's members): 1.0.2's "
+                              "`views-frames<2` cap would block the fixed reconciler",
         },
     }
 
