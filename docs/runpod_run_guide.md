@@ -633,6 +633,143 @@ tell you the field stopped looking like conflict.
 -user "$USER" -exec rm -rf {} +`. On 0.2.4 the scratch frees itself at interpreter exit, so this
 is a backstop for a process that was killed — not routine housekeeping.
 
+## Phase 4d — The CRAF'd chain (`chrome_crate` → `chrome_box`)
+
+A different chain again, and until 2026-11-02 the only one this guide did not describe —
+which is how an operator ended up being handed improvised commands instead of a procedure.
+Epic #595, story #640. Two scripts, run in order, **on one pod and one filesystem**.
+
+⛔ **It is two scripts and not one on purpose.** `chrome_box` declares
+`reconcile_with: "chrome_crate"` and reads that forecast from local disk. Phase 2 run without
+phase 1 pools for minutes and then dies at reconcile — *after* three hours of paid member
+training. Phase 2's preflight refuses that case in seconds instead.
+
+| | phase 1 | phase 2 |
+|---|---|---|
+| script | `tools/podrun/pod_run_crafd_chain.sh` | `tools/podrun/pod_run_chrome_box.sh` |
+| ensemble | `chrome_crate` (country-month) | `chrome_box` (pgm, reconciles to phase 1) |
+| members | the eight `*_condor` | the eight `*_sparrow` |
+| RAM floor | 16 GB | **80 GB** |
+| disk floor | 25 GB | 60 GB (DERIVED) |
+| wall clock | **7 min**, whole phase | **~3 h 10 m** (184 min members + 4.4 min pool/reconcile) |
+| installs | yes, builds the venv | **nothing** — inherits phase 1's |
+
+Every figure above is measured on the 2026-10-28 run, not derived.
+
+### Rent for phase 2, not phase 1
+
+**Take the 87 GiB class.** `chrome_box`'s pool was measured at **≥ 68.2 GiB** cgroup anon
+through pool *and* reconcile, on a run that completed — so the 57 GiB class sits at 120% and
+does not fit. Phase 1's floor of 16 is honest for phase 1 and must not be used to size the box:
+a cm floor against a pgm peak rents a machine that dies after the training is paid for. The
+authoritative figure, with its lower-bound caveat, is in
+`ensembles/chrome_box/configs/config_hyperparameters.py`, pinned by
+`tests/test_chrome_box_memory_is_the_measured_peak.py`.
+
+⚠️ Ground rule 1 still applies and is now load-bearing rather than advisory: rank by RAM.
+
+### Its own virtualenv, and why `/workspace/venv` is the wrong path
+
+```
+VENV=$ROOT/venv-crafd        # both chain scripts
+VENV=$ROOT/venv              # pod_run_model.sh, FAO, darts
+```
+
+The chain deliberately does **not** share `$ROOT/venv`. The other three scripts all use it, so
+on a shared pod its contents are whatever ran last — the uv-lane twin of register **C-116**
+(one environment, several engines, last writer wins). ⛔ So `rm -rf /workspace/venv` does
+nothing for this chain. There is normally nothing to remove at all: Phase 6 terminates the pod,
+so every chain run starts on a fresh image.
+
+### Run it
+
+```bash
+cd /workspace/views-models
+bash tools/podrun/pod_run_crafd_chain.sh --preflight     # seconds; reports EVERY problem
+nohup setsid bash tools/podrun/pod_run_crafd_chain.sh \
+    > /workspace/crafd_chain.out 2>&1 < /dev/null &
+```
+
+Then, only once phase 1's `STATUS` reads `OK`:
+
+```bash
+bash tools/podrun/pod_run_chrome_box.sh --preflight
+nohup setsid bash tools/podrun/pod_run_chrome_box.sh \
+    > /workspace/chrome_box.out 2>&1 < /dev/null &
+```
+
+`setsid` for the same reason as Phase 4: the run must survive your SSH session closing.
+
+**Rehearsing off-pod.** Both scripts take `PODRUN_ROOT`, so the preflight can be exercised on a
+laptop without `/workspace`:
+`PODRUN_ROOT=/tmp/ws bash tools/podrun/pod_run_chrome_box.sh --preflight`. It will refuse on the
+RAM floor, which is the correct answer there.
+
+### The version asserts, and the one that matters
+
+Both scripts declare `PC_FLOOR=3.4.0` **and** `FRAMES_FLOOR=3.0.0`, and assert both against the
+**installed** distribution in `verify_install` — not against the constraint that was requested.
+
+⛔ **views-frames is the version that decides whether the forecast is whole, and it is asserted
+in its own right rather than inferred from the pipeline-core floor that pulls it in.** Below
+views-frames 3.0.0 the reconciler spreads a country's total only over cells that are already
+non-zero, so a country whose grid is all-zero in a draw loses its entire mass **silently**. That
+is not hypothetical: the 2026-10-30 delivery reported `STATUS: OK` and `scaling_failures: 0`
+while **4.023% / 7.321% / 2.943%** of the fatality mass of `lr_sb_best` / `lr_ns_best` /
+`lr_os_best` was never placed on the grid (views-frames#283, register **C-192**).
+
+⚠️ **The interesting refusal is 3.3.5, not 3.3.4.** 3.3.4 dies loudly at reconcile
+(views-pipeline-core#562). 3.3.5 carries that fix but not the frames floor, so it runs to
+completion, writes a pool, and is short. A guard checking only the 3.3.4 case would pass on the
+version that loses mass.
+
+**Where the asserts earn their place:** phase 2 installs nothing and inherits phase 1's venv, and
+phase 1's install block is guarded by `[ ! -d "$VENV" ]`. So within one pod — a re-run after a
+late failure, which is exactly what happened three times on 2026-10-28 — the resolve does not
+happen again. On a genuinely fresh pod the resolve already picks views-frames 3.0.0 unaided.
+
+### What comes home
+
+`/workspace/deliver/chrome_crate/` and `/workspace/deliver/chrome_box/`:
+
+| | |
+|---|---|
+| `parquet/` | the pooled, reconciled forecast — **this is the product** |
+| `members/` | phase 2 only: the eight trained `.pkl` and their offline `wandb` |
+| `FREEZE` | every installed package and version |
+| `MANIFEST` | including `pipeline_core:`, **`views_frames:`**, `reconciled:`, `residual:`, `peak_history:`, `pool:` |
+| `STATUS` | `OK`, or `FAILED:<stage>` |
+
+⛔ **Phase 2 copies the pool, not the members' raw predictions, and that is deliberate** —
+8 members × 2,330,712 rows × 128 draws × 3 targets × 4 B is **26.7 GiB** of pure duplication.
+The members stay in the pod's clone, which is where a re-run reads them.
+
+From your laptop, per the convention already on disk:
+
+```bash
+rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
+    root@<ip>:/workspace/deliver/chrome_box/ \
+    ensembles/chrome_box/data/generated/pod_delivery_<date>/
+```
+
+### Verification before teardown
+
+1. both `STATUS` files read `OK`;
+2. `MANIFEST` records **3** reconciled targets and a `views_frames:` of 3.x;
+3. `reconciliation_residual` is a stage of phase 2, fatal on a *scaling failure* (non-zero grid,
+   wrong total) and reporting — not fatal — on unplaced mass, because that is a property of the
+   method rather than a fault in the run. Read the figure; do not read `reconciled:` as a
+   statement that country totals are met (**C-145**, **C-192**).
+
+⚠️ **Never pass `-t` to either ensemble.** Both run `main.py -r forecasting -f -sa`. With `-t`
+the manager calls `_train_model_artifact`, which shells out to `models/<m>/run.sh` and re-enters
+the conda lane, where C-151 and the per-model prefixes live (views-models#643, #644).
+
+Neither script uploads anything, installs an Appwrite path, or reads a publish variable —
+Ground rule 5.
+
+---
+
 ## Phase 6 — Teardown
 
 Confirm `STATUS` is `OK` and the files are on your laptop, then **terminate** the pod — not stop
