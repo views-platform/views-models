@@ -592,3 +592,68 @@ def test_only_a_finished_run_writes_OK_to_status(script):
         "STATUS is set to OK before the last run invocation, so a failure after that point "
         "would leave a run reporting success."
     )
+
+def test_the_resolved_views_frames_version_is_asserted_and_not_merely_printed(script):
+    """⛔ views-frames, not pipeline-core, is what decides whether the forecast is WHOLE.
+
+    `PC_FLOOR` is a proxy. 3.4.0 happens to carry `views-frames>=3.0.0` today, so asserting
+    the proxy usually gets the right answer — and "usually, by a side effect" is exactly the
+    shape this repository keeps being bitten by (C-116, #594, #635: a satisfied range is not
+    a current install). The reconciliation fix is in views-frames.
+
+    **And the failure it guards is the silent one.** 3.3.4 dies loudly at reconcile. 3.3.5
+    runs to completion, writes a pool, reports `STATUS: OK` and `scaling_failures: 0`, and is
+    SHORT: measured 4.023% / 7.321% / 2.943% of the fatality mass of lr_sb_best / lr_ns_best /
+    lr_os_best on the 2026-10-30 delivery (views-frames#283, #659/#663). Nothing in the run
+    said so, which is why the version is read off the installed distribution rather than
+    trusted to a resolve that is never re-run on a surviving venv.
+
+    ⚠️ Until views-datafactory 1.17.0 (2026-11-02) this floor was UNSATISFIABLE — every
+    release 1.9.0..1.16.0 capped `views-frames<2` as a base dependency
+    (views-datafactory#527). So a past reader finding no such assert was not looking at an
+    oversight.
+
+    Three properties, each failing independently, and the third is the one that matters:
+    reading the version and then only printing it is the defect #595's own falsify audit
+    found in the pipeline-core half (the measurement taken and not used).
+    """
+    assert "FRAMES_FLOOR=" in script, (
+        "the views-frames floor is no longer declared as a single variable, so the assert "
+        "and the message an operator reads can disagree — the same way two copies of "
+        "PC_FLOOR kept this lane on 3.2.0 after the repository moved."
+    )
+    floor = next(
+        (ln.split("=", 1)[1].strip()
+         for ln in script.splitlines() if ln.startswith("FRAMES_FLOOR=")),
+        None,
+    )
+    assert floor and tuple(int(n) for n in floor.split(".")[:3]) >= (3, 0, 0), (
+        f"FRAMES_FLOOR is {floor!r}; it must be at least 3.0.0, the release that fixed the "
+        f"reconciler. Below it a country whose grid is all-zero in a draw silently loses its "
+        f"entire mass (views-frames#283)."
+    )
+
+    #: ⛔ Read the STRUCTURE, not the vocabulary. A guard asserting that the string
+    #: "views-frames" appears is satisfied by the comment explaining why it matters — this
+    #: file is densely commented and that is C-189's exact signature. So locate the line that
+    #: reads the INSTALLED version and require the next non-blank line to gate on it.
+    lines = script.splitlines()
+    reads = [i for i, ln in enumerate(lines)
+             if re.search(r'm\.version\(\s*["\']views-frames["\']\s*\)', ln)
+             and "sys.exit" in ln]
+    assert reads, (
+        "no line both reads the INSTALLED views-frames version through importlib.metadata "
+        "and exits on the comparison. Printing the version is not asserting it, and that "
+        "precise defect — the measurement taken and then only echoed — is what the "
+        "pipeline-core assert was added to fix."
+    )
+    gated = False
+    for i in reads:
+        tail = "\n".join(lines[i : i + 3])
+        if "|| die" in tail and "$FRAMES_FLOOR" in tail:
+            gated = True
+    assert gated, (
+        "the installed views-frames version is compared, but the comparison does not reach a "
+        "`|| die` against $FRAMES_FLOOR within two lines. A check whose failure does not stop "
+        "the run is a print statement."
+    )
