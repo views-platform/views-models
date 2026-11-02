@@ -173,7 +173,32 @@ def main(argv: list[str] | None = None) -> int:
         "--publish", action="store_true",
         help="actually upload. Without it nothing is sent and no store is constructed.",
     )
+    ap.add_argument(
+        "--targets", default=None,
+        help=(
+            "comma-separated subset to publish, for RESUMING after a failed leg. Default: "
+            "all three. ⛔ Only use it to resume: see the note in main()."
+        ),
+    )
     args = ap.parse_args(argv)
+
+    # ⛔ RESUME, NOT SELECTION. The manifest is uploaded LAST per (run, target) and is the
+    # commit marker — consumers must ignore unmanifested shards (ADR-013 §3.2) — so a target
+    # whose leg died is invisible rather than partial, and re-publishing it is safe. A target
+    # that COMMITTED is a different matter: `_upload` has no skip-if-exists, so re-running it
+    # re-uploads 36 shards for no reason. Hence resuming names the remaining targets instead
+    # of redoing the lot.
+    #
+    # ⚠️ What this does NOT relax: `refuse_a_partial_pool` below still requires ALL THREE
+    # target directories to exist on disk, and the draw-count agreement is still checked
+    # across all three. The subset governs what is UPLOADED, never what is verified — a
+    # narrowed check is how a short delivery passes (ADR-025).
+    selected = TARGETS
+    if args.targets:
+        selected = tuple(t.strip() for t in args.targets.split(",") if t.strip())
+        unknown = [t for t in selected if t not in TARGETS]
+        if unknown:
+            raise Refuse(f"unknown target(s) {unknown}; known: {list(TARGETS)}")
 
     pool = args.pool.resolve()
     if not pool.is_dir():
@@ -220,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     # Only now is a credential touched. `from_environment()` fails loud and names the missing
     # variable; nothing here re-implements that check or defaults around it.
     from views_pipeline_core.configs.prediction_store import PredictionStoreConfig
-    from views_pipeline_core.data.model_path import EnsemblePathManager
+    from views_pipeline_core.managers.ensemble import EnsemblePathManager
     from views_pipeline_core.managers.ensemble.sampled_forecast_publisher import (
         publish_sampled_forecast,
     )
@@ -232,7 +257,10 @@ def main(argv: list[str] | None = None) -> int:
         appwrite_file_manager_config=config.to_appwrite_config(path_manager)
     )
 
-    for target in TARGETS:
+    if selected != TARGETS:
+        print(f"\n⚠️  RESUMING — uploading only {list(selected)}; "
+              f"{[t for t in TARGETS if t not in selected]} already committed or skipped.")
+    for target in selected:
         print(f"\npublishing {target} …")
         manifest = publish_sampled_forecast(
             datastore,
@@ -245,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"  manifest: {manifest}")
 
-    print(f"\nAll {len(TARGETS)} targets published under run_id {run_id}.")
+    print(f"\n{len(selected)} of {len(TARGETS)} targets published under run_id {run_id}.")
     print("Read it back from the shelf by that run_id before trusting it.")
     return 0
 
