@@ -254,7 +254,28 @@ done
 # The pipeline-core floor, stated ONCE and used twice: by the install set and by the
 # resolved-version assert in `verify_install`. Two copies of a floor is how a lane keeps a
 # version the rest of the repository has already moved past.
-PC_FLOOR=3.3.5
+#
+# 3.4.0 since 2026-11-02, and the reason is the FRAMES floor below, not pipeline-core itself:
+# 3.4.0 is the first release carrying its own `views-frames>=3.0.0` floor, which is what drags
+# the fixed reconciler into this lane. Below it the lane ran the reconciler that silently
+# dropped 2.9-7.3% of the fatality mass (views-frames#283, views-models#659/#663).
+PC_FLOOR=3.4.0
+
+# ⛔ THE VERSION THAT ACTUALLY MATTERS, AND THE REASON IT IS ASSERTED SEPARATELY.
+# `PC_FLOOR` is a proxy: it is the floor that *pulls* views-frames 3.x in. Asserting the
+# proxy is not asserting what arrived -- which is this repository's own recurring defect
+# (C-116, #594, #635: a satisfied range is not a current install). The reconciliation fix
+# lives in views-frames, so this is the number that decides whether the delivered forecast
+# is whole.
+#
+# The failure it guards is SILENT, and it was measured, not predicted. On 2026-10-30 this
+# chain completed with `STATUS: OK` and `scaling_failures: 0` while 4.023% / 7.321% / 2.943%
+# of the fatality mass of lr_sb_best / lr_ns_best / lr_os_best was never placed on the grid.
+# Nothing in the run said so. Until views-datafactory 1.17.0 (2026-11-02) no resolve of this
+# set COULD reach frames 3.x -- datafactory capped it `<2` in every release 1.9.0..1.16.0
+# (views-datafactory#527), which is why the old floors were not merely lax but unsatisfiable
+# if raised.
+FRAMES_FLOOR=3.0.0
 
 # ⛔ TRAP, WRITTEN DOWN BEFORE THE EDIT THAT SPRINGS IT. `MEM_FLOOR_GB` below is a
 # SINGLE number for a script that runs ONE phase. The moment someone adds the `*_sparrow`
@@ -351,7 +372,7 @@ if [ ! -d "$VENV" ]; then
     uv pip install --python "$VENV/bin/python" \
         "views-baseline>=1.0.2,<2.0.0" \
         "views-pipeline-core>=$PC_FLOOR,<4.0.0" \
-        "views-datafactory>=1.13.0,<2.0.0" || die "pip install failed"
+        "views-datafactory>=1.17.0,<2.0.0" || die "pip install failed"
     # register C-151: viewser pins toolz<0.12, which cannot import tlz submodules on Python
     # 3.11 and breaks EVERY datafactory fetch. Override after resolution.
     #
@@ -405,7 +426,10 @@ PC_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.vers
 # verifying that a constraint PERMITS a version is not verifying the version is INSTALLED.
 "$VENV/bin/python" -c 'import re,sys,importlib.metadata as m; t=lambda v: tuple(int(n) for n in re.findall(r"\d+", v)[:3]); sys.exit(0 if t(m.version("views-pipeline-core")) >= t(sys.argv[1]) else 1)' "$PC_FLOOR" \
   || die "views-pipeline-core $PC_VERSION is below the $PC_FLOOR floor this chain needs. A venv that already exists is never re-resolved (the install block is guarded by [ ! -d \$VENV ]) and phase2_pgm.sh installs nothing, so an old workspace keeps an old version. Remedy: rm -rf $VENV and re-run. Below 3.3.5, load_cm_frame cannot read a PredictionFrame cm forecast, so phase 2 dies at reconcile AFTER the member training is paid for (views-pipeline-core#562)."
-echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), tlz importable, engine present"
+FRAMES_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("views-frames"))' 2>/dev/null)
+"$VENV/bin/python" -c 'import re,sys,importlib.metadata as m; t=lambda v: tuple(int(n) for n in re.findall(r"\d+", v)[:3]); sys.exit(0 if t(m.version("views-frames")) >= t(sys.argv[1]) else 1)' "$FRAMES_FLOOR" \
+  || die "views-frames ${FRAMES_VERSION:-absent} is below the $FRAMES_FLOOR floor this chain needs, and THIS is the version that decides whether the forecast is whole. Below 3.0.0 the reconciler places country mass only where the grid is already non-zero, so a country whose grid is all-zero in a draw loses its entire mass with no error: measured 4.023% / 7.321% / 2.943% of lr_sb_best / lr_ns_best / lr_os_best on 2026-10-30, with STATUS: OK and scaling_failures: 0 (views-frames#283). Remedy: rm -rf $VENV and re-run, which re-resolves. If it still resolves below 3.0.0, check views-datafactory is >= 1.17.0 -- every release up to 1.16.0 capped views-frames <2 and made this floor unreachable (views-datafactory#527)."
+echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), views-frames $FRAMES_VERSION (>= $FRAMES_FLOOR), tlz importable, engine present"
 
 # W&B offline for the whole chain. The ensemble manager opens a W&B run before any member
 # trains (pipeline-core managers/ensemble/prediction_frame_ensemble.py:413), so without this a

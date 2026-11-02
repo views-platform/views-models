@@ -111,7 +111,25 @@ LOG=$OUT/run.log
 # is to read the installed version. Below 3.3.5, `load_cm_frame` cannot read a PredictionFrame
 # cm forecast and the reconcile dies after the members are paid for
 # (views-platform/views-pipeline-core#562, published 2026-10-29).
-PC_FLOOR=3.3.5
+#
+# 3.4.0 since 2026-11-02: that is the first release carrying its own `views-frames>=3.0.0`
+# floor, which is what drags the fixed reconciler in. See `FRAMES_FLOOR` below -- on this
+# script, which installs nothing, both numbers are claims about what phase 1 left on disk.
+PC_FLOOR=3.4.0
+
+# ⛔ THE VERSION THAT ACTUALLY MATTERS ON THIS PHASE, because this phase is the one that
+# reconciles. `PC_FLOOR` is a proxy for it; asserting a proxy is not asserting what arrived
+# (C-116, #594, #635). The reconciliation fix is in views-frames, and the failure it guards
+# is SILENT: on 2026-10-30 this phase reported `STATUS: OK` and `scaling_failures: 0` while
+# 4.023% / 7.321% / 2.943% of the fatality mass of lr_sb_best / lr_ns_best / lr_os_best was
+# never placed on the grid (views-frames#283, views-models#659/#663). Below 3.0.0 the
+# reconciler spreads a country's total only over cells already non-zero, so a country whose
+# grid is all-zero in a draw silently loses its entire mass.
+#
+# ⚠️ A reused venv is NEVER re-resolved, so this phase can inherit an old frames from a
+# workspace built before 2026-11-02 and deliver a short forecast that looks complete. That
+# is the whole reason this is read off the installed distribution rather than trusted.
+FRAMES_FLOOR=3.0.0
 
 # MEASURED 2026-10-28: >= 68.2 GiB cgroup anon through pool and reconcile, on a run that
 # completed, against a 53.86 GiB frame-arithmetic floor. The authoritative figure, with its
@@ -306,7 +324,10 @@ PC_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.vers
 # PERMITS 3.3.5 is not verifying that 3.3.5 is INSTALLED.
 "$VENV/bin/python" -c 'import re,sys,importlib.metadata as m; t=lambda v: tuple(int(n) for n in re.findall(r"\d+", v)[:3]); sys.exit(0 if t(m.version("views-pipeline-core")) >= t(sys.argv[1]) else 1)' "$PC_FLOOR" \
   || die "views-pipeline-core $PC_VERSION is below the $PC_FLOOR this phase needs. Below 3.3.5, load_cm_frame cannot read a PredictionFrame cm forecast, so the reconcile dies AFTER ~3h of paid member training (views-pipeline-core#562, published 2026-10-29). Remedy: rm -rf $VENV and re-run pod_run_crafd_chain.sh, which re-resolves."
-echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), tlz importable, engine present"
+FRAMES_VERSION=$("$VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("views-frames"))' 2>/dev/null)
+"$VENV/bin/python" -c 'import re,sys,importlib.metadata as m; t=lambda v: tuple(int(n) for n in re.findall(r"\d+", v)[:3]); sys.exit(0 if t(m.version("views-frames")) >= t(sys.argv[1]) else 1)' "$FRAMES_FLOOR" \
+  || die "views-frames ${FRAMES_VERSION:-absent} is below the $FRAMES_FLOOR floor, and this is the phase that reconciles -- so running on it delivers a forecast that is SHORT and says it is OK. Measured on 2026-10-30: 4.023% / 7.321% / 2.943% of the fatality mass of lr_sb_best / lr_ns_best / lr_os_best never placed, with STATUS: OK and scaling_failures: 0 (views-frames#283). This script installs nothing, so the remedy is phase 1: rm -rf $VENV and re-run pod_run_crafd_chain.sh, which re-resolves. If that still lands below 3.0.0, check views-datafactory is >= 1.17.0 (views-datafactory#527)."
+echo "  views-pipeline-core $PC_VERSION (>= $PC_FLOOR), views-frames $FRAMES_VERSION (>= $FRAMES_FLOOR), tlz importable, engine present"
 
 # ── memory sampler ────────────────────────────────────────────────────────────────────
 # TWO series, because they differ by 5x and only one of them is the requirement.
@@ -595,6 +616,10 @@ stage manifest
   echo "artefacts:     $(find "$OUT/members" -name '*.pkl' 2>/dev/null | wc -l) trained member artefacts + their offline wandb, in members/ ($(du -sh "$OUT/members" 2>/dev/null | cut -f1))"
   echo "packages:      $(wc -l < "$OUT/FREEZE" 2>/dev/null) recorded in FREEZE beside this file — the venv is uv-built and has no pip"
   echo "pipeline_core: $PC_VERSION (floor $PC_FLOOR)"
+  # views-frames is recorded BESIDE pipeline-core because it, not pipeline-core, is what
+  # determines whether the reconciled pool is whole. A delivery whose MANIFEST does not
+  # state it cannot be read later for the one property that matters (views-frames#283).
+  echo "views_frames:  $FRAMES_VERSION (floor $FRAMES_FLOOR) — the reconciler; below 3.0.0 this pool is short and says OK"
   echo "git:           $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)"
   echo "driver:        tools/podrun/pod_run_chrome_box.sh"
   echo "published:     nothing — this runner uploads nothing and holds no publish credential"
