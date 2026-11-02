@@ -112,13 +112,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # difference between replicates would be counted as run-to-run variance in σ̂. The two
 # zero-decay intervention arms took it to 42 and 41 on 2026-10-19 (views-models#568);
 # their requirements.txt files are byte-identical copies of their seed-matched controls'.
+# 41 -> 45 on 2026-11-02: EXP-02's four 300-lesson arms (views-models#685), byte-identical
+# to each other at >=1.9.0. ⚠️ This number counts the FILESYSTEM, so it reads 47 on a working
+# tree that still holds the two untracked `*tinyzero*` experiment dirs. 45 is the fresh-clone
+# truth and the one CI measures; a local run showing 47 is those two dirs, not a regression.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 41 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 45 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 41 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 45 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }
