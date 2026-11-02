@@ -411,3 +411,50 @@ def test_a_refusal_part_way_through_leaves_no_partial_tree(pod):
     # And nothing else was left behind either — no archive, no digest.
     assert not (out / f"{TREE}.tar.zst").exists()
     assert not (out / f"{TREE}.sha256").exists()
+
+
+def test_both_endpoints_must_cover_the_same_grid_cells_not_just_the_same_count(pod):
+    """⛔ Equal row COUNTS at two endpoints is not equal SUPPORT.
+
+    `score_v2_horizons._support_keys` derives support from the (month, unit) keys, so if h1 and
+    h36 hold 64,818 rows over *different* sets of cells the readout still computes — on fewer
+    cells than it claims. The per-endpoint check compares a count against `expected_rows`, and
+    a count is one number per endpoint: it cannot say which cells it counted. That is the
+    aggregate-assertion trap reached from the other direction, so the sets are compared too.
+
+    Raised by the views-hydranet seat 2026-11-02 as an open question about whether the slice is
+    usable rather than merely present. It was a real gap, not a reassurance.
+    """
+    repo, out, source = pod
+    target = source / "origin_0" / "by_sb_best"
+    _write_target(target)
+    ids = np.load(target / "identifiers.npz")
+    time, unit = ids["time"].copy(), ids["unit"].copy()
+    # Same count in every month; the LAST month sits on one different cell.
+    assert unit[-1] == ROWS
+    unit[-1] = ROWS + 99
+    np.savez(target / "identifiers.npz", time=time, unit=unit)
+
+    result = _run(repo, out)
+    assert result.returncode == 1
+    assert "NOT the same grid cells" in result.stderr
+    assert str(ROWS + 99) in result.stderr
+    assert not (out / TREE).exists()
+
+
+def test_a_clean_slice_carries_identical_support_at_both_endpoints(pod):
+    """The positive control for the check above: on a well-formed run it does not fire.
+
+    And it reads the written files rather than trusting the refusal's absence — the question
+    hydranet asked was whether the h36 slice carries the same keys as h1, and the answer has to
+    come from the artefact.
+    """
+    repo, out, _ = pod
+    assert _run(repo, out).returncode == 0
+    d = out / TREE / "origin_0" / "by_sb_best"
+    near = np.load(d / f"identifiers_{NEAR}.npz")
+    far = np.load(d / f"identifiers_{FAR}.npz")
+    np.testing.assert_array_equal(np.sort(near["unit"]), np.sort(far["unit"]))
+    assert set(near["time"].tolist()) == {FIRST_MONTH}
+    assert set(far["time"].tolist()) == {LAST_MONTH}
+    assert sorted(near.files) == sorted(far.files) == ["time", "unit"]

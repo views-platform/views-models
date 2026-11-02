@@ -178,6 +178,7 @@ def slice_one(target_dir: Path, out_dir: Path, expected_rows: int, steps: int) -
     out_dir.mkdir(parents=True, exist_ok=True)
 
     per_endpoint: dict[str, dict] = {}
+    units_at: dict[str, np.ndarray] = {}
     for label, month in endpoints.items():
         mask = time == month
         rows = int(mask.sum())
@@ -200,6 +201,7 @@ def slice_one(target_dir: Path, out_dir: Path, expected_rows: int, steps: int) -
 
         np.save(out_dir / f"y_pred_{label}.npy", y_slice)
         np.savez(out_dir / f"identifiers_{label}.npz", time=time[mask], unit=unit[mask])
+        units_at[label] = np.sort(unit[mask])
 
         per_endpoint[label] = {
             "month": month,
@@ -210,6 +212,32 @@ def slice_one(target_dir: Path, out_dir: Path, expected_rows: int, steps: int) -
             "max": float(y_slice.max()),
             "n_nonfinite": n_nonfinite,
         }
+
+    # ⛔ THE ENDPOINTS MUST CARRY THE SAME SUPPORT, not merely the same NUMBER of rows.
+    # The per-endpoint check above compares a COUNT against `expected_rows`, and two endpoints
+    # can both hold 64,818 rows over different sets of grid cells. Downstream,
+    # `score_v2_horizons._support_keys` derives support from the (month, unit) keys, so a unit
+    # set that differs between endpoints shrinks the support silently — the readout still
+    # computes, on fewer cells than it reports. Raised by the views-hydranet seat 2026-11-02;
+    # the count check genuinely did not cover it.
+    #
+    # This is the aggregate-assertion trap from the other direction: a count is one number per
+    # endpoint and cannot say WHICH cells it counted.
+    if len(units_at) > 1:
+        labels = sorted(units_at)
+        reference = units_at[labels[0]]
+        for label in labels[1:]:
+            if not np.array_equal(reference, units_at[label]):
+                only_ref = np.setdiff1d(reference, units_at[label])
+                only_other = np.setdiff1d(units_at[label], reference)
+                raise Refuse(
+                    f"{target_dir}: {labels[0]} and {label} hold the same number of rows but "
+                    f"NOT the same grid cells — {len(only_ref)} cell(s) only in {labels[0]} "
+                    f"(e.g. {only_ref[:5].tolist()}), {len(only_other)} only in {label} "
+                    f"(e.g. {only_other[:5].tolist()}). Support is derived from the "
+                    f"(month, unit) keys downstream, so this would shrink it without saying "
+                    f"so. A row COUNT cannot see this, which is why it is checked separately."
+                )
 
     # One array sliced two ways cannot legitimately disagree on its draw count; if it does,
     # the mask is selecting across something other than the time axis and both slices are
