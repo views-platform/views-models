@@ -71,7 +71,19 @@ def test_gate_side_teardown_requires_slice_gate_posterior_to_have_run():
     the validation is what would have revealed the bytes were wrong.
 
     The rule: teardown may not be declared safe for a gate-side readout unless
-    `gate_h1.sha256` exists locally and `sha256sum -c` passes against it.
+    `gate_endpoints.sha256` exists locally and `sha256sum -c` passes against it.
+
+    ⚠️ PARTIALLY ADDRESSED 2026-11-02 (#686), and deliberately still xfail. The artefact was
+    renamed from `gate_h1` when the slice gained its h=36 endpoint, and
+    `tools/podrun/pod_run_exp02_arm.sh` now makes the slice structural ON THE POD: it writes
+    `EXP02_STATUS: OK` only if `slice_gate_posterior.py` succeeded and left a digest behind.
+    That closes the half of this stub about the slice being skipped on an EXP-02 arm.
+
+    It does NOT close the stub. What is still missing is the LOCAL half — nothing checks, at
+    the moment a teardown is declared safe, that the archive arrived and verifies against its
+    digest on the laptop. The pod can certify what it produced; it cannot certify what was
+    received. And the arm runner governs EXP-02 only: any other gate-side readout still
+    depends on an operator reading the guide.
     """
     raise NotImplementedError
 
