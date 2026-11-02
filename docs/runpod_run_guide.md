@@ -425,26 +425,49 @@ implied `w`, gate AP — is computed from the gate posterior, which `draws/` doe
 On 2026-10-13 the arm's gate survived only because it was sliced by hand before the pod was
 cleared; `violet_visitor`'s 2026-10-12 control is past recovery.
 
+⭐ **For an EXP-02 arm, do not run this by hand — use the arm runner, which cannot skip it.**
+`tools/podrun/pod_run_exp02_arm.sh <arm>` drives `pod_run_model.sh`, verifies the data pull,
+and then slices the gate, and it writes `EXP02_STATUS: OK` **only if the slice succeeded**
+(#686). That is the point: a rule that lives in this paragraph was not followed on 2026-10-26,
+and a paragraph cannot gate a teardown. It also refuses a box whose core count breaks the
+runner's own `zstd -T0` archive step, and stops an arm that fetched the wrong pull minutes in
+rather than 12.5 hours in.
+
 Run this **on the pod**, after the runner reports `OK` and **before** you rsync:
 
 ```bash
 python3 /workspace/views-models/tools/podrun/slice_gate_posterior.py <model>
 ```
 
-It writes `gate_h1/`, `gate_h1.tar.zst` and `gate_h1.sha256` **into `/workspace/deliver/<model>/`**,
-so the rsync below carries them with everything else and the runner needs no change. It takes
-the h=1 slice — 1/36 of the rows — because the full gate archive measured 1.3 GB (gate draws
-are high-entropy floats and compress 4.8×, not 194× like the zero-heavy `lr_*` draws), and at
-the 43–48 KB/s measured on that link 1.3 GB is **7.7 hours**. The slice came home in minutes
-and is the readout, not a compromise. It refuses rather than writing a partial slice: no
-`by_*` directories, a target missing from an origin, a row count that is not 64,818, a draw
-count that disagrees between targets, a non-finite probability, or an archive whose entry
-count does not match what was written.
+It writes `gate_endpoints/`, `gate_endpoints.tar.zst` and `gate_endpoints.sha256` **into
+`/workspace/deliver/<model>/`**, so the rsync below carries them with everything else and the
+runner needs no change.
+
+It slices **two endpoints, h=1 and h=36** — 1/18 of the rows — because the full gate archive
+measured 1.3 GB (gate draws are high-entropy floats and compress 4.8×, not 194× like the
+zero-heavy `lr_*` draws), and at the 43–48 KB/s measured on that link 1.3 GB is **7.7 hours**.
+The h=1 slice alone came home in minutes.
+
+⚠️ **It was h=1 only until 2026-11-02**, which was right for the composition arm (all of whose
+endpoints were at h=1) and is wrong for EXP-02, which pre-registers both. A gate that is well
+calibrated one month out and has collapsed three years out looks identical in an h=1 readout.
+
+⛔ **h=36 is derived as `first + 35`, never as `time.max()`.** They agree only when the window
+really is 36 contiguous months; on a short or gappy window `time.max()` returns the last month
+present and labels it `h36`, so a pre-registered endpoint would be reported at the wrong
+horizon with nothing downstream able to tell. The window is checked and the slice refuses
+otherwise.
+
+It refuses rather than writing a partial slice: no `by_*` directories, a target missing from an
+origin, a window that is not exactly 36 contiguous months, a row count that is not 64,818, a
+draw count that disagrees between targets or between endpoints, a non-finite probability, or an
+archive whose entry count does not match what was written. A refusal part-way through removes
+what it had already written, so a half-slice never reaches the rsync.
 
 Verify locally after the rsync:
 
 ```bash
-cd models/<model>/data/generated/calibration_delivery_<date>/ && sha256sum -c gate_h1.sha256
+cd models/<model>/data/generated/calibration_delivery_<date>/ && sha256sum -c gate_endpoints.sha256
 ```
 
 ⛔ **`artifact/` is the one that cannot be remade.** HydraNet training is not bit-reproducible
@@ -463,9 +486,12 @@ rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
     models/<model>/data/generated/calibration_delivery_<date>/
 ```
 
-Must transfer **~22 MB** without the gate slice, or **~70 MB** with it — measured end to end
-on 2026-10-12 and 2026-10-13 respectively, of which ~4 MB is `artifact/`, 6.5 MiB the `lr_*`
-archive and ~45 MB `gate_h1.tar.zst`. (It was ~18 MB before the runner collected the artefact.)
+Must transfer **~22 MB** without the gate slice, or **~70 MB** with the h=1 slice — measured
+end to end on 2026-10-12 and 2026-10-13 respectively, of which ~4 MB is `artifact/`, 6.5 MiB
+the `lr_*` archive and ~45 MB the gate archive. (It was ~18 MB before the runner collected the
+artefact.) ⚠️ **Both endpoints have not been measured on a real run yet** — the slice is twice
+the rows, so budget ~115 MB and treat it as a projection, not a figure. The h=1 number above is
+measured; this one is arithmetic.
 If it is trying to move gigabytes, you are copying raw predictions rather than the deliverable
 — check the path.
 
