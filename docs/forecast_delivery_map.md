@@ -166,11 +166,15 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-10-27 on a clean checkout: **114 `candidate`, 3 `retired`, 0 `graduate`** across
-  117 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 155 files in all. Two movements since 2026-10-19, both epic #595: the sixteen members
+  *(Measured 2026-11-02 on a clean checkout: **118 `candidate`, 3 `retired`, 0 `graduate`** across
+  121 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 159 files in all. One movement since 2026-10-27: EXP-02's four 300-lesson arms,
+  `models/{ctlfullzero,upctwofullzero}_{fortytwo,fortythree}` (+4 files, all candidate,
+  views-models#685). Nothing else changed.
+  Previously 2026-10-27: 114 candidate, 3 retired, 0 graduate across 117 config_maturity.py
+  files — 155 in all. Two movements since 2026-10-19, both epic #595: the sixteen members
   (+16 files, all candidate) and then S3's two ensembles, `chrome_box` and `chrome_crate`
-  (+2 files, both candidate). Nothing else changed.
+  (+2 files, both candidate).
   Previously 2026-10-19: 96 candidate, 3 retired, 0 graduate across 99 config_maturity.py files.
   140 source directories exist, so one — `ensembles/test_ensemble` — carries no maturity at all
   (C-130). The 2026-10-19 move is +3: `silver`/`bronze`/`cobalt_kestrel`, the three seed

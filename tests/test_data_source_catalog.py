@@ -79,4 +79,14 @@ def test_the_split_is_what_the_catalog_says():
     # artefact, it was this census going stale and the pin doing exactly its job. The other
     # supposed parked failure, test_the_maturity_distribution_is_what_the_map_says, was the
     # same sixteen taking config_maturity.py from 100 files to 116.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 57, SYNTHETIC: 6}, dict(counts)
+    # 57 -> 61 on 2026-11-02: models/{ctlfullzero,upctwofullzero}_{fortytwo,fortythree},
+    # EXP-02's four 300-lesson arms (views-models#685). Datafactory consumers for the same
+    # reason every kestrel arm is — all four declare `model_name = "violet_visitor"` in
+    # config_queryset.py and inherit its datafactory queryset, measured by the hydranet
+    # session across all six config modules of each arm (24 of 24 loaded).
+    #
+    # ⛔ And it failed again exactly as the paragraph above predicts. These four sat on disk
+    # untracked from 2026-10-28, so this pin was red locally for five days while CI stayed
+    # green — CI only ever sees tracked files. Committing them in #689 moved the failure from
+    # the laptop to CI, which is where it belonged, and this is the update it was asking for.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 61, SYNTHETIC: 6}, dict(counts)

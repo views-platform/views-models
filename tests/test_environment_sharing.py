@@ -249,7 +249,15 @@ def test_environment_sharing_is_recorded_not_discovered():
         # intervention arms (views-models#568). Each varies weight_decay alone against a
         # seed-matched control, so a dependency difference would be a SECOND variable in a
         # one-variable contrast (C-116). requirements.txt byte-identical to the control's.
-        "views-hydranet": 15,
+        # 15 -> 19 on 2026-11-02: models/{ctlfullzero,upctwofullzero}_{fortytwo,fortythree},
+        # EXP-02's four 300-lesson arms (views-models#685). Two architecture arms and their
+        # two seed-matched controls: `upctwofullzero_*` vary `model` alone against
+        # `ctlfullzero_*` of the SAME seed, never across seeds, because P-23 is a within-seed
+        # sign test. A dependency difference between an arm and its control would be a second
+        # variable in a one-variable contrast, and between the two seeds of one family it
+        # would land inside the variance estimate (C-116). requirements.txt is byte-identical
+        # across all four (md5 57be5d42ab81728d801dfcb79bea7780).
+        "views-hydranet": 19,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,
