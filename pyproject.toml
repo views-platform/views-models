@@ -1,4 +1,27 @@
 [tool.pytest.ini_options]
+# ⛔ pytest must not walk generated artefacts. An offline W&B run brought home from a pod
+# contains `logs/debug-core.log` as a symlink into the pod's `/root/.cache/wandb/`. That
+# path does not exist here and `/root` is mode 700, so pytest's `entry.is_file()` raises
+# PermissionError rather than reporting a missing file — 137 collection errors on a bare
+# run, and `Interrupted`, which blocks every commit through `ship-it`. The errors are not
+# test failures and no test has ever lived under any of these directories (checked: the
+# collected set contains no path under `data/` or `wandb/`).
+#
+# `data` covers `models/*/data/`, `ensembles/*/data/` and `postprocessors/*/data/` — raw
+# fetches, pod deliveries and wire staging. `envs` is the per-launcher conda prefixes
+# (ADR-018 §4); pytest does not reach them today but it would on the first prefix that
+# ships a `tests/`. `_s3_worktree` is a second full checkout of this repo.
+norecursedirs = [
+    ".git",
+    ".ruff_cache",
+    "*.egg-info",
+    "__pycache__",
+    "wandb",
+    "data",
+    "envs",
+    "scratchpad",
+    "_s3_worktree",
+]
 markers = [
     "red: adversarial / error-path tests (ADR-005)",
     "beige: convention and structural compliance tests (ADR-005)",
