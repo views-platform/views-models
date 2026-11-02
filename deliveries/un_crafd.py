@@ -76,8 +76,29 @@ no reconciled wire has been produced yet.
     unfiltered `paths[0]` read the alphabetically-last target, failing with a missing
     `pred_<target>` column. So a cm partner of either shape was broken, differently.
   - views-crafdapi#180 — whether a 1,024-draw month serves inside their container is
-    their own open gate. At 1,024 draws a month is ~0.80 GB raw, inside their 4 GiB cap
-    by design, but unverified in the box they run.
+    their own open gate. ⛔ **There are TWO limits and this paragraph used to name only
+    the lower one**, which made the gate sound nearly closed when it is not started:
+
+      * **4 GiB — the per-month assembly guard** (`dataset_service.py:49`,
+        `_DEFAULT_MAX_ASSEMBLED_BYTES`). A month at 1,024 draws is ~0.80 GB raw, ~2.4 GiB
+        with their 3x safety factor, so the run is **not refused**. That much is settled.
+      * **9 GB — the whole server process's memory ceiling** on the box they run
+        (`deployment/views-crafdapi.service`, `MemoryMax=9G`, `MemoryHigh=8G`). Passing
+        the per-month guard says nothing about staying under this, and **this is what
+        #180 exists to measure.**
+
+    ⚠️ The honest state, from the crafdapi session 2026-11-02: **their gate, NOT STARTED,
+    no ETA**, and the risk is unexplained rather than small — their last cold load peaked
+    at **7.3 GB with 128 draws**, and the per-month design does not account for whatever
+    holds that memory. If it scales with the draw count, 1,024 draws does not fit in 9 GB.
+    If it does not, it does. Nobody has measured it.
+
+    ⇒ **This does NOT gate producing the forecast or building the wire.** It gates
+    `intent = live(...)`. Their own guidance is to run in parallel, and the one artefact
+    that would help them is the wire from a DISARMED run on local disk (108 shards +
+    sidecar + manifest) — they read only the wire, so a pool sample in our format does
+    not help. Their remaining items: no route audited for code assuming 128 draws
+    (their register C-364), and server disk (~57 GB needed) unchecked on the box.
 
   - ~~views-models#647~~ — **fixed 2026-10-29.** The GAUL mapping stopped at the
     datafactory store horizon (month 564) while the forecast window ran to 622, so
