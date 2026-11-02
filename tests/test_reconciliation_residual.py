@@ -150,28 +150,53 @@ def test_the_rendered_block_states_the_loss_rather_than_burying_it() -> None:
     assert "scaling_failures total: 0" in block
 
 
-def test_unplaced_mass_is_reported_but_a_scaling_failure_is_fatal(
+def test_what_the_exit_code_says_about_unplaced_mass_depends_on_the_frames_version(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """The exit code is what makes the runner `die`, so it is the loudness that matters.
 
-    Unplaced mass must NOT fail the run: it is a property of multiplicative scaling and
-    a three-hour forecast is still correct everywhere else. A scaling failure MUST fail
-    it. Getting these the wrong way round would either throw away good forecasts or
-    deliver wrong country totals.
+    ⛔ This test asserted `exit 0` on unplaced mass with NO version branch until
+    2026-11-02, and its docstring argued the case: *"unplaced mass must NOT fail the
+    run: it is a property of multiplicative scaling"*. That was true on views-frames < 3
+    and #676 made it false on >= 3, where donor fill means a non-zero residual is a
+    DEFECT rather than the method's limit. #676 fixed `residual.main` and the sibling test
+    in `test_reconciliation_e2e.py` and **missed this one** — so it failed on the pod's
+    stack (`assert 1 == 0`) and passed in CI only because CI resolves frames 2.0.0.
+    Found by crafdapi's round-2 /falsify, views-models#679.
+
+    Both branches are asserted and neither skips, for the same reason as its sibling: the
+    environments disagree (this laptop 1.10.2, CI 2.0.0, the smoke workflow 1.11.0, the pod
+    lane 3.0.0) and a skip would report a pass for the behaviour nobody checked (ADR-025).
     """
     import reconciliation.residual as mod
 
     short = TargetResidual("t", 2, 2, 2, 8, 1, 0, 0.0, 38.0, 7.0)
     broken = TargetResidual("t", 2, 2, 2, 8, 0, 1, 0.9, 38.0, 0.0)
 
-    monkeypatch.setattr(mod, "measure_run", lambda *a, **k: ([short], ["n"]))
-    out = tmp_path / "RESIDUAL"
-    assert main(["--ensemble", "x", "--out", str(out)]) == 0
-    assert "EXCEPT" in out.read_text()
-
+    # A scaling failure is fatal on EVERY version — the reconciler did not do the one
+    # thing it exists for, so the country totals are wrong.
     monkeypatch.setattr(mod, "measure_run", lambda *a, **k: ([broken], ["n"]))
     assert main(["--ensemble", "x"]) == 1
+
+    monkeypatch.setattr(mod, "measure_run", lambda *a, **k: ([short], ["n"]))
+    out = tmp_path / "RESIDUAL"
+
+    # ⛔ Forced rather than read, BOTH ways. Reading the installed version would exercise
+    # only whichever branch this machine happens to select, and the branch that matters is
+    # the one the pod runs and no available environment has.
+    monkeypatch.setattr(mod, "_frames_can_place_unplaced_mass", lambda: True)
+    assert main(["--ensemble", "x", "--out", str(out)]) == 1, (
+        "on a frames stack that CAN place the mass, a non-zero residual means the donor "
+        "fill did not happen — the run must stop (#659, #674)"
+    )
+    assert "EXCEPT" in out.read_text()
+
+    monkeypatch.setattr(mod, "_frames_can_place_unplaced_mass", lambda: False)
+    assert main(["--ensemble", "x", "--out", str(out)]) == 0, (
+        "on frames < 3 the mass genuinely cannot be placed, so it is reported and the "
+        "run continues — failing here would have failed every run forever"
+    )
+    assert "EXCEPT" in out.read_text()
 
 
 # ---------------------------------------------------------------------------

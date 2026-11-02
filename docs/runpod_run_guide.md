@@ -768,16 +768,52 @@ From your laptop, per the convention already on disk:
 rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
     root@<ip>:/workspace/deliver/chrome_box/ \
     ensembles/chrome_box/data/generated/pod_delivery_<date>/
+
+# ⛔ BOTH. chrome_crate is not optional — see below.
+rsync -a -e "ssh -p <port> -i ~/.ssh/id_ed25519" \
+    root@<ip>:/workspace/deliver/chrome_crate/ \
+    ensembles/chrome_crate/data/generated/pod_delivery_<date>/
 ```
+
+⛔ **This section listed only `chrome_box` until 2026-11-02 and then said "terminate"** —
+which loses `chrome_crate` with the pod (views-models#680, crafdapi's round-2 `/falsify`).
+`chrome_crate` is not a by-product:
+
+- it is the forecast `chrome_box` was **reconciled against**, so without it nobody can check
+  the reconciliation off-pod — `reconciliation/residual.py` measures the grid product against
+  the *country* totals, and those totals are in `chrome_crate`;
+- its eight `*_condor` members are 7 minutes of work, but the pool is the only record of what
+  `chrome_box` was actually aligned to on this run;
+- and Phase 6 **terminates** the pod, so there is no second chance.
 
 ### Verification before teardown
 
 1. both `STATUS` files read `OK`;
 2. `MANIFEST` records **3** reconciled targets and a `views_frames:` of 3.x;
-3. `reconciliation_residual` is a stage of phase 2, fatal on a *scaling failure* (non-zero grid,
-   wrong total) and reporting — not fatal — on unplaced mass, because that is a property of the
-   method rather than a fault in the run. Read the figure; do not read `reconciled:` as a
-   statement that country totals are met (**C-145**, **C-192**).
+3. `reconciliation_residual` is a stage of phase 2 and it is **fatal on both** a scaling
+   failure (non-zero grid, wrong total) *and* unplaced mass — the latter only when the
+   installed views-frames can place it, which on the pod lane it can. ⛔ So a `FAILED` from
+   this stage is real: **do not re-run past it.** Below views-frames 3.0.0 unplaced mass is
+   reported and the run continues, because nothing could place it there.
+
+   ⚠️ **This item said the opposite until 2026-11-02**, and the reason is worth knowing: it
+   read *"reporting — not fatal … a property of the method"* and told you not to trust
+   `reconciled:`. Both were true when written and both were made false by PR #676 — which
+   was authored in parallel with this section and merged **before** it, so the guide landed
+   already stale. Found by crafdapi's round-2 `/falsify`, views-models#678.
+
+4. `reconciled:` in the MANIFEST can now be trusted, because it is read from
+   `RECONCILIATION_RESIDUAL` rather than asserted: it says **FULLY** only when unplaced mass
+   is 0 for every target with no scaling failure, **PARTIALLY** when the measured residual is
+   non-zero, and **⛔ UNKNOWN** when the residual file carries neither verdict. The third case
+   is the one to read carefully — it means the check could not be read, not that it passed
+   (**C-145**, **C-192**, ADR-025).
+
+   ✅ **Measured on real data, 2026-11-02:** six months of the 2026-10-30 `lr_ns` pool
+   (388,452 rows × 1,024 draws) through pipeline-core 3.4.0 and views-frames 3.0.0 took
+   unplaced mass from **7.457% to 0.000%** with 0 scaling failures, `residual.main` exited 0,
+   and the script's verdict greps read FULLY. That is the first exercise of the >= 3 path on
+   a real pool.
 
 ⚠️ **Never pass `-t` to either ensemble.** Both run `main.py -r forecasting -f -sa`. With `-t`
 the manager calls `_train_model_artifact`, which shells out to `models/<m>/run.sh` and re-enters
