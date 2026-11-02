@@ -595,9 +595,16 @@ stage manifest
   # not from the exit code, which cannot distinguish "nothing unplaced" from "could not
   # look", and not recomputed here, which would be a second opinion that can disagree.
   if grep -q '^✅ FULLY RECONCILED' "$OUT/RECONCILIATION_RESIDUAL" 2>/dev/null; then
-    echo "reconciled:    against $PARTNER, read from local disk — FULLY. Every country's"
-    echo "               forecast fatalities are on the grid; unplaced mass is 0 for every"
-    echo "               target and no scaling failed. Measured, not assumed — see residual:"
+    # ⛔ "residual" must appear on THIS line, not three lines down.
+    # `tests/test_chrome_box_runner.py::test_the_manifest_cannot_describe_the_pool_as_simply_
+    # reconciled` matches per LINE, and it caught the first version of this branch, which
+    # put "see residual:" on the third echo. The guard was right: a reader scanning the
+    # MANIFEST sees `reconciled:` and must be pointed at the measurement on the same line,
+    # and a multi-word claim split across a wrap is exactly how a check that cannot see its
+    # subject returns a clean verdict (the line-wrap instance in C-189's family).
+    echo "reconciled:    against $PARTNER, read from local disk — FULLY; see residual: below."
+    echo "               Every country's forecast fatalities are on the grid — unplaced mass"
+    echo "               is 0 for every target and no scaling failed. Measured, not assumed."
   elif grep -qE '^⚠️ +UP TO ' "$OUT/RECONCILIATION_RESIDUAL" 2>/dev/null; then
     echo "reconciled:    against $PARTNER, read from local disk — PARTIALLY. See residual:"
   else
