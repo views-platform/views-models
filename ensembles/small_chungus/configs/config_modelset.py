@@ -16,6 +16,14 @@ def get_modelset_config():
             "old_rules",
             "red_hawk",
             "silent_fox",
+            "blazing_meteor",
+            "blue_stranger",
+            "bold_comet",
+            "bright_starship",
+            "heavy_freighter",
+            "pink_pirate",
+            "purple_alien",
+            "violet_visitor"
         ],
     }
     return modelset_config

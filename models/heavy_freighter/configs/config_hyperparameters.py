@@ -27,7 +27,7 @@ def get_hp_config():
     'torch_seed': 46,
     'np_seed': 46,
     'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
-    'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+    'regression_targets': ["lr_ged_sb", "lr_ged_ns", "lr_ged_os"],
     'transformations': {   'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
                            'asinh': [],
                            'identity': []},

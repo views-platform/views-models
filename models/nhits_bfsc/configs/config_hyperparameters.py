@@ -34,7 +34,7 @@ def get_hp_config():
         # Training
         "batch_size": 64,
         "n_epochs": 100,
-        "early_stopping_monitor": "train_loss",
+        "early_stopping_monitor": "val_metrics/MSLE",
         "checkpoint_monitor": "train_loss",
         "checkpoint_mode": "last",
         "early_stopping_patience": 15,
@@ -94,7 +94,7 @@ def get_hp_config():
         "max_pool_1d": False,
         "activation": "ReLU",
         "dropout": 0.0,  # 0.10 → 0.0: tiny model, no overfitting risk
-        "use_reversible_instance_norm": False,
+        "use_reversible_instance_norm": True,
         "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",

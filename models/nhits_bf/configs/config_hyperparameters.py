@@ -36,7 +36,7 @@ def get_hp_config():
         "n_epochs": 100,
         "early_stopping_patience": 4,
         "early_stopping_min_delta": 0.0005,
-        "early_stopping_monitor": "train_loss",
+        "early_stopping_monitor": "val_metrics/MSLE",
         "checkpoint_monitor": "train_loss",
         "checkpoint_mode": "last",
         "force_reset": True,

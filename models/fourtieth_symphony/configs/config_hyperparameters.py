@@ -12,7 +12,7 @@ def get_hp_config():
         "target_transform": "identity",
         'steps': [*range(1, 36 + 1, 1)],
         "time_steps": 36,
-        'submodels_to_train': 20,
+        'submodels_to_train': 50,
         'pred_samples': 10,
         'log_target': False,
         'draw_dist': 'Lognormal',

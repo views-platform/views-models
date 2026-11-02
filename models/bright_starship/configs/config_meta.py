@@ -19,7 +19,7 @@ def get_meta_config():
         # output format
         # ============================================================
 
-        "prediction_format": "prediction_frame",
+        "prediction_format": "dataframe",
         # ============================================================
         # diagnostic settings
         # ============================================================
