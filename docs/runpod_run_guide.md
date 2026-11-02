@@ -144,9 +144,27 @@ you have spent pennies.
 
 ```bash
 apt-get update -qq && apt-get install -y -qq libpq-dev build-essential zstd rsync
+command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh    # see below
 cd /workspace && git clone --depth 1 -b development \
     https://github.com/views-platform/views-models.git
 ```
+
+> ### ⛔ `uv` is assumed by every runner and installed by nothing
+>
+> `pod_run_model.sh`, `pod_run_crafd_chain.sh`, `pod_run_darts_calibration.sh` and
+> `pod_run_fao_delivery.sh` all build their venv with `uv venv` / `uv pip install`. The apt
+> line above does not install it and neither does any script. On an image without `uv` the
+> run dies at `|| die "venv creation failed"` — a message that **names the wrong cause** and
+> sends the next operator looking at Python versions.
+>
+> It has never bitten because the RunPod Pytorch template happens to ship `uv`. That is a
+> property of an image we do not control, which is why the line above checks rather than
+> assumes.
+>
+> **Only `pod_run_crafd_chain.sh`'s preflight checks for it** (added 2026-11-02, pinned by
+> `tests/test_crafd_chain_runner.py`). The darts and FAO preflights do not, and
+> `pod_run_model.sh` is on the never-modify list — so a complete fix is not available and
+> this note is the backstop. Run the `command -v uv` line whichever runner you are using.
 
 > ### ⛔ Do not build the venv by hand if you are going to use `pod_run_model.sh`
 >

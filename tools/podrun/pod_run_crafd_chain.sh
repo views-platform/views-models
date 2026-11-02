@@ -206,6 +206,23 @@ fi
 # ~/.netrc in the runtime user's home, resolved at call time. /root is local disk on purpose:
 # /workspace is a network filesystem that silently ignores chmod, so 600 does not hold there
 # (register C-154, #518).
+# ⛔ `uv` IS ASSUMED BY THIS SCRIPT AND INSTALLED BY NOTHING. Lines 353/372/382 call
+# `uv venv` and `uv pip install`, the guide's Step 2.2 apt line does not include it, and no
+# script in tools/podrun installs it — so on an image without uv this chain dies at
+# `|| die "venv creation failed"`, which names the wrong cause and sends the next operator
+# looking at Python versions. It has never bitten because the RunPod Pytorch template
+# happens to ship uv, which is a property of an image we do not control.
+#
+# Checked here rather than at the call site so it is refused in SECONDS, before a box is
+# paid for, alongside every other MISSING line (ADR-025: an assumption a check cannot see
+# is exactly how a preflight returns a clean verdict on a run that cannot start).
+#
+# ⚠️ The same assumption is unchecked in `pod_run_darts_calibration.sh` and
+# `pod_run_fao_delivery.sh`, and in `pod_run_model.sh` which is on the never-modify list —
+# so a complete fix is not possible from here. Recorded in docs/runpod_run_guide.md Step 2.2
+# so an operator installs it once for whichever script they run.
+command -v uv >/dev/null 2>&1 || note "uv is not on PATH, and this script builds its venv with it (uv venv / uv pip install). Nothing installs uv — not the guide's apt line, not any podrun script. Install it before re-running: curl -LsSf https://astral.sh/uv/install.sh | sh"
+
 [ -s /root/.netrc ] || note "/root/.netrc — the datafactory fetch needs it (guide Step 2.3)"
 if [ -s /root/.netrc ] && [ "$(stat -c %a /root/.netrc 2>/dev/null)" != "600" ]; then
     chmod 600 /root/.netrc
