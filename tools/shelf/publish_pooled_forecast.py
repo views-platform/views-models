@@ -30,11 +30,11 @@ reads, and each one has a prior in this repository's register.
 USAGE
 
     # the default: read, check, report. No credential needed, no store constructed.
-    python -m tools.publish_pooled_forecast \\
+    python -m tools.shelf.publish_pooled_forecast \\
         --pool ensembles/chrome_box/data/generated/pod_delivery_20261102/parquet/predictions_forecasting_20261102_143000
 
     # the real thing, after reading the above
-    python -m tools.publish_pooled_forecast --pool <same> --publish
+    python -m tools.shelf.publish_pooled_forecast --pool <same> --publish
 
 It needs the nine shelf variables (`PredictionStoreConfig.from_environment()` fails loud and
 names the missing one): APPWRITE_ENDPOINT, APPWRITE_DATASTORE_PROJECT_ID,
