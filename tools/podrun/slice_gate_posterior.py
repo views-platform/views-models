@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """Bring the GATE posterior home from a pod, at h=1, in tens of megabytes.
 
-WHY THIS EXISTS. `pod_run_model.sh` archives `-path '*/lr_*'` — the magnitude body — and
-leaves `by_{sb,ns,os}_best`, the gate, on `/workspace` to die with the pod. It then reports
+WHY THIS EXISTS. `pod_run_model.sh` archives `-path '*/lr_*'` — the emitted forecast — and
+leaves `by_{sb,ns,os}_best`, the gate, on `/workspace` to die with the pod.
+
+⛔ `lr_*` IS NOT THE UNGATED MAGNITUDE BODY. This docstring said "the magnitude body" until
+2026-11-02, and it was wrong for every member of the roster. Composition is applied at emit
+time (views-hydranet `utils/config_initializer.py:222`), so under `soft_gate` and
+`threshold_gate` the gate has already been multiplied into the array that is written
+(`utils/hydranet_inference.py:1093`). Only `self_zeroed` writes the family's own draw, and no
+ROSTER member uses it — five are `soft_gate`, three are `threshold_gate`. So `lr_*` is the
+*composed* forecast and `by_*` is the gate that produced it; they are not two halves of one
+posterior, and anyone reasoning about this slice from the old sentence was reasoning about the
+wrong pair of arrays. Caught by the views-hydranet seat 2026-11-01, after the wrong sentence
+had been repeated to Simon as fact. It then reports
 `STATUS: OK`, and its own `N_DRAWS`/`N_ARCHIVED` guard counts only the half it archives, so
 nothing notices (views-models#558, register C-161). On 2026-10-13 that cost the composition
 arm its pre-registered readout; the gate was recovered only because it was sliced by hand on

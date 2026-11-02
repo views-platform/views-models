@@ -20,8 +20,17 @@ model_name = ModelPathManager.get_model_name_from_path(__file__)
 # Zarr over HTTP requires ~/.netrc credentials (see README.md).
 ZARR_URL = DEFAULT_REMOTE.zarr_url
 
-# 13,110 PRIO-GRID cells matching VIEWSER's Africa + Middle East coverage
-REGION = "africa_me_legacy"
+# 64,818 PRIO-GRID land cells (global coverage, excluding water) — runbook #499 Step 1;
+# africa_me_legacy (13,110 cells) until 2026-11-02.
+#
+# ⛔ Why this moved six weeks after the rest of the fleet: `455b9674` put the eight
+# HydraNets on global land on 2026-09-19 and did not touch this model, which is a
+# ConflictologyModel and not one of those eight. The assertion that would have caught it
+# (tests/test_roster_conformance.py::test_global_land_region) is parametrised over
+# ROSTER, which holds only those eight — so no check ever looked here, and the
+# divergence was not failing, it was unobserved (ADR-025). Found 2026-11-02 while
+# answering views-hydranet's ADR-077 scope census.
+REGION = "land"
 
 # Factory name → VIEWSER name (so downstream model code doesn't change)
 FEATURE_RENAME = {
