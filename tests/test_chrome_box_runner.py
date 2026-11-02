@@ -290,7 +290,13 @@ def test_a_member_already_forecast_is_skipped(script: str) -> None:
     #: behaviour. That mutation turned out to be harmless to the skip itself but not to the
     #: MANIFEST, which would then report "0 already present" after skipping eight. Both halves
     #: are pinned below.
-    loop_start = script.index("for M in $MODELS; do")
+    # ⛔ Anchored on the member loop's own body, not on `for M in $MODELS; do` -- which
+    # occurs THREE times and whose first occurrence is the PREFLIGHT loop ~180 lines earlier.
+    # The slice therefore spanned the preflight, which contains its own
+    # `find ... -name 'predictions_forecasting_*'`, so mutating the member skip to a
+    # never-matching glob left this assertion green. That is precisely the mutation this
+    # test's docstring says it was rewritten to catch (`/code-review high` on PR #657).
+    loop_start = script.index("GEN=$REPO/models/$M/data/generated")
     loop_end = script.index("echo \"  members:", loop_start)
     loop = script[loop_start:loop_end]
 
@@ -441,3 +447,484 @@ def test_a_bad_invocation_is_refused_before_anything_is_touched(tmp_path: Path) 
         assert "preflight" not in out.lower() or "usage" in out, (
             f"{argv} got as far as the preflight before being refused:\n{out}"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────
+# The three defects the 2026-10-30 run exposed in this runner's own output.
+# All three were found by reading the MANIFEST the run produced, not by reading the script.
+# ─────────────────────────────────────────────────────────────────────────────────────────
+
+
+def _manifest_echo_lines(script: str) -> list[str]:
+    """The lines the MANIFEST is actually built from — comments excluded, deliberately.
+
+    ⛔ Do not match these properties against the script's prose. This repository keeps a
+    superseded claim in the file that corrected it, so the file holding the fix also holds
+    the defect's vocabulary, and no text matcher can tell them apart (C-189, which cost
+    three failed attempts at the sibling guard). The MANIFEST block is a structure: the
+    `echo` lines between `stage manifest` and the redirect. Read that.
+    """
+    body = script.split("stage manifest", 1)[1].split('} > "$OUT/MANIFEST"', 1)[0]
+    return [
+        ln.strip()
+        for ln in body.splitlines()
+        if ln.strip().startswith("echo ")
+    ]
+
+
+def test_the_memory_sampler_records_anon_and_not_only_memory_current(script: str) -> None:
+    """The sampler must read `anon` from memory.stat, not `memory.current` alone.
+
+    ⛔ Measured live on the 2026-10-30 pod, same cgroup, same second:
+
+        member stage      anon  4,313 MiB   memory.current 22,021 MiB   (5.1x)
+        pool_and_reconcile anon 65,404 MiB  memory.current 89,609 MiB   (1.4x)
+
+    `memory.current` counts reclaimable page cache, which climbs monotonically as the
+    members write 9.5 GB arrays and is not given back until something needs it. At the peak
+    it had pinned against the 87 GiB cgroup limit, so it reports the size of the box rather
+    than the size of the job.
+
+    This matters because `MEM_FLOOR_GB` is derived from this number. Both figures that set
+    it were `memory.current` readings: the 68.2 GiB "lower bound" from 2026-10-28, and the
+    19.8 GiB since withdrawn from `chrome_box/configs/config_hyperparameters.py` — whose own
+    comment names `memory.current` as the instrument that produced it. A sibling file in the
+    same evidence directory, `anon_sampler.sh`, opens with the explanation; this runner was
+    ported from its neighbour and took the wrong one of the two.
+    """
+    sampler = script.split("# ── memory sampler", 1)[1].split("& SAMPLER=", 1)[0]
+    assert "/sys/fs/cgroup/memory.stat" in sampler, (
+        "the sampler does not read memory.stat, so it cannot see `anon` — and "
+        "memory.current alone was 5x the requirement during the member stage"
+    )
+    assert "current=" in sampler, (
+        "drop memory.current and the two series can no longer be compared; both are logged "
+        "on purpose, and the MANIFEST says which one is the requirement"
+    )
+
+    # ⛔ EXECUTE the field extraction; do not look for the string "anon=" in this block.
+    # A first version of this guard did, and a mutation that renamed the printf labels to
+    # `a=`/`f=` SURVIVED it — because `anon=` also occurs in the sampler's own
+    # `${MS:-anon=NA file=NA}` fallback three lines down. Same family as C-189: the text
+    # that documents a format is not the format.
+    cmd = re.search(r"MS=\$\((awk .*?)\)\n", sampler, re.S)
+    assert cmd, "the sampler no longer builds its line with a single awk over memory.stat"
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        stat = Path(d) / "memory.stat"
+        # real field order and names from the 2026-10-30 pod, anon/file at the measured peak
+        # Exact MiB multiples, so the expected string below is arithmetic and not a
+        # rounding coincidence: 65404 and 23833 MiB are the 2026-10-30 peak readings.
+        # `active_anon` is deliberately LARGER than `anon` — an awk keyed on /anon/ rather
+        # than /^anon / would pick it up, and the assertion would show it.
+        stat.write_text(
+            f"anon {65404 * 1048576}\nfile {23833 * 1048576}\nkernel_stack 9879552\n"
+            f"slab 1288490188\nsock 262144\nactive_anon {99999 * 1048576}\n"
+        )
+        out = subprocess.run(
+            ["bash", "-c", cmd.group(1).replace("/sys/fs/cgroup/memory.stat", str(stat))],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+
+    # ⛔ And the case awk DOES reach END for: a readable memory.stat with no `anon `/`file `
+    # line. The first version printed `anon=0MiB file=0MiB` here, which `peak_of` reports as
+    # a measured peak of nothing — the absence that reads as success, in the one instrument
+    # MEM_FLOOR_GB is derived from. (`/code-review high` on PR #657; a mutation removing the
+    # a==""/f=="" test survived the suite until this case was added.)
+    with tempfile.TemporaryDirectory() as d:
+        empty = Path(d) / "memory.stat"
+        empty.write_text("kernel_stack 9879552\nslab 1288490188\nsock 262144\n")
+        na = subprocess.run(
+            ["bash", "-c", cmd.group(1).replace("/sys/fs/cgroup/memory.stat", str(empty))],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    assert na == "anon=NA file=NA", (
+        f"a memory.stat with no anon/file line produced {na!r}. It must be visibly "
+        f"unreadable: a logged zero is indistinguishable from a job that used no memory, "
+        f"and peak_of would report it as a measured peak"
+    )
+
+    # ⛔ Each field separately. A guard written `if (a=="")` alone passes the case above,
+    # because that fixture is missing both — so the fixture, not the code, was doing the
+    # work. One field present and the other absent is the case that separates them.
+    for present, absent in (("anon", "file"), ("file", "anon")):
+        with tempfile.TemporaryDirectory() as d:
+            half = Path(d) / "memory.stat"
+            half.write_text(f"{present} {65404 * 1048576}\nsock 262144\n")
+            got = subprocess.run(
+                ["bash", "-c", cmd.group(1).replace("/sys/fs/cgroup/memory.stat", str(half))],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        assert got == "anon=NA file=NA", (
+            f"memory.stat carrying {present} but not {absent} produced {got!r}. A partially "
+            f"readable cgroup must be NA in both fields, not a real number beside a zero"
+        )
+
+    assert out == "anon=65404MiB file=23833MiB", (
+        f"the sampler emitted {out!r}. It must label the two fields exactly `anon=` and "
+        f"`file=` in MiB, because peak_of() keys on those names and the MANIFEST reports "
+        f"anon as the requirement. `active_anon` must not be picked up instead of `anon`."
+    )
+
+
+def test_the_manifest_never_claims_expected_models_enforces_the_draw_count(script: str) -> None:
+    """`expected_models` is read by nothing at run time, and the MANIFEST must not say it is.
+
+    ⛔ `grep -rn "expected_models"` over installed views-pipeline-core 3.3.5 returns **zero**
+    matches. `expected_samples_per_model` IS enforced (`_assert_expected_sample_count`,
+    `prediction_frame_ensemble.py:153`) and the #160 balance guard rejects constituents whose
+    sample counts differ *from each other* — but neither can see a MISSING constituent. Seven
+    members at 128 draws are mutually balanced and individually correct, so a short pool
+    passes both guards and delivers 896 draws where the config, the epic and the delivery
+    contract all say 1,024.
+
+    The claim was asserted four times before it was measured: in #649's commit message, in
+    register entry C-188, in a test docstring, and in this MANIFEST line — which on
+    2026-10-30 printed it into a real delivery artifact that a UN partner's forecast is built
+    from. `members_pooled:` is the only verification of the count, and it is this script's own.
+
+    Pinned against the MANIFEST's `echo` lines, not its prose, for the reason in
+    `_manifest_echo_lines`.
+    """
+    offenders = [ln for ln in _manifest_echo_lines(script) if "expected_models" in ln]
+    assert not offenders, (
+        "the MANIFEST names `expected_models` as a backstop for the draw count. Nothing "
+        "reads it at run time, so the line promises a guarantee no code provides:\n  "
+        + "\n  ".join(offenders)
+    )
+    # ⛔ Anchored to the start of the echoed string. A substring test SURVIVED deleting
+    # this field, because the `draws:` line above refers to `members_pooled:` by name —
+    # the guard matched the cross-reference that explains the field, not the field.
+    pooled = [ln for ln in _manifest_echo_lines(script)
+              if re.search(r'echo\s+"members_pooled:', ln)]
+    assert pooled, (
+        "the MANIFEST must report members_pooled: — with expected_models enforcing nothing, "
+        "the runner's own pre-pool count is the only check that eight members were pooled"
+    )
+
+
+def test_a_peak_that_could_not_be_read_reports_unreadable_and_not_zero(script: str) -> None:
+    """The peak parsers must refuse when nothing matched, not return `0MiB` (ADR-025).
+
+    Executed against the shipped function rather than asserted about its text, because the
+    failure this guards is an arithmetic one: `awk`'s `m` is unset when no field matches, so
+    `printf "%dMiB", m` yields **`0MiB`** — which prints in the MANIFEST beside the real
+    figures and reads as a measured peak of nothing. An operator sizing the next box from a
+    MANIFEST saying `PEAK anon: 0MiB` is the exact shape of
+    `feedback_absence_is_not_a_pass`, whose seventh instance was recorded the same night.
+
+    Three ways the parser legitimately sees nothing, all tested below: the sampler could not
+    read memory.stat and logged `anon=NA`; the log is from a runner whose format predates the
+    two-series sampler; the log is empty because the run died before the first sample.
+    """
+    body = re.search(r"peak_of\(\)\s*\{(.*?)\n\}", script, re.S)
+    assert body, "peak_of() is gone — the MANIFEST's peak figures are no longer parsed here"
+
+    def run(log: str, key: str, tmp: Path) -> str:
+        f = tmp / "memory.log"
+        f.write_text(log)
+        snippet = f'OUT={tmp}\npeak_of() {{{body.group(1)}\n}}\npeak_of {key}\n'
+        return subprocess.run(
+            ["bash", "-c", snippet], capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        tmp = Path(d)
+        good = (
+            "07:28:00 anon=65404MiB file=23833MiB current=89609MiB pool_and_reconcile\n"
+            "06:06:09 anon=4311MiB file=17533MiB current=22021MiB member:eager_sparrow\n"
+        )
+        assert run(good, "anon", tmp) == "65404MiB", "the parser cannot read a good log"
+        assert run(good, "current", tmp) == "89609MiB"
+
+        for label, log in (
+            ("sampler could not read memory.stat", "07:28:00 anon=NA file=NA current=89609MiB x\n"),
+            ("log predates the two-series sampler", "04:17:17 3190MiB verify_install\n"),
+            ("run died before the first sample", ""),
+        ):
+            assert run(log, "anon", tmp) == "UNREADABLE", (
+                f"{label}: the parser returned a number instead of refusing. A peak of "
+                f"0MiB in the MANIFEST is indistinguishable from a job that used no memory"
+            )
+
+
+def test_the_residual_check_runs_unconditionally_and_its_failure_is_fatal(script: str) -> None:
+    """The residual measurement may not be skippable, and may not be advisory.
+
+    It exists because the 2026-10-30 delivery lost 2.9%-7.3% of the country forecast's
+    fatalities and reported `reconciled: against chrome_crate` with no qualification. A
+    check that can be skipped would have been skipped on exactly that run.
+
+    ⚠️ **What this guard does NOT prove.** An earlier version claimed the column-0 anchors
+    detected *nesting* — a residual step moved inside `if [ ... ]; then`. They do not:
+    bash ignores indentation, so a nested step can sit at column 0 and a mutation that
+    wrapped it in `if true; then ... fi` SURVIVED this guard. Detecting that needs a shell
+    parser, which is not worth building here. What protects the property instead is the
+    fatality below — a skipped step cannot reach `die`, and `RESIDUAL_LINES` then renders
+    the MANIFEST's refusal line, which `test_the_manifest_cannot_...` pins.
+
+    So this asserts exactly four things, each mutation-proved: the stage exists, the exit
+    code is captured, a non-zero code is fatal, and the module is the one invoked.
+    """
+    assert re.search(r"^stage reconciliation_residual$", script, re.M), (
+        "the residual step is gone, or is no longer a top-level stage"
+    )
+    assert re.search(r"^RESIDUAL_RC=\$\?$", script, re.M), (
+        "the residual's exit code is not captured at the top level — if this moved inside "
+        "a conditional it can be skipped, which is how the finding happened"
+    )
+    assert re.search(r'^\[ "\$RESIDUAL_RC" = 0 \] \|\| die ', script, re.M), (
+        "a non-zero residual exit is not fatal. Non-zero means either the scaling failed "
+        "(country totals wrong) or the residual could not be measured — ADR-025 forbids "
+        "reporting OK in either case"
+    )
+    # ⛔ Anchored to the INVOCATION, not to the module name. A bare
+    # `"-m reconciliation.residual" in script` SURVIVED deleting the real call, because
+    # the `die` message helpfully tells the operator how to re-run the check by hand and
+    # contains the same words. Matching explanatory text instead of mechanism is the
+    # C-189 family and this is its third instance in one evening.
+    invocation = re.search(
+        r'"\$VENV/bin/python" -m reconciliation\.residual', script
+    )
+    assert invocation, (
+        "the runner no longer INVOKES the residual module (the module name may still "
+        "appear in the die message, which is not an invocation)"
+    )
+
+    # Order matters for a reason that is not stylistic: the MANIFEST interpolates
+    # `$RESIDUAL_LINES`, so a residual computed AFTER the manifest block would render an
+    # empty field, and the delivery would again carry no deficit figure.
+    assert (
+        script.index('cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/."')
+        < invocation.start()
+        < script.index('} > "$OUT/MANIFEST"')
+    ), (
+        "the residual must be measured after the pool is copied and before the MANIFEST "
+        "is written; outside that window the MANIFEST's residual field renders empty"
+    )
+
+
+def test_the_manifest_cannot_describe_the_pool_as_simply_reconciled(script: str) -> None:
+    """⛔ The exact line that shipped on 2026-10-30, and what replaced it.
+
+    `reconciled:    against chrome_crate, read from local disk` is a statement about what
+    was *attempted*, in a field every reader takes as a statement about what was
+    *achieved*. The MANIFEST goes to a UN partner. It must carry the measured deficit.
+    """
+    echoes = _manifest_echo_lines(script)
+    unqualified = [
+        ln for ln in echoes
+        if re.search(r'echo\s+"reconciled:', ln) and "residual" not in ln.lower()
+    ]
+    assert not unqualified, (
+        "the MANIFEST states `reconciled:` without pointing at the residual:\n  "
+        + "\n  ".join(unqualified)
+    )
+    assert [ln for ln in echoes if re.search(r'echo\s+"residual:', ln)], (
+        "the MANIFEST carries no `residual:` field, so a reader cannot see how much of "
+        "the country forecast never reached the grid"
+    )
+    assert [ln for ln in echoes if "$RESIDUAL_LINES" in ln], (
+        "the per-target measured figures are not interpolated into the MANIFEST — a "
+        "prose warning without numbers is the thing being fixed, not the fix"
+    )
+
+
+def test_the_trained_member_artefacts_are_collected_and_a_missing_one_is_fatal(script: str) -> None:
+    """⛔ The 2026-10-30 teardown audit found 16 trained models about to die with the box.
+
+    The pool is the product; the member artefacts are the only thing here that cannot be
+    regenerated. `docs/runpod_run_guide.md:429` states it in bold and cites 2026-09-28, when
+    eight models trained, delivered their parquets, reported `OK`, and their weights died
+    with the pods (views-models#549). `pod_run_model.sh:395` has had a `collect_artifact`
+    stage since before this runner existed; this runner had none.
+
+    ⛔ **The first version of this stage was worse than none**, and `test_the_collect_stage_
+    survives_a_resume` below is the executable proof. It keyed staleness on
+    `stat %Y "$PKL" -lt "$START"` — this invocation's clock — while the member loop *skips* a
+    member whose forecast already exists. So on any re-run no new `.pkl` is written, every
+    artefact predates `$START`, all eight land in `MISSING`, and the run dies claiming they
+    are absent while all eight sit on disk — after `rm -rf "$OUT/members"` has already
+    destroyed the previous invocation's collected copies.
+
+    The invariant that does hold, verified across all 8 members of that run:
+    `forecasting_model_<ts>.pkl` and `predictions_forecasting_<ts>` carry the **same**
+    timestamp. Pairing by that is C-188's own exit — key on what only exists on success and
+    compare it to something — and it is true on a resume as well as a first run.
+    """
+    assert re.search(r"^stage collect_members$", script, re.M), (
+        "the member-artefact collection stage is gone — the trained models will die with "
+        "the pod, which is views-models#549 verbatim"
+    )
+    assert re.search(r'PKL=\$REPO/models/\$M/artifacts/forecasting_model_\$TS\.pkl', script), (
+        "the artefact is no longer paired to the forecast by their shared timestamp. Any "
+        "clock-based test fails the resume path this script exists to support"
+    )
+    # ⛔ Both of these assert an ABSENCE, so they must read CODE lines only. The comment in
+    # the script that explains the old defect necessarily quotes `-lt "$START"` and
+    # `rm -rf "$OUT/members"` — and a bare `not in script` therefore fails on the very
+    # documentation of the fix. C-189 in its mirror image: asserting the absence of a word
+    # that the explanation of its absence must contain.
+    code = [ln for ln in script.splitlines() if not ln.lstrip().startswith("#")]
+    offenders = [ln for ln in code if '-lt "$START"' in ln]
+    assert not offenders, (
+        "a mtime-against-$START test is back in the script. The member loop skips a member "
+        "whose forecast exists, so no artefact is newer than $START on a re-run:\n  "
+        + "\n  ".join(offenders)
+    )
+    offenders = [ln for ln in code if 'rm -rf "$OUT/members"' in ln]
+    assert not offenders, (
+        "the collect stage clears $OUT/members again. Nothing irreplaceable may be deleted "
+        "before its replacement has been collected:\n  " + "\n  ".join(offenders)
+    )
+    assert re.search(r'^\[ -z "\$MISSING" \] \|\| die ', script, re.M), (
+        "an unpaired artefact is no longer fatal. A warning in a log is not a signal when "
+        "the next action is destroying the host"
+    )
+    assert re.search(r'cp -r "\$REPO/models/\$M/wandb"', script), (
+        "the offline W&B record is no longer collected. WANDB_MODE=offline is forced, so it "
+        "is written outside $OUT by construction — C-170's second class"
+    )
+    pool_copy = script.index('cp -r "$REPO/ensembles/$ENSEMBLE/data/generated/."')
+    collect = script.index("stage collect_members")
+    manifest = script.index('} > "$OUT/MANIFEST"')
+    assert pool_copy < collect < manifest, (
+        "collect_members must run after the pool is copied (so a failure here loses nothing) "
+        "and before the MANIFEST is written (so the MANIFEST can report what was collected)"
+    )
+
+
+def test_the_collect_stage_survives_a_resume(script: str, tmp_path: Path) -> None:
+    """Executed, not asserted about: the shipped stage run against a resumed tree.
+
+    Every member already has a forecast and an artefact from an EARLIER invocation, which is
+    exactly the state the 2026-10-28 pod was left in and the state this script's own `die`
+    messages invite the operator back into. The stage must collect all of them. The previous
+    version died here, having first deleted the copies it had made last time.
+
+    Four directories per member, including the three `<ts>_lr_*_best` variants, because a
+    naive `sort | tail -1` picks `..._lr_sb_best` and takes the timestamp with it.
+    """
+    block = re.search(
+        r"^stage collect_members$.*?^\[ -z \"\$MISSING\" \] \|\| die [^\n]*$",
+        script, re.S | re.M,
+    )
+    assert block, "could not locate the collect_members stage to execute"
+
+    repo, out = tmp_path / "repo", tmp_path / "out"
+    models = ["ashen_sparrow", "brisk_sparrow"]
+    for m, ts in zip(models, ("20261030_042853", "20261030_045106")):
+        gen = repo / "models" / m / "data" / "generated"
+        for suffix in ("", "_lr_sb_best", "_lr_ns_best", "_lr_os_best"):
+            (gen / f"predictions_forecasting_{ts}{suffix}").mkdir(parents=True)
+        arts = repo / "models" / m / "artifacts"
+        arts.mkdir(parents=True)
+        (arts / f"forecasting_model_{ts}.pkl").write_bytes(b"trained state")
+        (repo / "models" / m / "wandb" / "offline-run-x").mkdir(parents=True)
+    # A previous invocation's collection, which must not be destroyed.
+    (out / "members" / "ashen_sparrow").mkdir(parents=True)
+    (out / "members" / "ashen_sparrow" / "earlier.pkl").write_bytes(b"from last time")
+
+    prelude = (
+        f'REPO={repo}\nOUT={out}\nMODELS="{" ".join(models)}"\n'
+        'START=$(date +%s)\n'          # the clock the old version keyed on: AFTER the files
+        'stage() { :; }\ndie() { echo "DIED: $*"; exit 7; }\n'
+    )
+    r = subprocess.run(["bash", "-c", prelude + block.group(0)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, (
+        f"the collect stage failed on a resumed tree (exit {r.returncode}).\n{r.stdout}{r.stderr}"
+    )
+    for m, ts in zip(models, ("20261030_042853", "20261030_045106")):
+        assert (out / "members" / m / f"forecasting_model_{ts}.pkl").is_file(), (
+            f"{m}'s artefact was not collected on a resume"
+        )
+    assert (out / "members" / "ashen_sparrow" / "earlier.pkl").is_file(), (
+        "the previous invocation's collected artefact was destroyed"
+    )
+
+
+def test_the_collect_stage_refuses_a_forecast_with_no_matching_artefact(
+    script: str, tmp_path: Path
+) -> None:
+    """The real defect the stage exists to catch: a forecast whose trained state is gone.
+
+    A member with `predictions_forecasting_<ts>` but no `forecasting_model_<ts>.pkl` beside
+    it produced a forecast from a model that no longer exists. That cannot be regenerated
+    without re-running the member, so it must be fatal BEFORE the host is destroyed.
+    """
+    block = re.search(
+        r"^stage collect_members$.*?^\[ -z \"\$MISSING\" \] \|\| die [^\n]*$",
+        script, re.S | re.M,
+    )
+    assert block
+    repo, out = tmp_path / "repo", tmp_path / "out"
+    gen = repo / "models" / "ashen_sparrow" / "data" / "generated"
+    (gen / "predictions_forecasting_20261030_042853").mkdir(parents=True)
+    (repo / "models" / "ashen_sparrow" / "artifacts").mkdir(parents=True)
+    prelude = (
+        f'REPO={repo}\nOUT={out}\nMODELS="ashen_sparrow"\nSTART=$(date +%s)\n'
+        'stage() { :; }\ndie() { echo "DIED: $*"; exit 7; }\n'
+    )
+    r = subprocess.run(["bash", "-c", prelude + block.group(0)],
+                       capture_output=True, text=True)
+    assert r.returncode == 7, "a forecast with no paired artefact must be fatal"
+    assert "no-artefact-for-20261030_042853" in r.stdout, (
+        f"the refusal must name the timestamp it could not pair: {r.stdout}"
+    )
+
+
+def test_the_package_set_is_recorded_and_cannot_be_silently_empty(script: str) -> None:
+    """The MANIFEST pins 2 versions; the venv has ~143, and `pip freeze` here returns none.
+
+    ⛔ The venv is uv-built and has no pip, so `pip freeze` writes an **empty file** and
+    exits 0 — the absence that reads as success, which this repository has recorded seven
+    times. `importlib.metadata` is asked instead: the same source the pipeline-core version
+    assert already uses, needing neither pip nor uv.
+
+    Why it is load-bearing rather than tidy: the reconciliation mass deficit this runner
+    measures and reports is a property of a **specific views-frames** (1.11.0 on the
+    2026-10-30 run), so a reproduction that re-resolves it is not a reproduction of anything.
+
+    The `pip freeze` check reads non-comment lines only. The explanatory comment above
+    necessarily contains the phrase it forbids — matching it would be C-189's trap, which
+    this same file already has three instances of.
+    """
+    # ⛔ Anchored to the heredoc that RUNS it, not to the words. `importlib.metadata` also
+    # appears in the explanatory comment above it, so a bare substring test is satisfied by
+    # the explanation while the code that does the work is gone — C-189, instance four.
+    freeze = re.search(
+        r'"\$VENV/bin/python" - > "\$OUT/FREEZE" <<.PYFREEZE.\n(.*?)\nPYFREEZE',
+        script, re.S,
+    )
+    assert freeze, "the FREEZE heredoc is gone, or no longer writes $OUT/FREEZE"
+    assert "importlib.metadata" in freeze.group(1), (
+        "the FREEZE heredoc no longer asks importlib.metadata for the package set"
+    )
+    assert re.search(r'^\[ -s "\$OUT/FREEZE" \] \|\| die ', script, re.M), (
+        "an empty FREEZE is no longer fatal — which is the only failure mode this has, "
+        "since the mechanism exits 0 having written nothing"
+    )
+    # ⛔ A regex, not a substring. `"$VENV/bin/pip" freeze` — the form anyone would actually
+    # write here — does not contain the string "pip freeze", and a substring test SURVIVED a
+    # mutation that added exactly that line. C-189, instance five.
+    executed = [
+        ln for ln in script.splitlines()
+        if re.search(r"""pip["']?\s+freeze""", ln) and not ln.lstrip().startswith("#")
+    ]
+    assert not executed, (
+        "`pip freeze` is executed somewhere. This venv has no pip: it writes an empty file "
+        "and exits 0.\n  " + "\n  ".join(executed)
+    )
+    echoes = _manifest_echo_lines(script)
+    assert [ln for ln in echoes if "$OUT/FREEZE" in ln], (
+        "the MANIFEST does not mention FREEZE, so a reader of the delivery has no pointer "
+        "to the versions it was produced with"
+    )
+    assert [ln for ln in echoes if '"artefacts:' in ln], (
+        "the MANIFEST does not report how many member artefacts were collected"
+    )
