@@ -657,3 +657,38 @@ def test_the_resolved_views_frames_version_is_asserted_and_not_merely_printed(sc
         "`|| die` against $FRAMES_FLOOR within two lines. A check whose failure does not stop "
         "the run is a print statement."
     )
+
+
+def test_the_preflight_checks_for_uv_which_nothing_installs(script):
+    """⛔ `uv` is assumed by this script and installed by nothing — so it must be CHECKED.
+
+    The script builds its venv with `uv venv` and `uv pip install`. The guide's apt line
+    does not install uv, no script in `tools/podrun` installs it, and on an image without it
+    the run dies at `|| die "venv creation failed"` — which names the wrong cause and sends
+    the next operator looking at Python versions.
+
+    It has never fired because the RunPod Pytorch template happens to ship uv. That is a
+    property of an image this project does not control, and an assumption a preflight cannot
+    see is exactly how a preflight returns a clean verdict on a run that cannot start
+    (ADR-025). So the check belongs in the preflight, where it costs seconds and happens
+    before a box is paid for — not at the call site, where it costs the rent.
+
+    Two properties, because the first alone is satisfied by the prose explaining it: this
+    file is densely commented and `uv` appears throughout, so the guard reads the
+    INVOCATION — a `command -v uv` whose failure reaches `note`, which is what sets FAIL=1.
+    """
+    assert "command -v uv" in script, (
+        "the preflight does not test for uv. The script calls `uv venv` and "
+        "`uv pip install`, and nothing in this repository installs uv — so without this "
+        "check an image lacking it fails at venv creation with a misleading message, after "
+        "the box is rented."
+    )
+    invocation = next(
+        (ln for ln in script.splitlines() if ln.strip().startswith("command -v uv")), None
+    )
+    assert invocation is not None, "`command -v uv` appears only inside a comment, not as code"
+    assert "note " in invocation or "note(" in invocation, (
+        f"the uv check does not reach `note`, so it cannot set FAIL and the preflight would "
+        f"report success without uv: {invocation!r}"
+    )
+
