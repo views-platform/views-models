@@ -36,6 +36,7 @@ docstring still points at for the `aligned-draws` approximation: that issue is C
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -337,13 +338,33 @@ def render(results: Iterable[TargetResidual], notes: Iterable[str]) -> str:
             "   is NOT zero. This is not the zero-grid limit — the scaling did not work.",
             "",
         ]
-    lines += [
-        f"⚠️  UP TO {100 * worst:.3f}% OF THE COUNTRY FORECAST'S FATALITIES ARE NOT ON THE",
-        "   GRID. Multiplicative scaling cannot lift a country whose every cell is zero,",
-        "   so that country's fatalities are absent from the grid product. This delivery",
-        "   is reconciled EXCEPT for the mass below, and may not be described otherwise.",
-        "",
-    ]
+    # ⛔ CONDITIONAL, and the reason is that this block was UNCONDITIONAL until 2026-11-02.
+    # It was written for views-frames < 3, where multiplicative scaling genuinely could not
+    # lift an all-zero grid, so "up to X% is not on the grid" was true of every run and
+    # printing it always was honest. views-frames 3.0.0 added donor fill, which drives the
+    # residual to 0 — and an unconditional warning then states a loss that did not happen,
+    # over a measured 0.000%. That is the SAME defect this text was added to fix, with the
+    # sign flipped: a field that reports a fixed verdict rather than the measurement beside
+    # it (register C-192, and the status-fields-lie family). Found by crafdapi's /falsify,
+    # views-models#673.
+    if worst > 0:
+        lines += [
+            f"⚠️  UP TO {100 * worst:.3f}% OF THE COUNTRY FORECAST'S FATALITIES ARE NOT ON THE",
+            "   GRID. Scaling could not place this mass and the donor fill did not place it",
+            "   either, so that country's fatalities are absent from the grid product. This",
+            "   delivery is reconciled EXCEPT for the mass below, and may not be described",
+            "   otherwise.",
+            "",
+        ]
+    elif not failures:
+        lines += [
+            "✅ FULLY RECONCILED. Every country's forecast fatalities are on the grid:",
+            "   unplaced mass is 0 for every target, and no scaling failed. On views-frames",
+            "   >= 3.0.0 a country whose grid is all-zero in a draw is filled from a donor",
+            "   draw of the same country and month, which is why this can now read 0 — on",
+            "   earlier versions it could not (views-frames#283).",
+            "",
+        ]
     lines += [r.line() for r in results]
     lines += ["", f"scaling_failures total: {failures}"]
     if failures:
@@ -352,6 +373,30 @@ def render(results: Iterable[TargetResidual], notes: Iterable[str]) -> str:
             f"{max(r.worst_scaling_error for r in results):.3e}"
         )
     return "\n".join(lines)
+
+
+#: views-frames 3.0.0 is where donor fill landed (views-frames#283). Below it, unplaced mass
+#: is the method's limit; at or above it, unplaced mass is a defect. The whole difference
+#: between "report" and "refuse" turns on this, so it is read off the INSTALLED distribution
+#: rather than inferred from a requirements floor — a satisfied range is not a current
+#: install (C-116, #594, #635).
+FRAMES_DONOR_FILL_FLOOR = (3, 0, 0)
+
+
+def _frames_can_place_unplaced_mass() -> bool:
+    """True if the installed views-frames fills an all-zero grid from a donor draw.
+
+    ⛔ Returns False when the version cannot be read, which is the conservative direction:
+    an unreadable version makes unplaced mass *reported* rather than *fatal*, so this can
+    never turn a short delivery into a silent pass. The opposite default would (ADR-025).
+    """
+    try:
+        import importlib.metadata as md
+
+        parts = tuple(int(n) for n in re.findall(r"\d+", md.version("views-frames"))[:3])
+    except Exception:
+        return False
+    return parts >= FRAMES_DONOR_FILL_FLOOR
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -366,10 +411,41 @@ def main(argv: list[str] | None = None) -> int:
     if args.out:
         args.out.write_text(block + "\n")
 
-    # Unplaced mass is reported, never fatal — it is a property of the method. A scaling
-    # failure IS fatal: it means the reconciler did not do the one thing it exists for,
-    # and a forecast whose country totals are wrong must not be delivered.
-    return 1 if sum(r.scaling_failures for r in results) else 0
+    # A scaling failure is fatal: the reconciler did not do the one thing it exists for.
+    failures = sum(r.scaling_failures for r in results)
+    if failures:
+        return 1
+
+    # ⛔ UNPLACED MASS IS NOW FATAL TOO, AND THE REASON IS A CHANGE OF MEANING, NOT OF
+    # POLICY. Until 2026-11-02 this returned 0 on unplaced mass, with the comment "it is a
+    # property of the method" — which was TRUE on views-frames < 3: multiplicative scaling
+    # cannot lift an all-zero grid, nothing in the lane could place that mass, and failing
+    # the run would have failed every run forever.
+    #
+    # views-frames 3.0.0 added donor fill. On that stack the mass CAN be placed, so unplaced
+    # mass > 0 no longer describes a limit of the method — it says the fill did not happen,
+    # which is a defect. #659's own rule is that a run must stop rather than finish quietly
+    # on a short forecast, and exiting 0 here contradicted it: the 2026-10-30 delivery was
+    # short by 2.9-7.3% and still wrote STATUS: OK. Found by crafdapi's /falsify,
+    # views-models#674.
+    #
+    # Gated on the INSTALLED version rather than assumed, because this module must stay
+    # usable against an older pool: on frames < 3 the old semantics still hold and the mass
+    # is reported, not fatal. A version that cannot be read is treated as "cannot place" —
+    # the conservative direction, and it never turns a short delivery into a pass.
+    unplaced = max((r.unplaced_mass for r in results), default=0.0)
+    if unplaced > 0 and _frames_can_place_unplaced_mass():
+        print(
+            "\n⛔ EXITING NON-ZERO: unplaced mass is not zero on a views-frames stack that\n"
+            "   can place it. On >= 3.0.0 a country whose grid is all-zero in a draw is\n"
+            "   filled from a donor draw of the same country and month, so a non-zero\n"
+            "   residual means that fill did not happen — it is a defect, not the\n"
+            "   method's limit. This forecast is SHORT and must not be delivered or\n"
+            "   described as reconciled (views-models#659, #674; views-frames#283).",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
