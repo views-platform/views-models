@@ -40,6 +40,10 @@ def get_hp_config():
         "checkpoint_monitor": "train_loss",
         "checkpoint_mode": "last",
         "force_reset": True,
+        # Months between consecutive training windows (impact's default is 12, i.e. one window per year, all
+        # starting in January). On disaggregated annual data that lets the net learn a calendar-locked template
+        # shared by every country; 3 breaks the lock and gave ~2x lower yearly MSLE in the synthetic check.
+        "train_stride": 3,
         # Optimizer
         "optimizer_cls": "Adam",
         "lr": 0.0005,
@@ -65,7 +69,7 @@ def get_hp_config():
             "weight_decay": 0.000001,
         },
         # Loss: SpotlightLoss (alpha=0, beta=0 → Huber + temporal gradient Huber)
-        "loss_function": "SpotlightLoss",
+        "loss_function": "SpotlightLossLogcosh",
         "alpha": 0.0,  # no magnitude weighting (GDP is always large in asinh space)
         "beta": 0.0,  # no asymmetry (over/under-prediction equally bad)
         "kappa": 0.0,  # unused when beta=0, but required by constructor
@@ -77,7 +81,10 @@ def get_hp_config():
         "feature_scaler": None,
         "target_scaler": "AsinhTransform", 
         "feature_scaler_map": {
-            "AsinhTransform": [
+            # asinh tames the heavy tail, StandardScaler (fitted on the training window) puts every
+            # covariate on the target's ~unit scale: RevIN normalises only the target, so unscaled
+            # covariates (asinh population is ~14-22) swamp it and the forecasts collapse to one shape.
+            "AsinhTransform->StandardScaler": [
                 "lr_ged_sb",
                 "lr_ged_os",
                 "lr_ged_ns",
