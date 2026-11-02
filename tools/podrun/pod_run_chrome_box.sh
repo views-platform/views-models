@@ -584,10 +584,41 @@ stage manifest
   # local disk" and stop — a statement about what was ATTEMPTED, in a field every reader
   # takes as a statement about what was ACHIEVED. Measured on 2026-10-30: 2.9%-7.3% of the
   # country forecast's fatalities were not on the grid and nothing said so.
-  echo "reconciled:    against $PARTNER, read from local disk — PARTIALLY. See residual:"
-  echo "residual:      country fatalities that could NOT be placed on the grid, because"
-  echo "               multiplicative scaling cannot lift a country whose cells are all"
-  echo "               zero. Full block in RECONCILIATION_RESIDUAL beside this file."
+  # ⛔ CONDITIONAL since 2026-11-02, and the previous version is why. It printed
+  # "— PARTIALLY. See residual:" UNCONDITIONALLY, so a run with a measured residual of
+  # 0.000% recorded itself as partial. That is this same field's old defect with the sign
+  # flipped: it used to assert an achievement it had not measured, and then asserted a loss
+  # it had not measured. Either way the MANIFEST states a verdict instead of the
+  # measurement sitting three lines below it (register C-192, views-models#673).
+  #
+  # The verdict is taken from RECONCILIATION_RESIDUAL, the file the check actually wrote —
+  # not from the exit code, which cannot distinguish "nothing unplaced" from "could not
+  # look", and not recomputed here, which would be a second opinion that can disagree.
+  if grep -q '^✅ FULLY RECONCILED' "$OUT/RECONCILIATION_RESIDUAL" 2>/dev/null; then
+    # ⛔ "residual" must appear on THIS line, not three lines down.
+    # `tests/test_chrome_box_runner.py::test_the_manifest_cannot_describe_the_pool_as_simply_
+    # reconciled` matches per LINE, and it caught the first version of this branch, which
+    # put "see residual:" on the third echo. The guard was right: a reader scanning the
+    # MANIFEST sees `reconciled:` and must be pointed at the measurement on the same line,
+    # and a multi-word claim split across a wrap is exactly how a check that cannot see its
+    # subject returns a clean verdict (the line-wrap instance in C-189's family).
+    echo "reconciled:    against $PARTNER, read from local disk — FULLY; see residual: below."
+    echo "               Every country's forecast fatalities are on the grid — unplaced mass"
+    echo "               is 0 for every target and no scaling failed. Measured, not assumed."
+  elif grep -qE '^⚠️ +UP TO ' "$OUT/RECONCILIATION_RESIDUAL" 2>/dev/null; then
+    echo "reconciled:    against $PARTNER, read from local disk — PARTIALLY. See residual:"
+  else
+    # ⛔ Neither verdict present: the residual file is missing, truncated, or in a format
+    # this script no longer understands. That is UNREADABLE, not OK, and it must not be
+    # reported as either outcome (ADR-025).
+    echo "reconciled:    ⛔ UNKNOWN — RECONCILIATION_RESIDUAL carries neither verdict line,"
+    echo "               so this MANIFEST cannot say whether the pool is whole. Do not"
+    echo "               deliver or describe it until the residual check is re-run."
+  fi
+  echo "residual:      country fatalities that could NOT be placed on the grid. On"
+  echo "               views-frames >= 3.0.0 an all-zero grid is filled from a donor draw,"
+  echo "               so this should read 0; below it, scaling cannot lift an all-zero"
+  echo "               grid. Full block in RECONCILIATION_RESIDUAL beside this file."
   echo "$RESIDUAL_LINES" | sed 's/^/               /'
   echo "finished:      $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # Stated as CONFIGURED, not as observed, and deliberately WITHOUT naming a backstop.

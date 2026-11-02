@@ -5,6 +5,8 @@ reconciles grid forecasts to CM country totals (the conservation invariant) and
 preserves the all-zero-country edge case — i.e. the wiring computes the right thing.
 A real-viewser-geography build is exercised skip-when-unavailable.
 """
+import re
+
 import numpy as np
 import pytest
 
@@ -72,9 +74,35 @@ def test_wired_reconciler_conserves_grid_to_cm_country_totals():
     np.testing.assert_allclose(out[2], [10.0, 12.0], rtol=1e-5)  # country 20
 
 
-def test_all_zero_country_sample_stays_zero():
-    # country 10 grids are all-zero for sample 0 -> stays zero (documented edge case);
-    # sample 1 still conserves to the cm total.
+def _frames_version() -> tuple[int, ...]:
+    """The INSTALLED views-frames version, or (0,) when it cannot be read.
+
+    (0,) selects the pre-3.0.0 branch, which asserts the mass LOSS — so an unreadable
+    version can never make this test claim the fix is present when it is not (ADR-025).
+    """
+    try:
+        import importlib.metadata as md
+
+        return tuple(int(n) for n in re.findall(r"\d+", md.version("views-frames"))[:3])
+    except Exception:
+        return (0,)
+
+
+def test_an_all_zero_country_draw_is_filled_from_a_donor_on_frames_3():
+    """What happens to a country whose grid is all-zero in one draw — by VERSION.
+
+    ⛔ This test ASSERTED THE LOSS until 2026-11-02. It was named
+    `test_all_zero_country_sample_stays_zero` and pinned `out[:, 0] == [0, 0]` as a
+    "documented edge case", which encodes the defect as the expectation. The mass it was
+    content to watch vanish is the same 2.9-7.3% that register C-192 carries at Tier 1 and
+    that views-frames#283 fixed — so on the stack the pod lane now floors, this test fails,
+    and it fails by asserting that the fix did not happen. Found by crafdapi's /falsify,
+    views-models#675.
+
+    ⚠️ Both branches assert, and neither skips. CI resolves views-frames 2.0.0 today while
+    the pod lane floors 3.0.0, so a test that skipped on the version it did not like would
+    report a pass for a behaviour nobody checked — which is the whole of ADR-025.
+    """
     pgm, cm, mk, mv = _frames(
         pg_unit=[100, 101], pg_country=[10, 10],
         pg_vals=[[0.0, 2.0], [0.0, 4.0]],
@@ -82,8 +110,23 @@ def test_all_zero_country_sample_stays_zero():
     )
     reconciler = build_reconciler(480, 480, provider=_FixedProvider(mk, mv))
     out = reconciler.reconcile(cm, pgm).values
-    np.testing.assert_allclose(out[:, 0], [0.0, 0.0])
+
+    # Draw 1's grid is non-zero, so it must conserve on every version.
     np.testing.assert_allclose(out[:, 1].sum(), 12.0, rtol=1e-5)
+
+    if _frames_version() >= (3, 0, 0):
+        # Donor fill: draw 0's all-zero grid takes the pattern of another draw of the same
+        # (country, month), so the country's 5.0 reaches the grid instead of disappearing.
+        np.testing.assert_allclose(out[:, 0].sum(), 5.0, rtol=1e-5)
+        assert (out[:, 0] >= 0).all(), "donor fill must not produce negative cells"
+    else:
+        # Pre-3.0.0: multiplicative scaling cannot lift an all-zero grid, so the mass is
+        # lost. Asserted so the old stack stays covered, and labelled as the defect it is
+        # rather than as a "documented edge case".
+        np.testing.assert_allclose(out[:, 0], [0.0, 0.0])
+        assert out[:, 0].sum() == 0.0, (
+            "pre-3.0.0 loses this country's 5.0 entirely — views-frames#283, C-192"
+        )
 
 
 @pytest.mark.red
