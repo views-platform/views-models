@@ -237,3 +237,73 @@ def test_targets_disagreeing_on_the_draw_count_refuse(tmp_path: Path) -> None:
     np.save(d / "y_pred.npy", np.zeros((4, 7), dtype=np.float32))  # 7 draws, not 3
     with pytest.raises(Refuse, match="disagree on the draw count"):
         main(["--pool", str(pool)])
+
+
+# --------------------------------------------------------------------------------------
+# ⛔ THE WIRING. The tests above prove the guards WORK; these prove main() CALLS them.
+#
+# Added after a mutation pass caught the gap: deleting
+# `refuse_unless_the_residual_says_fully(pool)` and `refuse_a_partial_pool(pool, TARGETS)`
+# from `main()` left all fifteen tests green, because every refusal was exercised as a unit
+# and the only tests reaching `main()` were ones set up to pass. A guard that exists and is
+# not called is not a guard, and the unit tests could not see the difference.
+#
+# This is the same defect as C-182 one level up: the subject set was right and the unit of
+# attribution was wrong. The audit question that finds it — "if exactly one call were
+# dropped, which test fails?" — had no answer. Now each of these is that answer.
+# --------------------------------------------------------------------------------------
+
+
+def test_main_refuses_a_pool_whose_residual_is_missing(tmp_path: Path) -> None:
+    """Through main(), not the helper — pins that main() calls the residual guard."""
+    pool = _pool(tmp_path)
+    with pytest.raises(Refuse, match="Absence is not a pass"):
+        main(["--pool", str(pool)])
+
+
+def test_main_refuses_a_pool_whose_residual_says_partially(tmp_path: Path) -> None:
+    """Through main() — the C-192 case, wired."""
+    pool = _pool(tmp_path)
+    (tmp_path / "RECONCILIATION_RESIDUAL").write_text(PARTIAL)
+    with pytest.raises(Refuse, match="PARTIALLY"):
+        main(["--pool", str(pool)])
+
+
+def test_main_refuses_a_partial_pool(tmp_path: Path) -> None:
+    """Through main() — pins that main() calls the partial-pool guard.
+
+    ⚠️ The residual is FULLY here on purpose. If main() stopped calling
+    `refuse_a_partial_pool`, the missing target would instead surface as a `load_pf`
+    FileNotFoundError, which is a different exception and a worse message — so this asserts
+    on `Refuse` and the target's name, not merely that something raised.
+    """
+    pool = _pool(tmp_path, targets=("lr_sb_best", "lr_os_best"))
+    (tmp_path / "RECONCILIATION_RESIDUAL").write_text(FULLY)
+    with pytest.raises(Refuse, match="lr_ns_best"):
+        main(["--pool", str(pool)])
+
+
+def test_main_refuses_a_directory_the_run_id_cannot_come_from(tmp_path: Path) -> None:
+    """Through main() — pins the run_identity call, with everything else valid."""
+    pool = _pool(tmp_path, name="pod_delivery_20261102")
+    (tmp_path / "RECONCILIATION_RESIDUAL").write_text(FULLY)
+    with pytest.raises(Refuse, match="not a pool directory name"):
+        main(["--pool", str(pool)])
+
+
+def test_main_checks_the_pool_before_reading_anything_expensive(tmp_path: Path) -> None:
+    """Order matters: the refusals must precede the loads.
+
+    A guard that runs after `load_pf` has mmapped three 27 GiB arrays still refuses, but it
+    refuses minutes later and after touching the data. `main()` resolves the run identity and
+    both refusals before it imports `load_pf` at all, and the cheapest way to pin that is to
+    make the load impossible: the target directories hold no arrays, so if any load were
+    attempted first this would raise something other than `Refuse`.
+    """
+    pool = tmp_path / "parquet" / "predictions_forecasting_20261102_120000"
+    for target in TARGETS:
+        (pool / target).mkdir(parents=True)  # directories, no arrays
+    (tmp_path / "RECONCILIATION_RESIDUAL").write_text(FULLY)
+    with pytest.raises(Refuse, match="no y_pred.npy"):
+        main(["--pool", str(pool)])
+
