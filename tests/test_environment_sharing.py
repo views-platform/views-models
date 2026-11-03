@@ -257,7 +257,14 @@ def test_environment_sharing_is_recorded_not_discovered():
         # variable in a one-variable contrast, and between the two seeds of one family it
         # would land inside the variance estimate (C-116). requirements.txt is byte-identical
         # across all four (md5 57be5d42ab81728d801dfcb79bea7780).
-        "views-hydranet": 19,
+        # 19 -> 27 on 2026-11-03: EXP-03's eight arms, seeds 44-47. Four more within-seed pairs,
+        # bought to estimate sigma at 5 degrees of freedom instead of 1 — the h36 between-seed sd
+        # (0.0049) and the within-seed MDE (0.0047) came out the same size on EXP-02, so the
+        # effect sits below both and the noise estimate itself rests on one dof. Sharing the
+        # prefix is the measurement, not a convenience: a dependency difference between an arm
+        # and its seed-matched control would be a second variable in a one-variable contrast, and
+        # between seeds it would land inside the variance being bought (C-116).
+        "views-hydranet": 27,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,

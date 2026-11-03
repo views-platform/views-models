@@ -116,13 +116,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # to each other at >=1.9.0. ⚠️ This number counts the FILESYSTEM, so it reads 47 on a working
 # tree that still holds the two untracked `*tinyzero*` experiment dirs. 45 is the fresh-clone
 # truth and the one CI measures; a local run showing 47 is those two dirs, not a regression.
+# 45 -> 53 on 2026-11-03: EXP-03's eight arms, seeds 44-47, byte-identical requirements.txt to
+# the EXP-02 four. A working tree still holding the two `*tinyzero*` dirs reads 55, not 53.
 DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 45 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 53 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 45 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 53 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }

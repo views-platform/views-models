@@ -166,11 +166,13 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-11-02 on a clean checkout: **118 `candidate`, 3 `retired`, 0 `graduate`** across
-  121 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 159 files in all. One movement since 2026-10-27: EXP-02's four 300-lesson arms,
-  `models/{ctlfullzero,upctwofullzero}_{fortytwo,fortythree}` (+4 files, all candidate,
-  views-models#685). Nothing else changed.
+  *(Measured 2026-11-03 on a clean checkout: **126 `candidate`, 3 `retired`, 0 `graduate`** across
+  129 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 167 files in all. One movement since 2026-11-02: EXP-03's eight 300-lesson arms,
+  `models/{ctlfullzero,upctwofullzero}_{fortyfour,fortyfive,fortysix,fortyseven}` (+8 files, all
+  candidate). Nothing else changed.
+  Previously 2026-11-02: 118 candidate, 3 retired, 0 graduate across 121 config_maturity.py
+  files — 159 in all, after EXP-02's four arms (views-models#685).
   Previously 2026-10-27: 114 candidate, 3 retired, 0 graduate across 117 config_maturity.py
   files — 155 in all. Two movements since 2026-10-19, both epic #595: the sixteen members
   (+16 files, all candidate) and then S3's two ensembles, `chrome_box` and `chrome_crate`
