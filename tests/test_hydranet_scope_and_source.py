@@ -11,10 +11,18 @@ Both values are **policy, not emergent agreement**, which is why this file pins 
     together, a majority-derived check would still pass while the thing it exists to protect was
     gone. So the expected value is written down.
 
-⛔ Read through `generate()`, not off the module-level `REGION` constant. A config can declare
-`REGION = "land"` and return something else in the descriptor; `generate()`'s dict is what the
-loader actually consumes (`views_pipeline_core.managers.model` reads it via `get_queryset()`), so
-that is where the value has to be right.
+⛔ Read the dict `generate()` RETURNS, not the module-level `REGION` constant. A config can
+declare `REGION = "land"` and return something else in the descriptor; `generate()`'s dict is what
+the loader consumes (via `get_queryset()`), so that is where the value has to be right.
+
+⛔ AND READ IT WITH `ast`, NOT BY IMPORTING THE MODULE. Every HydraNet queryset opens with
+`from datafactory_query.defaults import DEFAULT_REMOTE`, and CI does not install
+`views-datafactory` — the executing version of this file failed **54 times** in CI with
+`ModuleNotFoundError: No module named 'datafactory_query'` while passing locally, where the
+package happens to be present. `tests/test_no_region_is_the_purged_scope.py` already uses `ast`
+and states the reason: it reads the *assignment*, so a comment or docstring naming a value cannot
+satisfy it. The same choice buys both properties here — comment-proof, and runnable where the
+dependency is absent.
 
 ⚠️ The discovery is duplicated from `test_hydranet_grid_column_names.py` on purpose. Two five-line
 globs asking different questions are cheaper to read than a shared `tests/helpers.py`, and this
@@ -23,8 +31,8 @@ repo has no such module by policy.
 
 from __future__ import annotations
 
+import ast
 import glob
-import importlib.util
 from pathlib import Path
 
 import pytest
@@ -49,12 +57,54 @@ def _hydranets() -> list[str]:
     )
 
 
-def _descriptor(name: str) -> dict:
+def _descriptor(name: str) -> dict[str, str]:
+    """The string-valued entries of the dict `generate()` returns, read without importing it.
+
+    Walks to the `return {...}` inside `def generate()` and keeps entries whose key and value are
+    both plain string literals — which is all this file asserts on. An entry whose value is a name
+    or a call is skipped rather than guessed at, so the assertions below report it as absent
+    rather than silently passing.
+    """
     path = REPO / "models" / name / "configs" / "config_queryset.py"
-    spec = importlib.util.spec_from_file_location(f"qs_{name}", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.generate()
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+    # Module-level `NAME = "literal"` bindings, so a descriptor entry written as
+    # `"region": REGION` resolves. Every HydraNet queryset is written that way, and resolving it
+    # is stronger than reading REGION directly: it proves the constant actually reaches the
+    # descriptor rather than merely existing in the file.
+    consts: dict[str, str] = {
+        target.id: node.value.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+
+    def _literal(value: ast.expr) -> str | None:
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value
+        if isinstance(value, ast.Name):
+            return consts.get(value.id)
+        return None
+
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.FunctionDef) and node.name == "generate"):
+            continue
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Return) and isinstance(inner.value, ast.Dict):
+                out: dict[str, str] = {}
+                for k, v in zip(inner.value.keys, inner.value.values):
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                        resolved = _literal(v)
+                        if resolved is not None:
+                            out[k.value] = resolved
+                return out
+    raise AssertionError(
+        f"no `return {{...}}` dict literal found inside generate() in {path}. ⛔ Failing rather "
+        "than reporting a clean result: this check cannot see its subject (ADR-025)."
+    )
 
 
 HYDRANETS = _hydranets()
