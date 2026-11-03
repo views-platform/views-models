@@ -69,10 +69,17 @@ def _trajectory_log_path() -> str:
 
 def get_hp_config():
     return {   'time_col': 'month_id',
-    'id_col': 'priogrid_gid',
+        # ⛔ `priogrid_id`, not `priogrid_gid`. This is the name the data factory actually
+        # emits — measured on a delivered raw pull: `index.names == ['month_id',
+        # 'priogrid_id']`, and `priogrid_gid` appears nowhere, as a column or an index level.
+        # `id_col` is READ, not merely declared: data_sniffer.py:165 takes it and :168-169
+        # indexes the frame with it, and DataSniffer is constructed at
+        # hydranet_manager.py:134. These seven last ran in September, before the naming
+        # settled, which is why it went unnoticed (views-models#698).
+    'id_col': 'priogrid_id',
     'spatial_cols': ['row', 'col'],
-    'identity_cols': ['month_id', 'priogrid_gid', 'c_id', 'row', 'col'],
-    'index_names': ['month_id', 'priogrid_gid'],
+    'identity_cols': ['month_id', 'priogrid_id', 'c_id', 'row', 'col'],
+    'index_names': ['month_id', 'priogrid_id'],
     'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
     'input_channels': 3,
     # #499 Step 1: the whole PRIO-GRID raster (360 x 720 at 0.5 deg), because REGION is "land"
