@@ -283,6 +283,18 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
                               for stem in ("ashen", "brisk", "candid", "dusky",
                                            "eager", "faint", "gentle", "humble")
                               for suffix in ("sparrow", "condor")} | {
+        #: The ten views-models#695 smoothed climatology arms. They declare the package for
+        #: the same reason the sixteen above do: views-baseline's own floor is >=3.0.0, which
+        #: is BELOW the 3.2.0 that can find configs/config_maturity.py, so an environment
+        #: already holding exactly 3.0.0 satisfies it and the launcher upgrades nothing —
+        #: then the run dies on a missing config_deployment.py. That is #594, and inheriting
+        #: the lower floor is how it recurs (C-116).
+        f"models/{name}" for name in (
+            "short_linen", "plain_linen", "long_linen",
+            "sheer_velvet", "plush_velvet", "flat_velvet",
+            "light_tweed", "even_tweed", "heavy_tweed",
+            "plain_burlap",
+        )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
             "golden_hour", "pink_ponyclub", "rude_boy", "rusty_bucket", "skinny_love",
@@ -589,6 +601,16 @@ def test_a_package_is_declared_the_same_way_everywhere():
             "<2.0.0,>=1.0.2": "every other source: does not reconcile, so no frames floor",
             "<2.0.0,>=1.0.3": "the eight models/*_sparrow (chrome_box's members): 1.0.2's "
                               "`views-frames<2` cap would block the fixed reconciler",
+            # ⛔ A CAPABILITY FLOOR, not a cap-avoidance one — which is why it is higher than
+            # either of the above and is not an inconsistency with them. 1.1.0 is the first
+            # release carrying the smoothed climatology algorithms (views-baseline ADR-023):
+            # InterpolatedQuantileConflictology, KDEConflictology and
+            # EmpiricalKDEMixtureConflictology. On 1.0.x these ten arms name a class the
+            # registry cannot build, so the floor is the difference between running and not.
+            # The nesting argument holds as it does above: same ceiling, one floor strictly
+            # higher, and pip does not downgrade to satisfy a floor already met.
+            "<2.0.0,>=1.1.0": "the ten views-models#695 smoothed climatology arms: 1.1.0 is "
+                              "the first release that has the algorithms they name",
         },
     }
 
