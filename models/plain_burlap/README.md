@@ -1,4 +1,4 @@
-# Ashen Sparrow 
+# Plain Burlap 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Plain Burlap
 ├── README.md
 ├── main.py
 ├── requirements.txt

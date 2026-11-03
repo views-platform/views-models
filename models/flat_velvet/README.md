@@ -1,10 +1,10 @@
-# Ashen Sparrow 
+# Flat Velvet 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | KDEConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  flat_velvet_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Flat Velvet
 ├── README.md
 ├── main.py
 ├── requirements.txt

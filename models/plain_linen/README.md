@@ -1,10 +1,10 @@
-# Ashen Sparrow 
+# Plain Linen 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | InterpolatedQuantileConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  plain_linen_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Plain Linen
 ├── README.md
 ├── main.py
 ├── requirements.txt

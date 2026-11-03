@@ -1,10 +1,10 @@
-# Ashen Sparrow 
+# Heavy Tweed 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | EmpiricalKDEMixtureConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  heavy_tweed_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Heavy Tweed
 ├── README.md
 ├── main.py
 ├── requirements.txt

@@ -1,10 +1,10 @@
-# Ashen Sparrow 
+# Light Tweed 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | EmpiricalKDEMixtureConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  light_tweed_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Light Tweed
 ├── README.md
 ├── main.py
 ├── requirements.txt

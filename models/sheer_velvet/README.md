@@ -1,10 +1,10 @@
-# Ashen Sparrow 
+# Sheer Velvet 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | KDEConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  sheer_velvet_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ashen Sparrow
+Sheer Velvet
 ├── README.md
 ├── main.py
 ├── requirements.txt
