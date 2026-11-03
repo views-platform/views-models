@@ -38,6 +38,7 @@ before COLLAPSE, so the mean is taken in count space. A better point estimate ex
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import numpy as np
@@ -53,10 +54,34 @@ TARGETS: tuple[str, ...] = ("lr_sb_best", "lr_ns_best", "lr_os_best")
 AGGREGATE_METHODS: tuple[str, ...] = ("arithmetic_mean", "median")
 DEFAULT_AGGREGATE_METHOD = "arithmetic_mean"
 
-#: A collapsed count below this maximum, across a whole origin, means the values are almost
-#: certainly still in log1p space — a real global-land origin reaches the hundreds. Refuse
-#: rather than ship silently-wrong numbers (views-models#505).
-MIN_PLAUSIBLE_MAX = 12.0
+#: ⛔ DERIVED, NOT CHOSEN — and the previous value of 12.0 was ABOVE the ceiling of the thing
+#: this guard tests for, which made part of its refusal region unreachable by the hypothesis.
+#:
+#: The guard asks one question: "is this frame still in log1p space?" So the bound is
+#: `log1p(largest count the data can contain)`. Over the 13-month scoring window the largest
+#: observed count is 2,482 (`ged_sb_best`; views-hydranet
+#: `reports/2026-10-27_metric_redteam/separation_matrix.out`), and `log1p(2482) = 7.817`.
+#:
+#: ⇒ A frame genuinely in log1p space CANNOT present a maximum above ~7.8. A value of 11.31
+#: therefore proves it is NOT in log1p space: `expm1(11.31) = 81,633`, a count no cell on the
+#: global-land grid reaches. The old floor of 12.0 refused the band (7.82, 12.0), in which the
+#: dangerous hypothesis is impossible and only a legitimate count-space forecast can sit.
+#:
+#: 9.0 keeps a ~1.2 margin above the derived ceiling, so a frame log1p'd from a count somewhat
+#: larger than any yet observed is still caught.
+#:
+#: ⚠️ ONE FLOOR, NOT ONE PER TARGET. The bound is set by the LARGEST target, so a single value
+#: derived from it is sufficient for the sparser ones and errs toward refusing. `os` is the
+#: sparsest and its own ceiling is lower still; tuning per target would weaken the check in
+#: exactly the place a corrupted sibling hides (see `_check_scale`'s per-target loop, which is
+#: what actually catches that case).
+#:
+#: ⚠️ AND THE RESIDUAL LIMIT, stated so the next reader does not re-tune this instead: BELOW
+#: ~8 the two hypotheses genuinely overlap and no maximum-based test can separate them. A
+#: count-space forecast whose largest value is 5 is still falsely refused here. If that case
+#: arrives, the answer is a different discriminator — integrality of the draws, or agreement
+#: with the gate — not a lower number on this line.
+MIN_PLAUSIBLE_MAX = 9.0
 
 
 class CollapseError(RuntimeError):
@@ -191,8 +216,11 @@ def _check_scale(frame: pd.DataFrame, origin_dir: Path, min_plausible_max: float
         if hi < min_plausible_max:
             raise CollapseError(
                 f"{origin_dir}: largest collapsed '{col}' is {hi:.4g}, below "
-                f"{min_plausible_max:g}. Counts at global land reach the hundreds; this looks "
-                f"like log1p space. Investigate upstream — do NOT expm1 here (views-models#505)."
+                f"{min_plausible_max:g}, which is below log1p's own ceiling of ~7.82 "
+                f"(log1p of 2482, the largest observed count). A frame still in log1p space "
+                f"cannot exceed that, so this value is consistent with the space being wrong. "
+                f"expm1({hi:.4g}) = {math.expm1(hi):,.0f}. Investigate upstream — do NOT "
+                f"expm1 here (views-models#505)."
             )
 
 
