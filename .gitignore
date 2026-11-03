@@ -258,6 +258,24 @@ cython_debug/
 *.pt
 *.pkl 
 
+# ⛔ Delivery trees pulled off rented hardware — NOT repo content.
+#
+# These are the artefacts a pod produces: `models/<m>/data/generated/calibration_delivery_<date>/`
+# and `ensembles/<e>/data/generated/pod_delivery_<date>/`. They were untracked but NOT ignored,
+# and untracked is not ignored: a single `git add -A` staged **1.26 GB** across 222 files on
+# 2026-11-04, including an 115.87 MB draw archive — over GitHub's 100 MB hard limit — named
+# `INCOMPLETE_9pct_DO_NOT_USE_...`.
+#
+# `*.parquet` above already caught the prediction frames, which is why the hazard looked small.
+# It did not catch the `.tar.zst` archives, and those are the heavy files: `gate_endpoints.tar.zst`
+# is ~85 MB per arm.
+#
+# ⚠️ Scoped to the delivery SUBDIRECTORY, not to `*.zst` and not to `data/generated/` itself,
+# because `data/generated/.gitkeep` MUST stay tracked — `tests/test_model_structure.py:112-113`
+# requires all seven REQUIRED_SUBDIRS to be present via `git ls-files`. An extension rule would
+# have left this hazard half-open; a rule on `data/generated/` would have broken 162 models.
+**/data/generated/*_delivery_*/
+
 # folders
 **/wandb/
 
