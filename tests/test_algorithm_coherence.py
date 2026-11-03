@@ -44,6 +44,18 @@ ALGORITHM_TO_PACKAGE = {
     # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
     "ParametricConflictology": "views_baseline",
     "ParametricHurdleConflictology": "views_baseline",
+    # smoothed climatology (views-baseline ADR-023, released in views-baseline 1.1.0 on
+    # 2026-11-03; views-models#695). All three keep ConflictologyModel's probability of zero
+    # EXACTLY and differ only in how the non-zero values are drawn, so they are variants of
+    # the incumbent rather than new families:
+    #   B  draws between the window's observed values by linear interpolation, never outside
+    #   C  a smooth kernel around the observed values, which CAN exceed the window maximum
+    #   E  a mixture: a share `alpha` of the draws come from C, the rest from conflictology
+    # ⛔ They exist only in >=1.1.0. An arm naming one of these on 1.0.x reaches a registry
+    # that cannot build it, which is why every #695 arm floors views-baseline at 1.1.0.
+    "InterpolatedQuantileConflictology": "views_baseline",
+    "KDEConflictology": "views_baseline",
+    "EmpiricalKDEMixtureConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }

@@ -94,4 +94,8 @@ def test_the_split_is_what_the_catalog_says():
     # seed-42/43 arms are — every one declares `model_name = "violet_visitor"` in
     # config_queryset.py and inherits its datafactory queryset, and their requirements.txt is
     # byte-identical to the EXP-02 arms' (md5 57be5d42ab81728d801dfcb79bea7780).
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 69, SYNTHETIC: 6}, dict(counts)
+    # 69 -> 79 on 2026-11-03: the ten views-models#695 smoothed climatology arms. They are
+    # datafactory consumers by construction — `source: "views-datafactory"` in each
+    # config_queryset.py, fetching the zarr store rather than viewser, which is the whole
+    # point of starting them from `ashen_sparrow` instead of `white_ranger` (#660).
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 79, SYNTHETIC: 6}, dict(counts)

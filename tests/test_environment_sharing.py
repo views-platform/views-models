@@ -218,7 +218,14 @@ def test_environment_sharing_is_recorded_not_discovered():
         # 3.2.0 that can read configs/config_maturity.py, and an env holding exactly 3.0.0
         # satisfies that range, upgrades nothing, and dies on a missing config_deployment.py.
         # That is #594, and it broke Hop A on 2026-10-22.
-        "views-baseline": 45,
+        # 45 -> 55 on 2026-11-03: the ten views-models#695 smoothed climatology arms, which
+        # install into this prefix like every other views-baseline source. ⚠️ They float the
+        # prefix to views-baseline >=1.1.0 — the first release carrying the three smoothed
+        # algorithms — and a shared prefix means the other 45 tenants get 1.1.0 too. That is
+        # safe in the direction it runs (the floor is nested inside their <2.0.0 ceiling and
+        # pip does not downgrade to meet a floor already met) and is recorded in this file's
+        # divergence register rather than left to be rediscovered.
+        "views-baseline": 55,
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,
