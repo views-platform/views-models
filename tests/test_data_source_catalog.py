@@ -89,4 +89,9 @@ def test_the_split_is_what_the_catalog_says():
     # untracked from 2026-10-28, so this pin was red locally for five days while CI stayed
     # green — CI only ever sees tracked files. Committing them in #689 moved the failure from
     # the laptop to CI, which is where it belonged, and this is the update it was asking for.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 61, SYNTHETIC: 6}, dict(counts)
+    # 61 -> 69 on 2026-11-03: EXP-03's eight arms, seeds 44-47 x {HydraBNUNet06_LSTM4,
+    # UpsampleConv2} (views-models#685 follow-on). Datafactory consumers for the same reason the
+    # seed-42/43 arms are — every one declares `model_name = "violet_visitor"` in
+    # config_queryset.py and inherits its datafactory queryset, and their requirements.txt is
+    # byte-identical to the EXP-02 arms' (md5 57be5d42ab81728d801dfcb79bea7780).
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 69, SYNTHETIC: 6}, dict(counts)
