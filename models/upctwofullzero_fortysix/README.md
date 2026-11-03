@@ -1,4 +1,4 @@
-# Violet Visitor 
+# Upctwofullzero Fortysix 
 ## Overview
 
 
@@ -7,7 +7,7 @@
 | **Model Algorithm** | HydraNet                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
-| **Features**       |  violet_visitor_features   |
+| **Features**       |  upctwofullzero_fortysix_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Maturity**       |  candidate    |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Violet Visitor
+Upctwofullzero Fortysix
 ├── README.md
 ├── main.py
 ├── requirements.txt
