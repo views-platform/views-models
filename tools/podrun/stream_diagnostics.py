@@ -32,7 +32,7 @@ the same answer. While streaming, absence is reported and tolerated; at `--final
 refusal, because that is the moment the distinction becomes expensive.
 
     python tools/podrun/stream_diagnostics.py --host root@216.81.151.63 --port 12787 \
-        --model ctlfullzero_fortytwo --dest models/ctlfullzero_fortytwo/reports/plots
+        --model calm_orbiter --dest models/calm_orbiter/reports/plots
 
 ⚠️ `reports/plots/` is gitignored (`.gitignore:240` is `*.png`), so what this pulls is durable
 on disk and never in git. It is retrieved evidence, not a tracked artefact.
@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--host", required=True, help="e.g. root@216.81.151.63")
     ap.add_argument("--port", type=int, required=True)
     ap.add_argument("--key", default=str(Path.home() / ".ssh" / "id_ed25519"))
-    ap.add_argument("--model", required=True, help="the arm name, e.g. ctlfullzero_fortytwo")
+    ap.add_argument("--model", required=True, help="the arm name, e.g. calm_orbiter")
     ap.add_argument("--repo", default=DEFAULT_REPO, help="the pod's checkout")
     ap.add_argument("--dest", type=Path, required=True)
     ap.add_argument("--interval", type=int, default=120, help="seconds between sweeps")

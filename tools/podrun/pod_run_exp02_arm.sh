@@ -65,12 +65,12 @@ USAGE='usage: pod_run_exp02_arm.sh [--repo DIR] [--root DIR] [--runner PATH] [--
 # `*tinyzero*` rehearsal arms out: they share the pull and the config shape and are
 # deliberately not members. That exclusion is unchanged; only the membership grew.
 ARMS=(
-  ctlfullzero_fortytwo      upctwofullzero_fortytwo
-  ctlfullzero_fortythree    upctwofullzero_fortythree
-  ctlfullzero_fortyfour     upctwofullzero_fortyfour
-  ctlfullzero_fortyfive     upctwofullzero_fortyfive
-  ctlfullzero_fortysix      upctwofullzero_fortysix
-  ctlfullzero_fortyseven    upctwofullzero_fortyseven
+  calm_orbiter      calm_lander
+  keen_orbiter    keen_lander
+  mellow_orbiter     mellow_lander
+  nimble_orbiter     nimble_lander
+  quiet_orbiter      quiet_lander
+  rapid_orbiter    rapid_lander
 )
 
 # ── the pull every arm must land on ───────────────────────────────────────────────────
