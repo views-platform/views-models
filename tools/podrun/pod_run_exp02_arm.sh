@@ -19,8 +19,9 @@
 #      succeeded.** A readout that depends on an operator remembering something at teardown is
 #      a readout that will one day be missing.
 #
-#   2. THE FOUR ARMS MUST BE ON ONE DATA PULL. P-23 is a within-experiment sign test across
-#      the four arms. If two arms train on different datafactory pulls it silently becomes a
+#   2. EVERY ARM MUST BE ON ONE DATA PULL. P-23 is a within-experiment sign test, and sigma
+#      pools seeds 42-47, so the set is TWELVE arms and one pull spans all of them. If two
+#      arms train on different datafactory pulls it silently becomes a
 #      cross-population comparison — which is exactly what P-30's refetch already did to P-27,
 #      and it did not announce itself. The runner's train leg (`main.py -r calibration -t`,
 #      pod_run_model.sh:379) carries NO `-sa`, so it refetches on every pod regardless of what
@@ -58,11 +59,18 @@ USAGE='usage: pod_run_exp02_arm.sh [--repo DIR] [--root DIR] [--runner PATH] [--
 # Named rather than globbed. A glob over `models/*fullzero*` would silently pick up the
 # `*tinyzero*` rehearsal arms, which share the pull and the config shape and are NOT part of
 # the P-23 sign test. The set is the experiment's definition, so it is written down.
+# ⛔ TWELVE, not four. EXP-03 (seeds 44-47) extended the scored set, and sigma pools 42-47 —
+# 5 degrees of freedom is n=6 — so the within-experiment comparison this list protects now
+# spans all twelve. An arm absent from here is refused at preflight, which is what kept the
+# `*tinyzero*` rehearsal arms out: they share the pull and the config shape and are
+# deliberately not members. That exclusion is unchanged; only the membership grew.
 ARMS=(
-  ctlfullzero_fortytwo
-  ctlfullzero_fortythree
-  upctwofullzero_fortytwo
-  upctwofullzero_fortythree
+  ctlfullzero_fortytwo      upctwofullzero_fortytwo
+  ctlfullzero_fortythree    upctwofullzero_fortythree
+  ctlfullzero_fortyfour     upctwofullzero_fortyfour
+  ctlfullzero_fortyfive     upctwofullzero_fortyfive
+  ctlfullzero_fortysix      upctwofullzero_fortysix
+  ctlfullzero_fortyseven    upctwofullzero_fortyseven
 )
 
 # ── the pull every arm must land on ───────────────────────────────────────────────────
@@ -155,7 +163,7 @@ say "preflight"
 declared=0
 for known in "${ARMS[@]}"; do [ "$known" = "$ARM" ] && declared=1; done
 [ "$declared" -eq 1 ] || fail preflight \
-    "$ARM is not one of the four declared EXP-02 arms (${ARMS[*]}). The set is the
+    "$ARM is not one of the ${#ARMS[@]} declared arms (${ARMS[*]}). The set is the
   experiment's definition and is not inferred from a glob — the *tinyzero* rehearsal arms
   share the pull and the config shape and are deliberately not in it."
 

@@ -266,7 +266,7 @@ def test_it_refuses_an_arm_that_is_not_one_of_the_declared_four(tmp_path):
     (repo / "models" / "ctltinyzero_fortytwo").mkdir(parents=True, exist_ok=True)
     result = _run(repo, root, runner, netrc, arm="ctltinyzero_fortytwo")
     assert result.returncode == 1
-    assert "not one of the four declared EXP-02 arms" in _transcript(result)
+    assert "is not one of the 12 declared arms" in _transcript(result)
     assert "tinyzero" in _transcript(result)
 
 
@@ -339,6 +339,10 @@ def test_the_declared_pull_and_arm_set_are_what_the_experiment_registered():
     for arm in (
         "ctlfullzero_fortytwo", "ctlfullzero_fortythree",
         "upctwofullzero_fortytwo", "upctwofullzero_fortythree",
+        "ctlfullzero_fortyfour", "ctlfullzero_fortyfive",
+        "ctlfullzero_fortysix", "ctlfullzero_fortyseven",
+        "upctwofullzero_fortyfour", "upctwofullzero_fortyfive",
+        "upctwofullzero_fortysix", "upctwofullzero_fortyseven",
     ):
         assert arm in text, f"{arm} is one of the four and must be named"
     assert "ctltinyzero" not in text.split("ARMS=(")[1].split(")")[0]
