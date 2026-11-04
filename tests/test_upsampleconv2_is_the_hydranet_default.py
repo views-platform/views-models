@@ -54,37 +54,15 @@ DEFAULT_ARCHITECTURE = "UpsampleConv2"
 #: Adding a name here is a deliberate, reviewed act. Removing one means that model was flipped.
 #: Every entry is a live reason, not a grandfather clause — see views-models#711 for the triggers.
 LEGACY_ARCHITECTURE_ALLOWED: dict[str, str] = {
-    # The EXP-02/03 CONTROL arm. Flipping these destroys the contrast the experiment measures —
-    # the treatment arms are the *_lander six. They retire with the experiment, never flip.
-    "calm_orbiter":   "EXP-03 control, seed 42 — flipping it deletes the contrast",
-    "keen_orbiter":   "EXP-03 control, seed 43 — flipping it deletes the contrast",
-    "mellow_orbiter": "EXP-03 control, seed 44 — flipping it deletes the contrast",
-    "nimble_orbiter": "EXP-03 control, seed 45 — flipping it deletes the contrast",
-    "quiet_orbiter":  "EXP-03 control, seed 46 — flipping it deletes the contrast",
-    "rapid_orbiter":  "EXP-03 control, seed 47 — flipping it deletes the contrast",
-
-    # rusty_bucket members: the FAO delivery ensemble. Excluded by standing instruction;
-    # trigger for flipping them is the next FAO delivery retrain (#669).
-    "blazing_meteor":  "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "blue_stranger":   "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "bold_comet":      "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "bright_starship": "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "heavy_freighter": "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "pink_pirate":     "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "purple_alien":    "rusty_bucket / FAO delivery — flip at the next FAO retrain (#669)",
-    "violet_visitor":  "rusty_bucket AND the control root of the kestrel chain — must flip "
-                       "atomically with all 7 kestrels or not at all",
-
-    # The kestrel contrast chain. `model` is NOT in ARM_FREE_KEYS, and the chain roots at
-    # violet_visitor, so flipping any one alone breaks a one-variable contrast and fires the
-    # paired guards in test_roster_conformance.py. All 8 together, or none.
-    "amber_kestrel":  "kestrel chain — arm of violet_visitor; `model` not in ARM_FREE_KEYS",
-    "bronze_kestrel": "kestrel chain — seed replicate of amber_kestrel",
-    "cobalt_kestrel": "kestrel chain — seed replicate of amber_kestrel",
-    "copper_kestrel": "kestrel chain — arm of amber_kestrel",
-    "indigo_kestrel": "kestrel chain — weight_decay arm",
-    "russet_kestrel": "kestrel chain — weight_decay arm",
-    "silver_kestrel": "kestrel chain — seed replicate of amber_kestrel",
+    # ⭐ EMPTY, and that is the point: on 2026-11-04 all 27 HydraNets were flipped to
+    # UpsampleConv2 by Simon's decision, so the default is REAL rather than enforced by
+    # exception. The three deferrals this list used to hold (the EXP-03 control arm, the
+    # kestrel contrast chain, the rusty_bucket members) were all resolved the same way —
+    # by flipping everything at once, which is what keeps every one-variable contrast
+    # intact: no pair can differ on `model` if no model declares anything else.
+    #
+    # ⛔ An entry here is a model allowed to keep an architecture the fleet has retired.
+    # Adding one needs a reason and a trigger, in an issue, not just a string.
 }
 
 

@@ -22,7 +22,7 @@ def get_hp_config():
     'col_offset': 1,
     'height': 360,
     'width': 720,
-    'model': 'HydraBNUNet06_LSTM4',
+    'model': 'UpsampleConv2',
     'total_hidden_channels': 32,
     'dropout_rate': 0.1,
     'window_dim': 32,

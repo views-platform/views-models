@@ -345,7 +345,10 @@ FOUNDATION = {
     "bn_recalibrate": True,
     "n_head_samples": 4,
     "n_posterior_samples": 4,
-    "model": "HydraBNUNet06_LSTM4",
+    # Flipped 2026-11-04: all 27 HydraNets moved to UpsampleConv2; see #711.
+    # It stays in FOUNDATION rather than ROSTER because it is shared by every member —
+    # the flip changed the value, not which layer owns it.
+    "model": "UpsampleConv2",
     # #484: a CPU device is a hard stop (views-hydranet 0.1.1). On 0.1.0 the key is accepted and
     # ignored (extra="allow"), which is why the floor moved with it.
     "require_cuda": True,

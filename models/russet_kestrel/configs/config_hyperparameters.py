@@ -164,7 +164,7 @@ def get_hp_config():
         'height': 360,
         'width': 720,
 
-        'model': 'HydraBNUNet06_LSTM4',
+        'model': 'UpsampleConv2',
         'total_hidden_channels': 32,
         'dropout_rate': 0.15,
         'window_dim': 32,
