@@ -46,7 +46,7 @@ def get_sweep_config():
         # ============================================================
         # Model Architecture
         # ============================================================
-        'model': {'value': 'HydraBNUNet06_LSTM4'},
+        'model': {'value': 'UpsampleConv2'},
         'total_hidden_channels': {'value': 32},
         'dropout_rate': {'values': [0.10, 0.15, 0.20]},        # SWEPT around baseline 0.15
         'window_dim': {'value': 32},

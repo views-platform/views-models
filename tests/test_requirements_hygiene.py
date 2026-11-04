@@ -597,27 +597,6 @@ def test_a_package_is_declared_the_same_way_everywhere():
         #: install into a different prefix (envs/views-baseline) and do not reconcile —
         #: claiming a requirement they do not have is the false precision this file argues
         #: against elsewhere.
-        #: Raised on the six UpsampleConv2 arms only, 2026-11-04. `UpsampleConv2` first ships
-        #: in views-hydranet **0.1.8** — verified by downloading 0.1.4 through 0.1.9 from PyPI and
-        #: grepping each wheel, not by reading a changelog. The other 21 HydraNets declare
-        #: `HydraBNUNet06_LSTM4`, which every 0.1.x provides, so raising their floor would claim a
-        #: requirement they do not have — the false precision this file argues against elsewhere.
-        #:
-        #: ⛔ The defect this closes: `~=0.1.1` is `>=0.1.1,<0.2.0`, so a config naming
-        #: `UpsampleConv2` could resolve 0.1.7 and find the architecture absent from
-        #: `architectures/registry.py`. The six arms ran green only because a fresh install picks
-        #: the latest (0.1.9); a REUSED venv, or `envs/views-hydranet` when it held 0.1.5, would
-        #: not have it. The floor does not change what a fresh resolve installs — it stops the
-        #: config silently accepting a version that cannot honour it.
-        #:
-        #: The nesting argument above applies unchanged: same ceiling `<0.2.0`, one floor strictly
-        #: higher, one shared prefix, and pip does not downgrade to satisfy a floor already met.
-        #: So neither run order loses.
-        "views-hydranet": {
-            "~=0.1.1": "the 21 HydraNets on HydraBNUNet06_LSTM4: any 0.1.x provides it",
-            "<0.2.0,>=0.1.8": "the six UpsampleConv2 arms only: 0.1.8 is the first release "
-                              "carrying that architecture (views-hydranet#491/#546)",
-        },
         "views-baseline": {
             "<2.0.0,>=1.0.2": "every other source: does not reconcile, so no frames floor",
             "<2.0.0,>=1.0.3": "the eight models/*_sparrow (chrome_box's members): 1.0.2's "
