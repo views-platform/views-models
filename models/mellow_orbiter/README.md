@@ -1,4 +1,4 @@
-# Ctlfullzero Fortyfour 
+# Mellow Orbiter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ctlfullzero Fortyfour
+Mellow Orbiter
 ├── README.md
 ├── main.py
 ├── requirements.txt

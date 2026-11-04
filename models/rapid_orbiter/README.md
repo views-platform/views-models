@@ -1,4 +1,4 @@
-# Ctlfullzero Fortyseven 
+# Rapid Orbiter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ctlfullzero Fortyseven
+Rapid Orbiter
 ├── README.md
 ├── main.py
 ├── requirements.txt

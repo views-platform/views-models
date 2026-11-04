@@ -1,4 +1,4 @@
-# Ctlfullzero Fortyfive 
+# Nimble Orbiter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ctlfullzero Fortyfive
+Nimble Orbiter
 ├── README.md
 ├── main.py
 ├── requirements.txt

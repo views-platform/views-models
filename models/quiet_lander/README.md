@@ -1,4 +1,4 @@
-# Upctwofullzero Fortysix 
+# Quiet Lander 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Upctwofullzero Fortysix
+Quiet Lander
 ├── README.md
 ├── main.py
 ├── requirements.txt

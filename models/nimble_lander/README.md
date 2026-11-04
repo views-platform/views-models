@@ -1,4 +1,4 @@
-# Upctwofullzero Fortyfive 
+# Nimble Lander 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Upctwofullzero Fortyfive
+Nimble Lander
 ├── README.md
 ├── main.py
 ├── requirements.txt

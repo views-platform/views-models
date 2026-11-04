@@ -1,4 +1,4 @@
-# Upctwofullzero Fortyseven 
+# Rapid Lander 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Upctwofullzero Fortyseven
+Rapid Lander
 ├── README.md
 ├── main.py
 ├── requirements.txt

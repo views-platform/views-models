@@ -1,4 +1,4 @@
-# Ctlfullzero Fortytwo 
+# Calm Orbiter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ctlfullzero Fortytwo
+Calm Orbiter
 ├── README.md
 ├── main.py
 ├── requirements.txt

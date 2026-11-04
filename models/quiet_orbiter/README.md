@@ -1,4 +1,4 @@
-# Ctlfullzero Fortysix 
+# Quiet Orbiter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Ctlfullzero Fortysix
+Quiet Orbiter
 ├── README.md
 ├── main.py
 ├── requirements.txt
