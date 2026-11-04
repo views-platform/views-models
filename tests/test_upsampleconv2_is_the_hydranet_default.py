@@ -52,7 +52,7 @@ DEFAULT_ARCHITECTURE = "UpsampleConv2"
 
 #: ⛔ Models permitted to keep `HydraBNUNet06_LSTM4`, each with the reason it is not flipped.
 #: Adding a name here is a deliberate, reviewed act. Removing one means that model was flipped.
-#: Every entry is a live reason, not a grandfather clause — see views-models#710 for the triggers.
+#: Every entry is a live reason, not a grandfather clause — see views-models#711 for the triggers.
 LEGACY_ARCHITECTURE_ALLOWED: dict[str, str] = {
     # The EXP-02/03 CONTROL arm. Flipping these destroys the contrast the experiment measures —
     # the treatment arms are the *_lander six. They retire with the experiment, never flip.
