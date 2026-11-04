@@ -10,7 +10,7 @@ def get_sweep_config():
 
     sweep_config = {
         'method': 'grid',
-        'name': 'lovely_creature'
+        'name': 'fourtieth_symphony'
     }
 
     # Example metric setup:
