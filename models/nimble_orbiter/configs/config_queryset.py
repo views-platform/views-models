@@ -16,9 +16,19 @@ from __future__ import annotations
 
 from datafactory_query.defaults import DEFAULT_REMOTE
 
-# PINNED by make_ss_arm.py: the queryset identity is the FLOOR's, because every sweep arm
-# pulls the same data. Deriving it from the path would change the C-61 provenance digest
-# per arm and reject the shared cache as stale.
+# ⛔ PINNED by make_ss_arm.py, and NOT a copy-paste defect — see C-194.
+#
+# The descriptor's `name` is an INPUT to `queryset_digest`. Measured 2026-11-04: violet_visitor,
+# copper_kestrel, indigo_kestrel and silver_kestrel have byte-identical descriptors and four
+# DIFFERENT digests, because each derives its own name from its own path; these twelve arms pin
+# the name and all share digest b32a221b…, as violet_visitor does.
+#
+# `tools/podrun/pod_run_exp02_arm.sh:86` pins ONE EXPECTED_DIGEST and checks every arm against it
+# ~430 s into a run, before any GPU spend. Deriving this name from the path would give each arm a
+# different digest and the gate would refuse eleven of twelve healthy arms.
+#
+# ⚠️ So an audit reporting `name != directory` here is reporting the CORRECT state. Do not
+# "fix" it. Guarded by tests/test_exp_arms_share_the_floor_queryset_identity.py.
 model_name = "violet_visitor"
 
 # Data source URL — load_dataset() detects zarr vs npy from the path.
