@@ -3,7 +3,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "elastic_heart_tsmixer_shadow_20260508_I",
+        "name": "free_fallin_tsmixer_shadow_20260508_I",
         "early_terminate": {
             "type": "hyperband",
             # RLROP patience=15 + cooldown=3: first reduction fires at epoch ~18.

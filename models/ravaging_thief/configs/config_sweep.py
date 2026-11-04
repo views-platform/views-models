@@ -4,7 +4,7 @@ def get_sweep_config():
 
     sweep_config = {
         "method": "bayes",
-        "name": "revolving_door_nhits_shadow_20260508_A",
+        "name": "ravaging_thief_nhits_shadow_20260508_A",
         "early_terminate": {"type": "hyperband", "min_iter": 30, "eta": 2},
         "metric": {"name": "time_series_wise_msle_mean_sb", "goal": "minimize"},
     }
