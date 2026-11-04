@@ -42,7 +42,7 @@ bash run_integration_tests.sh --library baseline
 | `--models` | `"name1 name2 ..."` | *(all models)* | Run **only** these models. Names are space-separated inside quotes. Each name must match a directory under `models/` that contains a `main.py`. Names not found are skipped with a warning. |
 | `--level` | `cm` or `pgm` | *(no filter)* | Run only models whose `config_meta.py` reports this level of analysis. The script reads each model's config via Python to check. Models whose level cannot be read are silently excluded. |
 | `--library` | `baseline`, `stepshifter`, `r2darts2`, or `hydranet` | *(no filter)* | Run only models that depend on this architecture library. Determined by matching `views-<name>` in each model's `requirements.txt`. Can be combined with `--level`. |
-| `--exclude` | `"name1 name2 ..."` | `"purple_alien"` | Skip these models. **Replaces** the default exclusion list — it does not append to it. To exclude nothing, pass an empty string: `--exclude ""`. |
+| `--exclude` | `"name1 name2 ..."` | *(none)* | Skip these models. **Replaces** the default exclusion list (empty since 2026-09-19; it was `purple_alien` from 2026-03-15, when the single shared env lacked `views-hydranet` and purple_alien was the only model needing it). |
 | `--partitions` | `"p1 p2 ..."` | `"calibration validation"` | Which partitions to test. Valid values are `calibration`, `validation`, and `forecasting`. Space-separated inside quotes. |
 | `--timeout` | seconds | `1800` (30 min) | Maximum wall-clock time per individual model run (one model x one partition). If exceeded, the run is killed and recorded as `TIMEOUT`. |
 | `--env` | name | `views_pipeline` | Conda environment to activate before each model run. Can be an environment name or a path to a prefix. |
@@ -79,7 +79,7 @@ When `--library` is set, the script checks each model's `requirements.txt` for a
 
 ### 4. Execution
 
-Before the run loop, the script classifies each model by `deployment_status` (loaded from `configs/config_deployment.py`). Models with `deployment_status == "deprecated"` are skipped — they are expected to fail by design, and running them would clutter the `FAIL` column. They appear in the summary as `DEPRECATED` instead. If `config_deployment.py` fails to load for any model, the script fails fast with exit code 2 before running anything (same behavior as a broken `config_meta.py` under `--level` filtering).
+Before the run loop, the script classifies each model by maturity. A model carries either `configs/config_maturity.py` (`maturity`) or the legacy `configs/config_deployment.py` (`deployment_status`), never both; the new file wins, as in pipeline-core's loader, and the legacy value `deprecated` means `retired`. Models whose maturity is `retired` are skipped — they are expected to fail by design, and running them would clutter the `FAIL` column. They appear in the summary as `RETIRED` instead. If the maturity file fails to load for any model, the script fails fast with exit code 2 before running anything (same behavior as a broken `config_meta.py` under `--level` filtering).
 
 For each runnable model, for each partition, the script runs:
 
@@ -105,7 +105,7 @@ Key points:
 | `0` | `PASS` | Model trained and evaluated successfully. |
 | `124` | `TIMEOUT` | Model exceeded the per-run timeout and was killed. |
 | `130` | `ABORTED` | User pressed `Ctrl-C`; the current run was killed and remaining runs skipped. |
-| n/a | `DEPRECATED` | Model's `deployment_status` is `deprecated`; no run attempted. |
+| n/a | `RETIRED` | Model's maturity is `retired` (or legacy `deployment_status` is `deprecated`); no run attempted. |
 | anything else | `FAIL(code)` | Model crashed. The exit code is recorded. |
 
 ### 5a. Cancelling a run
@@ -130,11 +130,11 @@ Model                         calibration    validation
 bad_blood                     PASS           PASS
 bouncy_organ                  FAIL(1)        PASS
 counting_stars                PASS           TIMEOUT
-electric_relaxation           DEPRECATED     DEPRECATED
+electric_relaxation           RETIRED        RETIRED
 invisible_string              ABORTED        SKIPPED
 ```
 
-`PASS` is green. `FAIL(code)` and `TIMEOUT` are red. `DEPRECATED`, `ABORTED`, and `SKIPPED` are yellow so a glance distinguishes "something broke" from "skipped by design or by user". The same table (without colors) is written to `summary.log`.
+`PASS` is green. `FAIL(code)` and `TIMEOUT` are red. `RETIRED`, `ABORTED`, and `SKIPPED` are yellow so a glance distinguishes "something broke" from "skipped by design or by user". The same table (without colors) is written to `summary.log`.
 
 
 ## Logs
@@ -195,10 +195,7 @@ bash run_integration_tests.sh --models "counting_stars" --partitions "calibratio
 bash run_integration_tests.sh --level pgm --timeout 3600
 
 # All models except two, validation only
-bash run_integration_tests.sh --exclude "purple_alien novel_heuristics" --partitions "validation"
-
-# Exclude nothing (override the default purple_alien exclusion)
-bash run_integration_tests.sh --exclude ""
+bash run_integration_tests.sh --exclude "novel_heuristics" --partitions "validation"
 
 # Use a different conda environment
 bash run_integration_tests.sh --env views_r2darts2
@@ -217,7 +214,7 @@ bash run_integration_tests.sh --models "bad_blood counting_stars" --partitions "
 ## Important Details
 
 - **Single shared environment**: Unlike each model's own `run.sh` (which creates/activates a per-model conda env), this script uses one environment for all models. All models must be installable into that environment. If a model needs packages that conflict with the shared env, it will fail.
-- **`--exclude` replaces, not appends**: Passing `--exclude "foo"` means *only* `foo` is excluded — `purple_alien` is no longer excluded unless you include it: `--exclude "purple_alien foo"`.
+- **`--exclude` replaces, not appends**: the default list is empty (since 2026-09-19), so `--exclude "foo"` excludes exactly `foo`.
 - **Models run sequentially**: There is no parallelism. A full run of all models across 2 partitions can take many hours depending on model complexity and data fetch times.
 - **Data is fetched live**: Each model's queryset pulls data from the VIEWS API at runtime. Network issues or API downtime will cause failures unrelated to model code.
 - **Forecasting partition uses live time**: If you pass `--partitions "forecasting"`, the train/test ranges are computed from `ViewsMonth.now()`, so results depend on when you run.

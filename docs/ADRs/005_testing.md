@@ -1,6 +1,6 @@
 # ADR-005: Testing as Mandatory Critical Infrastructure
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-07-19: fourth category `live`)
 **Date:** 2026-03-15
 **Deciders:** Simon (project maintainer)
 **Informed:** All contributors
@@ -26,6 +26,15 @@ We adopt a three-team testing taxonomy:
 | **Green** (Correctness) | Verify the system works as intended | `test_config_completeness.py` — required keys exist, values are valid |
 | **Beige** (Convention) | Catch configuration drift and convention violations | `test_model_structure.py` — naming, file presence; `test_config_partitions.py` — delegation to shared module; `test_cli_pattern.py` — CLI import consistency |
 | **Red** (Adversarial) | Expose failure modes by testing edge cases | `test_failure_modes.py` — config loading error paths |
+| **Live** (Real-world) | Probe real external services (network, credentials); must `pytest.skip` truthfully when the environment lacks access — never a false red | `tests/test_liveness_*.py` — one live probe per surface (amendment 2026-07-19) |
+
+**Amendment 2026-07-19 (falsify audit, register C-103):** green/beige/red all
+describe *offline* tests distinguished by the question they ask; tests that
+touch the real world are a fourth axis, not a kind of red. The liveness
+suites had mislabeled live network probes as `red` (which means
+adversarial/error-path); those are now `live`, and `red` marks the actual
+error-path tests. Rule: a `live` test asserts only invariants, never
+freshness values, and skips with the reason on any environment failure.
 
 ### Test Design Principles
 
@@ -57,11 +66,43 @@ We adopt a three-team testing taxonomy:
 
 ## Known Gaps
 
-- Catalog generation function tests require `views_pipeline_core` (skipped in most dev environments)
-- DARTS reproducibility tests require `views_r2darts2` (skipped without it); no equivalent for stepshifter or baseline
-- Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03
+- Catalog generation function tests require `views_pipeline_core` (skipped in most dev environments).
+  ⚠️ **An instance, not an accepted gap** — a skip standing in for a verdict about the repository is
+  what [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §2.5 forbids. The skip is truthful
+  where it reports the *environment* (the package is genuinely absent); it is a defect where the
+  census it guards derives to empty and the suite still reads green. Converting these is epic #608
+  story **S5 (#613)**, which classifies all nine sites one by one.
+- DARTS reproducibility tests require `views_r2darts2` (skipped without it); no equivalent for
+  stepshifter or baseline. ⚠️ Same distinction, same story (**#613**) — see
+  [ADR-025](025_a_check_that_cannot_see_must_refuse.md) §2.5.
+- ~~Tests are not wired into CI (`.github/workflows/`) — see Risk Register C-03~~ **Corrected
+  2026-10-27:** they are. `run_tests.yml` runs the suite on **push and pull_request to `main` and
+  `development`**, and `roster_configs_load.yml`, `runtime_smoke.yml`, `cic_sync_check.yml` and
+  `secret_scan.yml` add four more gates. ⚠️ **What C-03 should now say is two narrower residuals,
+  and they are different things:**
+    - ⛔ **CI cannot tell a quiet test family from a passing one.** `run_tests.yml:41` is a bare
+      `pytest`; `pyproject.toml` declares only `markers` — no `testpaths`, no `--strict-markers`,
+      no `addopts`, no minimum-collected assertion and no skip budget — and **pytest exits 0 on
+      skips.** So a family that silently empties is indistinguishable from one that passed. Both
+      extra workflows exist *because this already happened*: *"two production ensemble members sat
+      unloadable from August to September while every test passed"*
+      (`roster_configs_load.yml:7-11`, #404/#458). Tracked as **#611 (S3)**; the rule is
+      [ADR-025](025_a_check_that_cannot_see_must_refuse.md).
+    - `run_tests.yml:38` installs only **published** `views_pipeline_core==3.3.0`, so CI cannot
+      execute anything depending on an unreleased symbol — which is why
+      `roster_configs_load.yml` exists at all: the HydraNet load test `importorskip`s a package
+      `run_tests.yml` never installs, so in the main job it has **always** skipped.
 - No static validation of queryset correctness — see Risk Register C-02
-- Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime behavior
+- Red-team coverage is limited to config loading infrastructure; no adversarial tests for runtime
+  behavior. ⚠️ This is **C-106** in `reports/technical_risk_register.md` — *"the test architecture
+  verifies declarations exhaustively but runtime behavior nowhere in CI"* — self-declared a strategic
+  root, Mitigated with a live residual, and recorded there as Cluster G's root *one layer down*, in
+  CI rather than in retrieval. The register's trigger index routes to it on any change to a
+  `pytest.importorskip` or a census `skipif`. ⛔ **Cite the register for C-106, not
+  [ADR-025](025_a_check_that_cannot_see_must_refuse.md)** — the ADR states the rule and names root
+  C-168, and does **not** mention C-106 anywhere. An earlier draft of this bullet pointed at the ADR;
+  a reader following it would have found nothing, which is the defect this very commit exists to
+  correct.
 
 ---
 

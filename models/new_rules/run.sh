@@ -1,16 +1,17 @@
-#!/bin/zsh
+#!/usr/bin/env bash
+# GENERATED — do not edit by hand.
+# Source: views_pipeline_core.templates.model.template_run_sh, applied by
+# tools/scaffold/build_model_scaffold.py. A fix made here reaches one model out of
+# 129; fix the template instead (views-models#310, views-pipeline-core#384).
+# The only intended per-model variable is `env_path`.
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  if ! grep -q 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' ~/.zshrc; then
-    echo 'export LDFLAGS="-L/opt/homebrew/opt/libomp/lib"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' ~/.zshrc; then
-    echo 'export CPPFLAGS="-I/opt/homebrew/opt/libomp/include"' >> ~/.zshrc
-  fi
-  if ! grep -q 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' ~/.zshrc; then
-    echo 'export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
-  fi
-  source ~/.zshrc
+  # libomp sits in Homebrew's prefix on macOS and is not on the default search paths.
+  # Exported for THIS run only: the values are needed while the model runs, and a
+  # script named "run this model" should not rewrite the user's shell profile (#384).
+  export LDFLAGS="-L/opt/homebrew/opt/libomp/lib $LDFLAGS"
+  export CPPFLAGS="-I/opt/homebrew/opt/libomp/include $CPPFLAGS"
+  export DYLD_LIBRARY_PATH="/opt/homebrew/opt/libomp/lib:$DYLD_LIBRARY_PATH"
 fi
 
 script_path=$(dirname "$(realpath $0)")

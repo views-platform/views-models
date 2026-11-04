@@ -13,11 +13,6 @@ def generate():
 
     queryset = (Queryset('uncertainty_conflict_nolog','country_month')
 
-        .with_column(Column('lr_sb_best', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
-            .transform.missing.fill()
-            .transform.missing.replace_na()
-            )
-
         .with_column(Column('lr_ged_sb', from_loa='country_month', from_column='ged_sb_best_sum_nokgi')
             .transform.missing.fill()
             .transform.missing.replace_na()

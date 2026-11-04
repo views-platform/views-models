@@ -1,0 +1,52 @@
+# Declared DIRECTLY and floored at >=3.3.5, rather than inherited. Two reasons stack here,
+# and the HIGHER one is what the floor has to satisfy:
+#
+# >=3.2.0 — this ensemble carries configs/config_maturity.py, and only pipeline-core
+#   >=3.2.0 can find it: below that the loader looks for configs/config_deployment.py,
+#   which this ensemble does not have. views-baseline 1.0.2 floors pipeline-core at
+#   >=3.0.0, so an environment holding exactly 3.0.0 satisfies that range, the launcher
+#   upgrades nothing, and the run dies on a missing config_deployment.py. That is what
+#   broke Hop A on 2026-10-22 (views-models#594), and C-116 is why inheriting a
+#   co-tenant's floor is not good enough.
+#
+# >=3.3.5 — ⛔ chrome_box is the ONLY ensemble that needs this, and it needs it to finish
+#   rather than to start. It declares `reconciliation: "pgm_cm"`, so
+#   PredictionFrameEnsembleManager calls pipeline-core's `load_cm_frame` to read
+#   chrome_crate's cm forecast. Before 3.3.5 that function looked only for a `.parquet`
+#   file while a PredictionFrame partner writes a DIRECTORY, so it reported
+#   "no local forecast found for country model 'chrome_crate'" over a forecast that was
+#   there (views-pipeline-core#562, fixed in 3.3.5, published 2026-10-29; ADR-069).
+#
+# ⚠️ Why the floor and not just a fresh install: 3.3.4 satisfies >=3.2.0, so on a laptop
+# whose envs/views_ensemble already holds 3.3.4 the `pip install --dry-run` gate in run.sh
+# reports nothing missing and the launcher upgrades NOTHING. Measured 2026-10-29: that env
+# holds 3.3.4 today. A fresh box got 3.3.5 only by accident of it being newest. Same class
+# as #594/#635 — a satisfied range is not a current install.
+#
+# chrome_crate deliberately stays at >=3.2.0: it declares no reconciliation, so it never
+# reaches load_cm_frame, and claiming a requirement it does not have is the kind of false
+# precision this comment block exists to prevent.
+# >=3.4.0 — ⛔ and this one is not about pipeline-core at all. 3.4.0 is the first release
+#   carrying `views-frames>=3.0.0`, and views-frames 3.0.0 is where the reconciler was
+#   fixed. Below it, `ReconciliationModule` spreads a country's total only across cells
+#   that are ALREADY non-zero, so a country whose grid is all-zero in a draw loses its
+#   entire mass — silently. Measured on the 2026-10-30 delivery, which reported
+#   `STATUS: OK` and `scaling_failures: 0`: 4.023% / 7.321% / 2.943% of the fatality mass
+#   of lr_sb_best / lr_ns_best / lr_os_best was never placed on the grid
+#   (views-frames#283, views-models#659/#663).
+#
+#   ⚠️ This floor was UNSATISFIABLE until 2026-11-02. views-datafactory capped
+#   `views-frames<2` as a base dependency in every release 1.9.0..1.16.0, so pinning
+#   pipeline-core >=3.4.0 alongside datafactory produced "requirements are unsatisfiable"
+#   rather than an upgrade. datafactory 1.17.0 widened the cap to `<4`
+#   (views-datafactory#527) and only then could this move.
+views-pipeline-core>=3.4.0,<4.0.0
+
+# Declared DIRECTLY, for the same reason pipeline-core is: this ensemble's reconciliation
+# imports `views_frames_reconcile` itself (reconciliation/reconciler_factory.py:85), so
+# views-frames is a first-order dependency of chrome_box and not a co-tenant's. C-116 is
+# the rule — inheriting a floor from whatever else happens to be installed is how a lane
+# keeps a version the repository has moved past. This is also the floor that the two pod
+# scripts assert on the INSTALLED distribution (`FRAMES_FLOOR`), because a satisfied range
+# is not a current install.
+views-frames>=3.0.0,<4.0.0

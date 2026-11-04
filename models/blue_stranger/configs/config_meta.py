@@ -19,12 +19,11 @@ def get_meta_config():
         # output format
         # ============================================================
 
-        "prediction_format": "prediction_frame", #"dataframe",
-        # "prediction_format": "dataframe",
+        "prediction_format": "prediction_frame",
         # ============================================================
         # diagnostic settings
         # ============================================================
-        "diagnostic_visualizations": False, #True,
+        "diagnostic_visualizations": True,  # was False
 
         # ============================================================
         # evaluation settings 

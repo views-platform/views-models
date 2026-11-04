@@ -1,0 +1,386 @@
+"""`docs/forecast_delivery_map.md` must not rot silently (#349, epic #342).
+
+The map is deliberately **not an ADR**: it describes how a forecast physically reaches a
+consumer *today*, and it is expected to change — *"a shrinking list, by design."* That
+is exactly what makes it dangerous. A page designed to change, that nothing checks,
+becomes confidently wrong.
+
+It has already been wrong once. Its predecessor (ADR-017 §1) claimed the live FAO leg
+could never see `rusty_bucket`'s output; in fact the legacy leg was retired in #149 and
+the contract leg is the only one. The same pass found **C-97 marked Resolved on a claim
+that is not true**.
+
+**Assertions are on the underlying fact, never the prose.** A test that matched sentences
+would fail on every edit and teach the next person to delete it. These check that a file
+exists, a count matches, a key is absent — the things the sentences are *about*.
+
+Claims are split by where they can be answered:
+
+- **offline, in this repo** — `beige`, always run
+- **another repository** — `live`, skipped truthfully when it is not importable (ADR-005)
+- **the live buckets** — `live`, and covered by `python -m tools.liveness`, not here
+"""
+
+import ast
+import re
+import subprocess
+from datetime import date
+from pathlib import Path
+
+import pytest
+
+from tests.conftest import load_config_module
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MAP = REPO_ROOT / "docs" / "forecast_delivery_map.md"
+
+
+def _map_text() -> str:
+    return MAP.read_text(encoding="utf-8")
+
+
+# ── What the map is ────────────────────────────────────────────────────────
+
+
+@pytest.mark.beige
+class TestTheMapIsNotAnADR:
+    """ADR-000 gained the containment rule when #341 split ADR-017. This pins it."""
+
+    def test_it_exists_where_the_adrs_cite_it(self):
+        assert MAP.exists(), (
+            "docs/forecast_delivery_map.md is missing, but ADR-017, ADR-019 and "
+            "ADR-020 all cite it for today's state."
+        )
+
+    def test_it_does_not_live_in_the_adr_directory(self):
+        strays = list((REPO_ROOT / "docs" / "ADRs").glob("*forecast_delivery_map*"))
+        assert not strays, (
+            f"{strays} — the map is not an ADR. ADR-000: decisions are 'never "
+            f"deleted… superseded, not erased', and this page is designed to shrink."
+        )
+
+    def test_it_says_so_itself(self):
+        assert "not an ADR" in _map_text(), (
+            "the map must state that it is not an ADR, or a reader will apply ADR-000's "
+            "never-delete rule to a page built to shrink."
+        )
+
+    def test_it_carries_a_re_traced_date(self):
+        match = re.search(r"re-traced against the code and the live buckets:\s*(\d{4}-\d{2}-\d{2})", _map_text())
+        assert match, "the map must say when it was last re-traced against reality"
+        traced = date.fromisoformat(match.group(1))
+        assert traced <= date.today(), f"the map claims a future re-trace date: {traced}"
+
+
+# ── Offline claims ─────────────────────────────────────────────────────────
+
+
+@pytest.mark.beige
+class TestOfflineClaims:
+    def test_the_maturity_distribution_is_what_the_map_says(self):
+        """Counts **both quote styles**. A double-quote-only pattern matched 47 of 128
+        files and reported the rest as absent, which is how the map carried a wrong
+        figure for a week (register C-127). This test exists so that is unrepeatable.
+        """
+        # Both vocabularies, each counted from its own file (ADR-017 §11 status 2026-09-17):
+        # `maturity` in config_maturity.py, `deployment_status` in config_deployment.py.
+        #
+        # ⛔ `*/configs/<filename>`, NOT `rglob`. A pod run that saves its `configs_as_run/`
+        # leaves a COPY of a config under `<model>/data/generated/<delivery>/`, which rglob
+        # counts as a source. On 2026-10-27 exactly one such copy existed
+        # (copper_kestrel's calibration_delivery_20261016) and it put this census one above
+        # the clean checkout, which is how 112 was recorded as 113 and CI went red on a
+        # figure that was right on the machine it was measured on. The roster is the
+        # directories themselves, at a fixed depth; artifacts are not sources.
+        pattern = re.compile(r"""(?:maturity|deployment_status)['"]?\s*[:=]\s*['"]([a-z_]+)""")
+        text = _map_text()
+        # ⛔ Scope the search to the CURRENT measurement clause, and require exactly one hit.
+        # `needle in text` is satisfied by any occurrence anywhere, so the map could carry a
+        # wrong headline figure and still pass because a delta sentence ("96 -> 112
+        # `candidate`") or the historical record repeated the right number elsewhere. That is
+        # how this guard survived a mutation of its own subject on 2026-10-27. The history
+        # after "Previously" is out of the pin's reach BY CONSTRUCTION -- the slice ends where
+        # it begins -- which is a structural property, not a mutable one: no mutation of the
+        # history clause can make this assertion wrong, so none is recorded as proving it.
+        #
+        # What this does NOT pin: the figure must appear exactly once in the clause, not
+        # specifically in the bolded headline. A parenthetical inside the same four lines that
+        # restated a figure while the headline contradicted it would pass. Accepted -- it is a
+        # self-contradicting edit in one short paragraph, and pinning the bold run would mean
+        # parsing the prose's formatting.
+        start = text.index("*(Measured")
+        measured_now = text[start:text.index("Previously", start)]
+        total = 0
+        for filename in ("config_maturity.py", "config_deployment.py"):
+            counts: dict[str, int] = {}
+            files = sorted((REPO_ROOT / "models").glob(f"*/configs/{filename}")) + \
+                    sorted((REPO_ROOT / "ensembles").glob(f"*/configs/{filename}"))
+            total += len(files)
+            for path in files:
+                for value in pattern.findall(path.read_text(encoding="utf-8")):
+                    counts[value] = counts.get(value, 0) + 1
+            for value, count in counts.items():
+                assert measured_now.count(f"{count} `{value}`") == 1, (
+                    f"the map's current measurement does not say, exactly once, that there are "
+                    f"{count} `{value}` sources "
+                    f"(found {sorted(counts.items())} across {len(files)} {filename} files).\n"
+                    f"  Open docs/forecast_delivery_map.md and correct the figure."
+                )
+            assert measured_now.count(f"{len(files)} `{filename}`") == 1, (
+                f"the map's current measurement does not say, exactly once, "
+                f"{len(files)} `{filename}` files."
+            )
+        assert measured_now.count(f"{total} files in all") == 1, (
+            f"the map's current measurement does not say, exactly once, {total} files in all."
+        )
+
+    def test_the_reconciling_ensembles_are_what_the_map_says(self):
+        """The map's list of who reconciles against whom, compared as a SET against the
+        configs — both directions.
+
+        ⛔ Finds them by LOADING each config, not by matching its source text. This read
+        `re.search(r'"reconciliation":\\s*(?!None)[\\'"]', ...)`, which requires a
+        double-quoted key, so rewriting the line as `'reconciliation': 'pgm_cm'` — the
+        config still loads identically — dropped `chrome_box` out of `declared` and the
+        map was then free to omit it. That is the **same defect class as C-127, recorded
+        four lines below in this very file** ("A double-quote-only pattern matched 47 of
+        128 files"). The sibling guard in that class counts both quote styles; this one
+        now does not have a style to get wrong, because it asks Python.
+
+        ⛔ And both directions. Checking only that every declared pairing appears in the
+        text let the map *claim* pairings that do not exist: inventing
+        `white_mustang → pink_ponyclub` and `rusty_bucket → cruel_summer` left it green.
+        A reader of this map is precisely who a wrong partner reaches.
+        """
+        declared = {}
+        for path in sorted((REPO_ROOT / "ensembles").glob("*/configs/config_meta.py")):
+            meta = load_config_module(path).get_meta_config()
+            if not meta.get("reconciliation"):
+                continue
+            name = path.parent.parent.name
+            partner = meta.get("reconcile_with")
+            assert partner, f"{name} declares reconciliation but no reconcile_with partner"
+            declared[name] = partner
+
+        # Scoped to the one bullet whose job is this list, so that an `X → Y` written
+        # anywhere else in the document — the shape/convergence bullets use plenty of
+        # arrows — neither satisfies nor breaks it.
+        text = _map_text()
+        start = text.index("- **Which ensembles reconcile, and against what:**")
+        clause = text[start:text.index("\n- **", start + 1)]
+        written = set(re.findall(r"([a-z_]+) → ([a-z_]+)", clause))
+
+        assert written == set(declared.items()), (
+            "the map's reconciliation bullet does not match the configs.\n"
+            f"  configs declare : {sorted(declared.items())}\n"
+            f"  the map records : {sorted(written)}\n"
+            f"  only in the map : {sorted(written - set(declared.items()))}\n"
+            f"  only in configs : {sorted(set(declared.items()) - written)}\n"
+            "An ensemble reconciling against the wrong partner is the defect this "
+            "documents, so a pairing the map invents is as wrong as one it omits."
+        )
+
+    def test_no_source_is_a_buried_literal_in_any_postprocessor(self):
+        """#347 moved it. The map used to call that line 'the smell, exactly'.
+
+        Generalised 2026-08-11: this named `un_fao` until a second consumer existed, so a
+        cloned config with a literal `ensemble` would have passed it — the exact mistake
+        cloning invites (#333).
+        """
+        from deliveries.status import delivery_files, load_delivery
+
+        checked = 0
+        for path in delivery_files():
+            consumer = path.stem
+            config = REPO_ROOT / "postprocessors" / consumer / "configs" / "config_meta.py"
+            if not config.exists():
+                continue  # a declared consumer need not have a postprocessor here
+            literals = {
+                node.value for node in ast.walk(ast.parse(config.read_text(encoding="utf-8")))
+                if isinstance(node, ast.Constant) and isinstance(node.value, str)
+            }
+            for source in load_delivery(path).DELIVERY.send:
+                assert source.name not in literals, (
+                    f"'{source.name}' is a literal in {consumer}'s config again — the "
+                    f"map's description of where the delivery is declared would be wrong."
+                )
+            checked += 1
+        assert checked, "no postprocessor configs checked — this test asserts nothing"
+
+    def test_the_map_does_not_still_call_the_fao_docstring_false(self):
+        """#347 rewrote it. A map that keeps reporting a fixed defect trains readers
+        to distrust it, which is worse than saying nothing."""
+        text = _map_text()
+        stale = "modifying it will not affect the model" in text and "**false**" in text
+        assert not stale, (
+            "the map still describes the FAO config docstring as false. #347 rewrote "
+            "it.\n  Open docs/forecast_delivery_map.md and update that entry."
+        )
+
+    def test_c110_residual_is_described_accurately(self):
+        """C-110 has narrowed. `wire_upload_enabled` is committed and derived since
+        #348; only `wire_contract` and `region` remain working-tree only."""
+        committed = subprocess.run(
+            ["git", "show", "HEAD:postprocessors/un_fao/configs/config_meta.py"],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+        assert committed.returncode == 0
+        if "wire_upload_enabled" in committed.stdout:
+            text = _map_text()
+            assert "absent from git" not in text or "wire_upload_enabled" not in text.split("absent from git")[0][-400:], (
+                "the map still says wire_upload_enabled is absent from git. Since #348 "
+                "it is committed and derived from DELIVERY.intent.\n"
+                "  Open docs/forecast_delivery_map.md and narrow C-110's residual to "
+                "wire_contract and region."
+            )
+
+
+# ── Claims answered in another repository ──────────────────────────────────
+
+
+def _views_postprocessing_dir() -> Path:
+    """Where views-postprocessing's source is, or a truthful skip.
+
+    `views_postprocessing` may import as a **namespace package** — `__file__` is None
+    while `__path__` points at a sibling source checkout on `sys.path`. That is not an
+    installed package, and `pytest.importorskip` alone would let a test claim it
+    verified an installation it never saw (the C-75 failure mode).
+
+    So: resolve through `__path__` when `__file__` is absent, and say which was used.
+    """
+    module = pytest.importorskip(
+        "views_postprocessing",
+        reason="views_postprocessing not importable — cannot verify the map's "
+               "cross-repo claims (truthful skip, C-75)",
+    )
+    if module.__file__:
+        return Path(module.__file__).parent
+    paths = list(getattr(module, "__path__", []))
+    if not paths:
+        pytest.skip(
+            "views_postprocessing imports as an empty namespace package — there is no "
+            "source to read, so nothing here was verified (truthful skip, C-75)"
+        )
+    return Path(paths[0])
+
+
+@pytest.mark.live
+class TestCrossRepoClaims:
+    """Skipped truthfully when views-postprocessing is not importable (ADR-005, C-75).
+
+    A silent pass here would be worse than no test: it would report that the wire
+    contract was verified when nothing was read.
+    """
+
+    def test_the_legacy_pandas_reader_is_gone(self):
+        source = _views_postprocessing_dir() / "unfao" / "managers" / "unfao.py"
+        if not source.exists():
+            pytest.skip(f"{source} not present in the installed package")
+        text = source.read_text(encoding="utf-8")
+        assert "LEGACY_FORECAST_FILTERS" not in text, (
+            "LEGACY_FORECAST_FILTERS is back in views-postprocessing's FAO manager. "
+            "The map says the legacy pandas reader was retired in #149."
+        )
+
+    def test_the_upload_is_interlocked_off_by_default(self):
+        product = _views_postprocessing_dir() / "unfao" / "product.py"
+        if not product.exists():
+            pytest.skip(f"{product} not present in the installed package")
+        text = product.read_text(encoding="utf-8")
+        # Allow an annotation: the real line is `UPLOAD_ENABLED: bool = False`.
+        # A pattern that demanded a bare `=` reported the constant as missing — the
+        # same defect class as C-127, in the test written to prevent C-127.
+        assert re.search(r"UPLOAD_ENABLED\s*(?::\s*\w+\s*)?=\s*False", text), (
+            "vpp ADR-013 §11.4's interlock is no longer off by default. The map, and "
+            "this repo's derived arming state (#348), both assume it is."
+        )
+
+
+@pytest.mark.beige
+class TestReconciledIsNotADecorativeClaim:
+    """`REQUIRE.reconciled = True` must be true of the sources actually sent.
+
+    **Why this did not exist until 2026-10-28, and why it has to now.** `coherence.py`
+    checks `reconciled` only to *gate* multi-source deliveries: `_check_reconciliation`
+    returns at `if len(delivery.send) < 2`. So on a single-source delivery the flag was
+    unread by anything — it could say `True` over an ensemble that reconciles with
+    nothing and no check would object. `un_crafd` became the repository's first
+    single-source `reconciled=True` on 2026-10-28, which turned a latent gap into a live
+    one: register **C-145** already records that the flag "by then claims nothing".
+
+    What makes it worth a guard rather than a comment is the failure it admits. A
+    delivery repointed at an unreconciled ensemble — exactly the `rusty_bucket` edit this
+    file's own history is about — keeps `reconciled=True`, passes coherence, and ships a
+    grid forecast whose cells do not sum to any country total to an external partner,
+    while the declaration says they do.
+
+    ⛔ Loads each config with Python rather than matching its text, for the reason the
+    sibling guard above gives at length: a `'reconciliation'` written in single quotes
+    loads identically and defeats a regex.
+    """
+
+    def _reconciliation_of(self, source: str) -> tuple[str | None, str | None]:
+        """`(reconciliation, reconcile_with)` as the source's own config declares them.
+
+        Refuses rather than skips when the source cannot be found (ADR-025). A delivery
+        naming a source that does not exist is a worse defect than the one this test
+        hunts, and returning `(None, None)` for it would report that as "does not
+        reconcile" — a true-looking verdict reached for the wrong reason.
+        """
+        for base in ("ensembles", "models"):
+            path = REPO_ROOT / base / source / "configs" / "config_meta.py"
+            if path.exists():
+                meta = load_config_module(path).get_meta_config()
+                return meta.get("reconciliation"), meta.get("reconcile_with")
+        raise AssertionError(
+            f"no configs/config_meta.py for source '{source}' under ensembles/ or "
+            f"models/, so whether it reconciles cannot be read.\n"
+            f"  A delivery naming a source that does not exist is the first thing to "
+            f"fix; this check will not treat an unreadable source as unreconciled."
+        )
+
+    def test_every_delivery_claiming_reconciled_sends_something_that_reconciles(self):
+        from deliveries.status import delivery_files, load_delivery
+
+        checked = []
+        for path in delivery_files():
+            module = load_delivery(path)
+            if module.REQUIRE.reconciled is not True:
+                continue
+            names = [s.name for s in module.DELIVERY.send]
+            declared = {n: self._reconciliation_of(n) for n in names}
+            reconcilers = {n: p for n, (r, p) in declared.items() if r}
+
+            assert reconcilers, (
+                f"deliveries/{path.stem}.py declares reconciled=True, but none of its "
+                f"sources ({', '.join(names)}) declares `reconciliation` in its own "
+                f"configs/config_meta.py.\n"
+                f"  The flag is then a claim about nothing, and an external partner "
+                f"reads it as a promise that cell forecasts sum to country totals.\n"
+                f"  Either send a reconciling ensemble, or drop reconciled=True."
+            )
+            for name, partner in reconcilers.items():
+                assert partner, (
+                    f"{name} declares reconciliation but no `reconcile_with` partner, "
+                    f"so deliveries/{path.stem}.py's reconciled=True names no twin."
+                )
+            # Every source must be a reconciler or a reconciler's declared partner.
+            # Without this, adding an unreconciled third source to a delivery that
+            # already has a reconciling one would pass on the strength of the other.
+            allowed = set(reconcilers) | set(reconcilers.values())
+            stranded = sorted(set(names) - allowed)
+            assert not stranded, (
+                f"deliveries/{path.stem}.py declares reconciled=True but sends "
+                f"{stranded}, which neither reconciles nor is the declared partner of "
+                f"a source that does.\n"
+                f"  reconciling here: {sorted(reconcilers.items())}\n"
+                f"  A source outside the reconciliation group makes the flag true of "
+                f"part of the delivery and false of the rest."
+            )
+            checked.append(path.stem)
+
+        assert checked, (
+            "no delivery declares reconciled=True, so this guard proved nothing this "
+            "run. It is not vacuously green by design — un_crafd has declared it since "
+            "2026-10-28. If that changed deliberately, delete this assertion knowingly."
+        )

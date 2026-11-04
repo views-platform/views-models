@@ -1,0 +1,55 @@
+name: Datafactory Geography
+
+# tests/test_datafactory_country_mapping_provider.py guards the #601 GAUL geography
+# provider — the grid->country lookup epic #595's `chrome_box` reconciles through. Most
+# of its 25 guards need only views-frames, which run_tests.yml already resolves, so they
+# run there. SIX do not: the three that check the region ground truth
+# (`datafactory_query.load_region_pgids`) and the three that check what the real fetch
+# asks for. This job is where those six run. Measured, not counted by eye: a venv built
+# exactly like run_tests.yml reports `24 passed, 6 skipped`.
+#
+# Why a separate job, following roster_configs_load.yml and runtime_smoke.yml:
+#   * run_tests.yml's install is PINNED on purpose (its header says why). Adding a
+#     package there changes what "the suite is green" means for every PR.
+#   * The dependency set here is one package, and a red here means one thing: the
+#     grid->country geography the reconciliation depends on is not what we claim.
+#
+# ⛔ Why this job has to exist at all, rather than a module-level `importorskip`:
+# a skipped guard reads as a pass. `test_roster_configs_load.py` carries
+# `importorskip("views_hydranet")` and had therefore ALWAYS skipped in run_tests.yml —
+# the guard for two production ensemble members that sat unloadable from August to
+# September while every test passed (#404, #458 §1b). The lesson taken from that was a
+# dedicated job, not a louder skip, and the same applies here. ADR-025: a check that
+# cannot see its subject must refuse, and UNVERIFIED must not be read as PASS.
+#
+# What it installs, and why that floor: `views-datafactory>=1.13.0,<2.0.0`, the same
+# range the sixteen #595 members declare in their own requirements.txt. 1.13.0 is where
+# `land_gaul` and the country_month output were verified present (2026-10-22). The
+# region data these guards read is a JSON bundled INSIDE the wheel, so this job needs no
+# credentials and no network beyond the install — verified against published 1.13.0 in a
+# clean venv: land_gaul 64,742, land 64,818. No viewser, no torch, no pipeline-core.
+#
+# ⚠️ Keep the range below in step with the members' floor when either moves.
+# tests/test_datafactory_country_mapping_provider.py asserts this file exists and names
+# that test path, so the six guards cannot quietly lose the job that runs them.
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  datafactory-geography:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install "views-datafactory>=1.13.0,<2.0.0" "views_pipeline_core==3.3.0" pytest
+
+      - name: Run the geography guards
+        run: pytest tests/test_datafactory_country_mapping_provider.py -v
