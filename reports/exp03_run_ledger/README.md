@@ -11,6 +11,36 @@ get what we paid for* — and nothing else.
 
 ---
 
+## ⚠️ These arms were RENAMED on 2026-11-04 — crosswalk for older records
+
+The twelve arms originally encoded their identity in the directory name (`ctlfullzero_fortytwo`
+= control / fullzero / seed 42). That form fails this repo's documented `adjective_noun`
+convention (README.md, ADR-004), so they were renamed. **The new names still carry both
+dimensions:** the adjective is the seed, alphabetical, and the noun is the architecture.
+
+| seed | control — `HydraBNUNet06_LSTM4` | treatment — `UpsampleConv2` |
+|---|---|---|
+| 42 | `ctlfullzero_fortytwo` → **`calm_orbiter`** | `upctwofullzero_fortytwo` → **`calm_lander`** |
+| 43 | `ctlfullzero_fortythree` → **`keen_orbiter`** | `upctwofullzero_fortythree` → **`keen_lander`** |
+| 44 | `ctlfullzero_fortyfour` → **`mellow_orbiter`** | `upctwofullzero_fortyfour` → **`mellow_lander`** |
+| 45 | `ctlfullzero_fortyfive` → **`nimble_orbiter`** | `upctwofullzero_fortyfive` → **`nimble_lander`** |
+| 46 | `ctlfullzero_fortysix` → **`quiet_orbiter`** | `upctwofullzero_fortysix` → **`quiet_lander`** |
+| 47 | `ctlfullzero_fortyseven` → **`rapid_orbiter`** | `upctwofullzero_fortyseven` → **`rapid_lander`** |
+
+⛔ **`orbiter` is always the control and `lander` always the upsampling treatment** — so a result
+table can be read without consulting a config.
+
+⚠️ **Records outside this repository still use the old names**, including views-hydranet's
+`PREREG_EXP03_SEEDS.md` and any readout already written against it. This table is the only
+crosswalk; it is kept here rather than in a commit message because a commit message is not where
+a reader looks a name up.
+
+⚠️ **The delivered artefacts moved with their directories** — `git mv` of a directory is a
+filesystem rename, so the untracked `data/generated/calibration_delivery_20261103/` trees (108–111
+MB each) came along. Verified after the move, not assumed.
+
+---
+
 ## The purchase, and what it buys
 
 EXP-02 (seeds 42, 43) left σ resting on **one degree of freedom**. At h36 the between-seed sd
@@ -30,12 +60,12 @@ twelve carry `diagnostic_visualizations: False`, and all twelve must land on one
 
 | seed | control | treatment | status |
 |---|---|---|---|
-| 42 | `ctlfullzero_fortytwo` | `upctwofullzero_fortytwo` | ✅ complete, 2026-11-03 (EXP-02) |
-| 43 | `ctlfullzero_fortythree` | `upctwofullzero_fortythree` | ✅ complete, 2026-11-03 (EXP-02) |
-| 44 | `ctlfullzero_fortyfour` | `upctwofullzero_fortyfour` | running |
-| 45 | `ctlfullzero_fortyfive` | `upctwofullzero_fortyfive` | running |
-| 46 | `ctlfullzero_fortysix` | `upctwofullzero_fortysix` | running |
-| 47 | `ctlfullzero_fortyseven` | `upctwofullzero_fortyseven` | not started |
+| 42 | `calm_orbiter` | `calm_lander` | ✅ complete, 2026-11-03 (EXP-02) |
+| 43 | `keen_orbiter` | `keen_lander` | ✅ complete, 2026-11-03 (EXP-02) |
+| 44 | `mellow_orbiter` | `mellow_lander` | running |
+| 45 | `nimble_orbiter` | `nimble_lander` | running |
+| 46 | `quiet_orbiter` | `quiet_lander` | running |
+| 47 | `rapid_orbiter` | `rapid_lander` | not started |
 
 **Arms are launched in seed PAIRS, deliberately.** A treatment differs from the control of its
 own seed in exactly `{"model"}`, so a completed pair reads on its own. Capacity has been
@@ -62,16 +92,16 @@ Times are CET. Cost is wall-clock × $0.75/h.
 
 | arm | pod | launched | gate | finished | cost | retrieved + verified |
 |---|---|---|---|---|---|---|
-| `ctlfullzero_fortytwo` | (EXP-02) | 2026-11-03 00:28 | ✅ 450 s | 06:16 | ~$1.60 | ✅ 108 MB, sha256 OK |
-| `ctlfullzero_fortythree` | (EXP-02) | 2026-11-03 00:30 | ✅ 430 s | 03:38 | ~$1.60 | ✅ 108 MB, sha256 OK |
-| `upctwofullzero_fortytwo` | (EXP-02) | 2026-11-03 00:28 | ✅ 430 s | 03:38 | ~$1.60 | ✅ 111 MB, sha256 OK |
-| `upctwofullzero_fortythree` | (EXP-02) | 2026-11-03 00:28 | ✅ 440 s | 04:12 | ~$1.60 | ✅ 110 MB, sha256 OK |
-| `ctlfullzero_fortyfour` | `216.81.151.57:14318` | 15:25 | ✅ | — | — | — |
-| `upctwofullzero_fortyfour` | `216.81.151.63:17838` | 15:25 | ✅ | — | — | — |
-| `ctlfullzero_fortyfive` | `216.81.151.71:11067` | 15:47 | ✅ | — | — | — |
-| `upctwofullzero_fortyfive` | `216.81.151.63:16039` | 15:53 | ✅ | — | — | — |
-| `ctlfullzero_fortysix` | `216.81.151.57:14192` | 16:11 | — | — | — | — |
-| `upctwofullzero_fortysix` | `216.81.151.55:18132` | 16:11 | — | — | — | — |
+| `calm_orbiter` | (EXP-02) | 2026-11-03 00:28 | ✅ 450 s | 06:16 | ~$1.60 | ✅ 108 MB, sha256 OK |
+| `keen_orbiter` | (EXP-02) | 2026-11-03 00:30 | ✅ 430 s | 03:38 | ~$1.60 | ✅ 108 MB, sha256 OK |
+| `calm_lander` | (EXP-02) | 2026-11-03 00:28 | ✅ 430 s | 03:38 | ~$1.60 | ✅ 111 MB, sha256 OK |
+| `keen_lander` | (EXP-02) | 2026-11-03 00:28 | ✅ 440 s | 04:12 | ~$1.60 | ✅ 110 MB, sha256 OK |
+| `mellow_orbiter` | `216.81.151.57:14318` | 15:25 | ✅ | — | — | — |
+| `mellow_lander` | `216.81.151.63:17838` | 15:25 | ✅ | — | — | — |
+| `nimble_orbiter` | `216.81.151.71:11067` | 15:47 | ✅ | — | — | — |
+| `nimble_lander` | `216.81.151.63:16039` | 15:53 | ✅ | — | — | — |
+| `quiet_orbiter` | `216.81.151.57:14192` | 16:11 | — | — | — | — |
+| `quiet_lander` | `216.81.151.55:18132` | 16:11 | — | — | — | — |
 
 ## What "verified" means here
 

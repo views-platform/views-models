@@ -1,0 +1,50 @@
+\begin{thebibliography}{}
+
+\bibitem[Bellemare and Wichman, 2020]{bellemare2020elasticities}
+Bellemare, M.~F. and Wichman, C.~J. (2020).
+\newblock Elasticities and the inverse hyperbolic sine transformation.
+\newblock {\em Oxford Bulletin of Economics and Statistics}, 82(1):50--61.
+
+\bibitem[Chen and Roth, 2024]{chen2024logs}
+Chen, J. and Roth, J. (2024).
+\newblock Logs with zeros? some problems and solutions.
+\newblock {\em The Quarterly Journal of Economics}, 139(2):891--936.
+
+\bibitem[Chen et~al., 2023]{chen2023tsmixer}
+Chen, S.-A., Li, C.-L., Yoder, N., Arik, S.~O., and Pfister, T. (2023).
+\newblock {TSMixer}: An all-{MLP} architecture for time series forecasting.
+\newblock {\em Transactions on Machine Learning Research}.
+\newblock arXiv:2303.06053.
+
+\bibitem[Das et~al., 2023]{das2023tide}
+Das, A., Kong, W., Leach, A., Mathur, S., Sen, R., and Yu, R. (2023).
+\newblock Long-term forecasting with {TiDE}: Time-series dense encoder.
+\newblock {\em arXiv preprint arXiv:2304.08424}.
+
+\bibitem[Duan, 1983]{duan1983smearing}
+Duan, N. (1983).
+\newblock Smearing estimate: A nonparametric retransformation method.
+\newblock {\em Journal of the American Statistical Association},
+  78(383):605--610.
+
+\bibitem[Hegre et~al., 2025]{hegre2025challenge}
+Hegre, H., Vesco, P., Colaresi, M., et~al. (2025).
+\newblock The 2023/24 {VIEWS} prediction challenge: Predicting the number of
+  fatalities in armed conflict, with uncertainty.
+\newblock {\em Journal of Peace Research}.
+\newblock doi:10.1177/00223433241300862.
+
+\bibitem[Kim et~al., 2022]{kim2022revin}
+Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H., and Choo, J. (2022).
+\newblock Reversible instance normalization for accurate time-series
+  forecasting against distribution shift.
+\newblock In {\em International Conference on Learning Representations (ICLR)}.
+
+\bibitem[Oreshkin et~al., 2020]{oreshkin2020nbeats}
+Oreshkin, B.~N., Carpov, D., Chapados, N., and Bengio, Y. (2020).
+\newblock {N-BEATS}: Neural basis expansion analysis for interpretable time
+  series forecasting.
+\newblock In {\em International Conference on Learning Representations (ICLR)}.
+\newblock arXiv:1905.10437.
+
+\end{thebibliography}

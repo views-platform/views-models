@@ -33,7 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "tools" / "podrun" / "pod_run_exp02_arm.sh"
 SLICER = REPO_ROOT / "tools" / "podrun" / "slice_gate_posterior.py"
 
-ARM = "ctlfullzero_fortytwo"
+ARM = "calm_orbiter"
 DIGEST = "b32a221b70e5255d3d85e683b483d9398ae08ed3b5e9d1be71c6e8f7aa13422c"
 ROWS, STEPS, DRAWS, FIRST_MONTH = 4, 3, 2, 457
 GATE_TARGETS = ("by_sb_best", "by_ns_best", "by_os_best")
@@ -337,12 +337,12 @@ def test_the_declared_pull_and_arm_set_are_what_the_experiment_registered():
         "the bound exists because the read-only runner archives with zstd -T0"
     )
     for arm in (
-        "ctlfullzero_fortytwo", "ctlfullzero_fortythree",
-        "upctwofullzero_fortytwo", "upctwofullzero_fortythree",
-        "ctlfullzero_fortyfour", "ctlfullzero_fortyfive",
-        "ctlfullzero_fortysix", "ctlfullzero_fortyseven",
-        "upctwofullzero_fortyfour", "upctwofullzero_fortyfive",
-        "upctwofullzero_fortysix", "upctwofullzero_fortyseven",
+        "calm_orbiter", "keen_orbiter",
+        "calm_lander", "keen_lander",
+        "mellow_orbiter", "nimble_orbiter",
+        "quiet_orbiter", "rapid_orbiter",
+        "mellow_lander", "nimble_lander",
+        "quiet_lander", "rapid_lander",
     ):
         assert arm in text, f"{arm} is one of the four and must be named"
     assert "ctltinyzero" not in text.split("ARMS=(")[1].split(")")[0]

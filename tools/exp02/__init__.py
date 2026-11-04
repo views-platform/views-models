@@ -18,8 +18,8 @@ panel is window-dependent and has no pre-registered threshold; quoting it as a f
 the "correct value, wrong question" failure the register keeps recording.
 
     python tools/exp02/plot_spatial_windows.py \
-        --arm "ctl_42=models/ctlfullzero_fortytwo/data/generated/calibration_delivery_20261103" \
-        --arm "upc2_42=models/upctwofullzero_fortytwo/data/generated/calibration_delivery_20261103" \
+        --arm "ctl_42=models/calm_orbiter/data/generated/calibration_delivery_20261103" \
+        --arm "upc2_42=models/calm_lander/data/generated/calibration_delivery_20261103" \
         --zone levant --month 504 --draw 0
 
 Two things it reads, because they answer different questions: the per-origin parquets hold the

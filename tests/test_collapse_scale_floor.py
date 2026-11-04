@@ -7,7 +7,7 @@ a derived quantity, not a preference — the bound is `log1p(largest count the d
 observed count is 2,482, and `log1p(2482) = 7.817`, so a frame genuinely in log1p space cannot
 present a maximum above ~7.8. The band (7.82, 12.0) was therefore a refusal region in which the
 dangerous hypothesis is IMPOSSIBLE and only a legitimate count-space forecast can sit. It
-refused `upctwofullzero_fortysix` at 11.31 — a value that proves the frame is NOT log1p, since
+refused `quiet_lander` at 11.31 — a value that proves the frame is NOT log1p, since
 `expm1(11.31) = 81,633`, a count no cell on the global-land grid reaches.
 
 These tests pin the derivation rather than the number, so a future change has to restate the
@@ -46,7 +46,7 @@ def test_the_floor_sits_above_log1p_ceiling_but_not_by_much():
         f"the floor {MIN_PLAUSIBLE_MAX} is more than twice log1p's ceiling "
         f"{LOG1P_CEILING:.3f}. Everything between the ceiling and the floor is a band where "
         f"the dangerous hypothesis is impossible and only a legitimate count-space forecast "
-        f"can sit — the band this guard refused upctwofullzero_fortysix inside, at 11.31."
+        f"can sit — the band this guard refused quiet_lander inside, at 11.31."
     )
 
 

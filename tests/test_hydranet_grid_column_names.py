@@ -9,7 +9,7 @@ regularly were all correct (views-models#698).
 `config["id_col"]` and `:168-169` indexes the frame with it, and `DataSniffer` is constructed
 at `hydranet_manager.py:134` — it ran 20 times in a real 2026-11-03 run log.
 
-**Measured, on a delivered raw pull** (`models/ctlfullzero_fortytwo/data/raw/*.parquet`,
+**Measured, on a delivered raw pull** (`models/calm_orbiter/data/raw/*.parquet`,
 24,890,112 rows): `index.names == ['month_id', 'priogrid_id']`, columns
 `['lr_sb_best','lr_ns_best','lr_os_best','c_id','row','col']`. `priogrid_gid` appears nowhere.
 
