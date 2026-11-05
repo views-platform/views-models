@@ -872,3 +872,103 @@ asserting a statistic without interrogating its construction:
 | the metric is sound | the target's distribution (one cell = 38% of CRPS) |
 | mass where there is no information | densities read as contributions |
 | AP is blind here | the metric's own noise floor |
+
+---
+
+## LEAD vs CALENDAR, AND THE LATE-2021 CLIFF (2026-11-05)
+
+Run for views-baseline ADR-024 / PR #128. Scripts: `lead_vs_calendar.py`, `eth_step.py`.
+Arm A (`plain_burlap`), all 13 origins, top bin = predicted P(fire) >= 0.70.
+
+### The check as asked was not identifiable
+
+One trained artifact serves all 13 origins, so the resampling pool is fixed at `train_end = 456`
+(this answers views-baseline#82 for these models structurally, not by measurement). Therefore
+**lead = target_month − 456 is collinear with calendar month** and the two cannot be separated.
+
+What *is* separable is horizon-from-origin: month 480 appears at h=24 in origin_0, h=18 in origin_6,
+h=12 in origin_12.
+
+### Horizon-from-origin has NO effect
+
+| cal months | h1–12 | h13–24 | h25–36 |
+|---|---|---|---|
+| 469–480 | 0.75 (n=5,611) | 0.75 (n=5,529) | — |
+| 481–492 | — | 0.71 (n=5,495) | 0.71 (n=5,523) |
+| 493–504 | — | — | 0.66 (n=5,631) |
+
+Identical across each row, moving only down the column. At n~5,500 per cell this is not an
+underpowered null. **The variation is entirely calendar/lead.**
+
+### ⛔ It is a STEP, not a decay — and my earlier three-point table was sampling error
+
+Per-month ratio, months 457–500: 0.86 0.70 0.72 0.88 0.85 0.77 0.73 0.76 0.78 0.69 0.74 0.69 0.75
+0.68 0.74 0.68 0.77 0.85 0.83 0.77 0.77 0.77 0.67 0.71 0.74 0.72 0.67 0.78 0.68 0.70 0.75 0.64 0.72
+0.71 0.72 0.70 0.69 0.74 0.69 0.75 0.73 0.70 0.67 0.61 — **no trend, noise around ~0.73.** Then:
+
+| month | 500 | 501 | 502 | 503 | 504 |
+|---|---|---|---|---|---|
+| ratio | 0.61 | **0.29** | 0.40 | 0.36 | 0.33 |
+| n | 366 | 287 | 215 | 148 | 75 |
+
+⛔ **My earlier "over-confidence grows monotonically with horizon" (0.75 → 0.70 → 0.33 at
+h1/h18/h36, origin_12) sampled months 469 / 486 / 504 — two points on the flat region and one on the
+cliff.** The smooth curve was an artefact of where I sampled. Same class of error as reading eight
+threshold points as a density.
+
+### The cliff is GLOBAL, not the #533 aggregation — hypothesis refuted
+
+I hypothesised the cliff was Ethiopia-specific: a year of Tigray events collapsed onto cell 148759
+would leave neighbouring Ethiopian cells reading zero, and those are the high-P(fire) cells.
+
+**Both halves wrong.** Ethiopia (`c_id` 124) contributes **zero cells to the top bin in any month**,
+so it cannot have caused the statistic. And Ethiopia's own record is not quiet — months 499–504 carry
+11, 9, 8, 14, 16, 17 active cells, so no stripping occurred.
+
+| | 457–500 | 501–504 | change |
+|---|---|---|---|
+| rest of world | 0.73 (n=32,607) | **0.34** (n=725) | **−0.39** |
+| Ethiopia | insufficient n | insufficient n | — |
+
+The cliff is real: at n=287 for month 501, a realised rate of 0.29 is ~12 SE below the expected 0.63.
+
+⇒ **In the last four months of the pull, globally, conflict occurred in different cells than
+predicted, while overall prevalence stayed normal (0.3101 / 0.3224 / 0.3302 / 0.3240%).** The
+persistently-violent cells went quiet and others became active.
+
+**Cause: OPEN.** One candidate, explicitly not asserted: views-datafactory#533 records 21,766 events
+(5.8%) carrying 21.95% of fatality mass landing on cell-months their own precision fields disown. If
+coarse-precision events cluster in *recent* months — as they would if precision improves with
+revision — recent events are assigned to wrong cells, giving normal prevalence with empty
+high-predicted cells. That is testable via `where_prec`/`date_prec` over time, which is
+views-datafactory's data. **Not tested here; stated as a candidate only.**
+
+### Consequence for ADR-024: none
+
+views-baseline excluded all of 2021 from their multi-cutoff refit before this ran, so their age
+result never depended on the cliff. Their refit (pools at 396–456, age separated from calendar year,
+and a drop-one-cutoff robustness check) locates a real age effect that this view was structurally
+blind to:
+
+- **quiet cells** (`P(fire) = 0` exactly, forecast-conditioned): realised rate rises with age —
+  sb +0.89 per 1,000 by age 7 against a base of ~0.4, stable at +0.88/+0.94 when the earliest or
+  latest cutoff is dropped;
+- **hot cells**: `os` decays (−0.33, sign robust but magnitude moving 75% on a dropped cutoff), `ns`
+  similar, and **`sb` about nil** — which is exactly the flat ~0.73 measured here.
+
+⛔ **My "the defect is temporal" claim was measured on sb HOT cells — the one stratum of nine with no
+age effect — and generalised to the whole.** Third instance of the axis rule tonight: measured where
+the effect isn't, then spoke about everything.
+
+### The synthesis both results support
+
+| | behaviour | age dependence |
+|---|---|---|
+| sb quiet (`P = 0`) | realised rate ~0.4 → ~1.5 per 1,000 by age 8 | **grows ~3.7x** |
+| sb hot (`P >= 0.70`) | says 86%, right 58% | **flat at every age** |
+
+**The predictive distribution is too narrow at BOTH ends, and only the zero end degrades with age.**
+Too confident of action where it predicts action; too confident of nothing where it predicts nothing;
+and the nothing-side error grows as the window recedes, because a single cell's own quiet history
+stops being evidence of quiet. That is the case for nested rings — not "the forecast fails to decay",
+which is what I wrongly supplied. The constant sb hot-cell offset is a separate calibration matter.
