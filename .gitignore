@@ -316,3 +316,14 @@ tests/test_falsification_pod_termination_readiness.py
 # Un-ignore tracked files that match blanket rules above
 !**/requirements.txt
 !meta/partitions.json
+
+# Campaign data bundles under reports/ — predictions, scores, inputs.
+# Large (hundreds of MB) and individually over GitHub's 100 MB file limit (the input
+# parquet alone is 62 MB). The ANALYSIS (write-up + scripts) is tracked; the DATA is not.
+# Added 2026-11-05 after a /falsify audit found 454 MB of campaign output untracked and
+# recoverable only from one disk — and after `git add -A` staged 1.26 GB earlier the same
+# session. See reports/2026-11-04_baseline_phase1/sparse_support_question.md.
+reports/*/archives/
+reports/*/archives_s64/
+reports/*/scores_s64/
+reports/*/input_s64/
