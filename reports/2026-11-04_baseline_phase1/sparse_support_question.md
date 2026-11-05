@@ -795,3 +795,80 @@ on the same number, and I did not design the check.
 2000 because draws top out at 1,526; the reconciliation only worked because the shortfall was
 noticed. On a window containing a concentrated cell, that truncation silently understates the
 integral by exactly the outlier's share.
+
+---
+
+## SIGNAL AGAINST NOISE (2026-11-05) — nothing was blind, and that is the real result
+
+Seventh retraction, and the one that resolves the campaign. Reframing contributed by the
+views-hydranet session: **a metric's dynamic range is only meaningful against its own noise on the
+same population.** Script: `signal_noise.py`.
+
+### The measurement
+
+All ten arms declare `seed: 42`, so no seed replicates exist. Substitute floor: **split-half draw
+noise** — every metric computed on draws 0–31 and again on 32–63, same model, same data, same cells,
+different draw subsample.
+
+| metric | between-arm (signal) | within-arm split-half (noise) | **S/N** |
+|---|---|---|---|
+| CRPS | 3.99% | 0.16% | **25.13x** |
+| AP | 4.37% | 0.28% | **15.40x** |
+| act_ratio | 5.49% | 0.18% | **31.04x** |
+
+Halves are S=32 against a headline S=64, so noise is overstated ~sqrt(2) and S/N is conservative.
+
+**Why split-half is the right floor for these models and would not be for a neural net:**
+`ConflictologyModel` fits by building per-cell history tables (`hist_per_entity`, `window_months`) —
+deterministic given the pull. The seed enters only at `predict()`. So refit variance is essentially
+zero and seed variance reduces to draw variance, which is what split-half measures. ⚠️ Reasoned from
+the artifact's attributes, **not proven by re-fitting at a second seed** — that needs a pod. If fit
+were seed-dependent, the floor is too low and these S/N figures are upper bounds.
+
+### What is retracted
+
+⛔ **"AP has no dynamic range on this arm set (4.4%)"** — it is 15.4x its own noise. And ⛔ **every
+description of CRPS tonight as "blunt", "non-discriminating" or "blind" on this arm set** — its 4.0%
+is 25x its noise floor.
+
+The arms differ by a **small** amount, **reliably**. I treated a small effect as an absent one, which
+is the same error as reading a wide interval as a null. This was the framing underneath the whole
+campaign and it was wrong from the first measurement.
+
+### What it strengthens — the campaign's actual result
+
+CRPS reliably ranks `short_linen` **first**. AP reliably ranks it **last**. Both at 15–25x above
+their own noise.
+
+⇒ **The two metrics reliably DISAGREE.** The rank crossing is not noise finding a pattern in ten
+arms — it is two instruments measuring genuinely different properties, each with high precision.
+
+This makes "a single scalar cannot represent this comparison" harder to escape rather than easier. If
+the orderings were noisy, more draws would fix it. They are not noisy. **They genuinely conflict.**
+
+### And "is this metric discriminating?" has no model-independent answer
+
+views-hydranet's seed table gives AP a 1.10x span (~10% relative) across four seeds on their
+vehicle. My between-arm AP spread is 4.37%. On a vehicle with that refit variance, my ten arms would
+be **entirely swamped** — 4.4% signal against a 10% floor is S/N 0.44, a null.
+
+⇒ Same metric, same task, opposite verdict, purely from the model family's stochasticity. The reason
+my arms are separable is not that my metrics are better; it is that climatology baselines have no
+refit noise to swamp them. **So the axis rule needs a second clause: a metric discriminates only
+along the axis the arms differ on, AND only against that model family's own noise.**
+
+### Closing tally
+
+Seven retractions, six caught by peer sessions (views-baseline x3, views-hydranet x2, and
+views-hydranet supplying the tool for the seventh). Every one was the same error in different dress —
+asserting a statistic without interrogating its construction:
+
+| claim | what went unchecked |
+|---|---|
+| CRPS ranks the arms | its dynamic range |
+| arms under-forecast 4–6x | its composition (occurrence x size) |
+| conditional magnitude is calibrated | its aggregation (pooled over opposite-signed strata) |
+| ~3x tail deficit | its conditioning (outcome, not forecast) |
+| the metric is sound | the target's distribution (one cell = 38% of CRPS) |
+| mass where there is no information | densities read as contributions |
+| AP is blind here | the metric's own noise floor |
