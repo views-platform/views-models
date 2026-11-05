@@ -551,7 +551,15 @@ was wrong from the start.
 
 ---
 
-## THE SCORING RESOLUTION (2026-11-05) — why CRPS is blind here, and what sees
+## ~~THE SCORING RESOLUTION~~ (2026-11-05) — SUPERSEDED; see the fine-grid section at the end
+
+> ⛔ **The mechanism sentence in this section is RETRACTED.** "CRPS puts its mass where there is
+> no information and its information where there is no mass" compared the HEIGHTS of a Brier
+> density at eight unequally-spaced thresholds. CRPS integrates BS(t)·dt, so the columns are
+> densities, not contributions. Caught by views-hydranet; it had already been quoted verbatim
+> onto views-datafactory#533 and has been struck there. The measured replacement — rank
+> **crossing**, not dilution — is at the end of this file. The SCRPS and restricted-AP numbers
+> in this section stand.
 
 Two tests specified by the views-datafactory session, each with a prediction recorded first.
 Scripts: `scrps_thresh.py`, `scrps_paired.py`.
@@ -702,3 +710,88 @@ Four predictions recorded before their data across this session, between two ses
 was falsified (the dynamic range lives at the zero/nonzero boundary). **The falsified one taught the
 most** — being wrong about it is what produced the mass/information inversion, which is stranger and
 more useful than the prediction would have been.
+
+---
+
+## THE MECHANISM, MEASURED ON A FINE GRID (2026-11-05) — it is CANCELLATION, not dilution
+
+Sixth retraction, and the only one that reached a public artefact before being caught. Script:
+`thresh_fine.py`. 261 thresholds (every integer 0–200 plus 60 geometric points to 2000), trapezoid.
+
+### What was wrong, twice over
+
+**My claim:** "CRPS puts its mass where there is no information and its information where there is no
+mass", from a table of raw BS(t) at thresholds 0,1,2,5,10,25,100,1000. CRPS = ∫BS(t)dt, so those
+columns are **densities**. I compared heights and called them mass. The "twenty-fold more mass at
+t≤0" is a height ratio of 21.2x; the contributions run 42.5x the other way.
+
+**The correction to my claim was also wrong in magnitude.** A left-rectangle over the same eight
+points (computed independently by both views-hydranet and views-datafactory) put 59.3% of the
+integral in [100, 1000). The fine grid says **25.4%** — the estimate carried the t≤100 height across
+900 units of width and overshot by ~2.3x.
+
+### The actual distribution
+
+| region | contribution | share | integrated abs. spread | share | spread per unit mass |
+|---|---|---|---|---|---|
+| [0, 1] | 0.0028 | 3.7% | 0.0001 | 0.8% | 0.22x |
+| [1, 10] | 0.0152 | 19.9% | 0.0003 | 5.1% | 0.26x |
+| [10, 25] | 0.0134 | 17.5% | 0.0005 | 7.5% | 0.43x |
+| [25, 100] | 0.0232 | **30.4%** | 0.0016 | 24.0% | 0.79x |
+| [100, 1000] | 0.0194 | 25.4% | 0.0041 | **62.0%** | **2.44x** |
+| [1000, 2000] | 0.0022 | 2.9% | 0.0000 | 0.5% | 0.17x |
+
+The mass **peaks at [25, 100]**. A real mass/information mismatch exists — the tail carries 2.44x its
+proportional share of discrimination, [0, 10] carries ~0.25x — but it is roughly 10x, not 20-vs-9,
+and it should be stated as the ratio column and never again as a sentence with a symmetry in it.
+
+### The mechanism: the arms CROSS OVER
+
+Spearman of each threshold's per-arm BS ordering against the ordering at t=0:
+
+| t≤ | 0 | 1 | 2 | 5 | 10 | 25 | 50 | 100 | 200 | 492 | 992 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| rho | 1.000 | 0.479 | 0.273 | **−0.236** | **−0.236** | **−0.382** | −0.006 | 0.103 | −0.018 | 0.600 | 0.685 |
+| best | B mid | A | E .25 | B short | B short | B short | B short | B short | B short | B mid | B mid |
+
+**The orderings go negatively correlated.** Three different arms hold "best" at different thresholds.
+Integrated absolute spread is 8.63% against a realised pooled spread of 4.0% — the gap is the
+orderings annihilating in the integral.
+
+⛔ **The consequence, which is worse than dilution:** upweighting the tail does not *recover* range,
+it **picks a side of the crossing**, and which side is then a free parameter of the score. **A single
+scalar cannot represent this comparison.** This replaces the retracted "any reweighting should
+recover dynamic range" — and it is a stronger finding, because it says the problem is not that CRPS
+is badly weighted but that one number cannot carry the answer.
+
+### SCRPS's verdict is partly, not wholly, a selection effect
+
+views-hydranet's separator: AP restricted to the same 25,601 cells where every arm is non-degenerate.
+
+| arm | restricted AP | | arm | restricted AP |
+|---|---|---|---|---|
+| B interp mid | 0.48987 | | E mix a=0.25 | 0.48772 |
+| A resample | 0.48966 | | E mix a=0.50 | 0.48764 |
+| C KDE silverman | 0.48946 | | C KDE sj | 0.48740 |
+| C KDE fixed1.0 | 0.48946 | | B interp short | 0.48721 |
+| E mix a=0.75 | 0.48801 | | B interp long | 0.48196 |
+
+**Spearman(SCRPS, restricted AP) = 0.685.** Not ~1.0, so SCRPS adds something beyond occurrence —
+but substantial, so part of the verdict reversal *is* selection. Both rank `short_linen` 9th, which
+is corroboration on that arm, not a general validation of SCRPS. I had treated the SCRPS/AP agreement
+as confirmation while having just published the hypothesis that predicts it.
+
+### An unplanned self-validation
+
+The integral gives mean CRPS **0.07632** against **0.1268** measured directly per cell. It reconciles
+exactly: the grid stops at 2000 while one cell's truth is 113,395, contributing
+1 × (113,395 − 2000) / 2,333,448 = **0.0477** beyond the grid. 0.0763 + 0.0477 = 0.124 ≈ 0.1268.
+
+And that beyond-grid contribution is **37.6% of the total** — independently re-deriving the
+37.3–38.8% outlier share measured earlier by per-cell exclusion. Two unrelated computations agreeing
+on the same number, and I did not design the check.
+
+**Method note for any repeat:** extend the grid to the max TRUTH, not the max draw. Mine stopped at
+2000 because draws top out at 1,526; the reconciliation only worked because the shortfall was
+noticed. On a window containing a concentrated cell, that truncation silently understates the
+integral by exactly the outlier's share.
