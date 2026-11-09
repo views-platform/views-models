@@ -37,8 +37,8 @@ def get_hp_config():
         "early_stopping_patience": 4,
         "early_stopping_min_delta": 0.0005,
         "early_stopping_monitor": "val_metrics/MSLE",
-        "checkpoint_monitor": "train_loss",
-        "checkpoint_mode": "last",
+        "checkpoint_monitor": "val_metrics/MSLE",
+        "checkpoint_mode": "best",
         "force_reset": True,
         # Months between consecutive training windows (impact's default is 12, i.e. one window per year, all
         # starting in January). On disaggregated annual data that lets the net learn a calendar-locked template

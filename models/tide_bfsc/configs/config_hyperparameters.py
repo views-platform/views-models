@@ -38,8 +38,8 @@ def get_hp_config():
         },
         "early_stopping_monitor": "val_metrics/MSLE",
         "lr_scheduler_monitor": "train_loss",
-        "checkpoint_monitor": "train_loss",
-        "checkpoint_mode": "last",
+        "checkpoint_monitor": "val_metrics/MSLE",
+        "checkpoint_mode": "best",
         "gradient_clip_val": 25.0,
         "early_stopping_patience": 12,
         "early_stopping_min_delta": 0.002,
@@ -52,7 +52,7 @@ def get_hp_config():
         "feature_scaler": None,
         "force_target_only": True,
         "feature_scaler_map": {
-            "AsinhTransform": [
+            "AsinhTransform->StandardScaler": [
                 "lr_ged_sb", "lr_ged_os", "lr_ged_ns",
                 "lr_ged_sb_splag", "lr_ged_os_splag", "lr_ged_ns_splag",
                 "lr_pop_totl", "lr_pop_totl_splag",

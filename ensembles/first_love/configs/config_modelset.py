@@ -21,7 +21,7 @@ def get_modelset_config():
                    "lovely_creature",
                    "wild_rose",
                    "purple_haze",
-                #    "fourtieth_symphony"
+                   "fourtieth_symphony"
                    ],
     }
     return modelset_config
