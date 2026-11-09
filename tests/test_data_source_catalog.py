@@ -98,4 +98,4 @@ def test_the_split_is_what_the_catalog_says():
     # datafactory consumers by construction — `source: "views-datafactory"` in each
     # config_queryset.py, fetching the zarr store rather than viewser, which is the whole
     # point of starting them from `ashen_sparrow` instead of `white_ranger` (#660).
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 79, SYNTHETIC: 6}, dict(counts)
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 80, SYNTHETIC: 6}, dict(counts)

@@ -40,6 +40,10 @@ ALGORITHM_TO_PACKAGE = {
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
     "ConflictologyModel": "views_baseline",
+    # moving-window conflictology (views-baseline 1.2.0, views-models#716) — the control
+    # for MatryoshkaConflictology. Forecasts origin k from the window ending at
+    # train_end + k, so no forecast month is ever inside its own window.
+    "RollingConflictology": "views_baseline",
     # parametric climatology (ADR-022) — real, exported views_baseline classes
     # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
     "ParametricConflictology": "views_baseline",

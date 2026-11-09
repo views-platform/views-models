@@ -166,9 +166,10 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-11-03 on a clean checkout: **136 `candidate`, 3 `retired`, 0 `graduate`** across
-  139 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 177 files in all. Two movements the same day: EXP-03's eight 300-lesson arms
+  *(Measured 2026-11-09 on a clean checkout: **137 `candidate`, 3 `retired`, 0 `graduate`** across
+  140 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 178 files in all. One movement since 2026-11-03: `models/rolling_burlap`
+  (RollingConflictology, views-models#716) — the moving-window control for ADR-024, +1 candidate. Two movements the same day: EXP-03's eight 300-lesson arms
   (+8 files, all candidate), then the ten smoothed climatology baselines of views-models#695 —
   `models/{short,plain,long}_linen`, `{sheer,plush,flat}_velvet`, `{light,even,heavy}_tweed` and
   the `plain_burlap` control (+10 files, all candidate). Nothing else changed.

@@ -294,6 +294,9 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
             "sheer_velvet", "plush_velvet", "flat_velvet",
             "light_tweed", "even_tweed", "heavy_tweed",
             "plain_burlap",
+            #: views-models#716 — the moving-window control for ADR-024. Declares
+            #: views-pipeline-core directly for the same reason the ten above do.
+            "rolling_burlap",
         )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
@@ -611,6 +614,15 @@ def test_a_package_is_declared_the_same_way_everywhere():
             # higher, and pip does not downgrade to satisfy a floor already met.
             "<2.0.0,>=1.1.0": "the ten views-models#695 smoothed climatology arms: 1.1.0 is "
                               "the first release that has the algorithms they name",
+            # ⛔ A CAPABILITY FLOOR, by the same argument as >=1.1.0 one line above. 1.2.0 is
+            # the first release carrying RollingConflictology (views-models#716), the
+            # moving-window control for ADR-024. On 1.1.x rolling_burlap names a class the
+            # registry cannot build, so the floor is the difference between running and not.
+            # Same ceiling, one floor strictly higher, and pip does not downgrade to satisfy
+            # a floor already met — so this nests inside the three above rather than
+            # contradicting them.
+            "<2.0.0,>=1.2.0": "models/rolling_burlap (views-models#716): 1.2.0 is the first "
+                              "release that has RollingConflictology",
         },
     }
 
