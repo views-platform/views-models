@@ -231,10 +231,22 @@ fi
 
 # Publish variables must NOT be here. Not a warning — their presence means a publish credential
 # was placed on rented hardware, which guide rule 5 forbids, and this chain has no use for one.
-for V in APPWRITE_ENDPOINT APPWRITE_DATASTORE_PROJECT_ID APPWRITE_DATASTORE_API_KEY; do
-    if [ -n "${!V:-}" ]; then
-        note "$V is set. This chain publishes nothing and must not hold a publish credential (guide rule 5). Unset it."
-    fi
+# ⛔ A PATTERN, NOT A ROSTER (þing 04 D5 / M1, views-models#721). This loop used to name three
+# variables. Under one Appwrite project per audience there are more publish credentials under
+# NEW names (APPWRITE_CRAFD_API_KEY, APPWRITE_FAO_API_KEY, …), and a check that enumerates a
+# roster is blind to anything off it — it would keep passing while a new key walked onto rented
+# hardware. `compgen -v` asks the shell what exists instead of asking a list.
+#
+# The two classes are distinguished because rule 5 forbids CREDENTIALS, not identifiers:
+# an *_API_KEY here is a rule-5 violation; an endpoint or a container id is merely useless.
+for V in $(compgen -v | grep -E '^APPWRITE_' | sort); do
+    [ -n "${!V:-}" ] || continue
+    case "$V" in
+        *_API_KEY)
+            note "$V is set — a PUBLISH CREDENTIAL on rented hardware. Guide rule 5 forbids this outright. Unset it." ;;
+        *)
+            note "$V is set. This chain publishes nothing and has no use for it (guide rule 5). Unset it." ;;
+    esac
 done
 
 # Memory, read from the cgroup rather than the host (guide rule 2: a machine advertised as
