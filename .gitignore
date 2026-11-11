@@ -316,3 +316,11 @@ tests/test_falsification_pod_termination_readiness.py
 # Un-ignore tracked files that match blanket rules above
 !**/requirements.txt
 !meta/partitions.json
+
+# Staged delivery wires under postprocessors/*/data/generated/wire_contract/.
+# 3.1 GB for one CRAF'd run, untracked and previously NOT ignored — one `git add -A` from
+# the 1.26 GB incident of 2026-11-04. The wire is a build product of a pod run; the records
+# that matter are kept in reports/ instead.
+# ⛔ The 2026-11-02 wire is the FALLBACK deliverable for views-models#721 and carries a HOLD
+# file. Ignoring it keeps it out of git; it does NOT make it safe to delete.
+postprocessors/*/data/generated/wire_contract/
