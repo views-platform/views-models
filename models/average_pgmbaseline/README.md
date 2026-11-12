@@ -7,10 +7,11 @@
 | **Model Algorithm** | AverageModel                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_ged_sb |
-| **Features**       |  average_pgmbaseline   |
-| **Feature Description**       |  No description provided    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Features**       |  N/A   |
+| **Feature Description**       |  N/A    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
@@ -23,8 +24,8 @@ Average Pgmbaseline
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

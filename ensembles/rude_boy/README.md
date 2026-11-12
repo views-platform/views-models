@@ -6,12 +6,12 @@ This folder contains code for the Rude Boy model, an ensemble machine learning m
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | new_rules, teenage_dirtbag, thousand_miles, thrift_shop                  |
+| **Models** | smol_cat, dancing_queen, elastic_heart, new_rules                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
+| **Targets**         | lr_ged_sb |
 | **Aggregation**       |  mean   |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
 
 ## Repository Structure
 
@@ -24,9 +24,10 @@ Rude Boy
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
+│   ├── config_modelset.py
 │   ├── config_partitions.py
 ├── data
 │   ├── generated

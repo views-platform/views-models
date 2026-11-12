@@ -6,11 +6,12 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | HydraNet                  |
 | **Level of Analysis** | pgm            |
-| **Targets**         | ln_sb_best, ln_ns_best, ln_os_best, ln_sb_best_binarized, ln_ns_best_binarized, ln_os_best_binarized |
-| **Features**       |  purple_alien   |
+| **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
+| **Features**       |  purple_alien_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
-| **Deployment Status**       |  shadow    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  datafactory    |
 
 ## Repository Structure
 
@@ -23,8 +24,8 @@ Purple Alien
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

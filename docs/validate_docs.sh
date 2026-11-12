@@ -72,6 +72,16 @@ while IFS= read -r ref; do
     if [ -n "$adr_num" ] && [ "$adr_num" -ge 10 ]; then
         match_count=$(find ADRs -name "0${adr_num}_*.md" 2>/dev/null | wc -l)
         if [ "$match_count" -eq 0 ]; then
+            # Skip cross-repo references: lines mentioning external repos,
+            # or ADR numbers beyond this repo's range (local ADRs are 010-012)
+            line_content=$(echo "$ref" | cut -d: -f3-)
+            if echo "$line_content" | grep -qiE "views-pipeline-core|views-hydranet|views-stepshifter|views-r2darts2|views-baseline|views-reporting|views-faoapi|github.com/views-platform"; then
+                continue
+            fi
+            max_local=$(find ADRs -name '0[0-9][0-9]_*.md' 2>/dev/null | sed 's/.*0\([0-9][0-9]\)_.*/\1/' | sort -n | tail -1)
+            if [ -n "$max_local" ] && [ "$adr_num" -gt "$max_local" ]; then
+                continue
+            fi
             echo "  ERROR: $file references ADR-0${adr_num} but no matching file found"
             errors=$((errors + 1))
         fi
