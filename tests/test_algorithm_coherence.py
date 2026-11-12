@@ -56,6 +56,10 @@ ALGORITHM_TO_PACKAGE = {
     "InterpolatedQuantileConflictology": "views_baseline",
     "KDEConflictology": "views_baseline",
     "EmpiricalKDEMixtureConflictology": "views_baseline",
+    # ADR-024, views-baseline 1.3.0+: nested-doll climatology (#717, #730).
+    "MatryoshkaConflictology": "views_baseline",
+    # views-baseline 1.4.0, #151: single-level pooling over an area (#731).
+    "PooledConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }

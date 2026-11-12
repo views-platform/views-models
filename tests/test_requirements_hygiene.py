@@ -295,6 +295,15 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
             "light_tweed", "even_tweed", "heavy_tweed",
             "plain_burlap",
         )} | {
+        #: The eleven comparison models of #717/#730/#731 — eight MatryoshkaConflictology doll
+        #: arms and three PooledConflictology levels. Copied from plain_burlap, so they declare
+        #: the package for exactly the reason the ten above do: views-baseline's own >=3.0.0 floor
+        #: is below the 3.2.0 that can find configs/config_maturity.py (#594, C-116).
+        f"models/{name}" for name in (
+            "nested_burlap", "lone_burlap", "local_burlap", "civic_burlap", "global_burlap",
+            "mapless_burlap", "stateless_burlap", "distant_burlap",
+            "narrow_canvas", "middle_canvas", "broad_canvas",
+        )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
             "golden_hour", "pink_ponyclub", "rude_boy", "rusty_bucket", "skinny_love",
@@ -598,6 +607,13 @@ def test_a_package_is_declared_the_same_way_everywhere():
         #: claiming a requirement they do not have is the false precision this file argues
         #: against elsewhere.
         "views-baseline": {
+            #: A CAPABILITY floor, like >=1.1.0 below and for the same kind of reason: 1.4.0 is the
+            #: first release in which MatryoshkaConflictology requires `dolls` and
+            #: PooledConflictology exists at all (views-baseline #151/#153). On 1.3.0 the eleven
+            #: #717/#730/#731 models name an algorithm the registry cannot build, or omit a key its
+            #: genome requires. Not a cap-avoidance floor.
+            "<2.0.0,>=1.4.0": "the eleven #717/#730/#731 comparison models: Matryoshka's `dolls` "
+                              "and PooledConflictology both arrive in 1.4.0",
             "<2.0.0,>=1.0.2": "every other source: does not reconcile, so no frames floor",
             "<2.0.0,>=1.0.3": "the eight models/*_sparrow (chrome_box's members): 1.0.2's "
                               "`views-frames<2` cap would block the fixed reconciler",
