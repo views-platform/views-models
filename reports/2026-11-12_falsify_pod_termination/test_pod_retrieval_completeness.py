@@ -11,7 +11,6 @@ it asserts a property `queryset_digest` does not have.
 """
 
 import json
-import os
 from pathlib import Path
 
 import pytest
