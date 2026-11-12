@@ -26,7 +26,7 @@ def get_sweep_config():
         'steps': {'value': [*range(1, 36 + 1, 1)]},
         'time_steps': {'value': 36},
         'window_months': {'value': 36},
-        'n_samples': {'value': 256},
+        'n_samples': {'value': 64},
         'seed': {'value': 42},
         'bandwidth': {'value': "sj"},
     }

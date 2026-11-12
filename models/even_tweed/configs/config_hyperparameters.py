@@ -22,8 +22,12 @@ def get_hp_config():
         "steps": list(range(1, 37)),
         "time_steps": 36,
         "window_months": 36,
-        "n_samples": 256,
-        "n_posterior_samples": 256,
+        # S=64: what #695 actually ran (views-baseline C-54), and matched to the #728
+        # comparison. Move all three together (C-104/C-85) — here, n_posterior_samples
+        # below, and config_sweep.py. The config previously said 256, which this arm
+        # never ran at: 256 needs ~192 GB peak disk against a 100 GB pod quota (#717).
+        "n_samples": 64,
+        "n_posterior_samples": 64,
         "seed": 42,
         "skip_predictions_delivery": True,
         "alpha": 0.5,

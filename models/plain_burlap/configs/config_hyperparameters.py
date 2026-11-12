@@ -22,8 +22,17 @@ def get_hp_config():
         "steps": list(range(1, 37)),
         "time_steps": 36,
         "window_months": 36,
-        "n_samples": 256,
-        "n_posterior_samples": 256,
+        # ⛔ S 256 -> 64 on 2026-11-13 to match the #728 comparison and what #695 ACTUALLY RAN.
+        # views-baseline's call (they designed #731; plain_burlap is its L0 control): an L0 at 256
+        # against L1/L2/L3 at 64 is not a comparison, because AP is quantised to S+1 rank levels.
+        # For #695 the 64 was a disk workaround, not a considered choice — the plan was 256, the
+        # first land run at 256 was killed at 87.3 GB against an 87.5 GiB limit during evaluation,
+        # #121 made 256 fit in MEMORY, and C-54 then records disk as the binding limit at ~180 GB
+        # written per model. All ten #695 arms ran at 64 and exited 0; none of their configs said so.
+        # ⚠️ Three places, always together: here, n_posterior_samples below, config_sweep.py (C-104, C-85).
+        # The other nine #695 arms are deliberately NOT changed — they are not part of #728.
+        "n_samples": 64,
+        "n_posterior_samples": 64,
         "seed": 42,
         "skip_predictions_delivery": True,
     }
