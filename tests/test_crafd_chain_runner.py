@@ -21,12 +21,21 @@ platform has already paid for:
                             `pod_run_fao_delivery.sh`, which legitimately needs nine publish
                             variables because its job is to publish. This one's is not.
 
-Tests here are text assertions on the script, not executions of it: the script's job needs a
-rented pod with a datafactory credential, so what CI can check is that its declared
-disciplines are still declared. `--preflight` behaviour is exercised for real where it can be.
+Most tests here are text assertions on the script rather than executions of it: the script's
+job needs a rented pod with a datafactory credential, so what CI can mostly check is that its
+declared disciplines are still declared.
+
+The rule-5 publish-credential check is the exception, and deliberately so. It used to be a
+text assertion that the script MENTIONED three variable names — and that guard could not
+survive its own fix: replacing the three-name roster with a pattern (#721) removed the literal
+names and the test failed, while the script had just become strictly stricter. A guard that
+greps for a word cannot see behaviour. So those four tests run `--preflight` for real with a
+controlled environment and read what it says. That is reachable off a pod because the netrc
+and RAM checks only `note` (they do not exit), so the Appwrite lines are printed either way.
 """
 
 from pathlib import Path
+import os
 import re
 import subprocess
 
@@ -146,16 +155,83 @@ def test_no_appwrite_extra_is_installed(script):
     )
 
 
-def test_publish_variables_are_refused_rather_than_read(script):
-    """Their presence is a finding, not an input.
+def _preflight(tmp_path, **extra_env) -> str:
+    """Run the REAL `--preflight` with a controlled environment and return everything it said.
 
-    `pod_run_fao_delivery.sh` reads these nine because publishing is its job. Here, a set
-    publish variable means a credential was placed on a rented box that has no use for one, so
-    preflight must say so rather than silently ignoring it.
+    Every inherited `APPWRITE_*` variable is stripped first, so the clean-environment case
+    tests a clean environment rather than whatever the operator who ran pytest happens to
+    export. `PODRUN_ROOT` keeps the run's `deliver/` tree out of /workspace.
+
+    The exit status is deliberately NOT asserted on: off a pod the netrc and RAM checks set
+    FAIL=1 for reasons that have nothing to do with Appwrite, so status cannot distinguish
+    them. What distinguishes them is what the preflight SAYS, which is what these read.
     """
-    for var in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID", "APPWRITE_DATASTORE_API_KEY"):
-        assert var in script, f"{var} is not mentioned; preflight cannot refuse what it never checks"
-    # It must appear as a refusal, never as an export or an assignment.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("APPWRITE_")}
+    env["PODRUN_ROOT"] = str(tmp_path)
+    env.update(extra_env)
+    done = subprocess.run(
+        ["bash", str(RUNNER), "--preflight"],
+        capture_output=True, text=True, env=env, timeout=180,
+    )
+    return done.stdout + done.stderr
+
+
+def test_a_publish_credential_is_refused_under_a_name_no_roster_ever_listed(tmp_path):
+    """The whole point of the pattern (þing 04, #721).
+
+    `APPWRITE_CRAFD_API_KEY` is not one of the three names the old loop enumerated. Under one
+    Appwrite project per audience it is exactly the shape a new key takes, and a roster-based
+    check would have kept reporting clean while it sat on rented hardware.
+    """
+    said = _preflight(tmp_path, APPWRITE_CRAFD_API_KEY="dummy-value-not-a-credential")
+    assert "APPWRITE_CRAFD_API_KEY" in said, (
+        "preflight did not name a publish credential that was set in its environment. If this "
+        "fails after an edit to the loop, the likely cause is a return to enumerating names."
+    )
+    assert "PUBLISH CREDENTIAL" in said, (
+        "the variable was named but not identified as a credential, so rule 5's distinction "
+        "between a key and an identifier has been lost."
+    )
+
+
+def test_an_identifier_is_reported_without_being_called_a_credential(tmp_path):
+    """Rule 5 forbids credentials, not coordinates. An endpoint on a pod is useless, not unsafe.
+
+    Collapsing the two would make the loud message routine, which is how a real finding gets
+    read past.
+    """
+    said = _preflight(tmp_path, APPWRITE_ENDPOINT="https://example.invalid")
+    assert "APPWRITE_ENDPOINT" in said, "a set Appwrite identifier went unreported"
+    assert "PUBLISH CREDENTIAL" not in said, (
+        "an endpoint was reported as a PUBLISH CREDENTIAL. It is not one, and crying wolf on "
+        "an identifier devalues the message that matters."
+    )
+
+
+def test_a_clean_environment_says_nothing_about_appwrite(tmp_path):
+    """A check that fires on a clean box is a check an operator learns to scroll past."""
+    said = _preflight(tmp_path)
+    assert "APPWRITE" not in said.upper(), (
+        "preflight mentioned Appwrite with no Appwrite variable set:\n"
+        + "\n".join(ln for ln in said.splitlines() if "APPWRITE" in ln.upper())
+    )
+
+
+def test_a_variable_that_is_set_but_empty_is_not_reported(tmp_path):
+    """`[ -n "${!V:-}" ] || continue`. An exported-but-empty var holds no credential."""
+    said = _preflight(tmp_path, APPWRITE_CRAFD_API_KEY="")
+    assert "APPWRITE_CRAFD_API_KEY" not in said, (
+        "an empty variable was reported as a credential on rented hardware. It carries no "
+        "secret, and a false positive here trains the operator to ignore a true one."
+    )
+
+
+def test_the_runner_only_checks_publish_variables_and_never_assigns_one(script):
+    """Structural, and it stays structural: this reads the script's lines, not a printed word.
+
+    A runner that ASSIGNS an Appwrite variable has put a coordinate (or worse) on the box
+    itself, which no amount of checking at preflight can undo.
+    """
     for line in script.splitlines():
         if line.lstrip().startswith("#"):
             continue

@@ -351,13 +351,16 @@ def test_no_publish_flag_is_passed_to_anything(script: str) -> None:
         )
 
 
-def test_publish_variables_are_refused_rather_than_read(script: str) -> None:
-    """Their presence is a preflight FAILURE, not a warning and not an input."""
-    for var in ("APPWRITE_ENDPOINT", "APPWRITE_DATASTORE_PROJECT_ID", "APPWRITE_DATASTORE_API_KEY"):
-        assert var in script, (
-            f"{var} is no longer named in the preflight, so a publish credential could sit on "
-            f"the pod unremarked (guide rule 5)."
-        )
+def test_the_rule_it_enforces_is_still_cited(script: str) -> None:
+    """Doc-rot only. The refusal's BEHAVIOUR is tested by execution further down.
+
+    This used to also assert that three variable names appeared literally in the script, and
+    that assertion could not survive its own fix: #721 replaced the three-name roster with a
+    `compgen -v | grep '^APPWRITE_'` pattern, the literal names went away, and the test failed
+    at the moment the script started catching strictly more. Asserting on a printed word cannot
+    see behaviour, so the roster half moved to
+    `test_preflight_refuses_a_credential_under_a_name_no_roster_listed` below.
+    """
     assert "guide rule 5" in script, (
         "the rule the refusal enforces is no longer cited, so the next person reads it as "
         "defensive clutter and deletes it."
@@ -428,6 +431,62 @@ def test_preflight_refuses_a_publish_credential(tmp_path: Path) -> None:
     assert done.returncode == 1
     assert "APPWRITE_DATASTORE_API_KEY is set" in out, (
         f"a publish credential in the environment was not refused (guide rule 5).\n{out}"
+    )
+
+
+def test_preflight_refuses_a_credential_under_a_name_no_roster_listed(tmp_path: Path) -> None:
+    """The point of the pattern (þing 04 D5/M1, #721).
+
+    `test_preflight_refuses_a_publish_credential` above uses APPWRITE_DATASTORE_API_KEY, which
+    the old three-name roster DID list — so it passes either way and cannot detect a regression
+    to a roster. This one uses a name no roster ever listed. Under one Appwrite project per
+    audience that is exactly the shape a new key takes.
+    """
+    done = subprocess.run(
+        [str(RUNNER), "--preflight"],
+        env={
+            "PATH": "/usr/bin:/bin",
+            "PODRUN_ROOT": str(tmp_path),
+            "APPWRITE_CRAFD_API_KEY": "not-a-real-key",
+        },
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    out = done.stdout + done.stderr
+    assert done.returncode == 1
+    assert "APPWRITE_CRAFD_API_KEY" in out, (
+        f"a publish credential under an unlisted name was not refused. If this fails after an "
+        f"edit to the loop, suspect a return to enumerating names (guide rule 5).\n{out}"
+    )
+    assert "PUBLISH CREDENTIAL" in out, (
+        f"the variable was named but not identified as a credential, so rule 5's distinction "
+        f"between a key and a mere coordinate has been lost.\n{out}"
+    )
+
+
+def test_preflight_reports_an_identifier_without_calling_it_a_credential(tmp_path: Path) -> None:
+    """Rule 5 forbids credentials, not coordinates.
+
+    An endpoint on a pod is useless, not unsafe. Reporting it in the same words as a key makes
+    the loud message routine, which is how a real finding gets read past.
+    """
+    done = subprocess.run(
+        [str(RUNNER), "--preflight"],
+        env={
+            "PATH": "/usr/bin:/bin",
+            "PODRUN_ROOT": str(tmp_path),
+            "APPWRITE_ENDPOINT": "https://example.invalid",
+        },
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    out = done.stdout + done.stderr
+    assert "APPWRITE_ENDPOINT" in out, f"a set Appwrite identifier went unreported.\n{out}"
+    assert "PUBLISH CREDENTIAL" not in out, (
+        f"an endpoint was reported as a PUBLISH CREDENTIAL. It is not one, and crying wolf on "
+        f"an identifier devalues the message that matters.\n{out}"
     )
 
 

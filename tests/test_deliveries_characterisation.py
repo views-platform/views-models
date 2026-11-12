@@ -135,6 +135,60 @@ class TestDeclarationShape:
 # ── Parity: the declaration equals what is committed ────────────────────────
 
 
+class TestFaoSourceIsPinned:
+    """FAO's source is pinned so a CRAF'd change cannot move it (views-models#599).
+
+    WHY THIS EXISTS. #599 asked for it in as many words: *"Add a test that pins FAO's source to
+    `rusty_bucket`, so a CRAF'd change can't move it."* It was the one acceptance item of #599 that
+    was never built, found missing on 2026-11-11 while preparing #721.
+
+    The risk is specific and live. Both consumers are declared in the same directory, in files of
+    the same shape, and CRAF'd's source has already been repointed once — from `rusty_bucket` to
+    `chrome_box` on 2026-10-28, *because* `rusty_bucket` is FAO's and must not go to CRAF'd as a
+    stopgap (maintainer's ruling, 2026-10-22). So the edit that moves CRAF'd is one line away from
+    the edit that moves FAO, and nothing downstream would notice: `declared_source` reads whatever
+    the file says.
+
+    ⛔ These assertions LOAD the module and read the object. They do not match its text. A guard
+    that greps for `"rusty_bucket"` in `un_fao.py` is satisfied by the docstring paragraph that
+    explains the ruling above — the repository's recurring defect class (register C-189), and the
+    reason ADR-025's rule is "execute the code or read a structure, never match its words."
+    """
+
+    def test_un_fao_sends_exactly_rusty_bucket(self):
+        """One source, named rusty_bucket, at pgm. Not a superset, not a rename."""
+        delivery = _load_delivery("un_fao").DELIVERY
+        names = [s.name for s in delivery.send]
+        assert names == ["rusty_bucket"], (
+            f"deliveries/un_fao.py declares send={names!r}, expected exactly ['rusty_bucket'].\n"
+            f"  FAO's source is pinned (views-models#599). `rusty_bucket` is FAO's ensemble and "
+            f"must not be repointed as a side effect of a CRAF'd change.\n"
+            f"  If FAO is genuinely moving source, change it here deliberately and say why in the "
+            f"declaration's docstring — that is the review this test exists to force."
+        )
+        assert [s.level for s in delivery.send] == ["pgm"], (
+            f"un_fao's source level is {[s.level for s in delivery.send]!r}, expected ['pgm']. "
+            f"FAO is delivered at pgm and curated to land_gaul downstream."
+        )
+
+    def test_the_two_consumers_do_not_share_a_source(self):
+        """CRAF'd and FAO must not send the same ensemble (maintainer's ruling, 2026-10-22).
+
+        CRAF'd previously sent `rusty_bucket` too; that was repointed to `chrome_box` precisely so
+        the two audiences stop sharing one source. This asserts the ruling rather than trusting
+        that nobody re-merges them.
+        """
+        fao = {s.name for s in _load_delivery("un_fao").DELIVERY.send}
+        crafd = {s.name for s in _load_delivery("un_crafd").DELIVERY.send}
+        shared = fao & crafd
+        assert not shared, (
+            f"un_fao and un_crafd both send {sorted(shared)!r}. The two consumers must not share a "
+            f"source: `rusty_bucket` is FAO's and must not go to CRAF'd as a stopgap (maintainer's "
+            f"ruling 2026-10-22, recorded in deliveries/un_crafd.py). "
+            f"un_fao sends {sorted(fao)!r}; un_crafd sends {sorted(crafd)!r}."
+        )
+
+
 class TestParityWithCommittedConfig:
     """**Superseded by #347, deliberately not deleted.**
 
