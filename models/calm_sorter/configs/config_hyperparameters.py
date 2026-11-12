@@ -126,7 +126,19 @@ def get_hp_config():
     # of the experiment. It is pinned by the ensemble contract
     # (tests/test_ensemble_configs.py::test_declared_modelset_and_sample_counts_match_reality),
     # not by the roster foundation pins that this model is exempt from.
-    'n_posterior_samples': 4,
+    # ⛔ D, the MC-DROPOUT count — model uncertainty. Traced in views-hydranet 0.1.10
+    # (`hydranet_inference.py:1635-1641`): posterior width S = D x K, where
+    # D = n_posterior_samples (MC dropout) and K = n_head_samples (per-cell family draws).
+    # ⛔ K IS PINNED AT 1 AND NOT A CHOICE: K > 1 requires a sampleable family
+    # (nb/zinb/mixture_nb/truncated_nb) and `validate` refuses it on a `standard` point head.
+    # So S = D, and 4 -> 16 is the ONLY knob available. Not cosmetic: MC dropout is live at
+    # inference (`:543-552` set_locked_dropout(True), ADR-057; `:1222-1225` refreshes the mask
+    # per sample) and a SINGLE pass reproduces its AP only to ~11% (measured, seed 42,
+    # `:930`). D sets how stable the ORDERING is, and the ordering is the object of #729.
+    # 16 matches the control's posterior width, and is IDENTICAL in both arms so it cannot
+    # explain a gap. A precision choice, not a validity one; 4 is a defensible fallback if
+    # the rehearsal shows 16 is too slow.
+    'n_posterior_samples': 16,
     'n_head_samples': 1,
     'rollout_feedback': 'sample',
     'bn_recalibrate': True,
