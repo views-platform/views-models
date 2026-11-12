@@ -166,9 +166,10 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-11-12 on a clean checkout: **147 `candidate`, 3 `retired`, 0 `graduate`** across
-  150 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 188 files in all. One movement on 2026-11-12: the eleven views-baseline comparison models
+  *(Measured 2026-11-12 on a clean checkout: **157 `candidate`, 3 `retired`, 0 `graduate`** across
+  160 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 198 files in all. Also on 2026-11-12: the ten views-models#729 ranking-objective
+  arms, `{calm,keen,mellow,nimble,quiet}_{counter,sorter}`, +10 files, all candidate. One movement on 2026-11-12: the eleven views-baseline comparison models
   of views-models#717/#730/#731 — eight `MatryoshkaConflictology` doll arms (`nested_burlap`,
   `{lone,local,civic,global,mapless,stateless,distant}_burlap`) and three `PooledConflictology`
   levels (`{narrow,middle,broad}_canvas`), +11 files, all candidate. Two movements the same day: EXP-03's eight 300-lesson arms

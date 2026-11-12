@@ -1,0 +1,138 @@
+# UN-FENCED 2026-08-12 (maintainer decision, Epic #242 S3). The marker that lived here
+# said the reconstruction toward the v2 gated_NB foundation was still in flight and this
+# model's values were intentionally unpinned. It has landed: violet is now a full roster
+# member on the same foundation as the other seven, and it is pinned by
+# tests/test_roster_conformance.py like the rest. No exemption remains.
+
+
+def get_hp_config():
+    """
+    violet_visitor — the HydraNet R&D reference model (pgm, datafactory; `land` since #499, `africa_me_legacy` before).
+
+    STATUS: roster member (Epic #242 S3). Gated forecast
+    (gate x body) via a hurdle_shrinkage-composed output, all-cell MSE body, weighted-BCE
+    gate. It is mid-reconstruction toward the v2 gated_NB foundation (output_distribution=nb,
+    soft_gate, 300 lessons); until that lands (Epic #242 S1 #244 / S3 #246) its exact
+    loss_reg / n_posterior_samples stay unpinned. See views-models#254/#297, C-71/C-87.
+    """
+    hyperparameters = {
+        'time_col': 'month_id',
+        'id_col': 'priogrid_id',
+        'spatial_cols': ['row', 'col'],
+        'identity_cols': ['month_id', 'priogrid_id', 'c_id', 'row', 'col'],
+        "index_names": ['month_id', 'priogrid_id'],
+        'features': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+        'static_channels': [],
+        'input_channels': 3,
+        # #499 Step 1: the whole PRIO-GRID raster (360 x 720 at 0.5 deg), because REGION is "land"
+        # (rows span 278, cols 719 — the 180 x 180 Africa+ME crop at (87, 310) refuses it). Leading
+        # rows/cols with no land are zero; views-hydranet's DataSniffer documents this as expected.
+        # Offsets are 1, not 0: pipeline-core numbers row/col from 1 (row = (pgid-1)//720 + 1), and the
+        # volume indexes row - row_offset, so 1 maps row 1..360 onto 0..359 (9540a7bc, 2026-04-28).
+        'row_offset': 1,
+        'col_offset': 1,
+        'height': 360,
+        'width': 720,
+
+        'model': 'UpsampleConv2',
+        'total_hidden_channels': 32,
+        'dropout_rate': 0.15,
+        'window_dim': 32,
+        'output_channels': 1,
+        'weight_init': 'xavier_norm',
+        # gated forecast (gate x body); all-cell body
+        'output_distribution': 'standard',
+        'forecast_composition': 'self_zeroed',
+        # #465: 0.5 fired on 3-6x too few cells (views-hydranet M75). Measured calibrated τ for
+        # this model was 0.26; set BELOW it on purpose — the platform undershoots fatalities
+        # even at τ=0, so lean toward firing more. A prior, not a measurement: to be swept.
+        'gate_threshold': None,
+        'freeze_recurrent': 'cell',
+        # #484 (views-hydranet 0.1.1): a CPU device is a hard stop, not a banner. A fresh install
+        # once resolved a torch this machine's driver could not run and a roster model trained
+        # for 6 h 46 m on CPU (views-hydranet#377). CPU training is never intended here.
+        'require_cuda': True,
+        'reg_activation': 'softplus',
+        'body_supervision': 'all',  # all-cell body supervision (ADR-065; supersedes the retired point-mask knob)
+
+        'windows_per_lesson': 3,
+        'learning_rate': 0.001,
+        'weight_decay': 0.1,
+        'scheduler': 'WarmupDecay',
+        'warmup_steps': 100,
+        'clip_grad_norm': True,
+        'torch_seed': 44,
+        'np_seed': 44,
+        'freeze_multitask_balancer': True,
+
+        'classification_targets': ['by_sb_best', 'by_ns_best', 'by_os_best'],
+        'regression_targets': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'],
+        'transformations': {'log1p': ['lr_sb_best', 'lr_ns_best', 'lr_os_best'], 'asinh': [], 'identity': []},
+        'derivations': {'binary': [
+            {'from': 'lr_sb_best', 'to': 'by_sb_best', 'threshold': 0},
+            {'from': 'lr_ns_best', 'to': 'by_ns_best', 'threshold': 0},
+            {'from': 'lr_os_best', 'to': 'by_os_best', 'threshold': 0},
+        ]},
+        'steps': list(range(1, 37)),
+        'time_steps': 36,
+
+        # all-cell body, plain MSE
+        'loss_reg': 'listwise_level',
+        # ⛔ REQUIRED by the listwise objective and set in BOTH arms, so it cannot
+        # explain a gap between them. 262143.0, not the 178459.0 of #723: level_max is
+        # bit_length(ceil(y_max)), so every value in [131072, 262143] gives the identical
+        # level set 0..18 — and `dyadic_levels` RAISES on a count above 2^level_max - 1
+        # rather than degrading, so an under-declared y_max crashes mid-training after the
+        # pod is paid for. The 178459 came off a CACHED 2026-11-03 pull which the
+        # 2026-11-12 store rebuild made stale; 262143 is 47% headroom on a fresh pull.
+        'loss_reg_y_max': 262143.0,
+        # gate calibration
+        'loss_class': 'weighted_bce',
+        'loss_class_pos_weight': 2.0,
+        'onset_bias_init': -7.0,
+
+        'ss_schedule': 'linear',
+        'ss_warmup_lessons': 15,
+        'ss_epsilon_max': 0.0,
+    'ss_feedback': 'sample',  # C-259
+
+        # A run-time budget, not a model choice. 300 is production (#463). It was dropped to
+        # 40 for the #499 integration pass at global land (2026-09-19) and restored here for
+        # the #505 calibration run — this is the PR that #499 said was owed.
+        # Measured on rented RTX PRO 4500 SE class hardware, n=3: a full run is 202-272 min
+        # end to end — 300 lessons plus the 13-origin evaluation — i.e. ~4 h, or 40-54 s per
+        # lesson. An earlier version of this comment said 84 s and ~7 h; that was taken from
+        # the FIRST lesson of a cold two-lesson smoke run, which carries warm-up and is not
+        # representative of the other 299. config_sweep.py keeps its own, smaller budget on
+        # purpose — a sweep explores, it does not produce a deliverable.
+        'total_lessons': 300,
+        'max_ratio': 0.95,
+        'min_ratio': 0.05,
+        'slope_ratio': 0.75,
+        'roof_ratio': 0.7,
+        'min_events': 5,
+        'sampling_strategy': 'sigmoid',
+        'sampling_steepness': 1.0,
+
+        # D x K = 4 x 4 = 16 produced draws, matching the other seven roster members
+    # (ADR-015 6: the count that matters is the count a model PRODUCES). Was D=8
+    # with no head sampler, i.e. 8 produced -- which is why rusty_bucket could not
+    # be rewired to the roster: it declares expected_samples_per_model: 16 and the
+    # ADR-015 contract refuses a constituent that emits something else.
+    #
+    # Settled 2026-08-11 by maintainer decision (#146, #372 item 2). This model stays
+    # EXPERIMENT_IN_PROGRESS -- its family, composition and seed are still unsettled
+    # and its queryset is not yet migrated -- but the SAMPLE COUNT is no longer part
+    # of the experiment. It is pinned by the ensemble contract
+    # (tests/test_ensemble_configs.py::test_declared_modelset_and_sample_counts_match_reality),
+    # not by the roster foundation pins that this model is exempt from.
+    'n_posterior_samples': 4,
+    'n_head_samples': 1,
+    'rollout_feedback': 'sample',
+    'bn_recalibrate': True,
+        'evaluation_mode': 'stochastic',
+        'aggregate_method': 'arithmetic_mean',
+        'skip_predictions_delivery': True,
+        'min_free_disk_gb': 10.0,
+    }
+    return hyperparameters

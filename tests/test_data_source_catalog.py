@@ -102,4 +102,7 @@ def test_the_split_is_what_the_catalog_says():
     # MatryoshkaConflictology doll arms and three PooledConflictology levels. All are
     # datafactory consumers, copied from plain_burlap, whose config_queryset.py fetches the
     # zarr store rather than viewser.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 90, SYNTHETIC: 6}, dict(counts)
+    # 90 -> 100 on 2026-11-12: the ten #729 ranking-objective arms (five matched pairs,
+    # *_counter and *_sorter). Forked from calm_orbiter, so they inherit its datafactory
+    # queryset — the same reason every EXP arm is a datafactory consumer.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 100, SYNTHETIC: 6}, dict(counts)

@@ -122,9 +122,9 @@ DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 53 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 63 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 53 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 63 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }
@@ -627,6 +627,19 @@ def test_a_package_is_declared_the_same_way_everywhere():
             # higher, and pip does not downgrade to satisfy a floor already met.
             "<2.0.0,>=1.1.0": "the ten views-models#695 smoothed climatology arms: 1.1.0 is "
                               "the first release that has the algorithms they name",
+        },
+        #: ⛔ ALSO A CAPABILITY FLOOR. 0.1.10 is the first release carrying the
+        #: `listwise_level` loss family and the `loss_reg_y_max` field (views-hydranet #578,
+        #: PRs #593/#594). On 0.1.8 a `*_sorter` config names a loss the registry cannot build.
+        #: ⚠️ The floor is on BOTH arms of each pair, not only the five sorters that need it.
+        #: A matched pair must differ in `loss_reg` and in nothing else — including what it
+        #: installs — or the installed library is a second difference and the comparison no
+        #: longer attributes a gap to the objective alone. That is deliberate, not an oversight.
+        "views-hydranet": {
+            "<0.2.0,>=0.1.8":  "the 27 pre-existing HydraNet sources",
+            "<0.2.0,>=0.1.10": "the ten views-models#729 ranking-objective arms "
+                               "({calm,keen,mellow,nimble,quiet}_{counter,sorter}): 0.1.10 is "
+                               "the first release that has the listwise_level loss family",
         },
     }
 

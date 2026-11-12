@@ -274,7 +274,9 @@ def test_environment_sharing_is_recorded_not_discovered():
         # prefix is the measurement, not a convenience: a dependency difference between an arm
         # and its seed-matched control would be a second variable in a one-variable contrast, and
         # between seeds it would land inside the variance being bought (C-116).
-        "views-hydranet": 27,
+        #: 27 -> 37 on 2026-11-12: the ten #729 arms. Each inherits what its 36 co-tenants
+        #: install (C-116).
+        "views-hydranet": 37,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,
