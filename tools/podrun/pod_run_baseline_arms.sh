@@ -108,6 +108,19 @@ done
 
 command -v uv >/dev/null 2>&1 || note "uv is not on PATH, and this script builds its venv with it. Install it: curl -LsSf https://astral.sh/uv/install.sh | sh"
 
+# ⛔ pg_config, i.e. libpq-dev. MEASURED FAILURE 2026-11-13: this runner died at install_python
+# with `Error: pg_config executable not found` after a pod reset wiped the apt packages. The chain
+# is not obvious — views-pipeline-core depends on viewser, which depends on views-storage, which
+# depends on psycopg2, which builds from source and needs pg_config. So a baseline run fails on a
+# POSTGRES build tool it never uses, several minutes into a paid install, and the error names
+# psycopg2 rather than the missing apt package.
+# ⚠️ Checking `zstd` is NOT a proxy for "the apt packages are there": zstd ships in the RunPod base
+# image and libpq-dev does not. That is exactly how this bit — one token checked, a whole class
+# assumed (ADR-025: an assumption a check cannot see is how a preflight returns clean on a run
+# that cannot start).
+command -v pg_config >/dev/null 2>&1 || note "pg_config is not on PATH, so psycopg2 cannot build and the install WILL fail minutes in. Install it: apt-get install -y libpq-dev build-essential (guide Step 2.2). A pod reset wipes this; zstd surviving does not mean it did."
+command -v gcc >/dev/null 2>&1 || note "gcc is not on PATH, so no sdist in the dependency tree can build. apt-get install -y build-essential (guide Step 2.2)."
+
 [ -s /root/.netrc ] || note "/root/.netrc — the datafactory fetch needs it (guide Step 2.3)"
 if [ -s /root/.netrc ] && [ "$(stat -c %a /root/.netrc 2>/dev/null)" != "600" ]; then
     chmod 600 /root/.netrc; echo "  fixed: /root/.netrc was not 600"
