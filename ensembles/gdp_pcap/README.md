@@ -6,7 +6,7 @@ This folder contains code for the GDP Pcap model, an ensemble machine learning m
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Models** | nhits_bfc, tide_bfc                  |
+| **Models** | frozen_crown, silver_drift                  |
 | **Level of Analysis** | cm            |
 | **Targets**         | lr_gdp_pcap |
 | **Aggregation**       |  mean   |

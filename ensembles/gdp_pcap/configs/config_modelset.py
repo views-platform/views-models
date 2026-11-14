@@ -7,8 +7,8 @@ def get_modelset_config():
     """
     modelset_config = {
         "models": [
-            "nhits_bfc",
-            "tide_bfc",
+            "frozen_crown",
+            "silver_drift",
         ],
     }
     # modelset_config = {
