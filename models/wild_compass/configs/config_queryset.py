@@ -96,6 +96,36 @@ def generate():
             .transform.spatial.countrylag(1, 1, 0, 0)
             )
             
+    # Paper outcome targets (report Table 4). lr_chex_gd_pcap is derived from
+    # lr_chex_gd_zs and lr_gdp_pcap by the impact preprocessor.
+    .with_column(
+        Column("lr_ttns_zs", from_loa="country_year", from_column="wdi_sh_vac_ttns_zs")
+        ) # Newborns protected against tetanus (%)
+
+    .with_column(
+        Column("lr_imrt_in", from_loa="country_year", from_column="wdi_sp_dyn_imrt_in")
+        ) # Infant mortality rate
+
+    .with_column(
+        Column("lr_le00_in", from_loa="country_year", from_column="wdi_sp_dyn_le00_in")
+        ) # Life expectancy at birth
+
+    .with_column(
+        Column("lr_chex_gd_zs", from_loa="country_year", from_column="wdi_sh_xpd_chex_gd_zs")
+        ) # Current health expenditure (% of GDP), recomputed to lr_chex_gd_pcap downstream
+
+    .with_column(
+        Column("lr_stnt_me_zs", from_loa="country_year", from_column="wdi_sh_sta_stnt_me_zs")
+        ) # Prevalence of stunting/height for age (% of children under 5)
+
+    .with_column(
+        Column("lr_defc_zs", from_loa="country_year", from_column="wdi_sn_itk_defc_zs")
+        ) # Prevalence of undernourishment (% of population)
+
+    .with_column(
+        Column("lr_v2x_libdem", from_loa="country_year", from_column="vdem_v2x_libdem")
+        ) # Liberal democracy index (V-DEM)
+
     .with_column(
         Column("lr_pop_totl", from_loa="country_year", from_column="wdi_sp_pop_totl")
             .transform.missing.fill()

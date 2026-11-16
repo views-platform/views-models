@@ -55,12 +55,38 @@ def get_hp_config():
             "AsinhTransform": ["lr_ged_sb", "lr_ged_os", "lr_ged_ns", "lr_pop_totl"]
         },
         "use_cyclic_encoders": False,
-        "temporal_disaggregation": {
-            target: {"method": "denton-cholette", "conversion": "average"}
-            for target in (
-                "lr_gdp_pcap", "lr_ttns_zs", "lr_imrt_in", "lr_le00_in",
-                "lr_chex_gd_zs", "lr_chex_gd_pcap", "lr_stnt_me_zs",
-                "lr_defc_zs", "lr_prm_enrr", "lr_v2x_libdem",
-            )
+                "temporal_disaggregation": {
+            "lr_gdp_pcap": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_ttns_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_imrt_in": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_le00_in": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_chex_gd_pcap": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_stnt_me_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_defc_zs": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
+            "lr_v2x_libdem": {
+                "method": "denton-cholette",
+                "conversion": "average",
+            },
         },
     }

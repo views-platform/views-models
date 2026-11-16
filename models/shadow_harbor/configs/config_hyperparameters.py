@@ -102,7 +102,7 @@ def get_hp_config():
         "activation": "ReLU",
         "dropout": 0.0,  # 0.10 → 0.0: tiny model, no overfitting risk
         "use_reversible_instance_norm": True,
-        "temporal_disaggregation": {
+                "temporal_disaggregation": {
             "lr_gdp_pcap": {
                 "method": "denton-cholette",
                 "conversion": "average",
@@ -119,7 +119,7 @@ def get_hp_config():
                 "method": "denton-cholette",
                 "conversion": "average",
             },
-            "lr_chex_gd_zs": {
+            "lr_chex_gd_pcap": {
                 "method": "denton-cholette",
                 "conversion": "average",
             },
@@ -128,10 +128,6 @@ def get_hp_config():
                 "conversion": "average",
             },
             "lr_defc_zs": {
-                "method": "denton-cholette",
-                "conversion": "average",
-            },
-            "lr_prm_enrr": {
                 "method": "denton-cholette",
                 "conversion": "average",
             },
