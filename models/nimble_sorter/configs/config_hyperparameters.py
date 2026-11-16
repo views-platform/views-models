@@ -140,7 +140,11 @@ def get_hp_config():
     # the rehearsal shows 16 is too slow.
     'n_posterior_samples': 16,
     'n_head_samples': 1,
-    'rollout_feedback': 'sample',
+    # ⛔ 'mean', NOT 'sample', for the SAME reason K is pinned at 1 just above: 'sample' draws
+    # the fed-back value from a count distribution, and a `standard` point head has no family
+    # to draw from. HydraNetInference refuses the pair when it is constructed, so the model
+    # trains and then dies at the first forecast. views-models#737.
+    'rollout_feedback': 'mean',
     'bn_recalibrate': True,
         'evaluation_mode': 'stochastic',
         'aggregate_method': 'arithmetic_mean',
