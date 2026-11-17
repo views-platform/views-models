@@ -46,29 +46,38 @@ pools at a single level instead of a nest.
 `plain_burlap` also has an older copy from the 2026-11-04 run. Use the 2026-11-13 one: it shares the
 store, the engine version and the seed with everything else in sections 1 and 2.
 
-## 3. The moving-window controls — NO DATA, AND THREE DO NOT EXIST
+## 3. The moving-window controls — BUILT 2026-11-17, NO DATA YET
 
-This is the whole gap. Sections 1 and 2 cannot be compared past the first forecast origin, because
-the nested-doll models get to see data up to each origin and the fixed-window models do not. A score
-gap between them mixes the method with a data advantage. These four fix that: same pooling levels,
-but the window moves forward with the origin.
+This is the whole remaining gap. Sections 1 and 2 cannot be compared past the first forecast origin,
+because the nested-doll models get to see data up to each origin and the fixed-window models do not.
+A score gap between them mixes the method with a data advantage. These four fix that: the same
+pooling levels, but the window moves forward with the origin.
 
 | model | algorithm | pools over | folder | data |
 |---|---|---|---|---|
-| `rolling_burlap` | RollingConflictology | the cell alone | ⚠️ exists, on branch `feat/716-rolling-burlap` only | 🔴 none |
-| `narrow_sailcloth` | RollingPooledConflictology | admin-1 area | 🔴 not built | 🔴 none |
-| `middle_sailcloth` | RollingPooledConflictology | country | 🔴 not built | 🔴 none |
-| `broad_sailcloth` | RollingPooledConflictology | the whole map | 🔴 not built | 🔴 none |
+| `rolling_burlap` | RollingConflictology | the cell alone | ✅ built | 🔴 none |
+| `narrow_sailcloth` | RollingPooledConflictology | admin-1 area | ✅ built | 🔴 none |
+| `middle_sailcloth` | RollingPooledConflictology | country | ✅ built | 🔴 none |
+| `broad_sailcloth` | RollingPooledConflictology | the whole map | ✅ built | 🔴 none |
 
-**Why they do not exist yet.** The moving-window pooled algorithm shipped in views-baseline 1.5.0,
-released 2026-11-16 23:27 (checked on PyPI 2026-11-17). Before that it could not be named in a config.
+**Why they could not exist before 2026-11-17.** The moving-window pooled algorithm shipped in
+views-baseline 1.5.0, released 2026-11-16 23:27 (checked on PyPI). Before that it could not be named
+in a config. All four floor views-baseline at `>=1.5.0` — including `rolling_burlap`, whose own
+algorithm arrived in 1.2.0, because the four share one environment prefix and a prefix resolved to
+1.2.0 would leave the three `_sailcloth` models naming a class the registry cannot build.
 
-⚠️ `rolling_burlap` asks for 256 draws where its twin `plain_burlap` uses 64. It must come down to 64
-in three places, or its scores are not comparable with anything in section 2.
+**Each differs from its twin in exactly two keys, `algorithm` and `name`, and in nothing else.**
+Checked by loading both configs and diffing the merged dictionaries. `rolling_burlap` carried 256
+draws when it was written on 2026-11-09 and is now at 64 in all three places, matching every model in
+sections 1 and 2 — the metrics are quantised to S+1 levels, so a model at 256 cannot be compared with
+one at 64 and nothing raises when they are.
 
-**Acceptance check before these count as valid:** at the first origin a moving-window model sees
-exactly what its fixed-window twin sees, so its scores must come out equal.
-`rolling_burlap` against `plain_burlap`, and each `_sailcloth` against its `_canvas`.
+**Acceptance check before any result here is believed:** at the first origin a moving-window model
+sees exactly what its fixed-window twin sees, so its scores must come out equal. `rolling_burlap`
+against `plain_burlap`, and each `_sailcloth` against its `_canvas`.
+
+**What running them needs:** measured from the 2026-11-13 run of twelve, about 22 minutes per model
+on one rented machine, so roughly 1.5 hours for the four. Nothing has been run.
 
 ## 4. Not part of this comparison — nine other baselines, data held
 

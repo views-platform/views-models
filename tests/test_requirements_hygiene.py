@@ -304,6 +304,12 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
             "mapless_burlap", "stateless_burlap", "distant_burlap",
             "narrow_canvas", "middle_canvas", "broad_canvas",
         )} | {
+        #: The four moving-window comparison models of #736/#716. Copies of their fixed-window
+        #: twins above, so they declare the package for the identical reason — views-baseline's
+        #: own >=3.0.0 floor sits below the 3.2.0 that can find configs/config_maturity.py.
+        f"models/{name}" for name in (
+            "rolling_burlap", "narrow_sailcloth", "middle_sailcloth", "broad_sailcloth",
+        )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
             "golden_hour", "pink_ponyclub", "rude_boy", "rusty_bucket", "skinny_love",
@@ -627,6 +633,17 @@ def test_a_package_is_declared_the_same_way_everywhere():
             # higher, and pip does not downgrade to satisfy a floor already met.
             "<2.0.0,>=1.1.0": "the ten views-models#695 smoothed climatology arms: 1.1.0 is "
                               "the first release that has the algorithms they name",
+            # ⛔ ALSO A CAPABILITY FLOOR, and the highest here. 1.5.0 is the first release
+            # carrying RollingPooledConflictology (views-baseline #165, released 2026-11-16);
+            # below it the three `*_sailcloth` models name a class the registry cannot build.
+            # ⚠️ `rolling_burlap` carries this floor too although RollingConflictology arrived
+            # in 1.2.0. That is deliberate, not an error: all four share envs/views-baseline,
+            # and a prefix resolved to 1.2.0 would satisfy rolling_burlap and leave its three
+            # co-tenants naming a missing class. One floor for the set, at the highest member's
+            # requirement. The nesting argument holds as above: same ceiling, strictly higher
+            # floor, and pip does not downgrade to satisfy a floor already met.
+            "<2.0.0,>=1.5.0": "the four views-models#736/#716 moving-window comparison models: "
+                              "1.5.0 is the first release with RollingPooledConflictology",
         },
         #: ⛔ ALSO A CAPABILITY FLOOR. 0.1.10 is the first release carrying the
         #: `listwise_level` loss family and the `loss_reg_y_max` field (views-hydranet #578,

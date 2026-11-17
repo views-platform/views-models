@@ -3,7 +3,8 @@
 
 ⛔ WHY THIS FILE EXISTS AT ALL, rather than calling the generic tool directly: pipeline-core no
 longer auto-loads a `.env` from the working directory (#346, register C-177) — a library reading
-whatever `.env` its caller stands in is what PLATFORM-001 §3 forbids. So the ENTRY POINT must load
+whatever `.env` its caller stands in is what the Appwrite Seam Contract (formerly PLATFORM-001)
+§3 forbids. So the ENTRY POINT must load
 the nine coordinates, and `publish_pooled_forecast.py` does not. Measured tonight: calling it
 directly died with `ConfigurationException: Missing required environment variables` on all nine,
 before any store was constructed. Nothing was uploaded; the failure is loud by design.

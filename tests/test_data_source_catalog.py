@@ -105,4 +105,8 @@ def test_the_split_is_what_the_catalog_says():
     # 90 -> 100 on 2026-11-12: the ten #729 ranking-objective arms (five matched pairs,
     # *_counter and *_sorter). Forked from calm_orbiter, so they inherit its datafactory
     # queryset — the same reason every EXP arm is a datafactory consumer.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 100, SYNTHETIC: 6}, dict(counts)
+    # 100 -> 104 on 2026-11-17: the four moving-window comparison models of views-models#736
+    # and #716 — `rolling_burlap` and `{narrow,middle,broad}_sailcloth`. Datafactory consumers
+    # for the same reason their fixed-window twins are: each config_queryset.py is a copy of its
+    # twin's and declares `source: "views-datafactory"`, differing from it only in the model name.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 104, SYNTHETIC: 6}, dict(counts)
