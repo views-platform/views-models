@@ -409,7 +409,22 @@ def test_every_declared_prefix_is_an_environment_this_repository_owns():
 #:
 #: Measured 2026-10-30, both on toolz 0.11.2. Remove an entry the day its prefix passes;
 #: the test will tell you. Upstream: views-models#473 (both cappers are orphaned), #643.
-KNOWN_C151_PREFIXES = frozenset({"views_ensemble", "views-postprocessing"})
+#:
+#: `views-baseline` added 2026-11-17, measured the same way and failing for the same single
+#: reason: its own interpreter reports `sys.prefix` inside the prefix (so it is not the #644
+#: dangling-interpreter shape) and holds toolz 0.11.2 under `viewser 6.6.4`, which declares
+#: `toolz<0.12.0,>=0.11.1`. Nothing in this repository can lift that cap. The one install
+#: that does work — `pip install "toolz>=0.12.1"` as the LAST install, which is what the pod
+#: lane does — cannot persist here, because `run.sh` re-resolves requirements.txt on every
+#: invocation and reverts it. 70 launchers point at this prefix.
+#:
+#: THE EXIT, NAMED: the day viewser is retired from the dependency closure, this prefix will
+#: resolve toolz 1.x and start PASSING — and the stale-entry branch below turns that into a
+#: red test telling whoever is there to delete this line. The exemption reports its own
+#: expiry; it does not have to be remembered.
+KNOWN_C151_PREFIXES = frozenset(
+    {"views_ensemble", "views-postprocessing", "views-baseline"}
+)
 
 #: What a C-151 failure looks like in `_probe`'s detail string. An exemption keyed on the
 #: prefix NAME alone would cover a dangling interpreter or a foreign site-packages just as
