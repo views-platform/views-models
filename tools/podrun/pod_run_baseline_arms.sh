@@ -171,10 +171,15 @@ fi
 stage install_python
 if [ ! -x "$VENV/bin/python" ]; then
     uv venv --python 3.11 "$VENV" || die "venv creation failed (is uv on PATH?)"
-    # views-baseline FIRST and floored at 1.4.0: MatryoshkaConflictology needs `dolls` and
-    # PooledConflictology exists only from there, and eleven of these sources name them.
+    # views-baseline FIRST and floored at 1.5.0: MatryoshkaConflictology needs `dolls` and
+    # PooledConflictology exists only from 1.4.0, and RollingPooledConflictology — which the
+    # three *_sailcloth sources name — only from 1.5.0.
+    # ⛔ THIS FLOOR IS THE ONLY ONE THAT REACHES THE POD. This runner never reads
+    # models/<source>/requirements.txt, so a source declaring >=1.5.0 gets whatever this line
+    # resolves. Raise it when a source needs a newer engine; verify_algorithms below is what
+    # catches the case where nobody did.
     uv pip install --python "$VENV/bin/python" \
-        "views-baseline>=1.4.0,<2.0.0" \
+        "views-baseline>=1.5.0,<2.0.0" \
         "views-pipeline-core>=3.2.0,<4.0.0" \
         "views-datafactory>=1.17.0,<2.0.0" || die "pip install failed"
     # register C-151: viewser pins toolz<0.12, which cannot import tlz submodules on Python 3.11
@@ -194,6 +199,49 @@ print("  views-baseline", m.version("views-baseline"),
       "| views-pipeline-core", m.version("views-pipeline-core"),
       "| views-datafactory", m.version("views-datafactory"),
       "| toolz", m.version("toolz"), "| tlz importable | baseline manager importable")
+PY
+
+stage verify_algorithms
+# ⛔ WHY THIS IS A SEPARATE STAGE, and why it runs OUTSIDE the install block above: the install is
+# SKIPPED when $VENV already exists ("reusing"), so a pod whose volume carries a venv from an
+# earlier run keeps that run's engine, and verify_install above would still pass — it imports the
+# manager, which every version has. The cost of learning this later is measured, not imagined: the
+# three *_sailcloth sources need RollingPooledConflictology (views-baseline 1.5.0), rolling_burlap
+# needs only 1.2.0, so a 1.4.0 venv runs source 1 of 4 to completion and dies on source 2 —
+# roughly 22 paid minutes in. This asks the installed engine, for every source NAMED ON THIS
+# INVOCATION, whether it can build the algorithm that source declares.
+PODRUN_SOURCES="$SOURCES" PODRUN_REPO_DIR="$REPO" "$VENV/bin/python" - <<'PY' \
+  || die "the installed views-baseline cannot build an algorithm these sources declare (see above). Remedy: rm -rf $VENV and re-run — the install block only runs when the venv is absent."
+import importlib.metadata as m
+import os
+import pathlib
+import re
+import sys
+
+import views_baseline.model.models.distributional as dist
+from views_baseline.model.catalog import BaselineModelCatalog
+
+repo = pathlib.Path(os.environ["PODRUN_REPO_DIR"])
+need: dict[str, list[str]] = {}
+for s in os.environ["PODRUN_SOURCES"].split():
+    meta = repo / "models" / s / "configs" / "config_meta.py"
+    found = re.search(r'"algorithm"\s*:\s*"([A-Za-z_]+)"', meta.read_text(encoding="utf-8"))
+    if not found:
+        print(f"  !!! {meta} declares no algorithm")
+        raise SystemExit(1)
+    need.setdefault(found.group(1), []).append(s)
+
+# Two questions, because either alone can pass on a broken engine: is the class exported, and
+# does the catalog know a genome for it (which is what get_model validates the config against).
+missing = []
+for algo, srcs in sorted(need.items()):
+    ok = hasattr(dist, algo) and algo in BaselineModelCatalog.MODEL_GENOMES
+    print(f"  {'ok     ' if ok else 'MISSING'} {algo} <- {', '.join(sorted(srcs))}")
+    if not ok:
+        missing.append(algo)
+if missing:
+    print(f"  !!! views-baseline {m.version('views-baseline')} cannot build: {', '.join(missing)}")
+raise SystemExit(1 if missing else 0)
 PY
 
 # ── one store state for the whole set ────────────────────────────────────────────────────────
@@ -260,7 +308,7 @@ done
 
 stage manifest
 {
-  echo "set:            #728 baseline comparison ($TOTAL sources)"
+  echo "set:            $TOTAL views-baseline source(s) — named on the sources line below"
   echo "sources:        $SOURCES"
   echo "finished:       $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "invocation:     main.py $RUN_ARGS"
