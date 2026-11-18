@@ -86,11 +86,18 @@ ROSTER: tuple[Member, ...] = (
     Member("narrow_canvas", "PooledConflictology", "fixed-window", BATCH_NOV13),
     Member("middle_canvas", "PooledConflictology", "fixed-window", BATCH_NOV13),
     Member("broad_canvas", "PooledConflictology", "fixed-window", BATCH_NOV13),
+    # The neighbourhood control, decided 2026-11-18, not yet built: views-baseline#178. Declared
+    # here while it does not exist, because its ABSENCE is the fact that matters — the `near` doll
+    # level has no single-level control, and four of the eight nested-doll models use that level.
+    # It was once recorded only as a note and was deferred twice; a declared roster entry reports
+    # "no folder, never run" on every run until the models exist.
+    Member("tight_canvas", "NeighbourhoodConflictology", "fixed-window", None),
     # 3 — moving window: the comparators that make sections 1 and 2 comparable past origin 0.
     Member("rolling_burlap", "RollingConflictology", "moving-window", BATCH_NOV17),
     Member("narrow_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
     Member("middle_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
     Member("broad_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
+    Member("tight_sailcloth", "RollingNeighbourhoodConflictology", "moving-window", None),
 )
 
 #: The twin each moving-window model must equal at origin 0 — the acceptance check for section 3.
@@ -99,6 +106,7 @@ ORIGIN_ZERO_TWIN = {
     "narrow_sailcloth": "narrow_canvas",
     "middle_sailcloth": "middle_canvas",
     "broad_sailcloth": "broad_canvas",
+    "tight_sailcloth": "tight_canvas",
 }
 
 
