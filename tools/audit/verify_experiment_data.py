@@ -109,6 +109,15 @@ ORIGIN_ZERO_TWIN = {
     "tight_sailcloth": "tight_canvas",
 }
 
+#: The reverse of ORIGIN_ZERO_TWIN: the model each fixed-window reference is the twin OF.
+#: Derived, never written by hand, so the two cannot drift apart.
+#: ⛔ A MISSING MODEL IS NOT ALWAYS A MOVING-WINDOW ONE. This map exists because the report below
+#: once did ORIGIN_ZERO_TWIN[name] for every model with no data, which held only while every
+#: such model happened to be a moving-window arm. The moment a fixed-window reference was itself
+#: declared-but-not-built (tight_canvas, 2026-11-18) that raised KeyError and the tool died after
+#: printing its whole table — a reporting crash in the one tool whose job is to be trusted.
+TWIN_OF = {reference: moving for moving, reference in ORIGIN_ZERO_TWIN.items()}
+
 
 def _archive(member: Member) -> Path | None:
     return None if member.batch is None else member.batch / f"{member.name}_s64.tar.zst"
@@ -237,9 +246,15 @@ def main() -> int:
         print("ok* = contents verified, but the batch kept no checksum list, so the bytes "
               "cannot be proved identical to what left the pod.")
     if missing:
-        print("\nNo data, and each needs its origin-0 twin to accept it once run:")
+        print("\nNo data. What each one needs before its results are believed:")
         for name in missing:
-            print(f"  {name:<{width}}  must equal {ORIGIN_ZERO_TWIN[name]} at origin 0")
+            if name in ORIGIN_ZERO_TWIN:
+                print(f"  {name:<{width}}  must equal {ORIGIN_ZERO_TWIN[name]} at origin 0")
+            elif name in TWIN_OF:
+                print(f"  {name:<{width}}  is the reference {TWIN_OF[name]} must equal at "
+                      f"origin 0, so it has no check of its own and must run first")
+            else:
+                print(f"  {name:<{width}}  has no origin-0 twin declared — see ORIGIN_ZERO_TWIN")
     if not args.deep:
         print("\nRun with --deep to also assert the draw count from the arrays themselves.")
 

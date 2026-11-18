@@ -91,3 +91,31 @@ def test_every_model_with_no_run_has_a_named_origin_zero_twin():
         f"these twins are not fixed-window members of the roster, so the equality check could not be "
         f"run against them: {wrong}"
     )
+
+
+def test_every_model_with_no_data_can_be_reported_without_crashing():
+    """The report explains, per model that holds no data, what it still needs. Every such model
+    must therefore be resolvable in one of the two twin maps.
+
+    ⛔ THE FAILURE THIS GUARDS, which already happened. The report did
+    `ORIGIN_ZERO_TWIN[name]` for every model with no data. That is correct only while every such
+    model is a moving-window arm. On 2026-11-18 `tight_canvas` — a FIXED-window reference — was
+    declared in the roster before it was built, and the tool printed its whole table and then
+    died with KeyError. The one tool whose purpose is to be trusted about what data exists
+    crashed while saying so, and the membership test above stayed green because membership was
+    not what broke.
+
+    This asserts the invariant the report depends on, rather than the text the report prints.
+    """
+    from tools.audit.verify_experiment_data import ORIGIN_ZERO_TWIN, ROSTER, TWIN_OF
+
+    declared_absent = [m.name for m in ROSTER if m.batch is None]
+    unexplainable = [n for n in declared_absent if n not in ORIGIN_ZERO_TWIN and n not in TWIN_OF]
+    assert not unexplainable, (
+        f"these models are declared in the roster with no data, and the report cannot say what "
+        f"they need because they appear in neither ORIGIN_ZERO_TWIN nor its reverse: "
+        f"{unexplainable}. Declare the twin relationship, or the report will crash on them."
+    )
+    assert TWIN_OF == {ref: mov for mov, ref in ORIGIN_ZERO_TWIN.items()}, (
+        "TWIN_OF must be derived from ORIGIN_ZERO_TWIN, not written by hand; it has drifted."
+    )
