@@ -49,6 +49,8 @@ PLATFORM = REPO.parent
 
 #: The 2026-11-13 batch: twelve models, one archive each, with the pod's own checksum list.
 BATCH_NOV13 = PLATFORM / "pod_deliverables/2026-11-13_baseline_twelve"
+#: The 2026-11-17 batch: the four moving-window models, with the pod's own checksum list.
+BATCH_NOV17 = PLATFORM / "pod_deliverables/2026-11-17_moving_window_four"
 #: The 2026-11-04 batch: ten models, forecasts and scores in separate archives, NO checksum list.
 BATCH_NOV04 = REPO / "reports/2026-11-04_baseline_phase1/archives_s64"
 
@@ -85,10 +87,10 @@ ROSTER: tuple[Member, ...] = (
     Member("middle_canvas", "PooledConflictology", "fixed-window", BATCH_NOV13),
     Member("broad_canvas", "PooledConflictology", "fixed-window", BATCH_NOV13),
     # 3 — moving window: the comparators that make sections 1 and 2 comparable past origin 0.
-    Member("rolling_burlap", "RollingConflictology", "moving-window", None),
-    Member("narrow_sailcloth", "RollingPooledConflictology", "moving-window", None),
-    Member("middle_sailcloth", "RollingPooledConflictology", "moving-window", None),
-    Member("broad_sailcloth", "RollingPooledConflictology", "moving-window", None),
+    Member("rolling_burlap", "RollingConflictology", "moving-window", BATCH_NOV17),
+    Member("narrow_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
+    Member("middle_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
+    Member("broad_sailcloth", "RollingPooledConflictology", "moving-window", BATCH_NOV17),
 )
 
 #: The twin each moving-window model must equal at origin 0 — the acceptance check for section 3.
