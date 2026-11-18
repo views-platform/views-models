@@ -78,6 +78,17 @@ def test_s1_every_doll_level_has_a_simplified_single_level_control():
     `PooledConflictology` can only pool by a column, and the queryset carries no neighbourhood
     or spatial-block column, so this control needs either a new algorithm in views-baseline or
     a new column in the queryset. It is not fixable by copying a config.
+
+    📌 TRACKED, and awaiting Simon's decision: views-platform/views-baseline#178
+    (`needs-decision`), which specifies `NeighbourhoodConflictology` and
+    `RollingNeighbourhoodConflictology` — the disc of d <= NEAR_RADIUS, cell included, equal
+    weights, reusing `matryoshka/geometry.py`. The models here would be `tight_canvas` and
+    `tight_sailcloth`.
+
+    ⛔ WHY THIS POINTER EXISTS. This finding was already written down and deliberately deferred
+    once, before the 2026-11-17 run, and nothing in it said where the decision lived. So when
+    the run finished it read as a note rather than as an open question, and the gap reached the
+    results table unresolved. A finding that names no owner and no issue gets parked twice.
     """
     dolls: dict[str, list[str]] = {}
     for d in sorted((REPO / "models").glob("*_burlap")):

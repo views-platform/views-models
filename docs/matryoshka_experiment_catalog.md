@@ -69,8 +69,14 @@ pooling levels, but the window moves forward with the origin.
 | `middle_sailcloth` | RollingPooledConflictology | country | ✅ yes | 2026-11-17 run |
 | `broad_sailcloth` | RollingPooledConflictology | the whole map | ✅ yes | 2026-11-17 run |
 
-⚠️ No moving-window model pools over the `near` neighbourhood, so the `near` doll level has no
-moving-window control. Three of the four doll levels have one; that one does not.
+⚠️📌 No model in sections 2 or 3 pools over the `near` neighbourhood, so the `near` doll level has
+**no single-level control at all**, fixed-window or moving-window. Three of the four doll levels have
+both; that one has neither, and four of the eight nested-doll models use it (`nested_burlap`,
+`local_burlap`, `mapless_burlap`, `stateless_burlap`). It cannot be fixed by copying a config:
+`PooledConflictology` pools by a column and neighbourhoods overlap, and
+`matryoshka/model.py:126-131` refuses a `dolls` list without `"cell"`. Tracked, awaiting a decision,
+as views-platform/views-baseline#178 — two new classes, and `tight_canvas` / `tight_sailcloth` here.
+**Do not present the sixteen as a matched grid of levels until that is settled.**
 
 **Why they could not exist before 2026-11-17.** The moving-window pooled algorithm shipped in
 views-baseline 1.5.0, released 2026-11-16 23:27 (checked on PyPI). Before that it could not be named
