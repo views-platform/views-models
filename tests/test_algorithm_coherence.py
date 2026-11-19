@@ -50,6 +50,10 @@ ALGORITHM_TO_PACKAGE = {
     # naming one reaches a registry that cannot build it.
     "RollingConflictology": "views_baseline",
     "RollingPooledConflictology": "views_baseline",
+    # The single-level control for Matryoshka's `near` doll and its moving-window twin.
+    # views-baseline 1.6.0 (#178); below that a config naming either cannot be built.
+    "NeighbourhoodConflictology": "views_baseline",
+    "RollingNeighbourhoodConflictology": "views_baseline",
     # parametric climatology (ADR-022) — real, exported views_baseline classes
     # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
     "ParametricConflictology": "views_baseline",

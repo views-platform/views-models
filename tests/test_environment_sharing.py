@@ -232,7 +232,7 @@ def test_environment_sharing_is_recorded_not_discovered():
         # prefix's views-baseline floor to >=1.5.0, which every co-tenant then installs — the
         # C-116 inheritance this test exists to make visible. Satisfiable with all 70: same
         # ceiling, strictly higher floor.
-        "views-baseline": 70,
+        "views-baseline": 72,
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,

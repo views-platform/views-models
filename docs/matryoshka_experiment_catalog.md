@@ -4,7 +4,7 @@
 whether we hold forecast data from it. Nothing else. If you want to know "do we have that model's
 results", this is the only file you should have to open.
 
-**Last verified: 2026-11-18.** Every "yes" in the Data column below was checked on this date by
+**Last verified: 2026-11-19.** Every "yes" in the Data column below was checked on this date by
 opening the archive and counting what is inside it, not by reading a note.
 
 **How to re-verify, any time:** `python tools/audit/verify_experiment_data.py` prints the table below
@@ -69,14 +69,39 @@ pooling levels, but the window moves forward with the origin.
 | `middle_sailcloth` | RollingPooledConflictology | country | ✅ yes | 2026-11-17 run |
 | `broad_sailcloth` | RollingPooledConflictology | the whole map | ✅ yes | 2026-11-17 run |
 
-⚠️📌 No model in sections 2 or 3 pools over the `near` neighbourhood, so the `near` doll level has
-**no single-level control at all**, fixed-window or moving-window. Three of the four doll levels have
-both; that one has neither, and four of the eight nested-doll models use it (`nested_burlap`,
-`local_burlap`, `mapless_burlap`, `stateless_burlap`). It cannot be fixed by copying a config:
-`PooledConflictology` pools by a column and neighbourhoods overlap, and
-`matryoshka/model.py:126-131` refuses a `dolls` list without `"cell"`. Tracked, awaiting a decision,
-as views-platform/views-baseline#178 — two new classes, and `tight_canvas` / `tight_sailcloth` here.
-**Do not present the sixteen as a matched grid of levels until that is settled.**
+## 3b. The neighbourhood control — BUILT 2026-11-19, NO DATA YET
+
+The `near` doll level had **no single-level control at all** until today, fixed-window or
+moving-window, while four of the eight nested-doll models use it (`nested_burlap`, `local_burlap`,
+`mapless_burlap`, `stateless_burlap`). It could not be fixed by copying a config:
+`PooledConflictology` pools by a column and neighbourhoods overlap, so no column encodes one, and
+`matryoshka/model.py:126-131` refuses a `dolls` list without `"cell"`. It needed two new classes,
+which arrived in views-baseline 1.6.0 (views-baseline#178, published 2026-11-19 17:29, checked on
+PyPI). These two models declare them:
+
+| model | algorithm | pools over | data | where |
+|---|---|---|---|---|
+| `tight_canvas` | NeighbourhoodConflictology | the disc within 5 cells, itself included | ❌ no | not run |
+| `tight_sailcloth` | RollingNeighbourhoodConflictology | the same disc, window moving with the origin | ❌ no | not run |
+
+⚠️📌 **Built is not measured. Neither has run, so the grid is still incomplete** — the gap is now
+one run, not one release. `tools/audit/verify_experiment_data.py` declares both and reports them as
+"no folder, never run" until the data exists. `tight_canvas` must run FIRST: `tight_sailcloth`'s only
+acceptance check is equalling it byte for byte at origin 0, and `tight_canvas` has no check of its
+own.
+
+⚠️ `radius` is 5 because that is `NEAR_RADIUS` in views-baseline's `matryoshka/geometry.py`, the
+radius the `near` doll itself uses (ADR-024, amendment 2026-11-06). It is pinned to the doll, not
+chosen — a different radius would control for something no other model in this catalog contains.
+The disc is straight-line distance d <= 5: about 81 cells including the cell, not a square.
+
+⚠️ **For the paper.** Measured by views-baseline on the real 64,818 `land` cells: **8 cells have no
+other land cell within 5 cells.** For those 8 these models ARE plain conflictology, because the disc
+holds only the cell itself. Correct behaviour, but it means the neighbourhood arm and the cell arm
+are identical on 8 cells, and that should be stated rather than left for a reader to assume all
+64,818 differ.
+
+**Do not present the eighteen as a matched grid of levels until these two have data.**
 
 **Why they could not exist before 2026-11-17.** The moving-window pooled algorithm shipped in
 views-baseline 1.5.0, released 2026-11-16 23:27 (checked on PyPI). Before that it could not be named

@@ -109,4 +109,4 @@ def test_the_split_is_what_the_catalog_says():
     # and #716 — `rolling_burlap` and `{narrow,middle,broad}_sailcloth`. Datafactory consumers
     # for the same reason their fixed-window twins are: each config_queryset.py is a copy of its
     # twin's and declares `source: "views-datafactory"`, differing from it only in the model name.
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 104, SYNTHETIC: 6}, dict(counts)
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 106, SYNTHETIC: 6}, dict(counts)

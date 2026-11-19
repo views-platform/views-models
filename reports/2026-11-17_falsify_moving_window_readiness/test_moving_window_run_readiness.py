@@ -79,11 +79,19 @@ def test_s1_every_doll_level_has_a_simplified_single_level_control():
     or spatial-block column, so this control needs either a new algorithm in views-baseline or
     a new column in the queryset. It is not fixable by copying a config.
 
-    📌 TRACKED, and awaiting Simon's decision: views-platform/views-baseline#178
-    (`needs-decision`), which specifies `NeighbourhoodConflictology` and
-    `RollingNeighbourhoodConflictology` — the disc of d <= NEAR_RADIUS, cell included, equal
-    weights, reusing `matryoshka/geometry.py`. The models here would be `tight_canvas` and
-    `tight_sailcloth`.
+    ✅ CLOSED 2026-11-19. views-baseline 1.6.0 (published 2026-11-19T17:29:13) carries
+    `NeighbourhoodConflictology` and `RollingNeighbourhoodConflictology` — the disc of
+    d <= NEAR_RADIUS, cell included, equal weights, reusing `matryoshka/geometry.py`
+    (views-baseline#178). `models/tight_canvas` and `models/tight_sailcloth` declare them at
+    `radius: 5`, so `near` now has a single-level control at both window regimes and this test
+    passes. It is kept, not deleted: the invariant it asserts — every doll level has a
+    single-level control — should hold for every future level, and a deleted test asserts
+    nothing.
+
+    ⚠️ The control EXISTING is not the control being BELIEVED. Neither model has run. The
+    acceptance check is `tight_sailcloth` equalling `tight_canvas` byte for byte at origin 0,
+    and `tight_canvas` must run first because it has no check of its own.
+    `tools/audit/verify_experiment_data.py` reports both as absent until they do.
 
     ⛔ WHY THIS POINTER EXISTS. This finding was already written down and deliberately deferred
     once, before the 2026-11-17 run, and nothing in it said where the decision lived. So when
@@ -97,16 +105,25 @@ def test_s1_every_doll_level_has_a_simplified_single_level_control():
         if m:
             dolls[d.name] = re.findall(r'"([a-z_]+)"', m.group(1))
 
-    pool_by = {}
+    #: Every fixed-window control, and what makes it one. Two mechanisms, not one: the
+    #: `*_canvas` pooled models name a COLUMN in `pool_by`, and the neighbourhood control
+    #: names a RADIUS. Reading only `pool_by` is why the original version of this test could
+    #: not have seen its own fix — it would have reported the gap open after it was closed.
+    pool_by, radius = {}, {}
     for d in sorted((REPO / "models").glob("*_canvas")):
         meta = (d / "configs" / "config_hyperparameters.py").read_text()
         m = re.search(r'"pool_by"\s*:\s*"([^"]+)"', meta)
         if m:
             pool_by[d.name] = m.group(1)
+        r = re.search(r'"radius"\s*:\s*(\d+)', meta)
+        if r:
+            radius[d.name] = int(r.group(1))
 
-    #: Which pooling column stands in for which doll level. `near` has no entry, and that is
-    #: the finding — not a gap in this map.
+    #: Which control stands in for which doll level. `near` is satisfied by a radius, not a
+    #: column, which is the whole reason it needed new library code rather than a new config.
     CONTROL_FOR_LEVEL = {"cell": "plain_burlap (no pooling)", "country": "c_id", "map": "map"}
+    if radius:
+        CONTROL_FOR_LEVEL["near"] = f"radius {sorted(set(radius.values()))} ({sorted(radius)})"
 
     levels = {lv for ls in dolls.values() for lv in ls}
     uncontrolled = sorted(lv for lv in levels if lv not in CONTROL_FOR_LEVEL)
@@ -114,7 +131,7 @@ def test_s1_every_doll_level_has_a_simplified_single_level_control():
     assert not uncontrolled, (
         f"doll level(s) {uncontrolled} have no simplified single-level control; "
         f"{len(affected)} of {len(dolls)} nested-doll models use one: {affected}. "
-        f"Controls available: {pool_by}."
+        f"Controls available: pooled-by-column {pool_by}, by-radius {radius}."
     )
 
 

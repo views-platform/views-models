@@ -257,7 +257,7 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
     That is strictly stronger than the uniform check it replaces: a uniform assertion
     passes a source that was raised without review, and this one does not.
 
-    ⛔ **The thirty-one are pinned BY NAME, because a count cannot survive a compensating
+    ⛔ **The census is pinned BY NAME, because a count cannot survive a compensating
     swap.** That is not a hypothesis: under the predecessor of this test, dropping
     `models/ashen_sparrow` to `>=3.0.0` **and** raising `ensembles/skinny_love` to `>=3.2.0`
     held both counts at 12 and 19 exactly, left the whole suite green, and put a load-bearing
@@ -309,6 +309,13 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
         #: own >=3.0.0 floor sits below the 3.2.0 that can find configs/config_maturity.py.
         f"models/{name}" for name in (
             "rolling_burlap", "narrow_sailcloth", "middle_sailcloth", "broad_sailcloth",
+        )} | {
+        #: The two neighbourhood controls of views-baseline#178 / views-models#186. Copies of
+        #: plain_burlap and rolling_burlap, so they declare the package for the identical
+        #: reason — views-baseline's own >=3.0.0 floor sits below the 3.2.0 that can find
+        #: configs/config_maturity.py (#594, C-116).
+        f"models/{name}" for name in (
+            "tight_canvas", "tight_sailcloth",
         )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
@@ -378,7 +385,7 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
         "refuses rather than counting it (ADR-025):\n" + "\n".join(inert)
     )
     assert declaring == DECLARES_PIPELINE_CORE, (
-        "the sources declaring views-pipeline-core are not the thirty-one named here.\n"
+        "the sources declaring views-pipeline-core are not the ones named here.\n"
         f"  stopped declaring it : {sorted(DECLARES_PIPELINE_CORE - declaring)}\n"
         f"  started unreviewed   : {sorted(declaring - DECLARES_PIPELINE_CORE)}\n"
         "A source that stops declaring the package inherits views-baseline's >=3.0.0 floor "
@@ -644,6 +651,16 @@ def test_a_package_is_declared_the_same_way_everywhere():
             # floor, and pip does not downgrade to satisfy a floor already met.
             "<2.0.0,>=1.5.0": "the four views-models#736/#716 moving-window comparison models: "
                               "1.5.0 is the first release with RollingPooledConflictology",
+            # ⛔ ALSO A CAPABILITY FLOOR, and now the highest here. 1.6.0 is the first release
+            # carrying NeighbourhoodConflictology and RollingNeighbourhoodConflictology
+            # (views-baseline #178, published 2026-11-19T17:29:13 — checked on PyPI before this
+            # floor was declared, because a floor that lands before its release exists kills a
+            # run AFTER the machine is rented). Below it the two `tight_*` models name a class
+            # the registry cannot build. The nesting argument holds as above: same ceiling,
+            # strictly higher floor, and pip does not downgrade to satisfy a floor already met.
+            "<2.0.0,>=1.6.0": "the two views-baseline#178 neighbourhood controls "
+                              "(tight_canvas, tight_sailcloth): 1.6.0 is the first release "
+                              "with NeighbourhoodConflictology",
         },
         #: ⛔ ALSO A CAPABILITY FLOOR. 0.1.10 is the first release carrying the
         #: `listwise_level` loss family and the `loss_reg_y_max` field (views-hydranet #578,
