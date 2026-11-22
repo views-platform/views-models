@@ -1,4 +1,4 @@
-# Calm Orbiter 
+# Mellow Sorter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Calm Orbiter
+Mellow Sorter
 ├── README.md
 ├── main.py
 ├── requirements.txt

@@ -1,10 +1,10 @@
-# Plain Burlap 
+# Distant Burlap 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | MatryoshkaConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  distant_burlap_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Distant Burlap
 ├── README.md
 ├── main.py
 ├── requirements.txt

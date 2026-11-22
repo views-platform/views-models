@@ -1,10 +1,10 @@
-# Plain Burlap 
+# Global Burlap 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | MatryoshkaConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  global_burlap_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Global Burlap
 ├── README.md
 ├── main.py
 ├── requirements.txt

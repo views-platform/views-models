@@ -1,10 +1,10 @@
-# Plain Burlap 
+# Broad Canvas 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | PooledConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  broad_canvas_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Broad Canvas
 ├── README.md
 ├── main.py
 ├── requirements.txt

@@ -1,10 +1,10 @@
-# Plain Burlap 
+# Middle Canvas 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | PooledConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  middle_canvas_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Middle Canvas
 ├── README.md
 ├── main.py
 ├── requirements.txt

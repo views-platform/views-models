@@ -1,13 +1,13 @@
-# Plain Burlap 
+# Rolling Burlap 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | RollingConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
-| **Features**       |  plain_burlap_features   |
+| **Features**       |  rolling_burlap_features   |
 | **Feature Description**       |  No description provided    |
 | **Metrics**       |  No information provided    |
 | **Maturity**       |  candidate    |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Rolling Burlap
 ├── README.md
 ├── main.py
 ├── requirements.txt

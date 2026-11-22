@@ -1,10 +1,10 @@
-# Plain Burlap 
+# Mapless Burlap 
 ## Overview
 
 
 | Information         | Details                        |
 |---------------------|--------------------------------|
-| **Model Algorithm** | ConflictologyModel                  |
+| **Model Algorithm** | MatryoshkaConflictology                  |
 | **Level of Analysis** | pgm            |
 | **Targets**         | lr_sb_best, lr_ns_best, lr_os_best |
 | **Features**       |  mapless_burlap_features   |
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Mapless Burlap
 ├── README.md
 ├── main.py
 ├── requirements.txt

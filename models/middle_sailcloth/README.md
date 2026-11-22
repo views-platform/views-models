@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Plain Burlap
+Middle Sailcloth
 ├── README.md
 ├── main.py
 ├── requirements.txt

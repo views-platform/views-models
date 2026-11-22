@@ -1,4 +1,4 @@
-# Calm Orbiter 
+# Calm Counter 
 ## Overview
 
 
@@ -16,7 +16,7 @@
 ## Repository Structure
 
 ```
-Calm Orbiter
+Calm Counter
 ├── README.md
 ├── main.py
 ├── requirements.txt
