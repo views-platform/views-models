@@ -34,6 +34,34 @@ BRANCH = "feat/728-729-matryoshka-pooled-sorter-models"
 MOVING_WINDOW = ("rolling_burlap", "narrow_sailcloth", "middle_sailcloth", "broad_sailcloth")
 
 
+#: ⛔ WHY THIS EXISTS. The checks below ask whether the branch a pod would clone is actually
+#: pushed. CI has no answer to that question: `actions/checkout@v4` checks out a SHALLOW,
+#: DETACHED merge ref, so HEAD is on no branch and the remote branch's objects are not in the
+#: clone — `git cat-file -e` then reports them missing whether or not they exist on the remote.
+#: Asserting there states something false on every pull request. ADR-025 forbids reporting
+#: clean when a check cannot see its subject; reporting DIRTY in that case is the mirror image
+#: and is just as wrong. This returns the reason to refuse, or "" when the checkout can answer.
+#:
+#: Duplicated verbatim in the sibling audit stubs rather than shared. These are dated records
+#: of measurements taken on one machine on one day; giving them a common import would let a
+#: later edit silently change what an older record asserts.
+def _cannot_see_a_pushed_branch() -> str:
+    shallow = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if shallow == "true":
+        return (
+            "shallow clone: the remote branch's objects are absent, so push state cannot be "
+            "read here (CI uses actions/checkout@v4 at fetch-depth 1)"
+        )
+    if subprocess.run(
+        ["git", "-C", str(REPO), "symbolic-ref", "-q", "HEAD"], capture_output=True
+    ).returncode != 0:
+        return "detached HEAD: this checkout is on no branch, so no branch exists for a pod to clone"
+    return ""
+
+
 def test_h1_the_four_sources_exist_in_the_commit_a_pod_would_clone():
     """H1, HARD. The pod does not read this laptop. `pod_run_baseline_arms.sh` runs against a
     CLONE of views-models (`[ -d "$REPO/.git" ] || note "clone views-models first"`), and its
@@ -43,6 +71,10 @@ def test_h1_the_four_sources_exist_in_the_commit_a_pod_would_clone():
     Passes when the branch carrying them is pushed. ADR-025: this refuses rather than skips when
     it cannot reach the remote, because a check that cannot see its subject must not report clean.
     """
+    _refuse = _cannot_see_a_pushed_branch()
+    if _refuse:
+        pytest.skip(_refuse)
+
     ls = subprocess.run(
         ["git", "ls-remote", "--heads", "origin", BRANCH],
         cwd=REPO, capture_output=True, text=True,

@@ -26,6 +26,34 @@ def _git(*args):
                           capture_output=True, text=True).stdout
 
 
+#: ⛔ WHY THIS EXISTS. The checks below ask whether the branch a pod would clone is actually
+#: pushed. CI has no answer to that question: `actions/checkout@v4` checks out a SHALLOW,
+#: DETACHED merge ref, so HEAD is on no branch and the remote branch's objects are not in the
+#: clone — `git cat-file -e` then reports them missing whether or not they exist on the remote.
+#: Asserting there states something false on every pull request. ADR-025 forbids reporting
+#: clean when a check cannot see its subject; reporting DIRTY in that case is the mirror image
+#: and is just as wrong. This returns the reason to refuse, or "" when the checkout can answer.
+#:
+#: Duplicated verbatim in the sibling audit stubs rather than shared. These are dated records
+#: of measurements taken on one machine on one day; giving them a common import would let a
+#: later edit silently change what an older record asserts.
+def _cannot_see_a_pushed_branch() -> str:
+    shallow = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if shallow == "true":
+        return (
+            "shallow clone: the remote branch's objects are absent, so push state cannot be "
+            "read here (CI uses actions/checkout@v4 at fetch-depth 1)"
+        )
+    if subprocess.run(
+        ["git", "-C", str(REPO), "symbolic-ref", "-q", "HEAD"], capture_output=True
+    ).returncode != 0:
+        return "detached HEAD: this checkout is on no branch, so no branch exists for a pod to clone"
+    return ""
+
+
 def test_p1_hard_every_source_is_committed_and_the_branch_is_pushed():
     """HARD. A pod does a fresh clone of a REMOTE branch. Uncommitted edits and an unpushed
     branch do not exist there, however correct they are on this disk.
@@ -33,6 +61,10 @@ def test_p1_hard_every_source_is_committed_and_the_branch_is_pushed():
     At audit time: all 21 sources had 2 modified-but-unstaged files each (the S=64 edit),
     62 tracked files were uncommitted, and the branch had 0 remote refs.
     """
+    _refuse = _cannot_see_a_pushed_branch()
+    if _refuse:
+        pytest.skip(_refuse)
+
     dirty = [n for n in BASELINE_21
              if any(line[:2] in (" M", "MM", "??") for line in
                     _git("status", "--porcelain", f"models/{n}").splitlines())]

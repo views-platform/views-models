@@ -8,6 +8,8 @@ NOT part of the suite (`reports/` is in norecursedirs). Run explicitly:
 """
 
 import subprocess
+
+import pytest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -18,12 +20,44 @@ def _git(*a):
     return subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True).stdout
 
 
+#: ⛔ WHY THIS EXISTS. The checks below ask whether the branch a pod would clone is actually
+#: pushed. CI has no answer to that question: `actions/checkout@v4` checks out a SHALLOW,
+#: DETACHED merge ref, so HEAD is on no branch and the remote branch's objects are not in the
+#: clone — `git cat-file -e` then reports them missing whether or not they exist on the remote.
+#: Asserting there states something false on every pull request. ADR-025 forbids reporting
+#: clean when a check cannot see its subject; reporting DIRTY in that case is the mirror image
+#: and is just as wrong. This returns the reason to refuse, or "" when the checkout can answer.
+#:
+#: Duplicated verbatim in the sibling audit stubs rather than shared. These are dated records
+#: of measurements taken on one machine on one day; giving them a common import would let a
+#: later edit silently change what an older record asserts.
+def _cannot_see_a_pushed_branch() -> str:
+    shallow = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if shallow == "true":
+        return (
+            "shallow clone: the remote branch's objects are absent, so push state cannot be "
+            "read here (CI uses actions/checkout@v4 at fetch-depth 1)"
+        )
+    if subprocess.run(
+        ["git", "-C", str(REPO), "symbolic-ref", "-q", "HEAD"], capture_output=True
+    ).returncode != 0:
+        return "detached HEAD: this checkout is on no branch, so no branch exists for a pod to clone"
+    return ""
+
+
 def test_p1_hard_the_runner_is_committed_and_pushed():
     """HARD. A pod clones a REMOTE branch. An untracked runner does not exist there.
 
     At audit time: `git ls-files` returned 0, status was `?? tools/podrun/pod_run_baseline_arms.sh`,
     and it was absent from origin. The configs were pushed; the thing that runs them was not.
     """
+    _refuse = _cannot_see_a_pushed_branch()
+    if _refuse:
+        pytest.skip(_refuse)
+
     assert _git("ls-files", str(RUNNER.relative_to(REPO))).strip(), "runner is untracked"
     branch = _git("rev-parse", "--abbrev-ref", "HEAD").strip()
     on_remote = subprocess.run(
