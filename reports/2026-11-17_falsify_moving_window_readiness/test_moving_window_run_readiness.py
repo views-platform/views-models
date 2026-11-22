@@ -135,6 +135,11 @@ def test_s1_every_doll_level_has_a_simplified_single_level_control():
     )
 
 
+@pytest.mark.xfail(
+    reason="OPEN FINDING (S3): the comparison run resolves its engine version at run time "
+           "instead of pinning it. strict, so this turns red the day the runner pins it.",
+    strict=True,
+)
 def test_s3_the_runner_pins_the_engine_for_a_comparison_run():
     """S3, SOFT (comparability). `pod_run_baseline_arms.sh` installs
     `views-baseline>=1.4.0,<2.0.0` — a floor, not a pin. On 2026-11-13 that resolved to 1.4.0,
@@ -148,10 +153,16 @@ def test_s3_the_runner_pins_the_engine_for_a_comparison_run():
     an operator one: read `engine:` in the MANIFEST after the run and refuse the data if it is
     not the version the comparison assumes.
     """
-    runner = (REPO / "tools" / "podrun" / "pod_run_baseline_arms.sh").read_text()
+    runner_path = REPO / "tools" / "podrun" / "pod_run_baseline_arms.sh"
+    assert runner_path.is_file(), f"{runner_path} not found — cannot see the subject (ADR-025)"
+    runner = runner_path.read_text()
     floors = re.findall(r'"(views-[a-z-]+)([<>=0-9.,]+)"', runner)
     unpinned = [f"{p}{s}" for p, s in floors if "==" not in s]
-    pytest.fail(
+    assert floors, (
+        f"no views-* requirement was found in {runner_path.name} — the pattern no longer "
+        "matches the runner, so this check cannot see its subject (ADR-025)"
+    )
+    assert not unpinned, (
         "the engine version of a comparison run is resolved at run time, not pinned: "
         f"{unpinned}. The twelve held archives were made with views-baseline 1.4.0."
     )

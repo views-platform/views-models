@@ -8,7 +8,6 @@ NOT part of the suite (`reports/` is in norecursedirs). Run explicitly:
 """
 
 import subprocess
-import tarfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]

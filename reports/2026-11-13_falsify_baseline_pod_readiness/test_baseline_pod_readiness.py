@@ -34,7 +34,7 @@ def test_p1_hard_every_source_is_committed_and_the_branch_is_pushed():
     62 tracked files were uncommitted, and the branch had 0 remote refs.
     """
     dirty = [n for n in BASELINE_21
-             if any(l[:2] in (" M", "MM", "??") for l in
+             if any(line[:2] in (" M", "MM", "??") for line in
                     _git("status", "--porcelain", f"models/{n}").splitlines())]
     assert not dirty, f"{len(dirty)} source(s) have uncommitted changes: {dirty}"
 

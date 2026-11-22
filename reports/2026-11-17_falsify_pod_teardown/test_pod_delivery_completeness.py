@@ -70,6 +70,11 @@ def test_the_delivery_carries_the_same_record_types_as_its_predecessor() -> None
     )
 
 
+@pytest.mark.xfail(
+    reason="OPEN FINDING: pod_run_baseline_arms.sh collects none of the records that die "
+           "with the pod. strict, so this turns red the day the runner is fixed.",
+    strict=True,
+)
 def test_the_runner_itself_collects_what_must_come_home() -> None:
     """FAILS TODAY. Completeness currently depends on an operator remembering.
 
