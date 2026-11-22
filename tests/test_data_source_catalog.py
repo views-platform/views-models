@@ -98,4 +98,15 @@ def test_the_split_is_what_the_catalog_says():
     # datafactory consumers by construction — `source: "views-datafactory"` in each
     # config_queryset.py, fetching the zarr store rather than viewser, which is the whole
     # point of starting them from `ashen_sparrow` instead of `white_ranger` (#660).
-    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 79, SYNTHETIC: 6}, dict(counts)
+    # 79 -> 90 on 2026-11-12: the eleven views-baseline models of #717/#730/#731 — eight
+    # MatryoshkaConflictology doll arms and three PooledConflictology levels. All are
+    # datafactory consumers, copied from plain_burlap, whose config_queryset.py fetches the
+    # zarr store rather than viewser.
+    # 90 -> 100 on 2026-11-12: the ten #729 ranking-objective arms (five matched pairs,
+    # *_counter and *_sorter). Forked from calm_orbiter, so they inherit its datafactory
+    # queryset — the same reason every EXP arm is a datafactory consumer.
+    # 100 -> 104 on 2026-11-17: the four moving-window comparison models of views-models#736
+    # and #716 — `rolling_burlap` and `{narrow,middle,broad}_sailcloth`. Datafactory consumers
+    # for the same reason their fixed-window twins are: each config_queryset.py is a copy of its
+    # twin's and declares `source: "views-datafactory"`, differing from it only in the model name.
+    assert dict(counts) == {VIEWSER: 77, DATAFACTORY: 106, SYNTHETIC: 6}, dict(counts)

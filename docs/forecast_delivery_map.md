@@ -166,12 +166,20 @@ contract-reading consumers.** The ADRs are written for that **target** state. Th
   `configs/config_deployment.py` → `deployment_status`, and every reader translates it by the §3
   map (`shadow`/`baseline` → `candidate`, `deprecated` → `retired`, `deployed` → R2). They move
   when views-stepshifter#103 publishes on ≥3.2.0.
-  *(Measured 2026-11-03 on a clean checkout: **136 `candidate`, 3 `retired`, 0 `graduate`** across
-  139 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
-  files — 177 files in all. Two movements the same day: EXP-03's eight 300-lesson arms
+  *(Measured 2026-11-19 on a clean checkout: **163 `candidate`, 3 `retired`, 0 `graduate`** across
+  166 `config_maturity.py` files; **37 `shadow`, 1 `deprecated`** across 38 `config_deployment.py`
+  files — 204 files in all. Also on 2026-11-12: the ten views-models#729 ranking-objective
+  arms, `{calm,keen,mellow,nimble,quiet}_{counter,sorter}`, +10 files, all candidate. One movement on 2026-11-12: the eleven views-baseline comparison models
+  of views-models#717/#730/#731 — eight `MatryoshkaConflictology` doll arms (`nested_burlap`,
+  `{lone,local,civic,global,mapless,stateless,distant}_burlap`) and three `PooledConflictology`
+  levels (`{narrow,middle,broad}_canvas`), +11 files, all candidate. Two movements the same day: EXP-03's eight 300-lesson arms
   (+8 files, all candidate), then the ten smoothed climatology baselines of views-models#695 —
   `models/{short,plain,long}_linen`, `{sheer,plush,flat}_velvet`, `{light,even,heavy}_tweed` and
-  the `plain_burlap` control (+10 files, all candidate). Nothing else changed.
+  the `plain_burlap` control (+10 files, all candidate). One movement on 2026-11-17: the four
+  moving-window comparison models of views-models#736/#716 — `rolling_burlap` and
+  `{narrow,middle,broad}_sailcloth` (+4 files, all candidate). One movement on 2026-11-19: the
+  two neighbourhood controls of views-baseline#178 — `tight_canvas` and `tight_sailcloth`
+  (+2 files, all candidate). Nothing else changed.
   Previously 2026-11-02: 118 candidate, 3 retired, 0 graduate across 121 config_maturity.py
   files — 159 in all, after EXP-02's four arms (views-models#685).
   Previously 2026-10-27: 114 candidate, 3 retired, 0 graduate across 117 config_maturity.py

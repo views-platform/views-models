@@ -225,7 +225,14 @@ def test_environment_sharing_is_recorded_not_discovered():
         # safe in the direction it runs (the floor is nested inside their <2.0.0 ceiling and
         # pip does not downgrade to meet a floor already met) and is recorded in this file's
         # divergence register rather than left to be rediscovered.
-        "views-baseline": 55,
+        #: 55 -> 66 on 2026-11-12: the eleven comparison models of #717/#730/#731. Every one
+        #: inherits what its 65 co-tenants install (C-116), which is why this is recorded here
+        #: rather than discovered.
+        # 66 -> 70 on 2026-11-17: the four moving-window models (#736, #716). They raise the
+        # prefix's views-baseline floor to >=1.5.0, which every co-tenant then installs — the
+        # C-116 inheritance this test exists to make visible. Satisfiable with all 70: same
+        # ceiling, strictly higher floor.
+        "views-baseline": 72,
         "views_stepshifter": 32,
         # 22 -> 33: the eleven pgm datafactory r2darts2 models from staging_202608 (#489).
         "views_r2darts2": 33,
@@ -271,7 +278,9 @@ def test_environment_sharing_is_recorded_not_discovered():
         # prefix is the measurement, not a convenience: a dependency difference between an arm
         # and its seed-matched control would be a second variable in a one-variable contrast, and
         # between seeds it would land inside the variance being bought (C-116).
-        "views-hydranet": 27,
+        #: 27 -> 37 on 2026-11-12: the ten #729 arms. Each inherits what its 36 co-tenants
+        #: install (C-116).
+        "views-hydranet": 37,
         # 7 -> 6: fake_model (a views-stepshifter tenant) deleted in the same cleanup.
         "views-stepshifter": 6,
         "views-seldon": 1,

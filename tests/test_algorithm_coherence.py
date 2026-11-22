@@ -40,6 +40,20 @@ ALGORITHM_TO_PACKAGE = {
     "ZeroModel": "views_baseline",
     "LocfModel": "views_baseline",
     "ConflictologyModel": "views_baseline",
+    # ⛔ MOVING-WINDOW VARIANTS (views-baseline ADR-024). Same draws as the two above, but the
+    # 36-month window ends at `train_end + origin` instead of at `train_end`, so the forecast is
+    # never made from a window that has gone stale. They exist to make the eight
+    # MatryoshkaConflictology models comparable past origin 0: those read history up to each
+    # origin and the fixed-window models do not, so a gap between the families otherwise mixes
+    # the method with a data advantage. RollingConflictology is in views-baseline from 1.2.0,
+    # RollingPooledConflictology from 1.5.0 (#165, released 2026-11-16); below those a config
+    # naming one reaches a registry that cannot build it.
+    "RollingConflictology": "views_baseline",
+    "RollingPooledConflictology": "views_baseline",
+    # The single-level control for Matryoshka's `near` doll and its moving-window twin.
+    # views-baseline 1.6.0 (#178); below that a config naming either cannot be built.
+    "NeighbourhoodConflictology": "views_baseline",
+    "RollingNeighbourhoodConflictology": "views_baseline",
     # parametric climatology (ADR-022) — real, exported views_baseline classes
     # (views_baseline/model/models/distributional/{parametric,parametric_hurdle}.py)
     "ParametricConflictology": "views_baseline",
@@ -56,6 +70,10 @@ ALGORITHM_TO_PACKAGE = {
     "InterpolatedQuantileConflictology": "views_baseline",
     "KDEConflictology": "views_baseline",
     "EmpiricalKDEMixtureConflictology": "views_baseline",
+    # ADR-024, views-baseline 1.3.0+: nested-doll climatology (#717, #730).
+    "MatryoshkaConflictology": "views_baseline",
+    # views-baseline 1.4.0, #151: single-level pooling over an area (#731).
+    "PooledConflictology": "views_baseline",
     # views_hydranet algorithms
     "HydraNet": "views_hydranet",
 }

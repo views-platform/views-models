@@ -122,9 +122,9 @@ DEFERRED_PACKAGES: dict[str, str] = {
     "views-datafactory": (
         "#509: the three legs that run on rented hardware are floored at >=1.13.0 for the "
         "credential-handling fixes (both postprocessor requirement files and the pod install); "
-        "the 53 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
+        "the 63 model declarations stay at >=1.9.0 because they are unrelated to the delivery "
         "and one is violet_visitor, owned by another session. "
-        "TRIGGER: #509 raising the remaining 53 declarations to >=1.13.0 — at which point this "
+        "TRIGGER: #509 raising the remaining 63 declarations to >=1.13.0 — at which point this "
         "entry is deleted, not amended, because the divergence it describes no longer exists."
     ),
 }
@@ -257,7 +257,7 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
     That is strictly stronger than the uniform check it replaces: a uniform assertion
     passes a source that was raised without review, and this one does not.
 
-    ⛔ **The thirty-one are pinned BY NAME, because a count cannot survive a compensating
+    ⛔ **The census is pinned BY NAME, because a count cannot survive a compensating
     swap.** That is not a hypothesis: under the predecessor of this test, dropping
     `models/ashen_sparrow` to `>=3.0.0` **and** raising `ensembles/skinny_love` to `>=3.2.0`
     held both counts at 12 and 19 exactly, left the whole suite green, and put a load-bearing
@@ -294,6 +294,28 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
             "sheer_velvet", "plush_velvet", "flat_velvet",
             "light_tweed", "even_tweed", "heavy_tweed",
             "plain_burlap",
+        )} | {
+        #: The eleven comparison models of #717/#730/#731 — eight MatryoshkaConflictology doll
+        #: arms and three PooledConflictology levels. Copied from plain_burlap, so they declare
+        #: the package for exactly the reason the ten above do: views-baseline's own >=3.0.0 floor
+        #: is below the 3.2.0 that can find configs/config_maturity.py (#594, C-116).
+        f"models/{name}" for name in (
+            "nested_burlap", "lone_burlap", "local_burlap", "civic_burlap", "global_burlap",
+            "mapless_burlap", "stateless_burlap", "distant_burlap",
+            "narrow_canvas", "middle_canvas", "broad_canvas",
+        )} | {
+        #: The four moving-window comparison models of #736/#716. Copies of their fixed-window
+        #: twins above, so they declare the package for the identical reason — views-baseline's
+        #: own >=3.0.0 floor sits below the 3.2.0 that can find configs/config_maturity.py.
+        f"models/{name}" for name in (
+            "rolling_burlap", "narrow_sailcloth", "middle_sailcloth", "broad_sailcloth",
+        )} | {
+        #: The two neighbourhood controls of views-baseline#178 / views-models#186. Copies of
+        #: plain_burlap and rolling_burlap, so they declare the package for the identical
+        #: reason — views-baseline's own >=3.0.0 floor sits below the 3.2.0 that can find
+        #: configs/config_maturity.py (#594, C-116).
+        f"models/{name}" for name in (
+            "tight_canvas", "tight_sailcloth",
         )} | {
         f"ensembles/{name}" for name in (
             "chrome_box", "chrome_crate", "chunky_bunny", "cruel_summer", "first_love",
@@ -363,7 +385,7 @@ def test_every_pipeline_core_declaration_is_at_the_floor_its_source_needs():
         "refuses rather than counting it (ADR-025):\n" + "\n".join(inert)
     )
     assert declaring == DECLARES_PIPELINE_CORE, (
-        "the sources declaring views-pipeline-core are not the thirty-one named here.\n"
+        "the sources declaring views-pipeline-core are not the ones named here.\n"
         f"  stopped declaring it : {sorted(DECLARES_PIPELINE_CORE - declaring)}\n"
         f"  started unreviewed   : {sorted(declaring - DECLARES_PIPELINE_CORE)}\n"
         "A source that stops declaring the package inherits views-baseline's >=3.0.0 floor "
@@ -598,6 +620,13 @@ def test_a_package_is_declared_the_same_way_everywhere():
         #: claiming a requirement they do not have is the false precision this file argues
         #: against elsewhere.
         "views-baseline": {
+            #: A CAPABILITY floor, like >=1.1.0 below and for the same kind of reason: 1.4.0 is the
+            #: first release in which MatryoshkaConflictology requires `dolls` and
+            #: PooledConflictology exists at all (views-baseline #151/#153). On 1.3.0 the eleven
+            #: #717/#730/#731 models name an algorithm the registry cannot build, or omit a key its
+            #: genome requires. Not a cap-avoidance floor.
+            "<2.0.0,>=1.4.0": "the eleven #717/#730/#731 comparison models: Matryoshka's `dolls` "
+                              "and PooledConflictology both arrive in 1.4.0",
             "<2.0.0,>=1.0.2": "every other source: does not reconcile, so no frames floor",
             "<2.0.0,>=1.0.3": "the eight models/*_sparrow (chrome_box's members): 1.0.2's "
                               "`views-frames<2` cap would block the fixed reconciler",
@@ -611,6 +640,40 @@ def test_a_package_is_declared_the_same_way_everywhere():
             # higher, and pip does not downgrade to satisfy a floor already met.
             "<2.0.0,>=1.1.0": "the ten views-models#695 smoothed climatology arms: 1.1.0 is "
                               "the first release that has the algorithms they name",
+            # ⛔ ALSO A CAPABILITY FLOOR, and the highest here. 1.5.0 is the first release
+            # carrying RollingPooledConflictology (views-baseline #165, released 2026-11-16);
+            # below it the three `*_sailcloth` models name a class the registry cannot build.
+            # ⚠️ `rolling_burlap` carries this floor too although RollingConflictology arrived
+            # in 1.2.0. That is deliberate, not an error: all four share envs/views-baseline,
+            # and a prefix resolved to 1.2.0 would satisfy rolling_burlap and leave its three
+            # co-tenants naming a missing class. One floor for the set, at the highest member's
+            # requirement. The nesting argument holds as above: same ceiling, strictly higher
+            # floor, and pip does not downgrade to satisfy a floor already met.
+            "<2.0.0,>=1.5.0": "the four views-models#736/#716 moving-window comparison models: "
+                              "1.5.0 is the first release with RollingPooledConflictology",
+            # ⛔ ALSO A CAPABILITY FLOOR, and now the highest here. 1.6.0 is the first release
+            # carrying NeighbourhoodConflictology and RollingNeighbourhoodConflictology
+            # (views-baseline #178, published 2026-11-19T17:29:13 — checked on PyPI before this
+            # floor was declared, because a floor that lands before its release exists kills a
+            # run AFTER the machine is rented). Below it the two `tight_*` models name a class
+            # the registry cannot build. The nesting argument holds as above: same ceiling,
+            # strictly higher floor, and pip does not downgrade to satisfy a floor already met.
+            "<2.0.0,>=1.6.0": "the two views-baseline#178 neighbourhood controls "
+                              "(tight_canvas, tight_sailcloth): 1.6.0 is the first release "
+                              "with NeighbourhoodConflictology",
+        },
+        #: ⛔ ALSO A CAPABILITY FLOOR. 0.1.10 is the first release carrying the
+        #: `listwise_level` loss family and the `loss_reg_y_max` field (views-hydranet #578,
+        #: PRs #593/#594). On 0.1.8 a `*_sorter` config names a loss the registry cannot build.
+        #: ⚠️ The floor is on BOTH arms of each pair, not only the five sorters that need it.
+        #: A matched pair must differ in `loss_reg` and in nothing else — including what it
+        #: installs — or the installed library is a second difference and the comparison no
+        #: longer attributes a gap to the objective alone. That is deliberate, not an oversight.
+        "views-hydranet": {
+            "<0.2.0,>=0.1.8":  "the 27 pre-existing HydraNet sources",
+            "<0.2.0,>=0.1.10": "the ten views-models#729 ranking-objective arms "
+                               "({calm,keen,mellow,nimble,quiet}_{counter,sorter}): 0.1.10 is "
+                               "the first release that has the listwise_level loss family",
         },
     }
 
