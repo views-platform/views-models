@@ -106,19 +106,49 @@ Had I trusted the CPU diagnosis, I would have rejected every 8-vCPU instance on 
 rest of the day — and instance availability churned so violently (§2.7) that this would have cost
 hours of the operator's evening for no reason.
 
-**Root cause:** a 31 GB memory limit, approached but never breached, against a workload whose
-posterior cube and input volume need more. The kernel reclaimed rather than killed, so nothing
-failed — it only slowed, by a factor of 25.
+**Root cause: CPU starvation during evaluation.** Posterior sampling is CPU-bound; training is
+not. A machine with 6.8 effective cores trains acceptably and then collapses when it starts
+drawing samples.
 
-**Symptom mistaken for cause:** CPU saturation. Real (580% of 6.8 cores, 55% stall pressure) and
-entirely downstream of the reclaim.
+### 2.4a How I got this wrong three times, and what finally settled it
 
-**How we know, and it was luck:** a later pod with the same 6.8 effective CPUs but 57 GB of RAM
-ran at ~70% of full speed. Had every pod that day been either good or bad on *both* axes, the
-wrong diagnosis would have survived the campaign and become a rule.
+This is the most instructive thing in the document, so the sequence is worth keeping.
 
-*Rule: `cpu.pressure` rising while `memory.current` approaches `memory.max` is a memory finding,
-not a CPU finding. Distinguish them by varying one at a time, which we did only by accident.*
+**First diagnosis — memory.** `memory.current` sat at 20.4 GB of a 31 GB limit and climbing. Fits
+a cgroup-thrashing story. Wrong.
+
+**Second diagnosis — CPU.** `memory.pressure` read `avg10=0.00` while `cpu.pressure` read `55.6`
+and the process sat at 580% of 6.8 cores. Right, as it turns out, but I abandoned it.
+
+**Third diagnosis — back to memory, and this is the one that reached the first version of this
+document as a confident finding with a "Root cause" heading.** A later pod with the same 6.8 CPUs
+but **57 GB** of RAM appeared to run at ~70% of full speed, which seemed to exonerate CPU. I wrote
+that up, and used it to tell the operator to keep the machine.
+
+**It was wrong, and it was wrong for a reason I had already written down elsewhere in this
+document: I extrapolated whole-run behaviour from the training phase.** Training on that pod took
+205 minutes against ~150 baseline — 1.37x, tolerable, and all I had looked at. Then evaluation
+began:
+
+| pod | RAM | effective CPUs | training | evaluation |
+|---|---|---|---|---|
+| morning, abandoned | 31 GB | 6.8 | — | 0.11 steps/s |
+| bright_starship | **57 GB** | **6.8** | 1.37x baseline | **0.03 steps/s** |
+| the other six | 87 GB | 13.6 | baseline | 2.8 steps/s |
+
+Origin 1 of 13 took **2 h 16 min** at 32.87 s/step. Thirteen origins would have been **29 hours**
+— on a machine I had certified as fine. It was killed and the model restarted on a 13.6-CPU pod.
+
+**Memory is not the discriminator. Cores are.** 57 GB did not rescue 6.8 cores; it made the
+collapse slightly worse, if anything. The second diagnosis was right and I talked myself out of it
+on evidence that only covered the phase where the bottleneck does not bite.
+
+**The generalisable finding:** *training and evaluation have different bottlenecks, so a pod that
+looks healthy while training tells you nothing about what it will do at origin 1.* Certify a
+machine on posterior-sampling throughput or do not certify it.
+
+*Rule: judge a rented machine on evaluation throughput, never on training progress. The two
+phases are bound by different resources and only one of them is where the money is lost.*
 
 ### 2.5 The guard that cannot see the container
 
@@ -447,8 +477,9 @@ shape from a plausible-looking artefact instead of asking the session that owns 
   here depends on the remaining five, but the per-model average may move.
   `runpod_cost_and_time_note_2026-09.md` uses the same three and must be reissued with this
   document if it changes.
-- **We do not know that 6.8 vCPU is generally sufficient** — only that one pod with 57 GB of RAM
-  ran at ~70% speed. The RAM/CPU interaction is inferred from two data points.
+- **6.8 effective cores are NOT sufficient**, on three data points now: two machines at that
+  count collapsed in evaluation regardless of having 31 GB or 57 GB of RAM. We do not know where
+  between 6.8 and 13.6 the threshold sits.
 - **The 2 steps/s health threshold is n=1 good machine and n=1 bad one.** It separates those two
   cleanly, which is what an operator needs, but it is not a hardware expectation: a laptop 4070
   does the bare forward at ~15 steps/s, so even a healthy pod spends most of its time off the
