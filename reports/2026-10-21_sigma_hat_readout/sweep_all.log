@@ -1,0 +1,135 @@
+=================== bronze ===================
+weights: /home/simon/Documents/scripts/views_platform/views-models/models/bronze_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_010229.pt
+  [0.70,0.80)             392     0.7517     0.5485     0.5485     0.7084     2.4930
+  [0.80,0.90)             408     0.8509     0.7108     0.7108     0.8309     2.3230
+  [0.90,1.01)             564     0.9500     0.8670     0.8670     0.9288     2.9140
+
+  BRANCH TEST over 5 bins with n>=1000 (tolerance = half-separation 0.0235)
+    median |gate - p|          0.0182   <- D2 (already calibrated, w_eff=1)
+    median |gate - 2p/(1+p)|   0.0289   <- D1 (at its loss optimum, w_eff=2)
+    median w_implied           1.6514
+    observed frequency monotone in the gate bin: True
+    resolution: observed p spans 0.000168 -> 0.163585 across bins
+
+==========================================================================================
+  VERDICT: D2
+  => the arm's loss_class_pos_weight = 2.0000   (shipped 2.0)
+==========================================================================================
+
+wrote p2_result.npz
+	Command being timed: "/home/simon/anaconda3/envs/views-hydranet-env/bin/python run_p2.py /home/simon/Documents/scripts/views_platform/views-models/models/bronze_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_010229.pt"
+	User time (seconds): 5732.25
+	System time (seconds): 196.95
+	Percent of CPU this job got: 1347%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:20.17
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4367584
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 40
+	Minor (reclaiming a frame) page faults: 21923855
+	Voluntary context switches: 3222
+	Involuntary context switches: 175625
+	Swaps: 0
+	File system inputs: 123832
+	File system outputs: 29000
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+>>> saved p2_result_bronze.npz
+=================== cobalt ===================
+weights: /home/simon/Documents/scripts/views_platform/views-models/models/cobalt_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_005527.pt
+  [0.70,0.80)             383     0.7509     0.5509     0.5509     0.7104     2.4569
+  [0.80,0.90)             413     0.8518     0.7094     0.7094     0.8300     2.3541
+  [0.90,1.01)             531     0.9484     0.8682     0.8682     0.9294     2.7900
+
+  BRANCH TEST over 5 bins with n>=1000 (tolerance = half-separation 0.0193)
+    median |gate - p|          0.0281   <- D2 (already calibrated, w_eff=1)
+    median |gate - 2p/(1+p)|   0.0105   <- D1 (at its loss optimum, w_eff=2)
+    median w_implied           1.7196
+    observed frequency monotone in the gate bin: True
+    resolution: observed p spans 0.000141 -> 0.163308 across bins
+
+==========================================================================================
+  VERDICT: D1
+  => the arm's loss_class_pos_weight = 1.0000   (shipped 2.0)
+==========================================================================================
+
+wrote p2_result.npz
+	Command being timed: "/home/simon/anaconda3/envs/views-hydranet-env/bin/python run_p2.py /home/simon/Documents/scripts/views_platform/views-models/models/cobalt_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_005527.pt"
+	User time (seconds): 5158.04
+	System time (seconds): 161.50
+	Percent of CPU this job got: 1357%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:31.94
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4385004
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 19391326
+	Voluntary context switches: 2249
+	Involuntary context switches: 102941
+	Swaps: 0
+	File system inputs: 7240
+	File system outputs: 29000
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+>>> saved p2_result_cobalt.npz
+=================== indigo ===================
+weights: /home/simon/Documents/scripts/views_platform/views-models/models/indigo_kestrel/data/generated/pod_training_20261020_113202/artifact/calibration_model_20261020_113202.pt
+  [0.70,0.80)             353     0.7482     0.6884     0.6884     0.8154     1.3453
+  [0.80,0.90)             380     0.8487     0.8526     0.8526     0.9205     0.9696
+  [0.90,1.01)             206     0.9323     0.9223     0.9223     0.9596     1.1600
+
+  BRANCH TEST over 5 bins with n>=1000 (tolerance = half-separation 0.0184)
+    median |gate - p|          0.0306   <- D2 (already calibrated, w_eff=1)
+    median |gate - 2p/(1+p)|   0.0062   <- D1 (at its loss optimum, w_eff=2)
+    median w_implied           1.8262
+    observed frequency monotone in the gate bin: True
+    resolution: observed p spans 0.000190 -> 0.167539 across bins
+
+==========================================================================================
+  VERDICT: D1
+  => the arm's loss_class_pos_weight = 1.0000   (shipped 2.0)
+==========================================================================================
+
+wrote p2_result.npz
+	Command being timed: "/home/simon/anaconda3/envs/views-hydranet-env/bin/python run_p2.py /home/simon/Documents/scripts/views_platform/views-models/models/indigo_kestrel/data/generated/pod_training_20261020_113202/artifact/calibration_model_20261020_113202.pt"
+	User time (seconds): 6500.87
+	System time (seconds): 202.51
+	Percent of CPU this job got: 1348%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 8:17.25
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4141316
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 20046838
+	Voluntary context switches: 4603
+	Involuntary context switches: 158797
+	Swaps: 0
+	File system inputs: 7240
+	File system outputs: 29000
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+>>> saved p2_result_indigo.npz
+=================== ALL SWEEPS DONE ===================
+total 58008
+-rw-rw-r-- 1 simon simon 14845344 Oct 21 06:26 p2_result_bronze.npz
+-rw-rw-r-- 1 simon simon 14845344 Oct 21 06:32 p2_result_cobalt.npz
+-rw-rw-r-- 1 simon simon 14845344 Oct 21 06:41 p2_result_indigo.npz
+-rw-rw-r-- 1 simon simon 14845344 Oct 21 00:48 p2_result_silver.npz

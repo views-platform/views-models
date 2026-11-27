@@ -1,0 +1,18 @@
+vehicle: calibration_model_20261021_005527.pt  sha256 23fb322138fee877…  (NOT the delivered weights — C-317)
+  lessons 300 · run_type calibration · git 2e73de3 · trained 2026-10-20T22:44:38Z to 2026-10-21T00:55:28Z
+⚠️  REGION IS RECORDED AS ENFORCED, NOT MEASURED. PROVENANCE says 'land (enforced at check_config -- the run refuses any other)' — which records that pod_run_model.sh:279-282 refuses any other value, NOT a read-back of the grid the weights saw. Nothing in a .pt or its sidecar records the region, and the net is fully convolutional, so this remains weaker than a measurement. The four known africa artifacts are additionally denied by hash.
+sweeping 421-468 x 4 passes over 64818 land cells, collecting ALL 3 heads …
+  pass 1/4 done
+  pass 2/4 done
+  pass 3/4 done
+  pass 4/4 done
+
+==============================================================================
+PARITY against p2_result_cobalt.npz
+  sb gate  identical: True
+  sb truth identical: True
+  => same instrument. ns/os numbers are comparable to the published sb numbers.
+==============================================================================
+  wrote p2_result_cobalt_sb.npz   positives   2,905   base rate 0.003448
+  wrote p2_result_cobalt_ns.npz   positives   1,012   base rate 0.001201
+  wrote p2_result_cobalt_os.npz   positives   1,088   base rate 0.001291

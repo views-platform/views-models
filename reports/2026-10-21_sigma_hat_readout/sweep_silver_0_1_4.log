@@ -1,0 +1,63 @@
+vehicle: calibration_model_20261021_092504.pt  sha256 c77451551627f04e…  (NOT the delivered weights — C-317)
+  lessons 300 · run_type calibration · git 2e73de3 · trained 2026-10-21T07:10:31Z to 2026-10-21T09:25:07Z
+⚠️  REGION IS RECORDED AS ENFORCED, NOT MEASURED. PROVENANCE says 'land (enforced at check_config -- the run refuses any other)' — which records that pod_run_model.sh:279-282 refuses any other value, NOT a read-back of the grid the weights saw. Nothing in a .pt or its sidecar records the region, and the net is fully convolutional, so this remains weaker than a measurement. The four known africa artifacts are additionally denied by hash.
+amber : origin_0 h=1 all land -- P(emit>0)=0.004040  mean emitted 0.0947  mean|nonzero 23.437  total mass 6137.7
+copper: origin_0 h=1 all land -- P(emit>0)=0.002160  mean emitted 0.0632  mean|nonzero 29.275  total mass 4098.5
+sweeping 421-468 x 4 passes, collecting the gate on all 64818 land cells …
+  842,634 cell-months · observed positive rate 0.003448
+
+==========================================================================================
+P2 — GATE RELIABILITY on all land cells, 13 out-of-sample h=1 months
+==========================================================================================
+  weights c77451551627… · posterior-mean gate over D=4 · shipped pos_weight 2.0
+
+  gate bin                n  mean gate observed p  s*(w=1)=p    s*(w=2)  w_implied
+  [0.00,0.01)          808517     0.0006     0.0002     0.0002     0.0004     2.7369
+  [0.01,0.05)           21343     0.0233     0.0133     0.0133     0.0263     1.7672
+  [0.05,0.10)            5713     0.0703     0.0546     0.0546     0.1036     1.3090
+  [0.10,0.20)            3275     0.1397     0.1243     0.1243     0.2211     1.1444
+  [0.20,0.30)            1265     0.2443     0.2182     0.2182     0.3582     1.1585
+  [0.30,0.40)             700     0.3464     0.3771     0.3771     0.5477     0.8751
+  [0.40,0.50)             525     0.4471     0.4533     0.4533     0.6239     0.9753
+  [0.50,0.60)             387     0.5476     0.5685     0.5685     0.7249     0.9188
+  [0.60,0.70)             334     0.6519     0.7036     0.7036     0.8260     0.7889
+  [0.70,0.80)             291     0.7488     0.8076     0.8076     0.8935     0.7104
+  [0.80,0.90)             219     0.8464     0.8995     0.8995     0.9471     0.6154
+  [0.90,1.01)              65     0.9274     0.9692     0.9692     0.9844     0.4053
+
+  BRANCH TEST over 5 bins with n>=1000 (tolerance = half-separation 0.0245)
+    median |gate - p|          0.0154   <- D2 (already calibrated, w_eff=1)
+    median |gate - 2p/(1+p)|   0.0333   <- D1 (at its loss optimum, w_eff=2)
+    median w_implied           1.3090
+    observed frequency monotone in the gate bin: True
+    resolution: observed p spans 0.000215 -> 0.218182 across bins
+
+==========================================================================================
+  VERDICT: D2
+  => the arm's loss_class_pos_weight = 2.0000   (shipped 2.0)
+==========================================================================================
+
+wrote p2_result.npz
+	Command being timed: "/home/simon/anaconda3/envs/views-hydranet-env/bin/python run_p2.py /home/simon/Documents/scripts/views_platform/views-models/models/silver_kestrel/data/generated/pod_delivery/artifact/calibration_model_20261021_092504.pt"
+	User time (seconds): 6149.46
+	System time (seconds): 269.23
+	Percent of CPU this job got: 1235%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 8:39.63
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4782300
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 34
+	Minor (reclaiming a frame) page faults: 27201802
+	Voluntary context switches: 565096
+	Involuntary context switches: 487438
+	Swaps: 0
+	File system inputs: 116400
+	File system outputs: 795736
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
