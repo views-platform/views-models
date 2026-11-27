@@ -98,7 +98,7 @@ Always check if other fields need to be updated as well.
 
 ### Step 2. Pull Forecasts and Predictor Data to the VIEWS API
 
-[TODO – Jim currently implements this step]
+[Follow the User Guide here.](https://github.com/UppsalaConflictDataProgram/escwatransfer/blob/multi_tov/UserGuide.md)
 
 
 ### Step 3. Update the VIEWS_API Wiki Page
