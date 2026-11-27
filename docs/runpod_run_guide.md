@@ -95,7 +95,58 @@
 
 ### Step 1.1 — Apply the selection rule
 
-**RAM ≥ 50 GB · vCPU ≥ 12 · VRAM ≥ 24 GB**
+**RAM ≥ 50 GB · vCPU ≥ 12 · VRAM ≥ 24 GB · DISK: see the chart below**
+
+⛔ **Disk is the one you will get wrong, and it is the cheapest thing on the listing.** The
+default volume is far too small for a global-`land` run, and the failure arrives as
+`OSError: [Errno 122] Disk quota exceeded` *after* the GPU time is spent.
+
+#### Disk needed, by posterior sample count — MEASURED 2026-11-04
+
+A global-`land` pgm run holds **two** copies of its output while it finishes: `_pf_staging` and
+the final `predictions_<timestamp>/`. ⇒ **Budget 2× the output, plus ~20 GB for the repos,
+venvs (torch is ~2.5 GB each) and the raw pull.**
+
+| `n_samples` | staging | final | **one model needs** | 10 models sequentially, archiving as you go |
+|---|---|---|---|---|
+| 256 | 81 GB | 81 GB | **~180 GB** | ~180 GB peak |
+| 128 | 41 GB | 40 GB | **~100 GB** | ~100 GB peak |
+| 64  | ~20 GB | ~20 GB | **~60 GB** | ~60 GB peak |
+
+Measured on 64,818 `land` cells × 36 steps × 3 targets, 13 rolling origins, float32. The per-origin
+arithmetic is `cells × steps × samples × targets × 4 B`, and it has matched reality within a few
+percent every time.
+
+⇒ **Take 500 GB and stop thinking about it.** At RunPod's volume pricing that is a rounding error
+next to the GPU hour, and it removes an entire class of mid-run failure. A 100 GB volume cannot
+finish one model at `n_samples=128`.
+
+⚠️ **`df -h` does not tell you your limit.** On a MooseFS-backed pod `df` reports the *cluster*
+(e.g. `873T, 214T avail`) while your own allocation may be 100 GB. The quota is invisible until
+you hit it. Check what you actually bought on the RunPod console, and treat `du -sh /workspace`
+as the number that matters.
+
+⚠️ **The same trap applies to RAM.** `free -g` reported **755 GiB** on a pod whose
+`/sys/fs/cgroup/memory.max` was **87.5 GiB**. A run was approved against the host figure and
+OOM-killed at 87.3 GB. ⇒ Read the cgroup:
+
+```bash
+awk '{printf "%.1f GiB\n", $1/1073741824}' /sys/fs/cgroup/memory.max   # the real ceiling
+du -sh /workspace                                                        # the real disk usage
+```
+
+⭐ **Compression makes the output trivial to bring home, so never size disk for the archive.**
+Conflict grids are 94–96% zeros: a 41 GB prediction directory compressed to **42 MB** with
+`tar -I 'zstd -3 -T8'`. That is ~1000:1, so ten models come home in ~400 MB.
+⛔ **Use `-T8`, never `-T0`** — `zstd -T0` on a 128-core box truncated a 182 MB archive to 1 MB
+(C-184's neighbourhood; the EXP-02 scar).
+
+⛔ **Never run a concurrent "cleaner" against directories a run is writing.** Archiving and
+deleting as a background janitor destroyed 9 of 10 runs on 2026-11-04 — it caught them mid-write
+and the archives were truncated to 4–21 entries against a complete run's 117. Archive **after the
+process exits**, in the same sequential loop, and refuse to delete unless the archive's entry
+count matches a known-good run.
+
 
 Machines that satisfied it in practice: `RTX PRO 4500 SE`, `RTX PRO 4500`, `RTX A6000`,
 `RTX 4090`, `RTX 6000 Ada`, `RTX 5090`, `L40`, `L40S`.

@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/workspace/views-hydranet/reports/2026-07-29_v2_scoreboard_dossier/tools/score_v2_horizons.py", line 222, in <module>
+    rows = score_horizons_v2(
+           ^^^^^^^^^^^^^^^^^^
+  File "/workspace/views-hydranet/reports/2026-07-29_v2_scoreboard_dossier/tools/score_v2_horizons.py", line 172, in score_horizons_v2
+    tmap = _truth_map(truth_parquet, lr_full, months)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/views-hydranet/reports/2026-07-25_t0_rollout_skill_dossier/tools/rollout_skill_score.py", line 97, in _truth_map
+    tdf = pd.read_parquet(truth_parquet).reset_index()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.11/site-packages/pandas/io/parquet.py", line 503, in read_parquet
+    return impl.read(
+           ^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.11/site-packages/pandas/io/parquet.py", line 244, in read
+    path_or_handle, handles, kwargs["filesystem"] = _get_path_or_handle(
+                                                    ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.11/site-packages/pandas/io/parquet.py", line 102, in _get_path_or_handle
+    handles = get_handle(
+              ^^^^^^^^^^^
+  File "/workspace/.venv/lib/python3.11/site-packages/pandas/io/common.py", line 865, in get_handle
+    handle = open(handle, ioargs.mode)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/workspace/views-hydranet/reports/2026-07-28_datafactory_migration_dossier/tools/v2_truth/calibration_datafactory_df.parquet'
