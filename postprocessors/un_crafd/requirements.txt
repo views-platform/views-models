@@ -1,0 +1,16 @@
+# views-datafactory floored at 1.13.0 — see the note in un_fao/requirements.txt. Declared
+# identically here for the same C-116 reason as the pins below: one shared prefix, so whichever
+# postprocessor runs last decides the version for both, and flooring one is flooring neither.
+views-datafactory>=1.13.0,<2.0.0
+# numpy stays on 1.x — see the note in un_fao/requirements.txt. Both postprocessors
+# install into the same envs/views-postprocessing prefix (C-116), so this pin has to be
+# declared identically in both or whichever runs last decides numpy for both.
+numpy>=1.26.4,<2.0.0
+
+# xarray and pandas pinned — see the note in un_fao/requirements.txt for the measurement
+# and for why the bound stops at xarray 2024.5.0. Declared identically here because both
+# postprocessors install into the same envs/views-postprocessing prefix (C-116): pinning
+# only one lets whichever runs last decide pandas for both, which is the same trap the
+# numpy pin above already documents.
+xarray>=2024.1,<2024.5
+pandas>=1.5.3,<2.0.0

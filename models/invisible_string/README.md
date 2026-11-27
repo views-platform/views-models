@@ -9,8 +9,9 @@
 | **Targets**         | lr_ged_sb |
 | **Features**       |  invisible_string   |
 | **Feature Description**       |  fatalities broad model, pgm level Predicting ln(ged_best_sb), broad model    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
@@ -34,6 +35,7 @@ Invisible String
 │   ├── processed
 │   ├── raw
 ├── reports
+├── notebooks
 ```
 
 ## Setup Instructions

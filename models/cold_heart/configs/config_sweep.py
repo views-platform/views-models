@@ -4,7 +4,7 @@ def get_sweep_config():
     """
     sweep_config = {
         "method": "bayes",
-        "name": "new_rules_nbeats_spotlight_lrop_20260503_round2",
+        "name": "cold_heart_nbeats_spotlight_lrop_20260503_round2",
         "early_terminate": {
             "type": "hyperband",
             "min_iter": 30,

@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Owner:** Project maintainers
-**Last reviewed:** 2026-03-15
+**Last reviewed:** 2026-06-08
 **Related ADRs:** ADR-001, ADR-002
 
 ---
@@ -11,7 +11,7 @@
 
 > `EnsembleScaffoldBuilder` creates and validates the directory structure and scripts for a new ensemble model. It inherits from `ModelScaffoldBuilder` and overrides script generation to use ensemble-specific templates.
 
-Located in: `build_ensemble_scaffold.py`
+Located in: `tools/scaffold/build_ensemble_scaffold.py`
 
 ---
 
@@ -27,7 +27,7 @@ Located in: `build_ensemble_scaffold.py`
 
 - Creates an ensemble directory at the path determined by `EnsemblePathManager`
 - Inherits directory creation and assessment from `ModelScaffoldBuilder`
-- Generates ensemble-specific scripts: `config_deployment.py`, `config_hyperparameters.py`, `config_meta.py`, `main.py`, `run.sh`, `requirements.txt`
+- Generates ensemble-specific scripts: `config_maturity.py` (born `candidate` — ADR-017 Phase 2), `config_hyperparameters.py`, `config_meta.py`, `main.py`, `run.sh`, `requirements.txt`
 - Validates name uniqueness across both models and ensembles
 
 ---

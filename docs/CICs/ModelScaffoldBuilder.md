@@ -2,7 +2,7 @@
 
 **Status:** Active
 **Owner:** Project maintainers
-**Last reviewed:** 2026-03-15
+**Last reviewed:** 2026-06-08
 **Related ADRs:** ADR-001, ADR-002, ADR-009
 
 ---
@@ -11,7 +11,7 @@
 
 > `ModelScaffoldBuilder` creates and validates the directory structure and configuration scripts for a new forecasting model. It ensures that new models conform to the repository's structural conventions.
 
-Located in: `build_model_scaffold.py`
+Located in: `tools/scaffold/build_model_scaffold.py`
 
 ---
 
@@ -28,7 +28,7 @@ Located in: `build_model_scaffold.py`
 
 - Creates a model directory at the path determined by `ModelPathManager`
 - Creates all required subdirectories (`configs/`, `data/`, `artifacts/`, etc.)
-- Generates all required config files from templates: `config_meta.py`, `config_deployment.py`, `config_hyperparameters.py`, `config_queryset.py`, `config_sweep.py`, `config_partitions.py`
+- Generates all required config files from templates: `config_meta.py`, `config_maturity.py` (born `candidate` — ADR-017 Phase 2; the legacy `config_deployment.py` is never written for a new source), `config_hyperparameters.py`, `config_queryset.py`, `config_sweep.py`, `config_partitions.py`
 - Generates `main.py` and `run.sh` from templates
 - Creates `README.md` with model name and creation date
 - Assesses directory completeness via `assess_model_directory()`

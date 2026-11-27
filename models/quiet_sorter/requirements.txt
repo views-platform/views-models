@@ -1,0 +1,6 @@
+# >=0.1.10: the first release carrying the listwise_level loss family and the
+# loss_reg_y_max field (views-hydranet #578, PRs #593/#594). Floored in BOTH arms,
+# not just the sorter, because a matched pair must differ in `loss_reg` and nothing
+# else — including what it installs.
+views-hydranet>=0.1.10,<0.2.0
+views-datafactory>=1.9.0,<2.0.0

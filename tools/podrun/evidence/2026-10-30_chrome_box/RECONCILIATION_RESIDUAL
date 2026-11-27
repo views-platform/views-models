@@ -1,0 +1,17 @@
+=== RECONCILIATION RESIDUAL ===
+ensemble:      chrome_box
+partner:       chrome_crate (declared reconcile_with)
+grid forecast: /workspace/views-models/ensembles/chrome_box/data/generated/predictions_forecasting_20261030_072233
+country fcst:  /workspace/views-models/ensembles/chrome_crate/data/generated/predictions_forecasting_20261030_041635
+mapping:       10,747,172 (time,gid)->country rows, 202 countries
+
+⚠️  UP TO 7.321% OF THE COUNTRY FORECAST'S FATALITIES ARE NOT ON THE
+   GRID. Multiplicative scaling cannot lift a country whose every cell is zero,
+   so that country's fatalities are absent from the grid product. This delivery
+   is reconciled EXCEPT for the mass below, and may not be described otherwise.
+
+lr_ns_best   unplaced       5,272,245 of      72,013,473 ( 7.321% of mass) in   188,481 of   7,446,528 triples (2.531%); scaling_failures 0
+lr_os_best   unplaced       6,553,019 of     222,651,525 ( 2.943% of mass) in   193,903 of   7,446,528 triples (2.604%); scaling_failures 0
+lr_sb_best   unplaced      12,866,485 of     319,789,635 ( 4.023% of mass) in   164,429 of   7,446,528 triples (2.208%); scaling_failures 0
+
+scaling_failures total: 0

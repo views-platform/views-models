@@ -20,8 +20,12 @@ model_name = ModelPathManager.get_model_name_from_path(__file__)
 # Zarr over HTTP requires ~/.netrc credentials (see README.md).
 ZARR_URL = DEFAULT_REMOTE.zarr_url
 
-# 64,818 PRIO-GRID land cells (global coverage, excluding water)
+# 64,818 PRIO-GRID land cells (global coverage, excluding water) — runbook #499 Step 1;
+# africa_me_legacy (13,110 cells) until 2026-09-19. The FAO delivery cuts land_gaul from this.
 REGION = "land"
+
+# UCDP field names as stored in the zarr store
+FACTORY_FEATURES = ["ged_sb_best", "ged_ns_best", "ged_os_best", "gaul0_code"]
 
 # Factory name → VIEWSER name (so downstream model code doesn't change)
 FEATURE_RENAME = {

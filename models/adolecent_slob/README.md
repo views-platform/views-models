@@ -1,4 +1,4 @@
-# Teenage Dirtbag 
+# Adolecent Slob 
 ## Overview
 
 
@@ -6,16 +6,17 @@
 |---------------------|--------------------------------|
 | **Model Algorithm** | TCNModel                  |
 | **Level of Analysis** | cm            |
-| **Targets**         | ln_ged_sb_dep |
-| **Features**       |  teenage_dirtbag   |
-| **Feature Description**       |  Base features for neural network models    |
-| **Metrics**       |  RMSLE, CRPS, MSE, MSLE, y_hat_bar    |
-| **Deployment Status**       |  shadow    |
+| **Targets**         | lr_ged_sb |
+| **Features**       |  adolecent_slob   |
+| **Feature Description**       |  No description provided    |
+| **Metrics**       |  No information provided    |
+| **Maturity**       |  candidate    |
+| **Data Source**       |  viewser    |
 
 ## Repository Structure
 
 ```
-Teenage Dirtbag
+Adolecent Slob
 ├── README.md
 ├── main.py
 ├── requirements.txt
@@ -23,8 +24,8 @@ Teenage Dirtbag
 ├── logs
 ├── artifacts
 ├── configs
-│   ├── config_deployment.py
 │   ├── config_hyperparameters.py
+│   ├── config_maturity.py
 │   ├── config_meta.py
 │   ├── config_partitions.py
 │   ├── config_queryset.py

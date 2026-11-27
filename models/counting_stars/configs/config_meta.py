@@ -11,7 +11,7 @@ def get_meta_config():
         "name": "counting_stars", 
         "algorithm": "XGBRegressor",
         "regression_point_baselines": ["average_cmbaseline", "zero_cmbaseline", "locf_cmbaseline"],
-        "regression_point_metrics": ["RMSLE", "MSE", "MSLE", "y_hat_bar"],
+        "regression_point_metrics": ["MSLE", "MSE", "MCR_point", "y_hat_bar"],
         "regression_targets": ["lr_ged_sb"],
         "queryset": "fatalities003_conflict_history_long",
         "level": "cm",
